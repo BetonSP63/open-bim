@@ -37,6 +37,7 @@ impl Project {
             .filter(|d| d.kind.part() == Some(id))
             .collect();
         let mut holes = Vec::new();
+        let mut drilled = Vec::new();
         for detail in &details {
             if let DetailKind::Hole {
                 frame,
@@ -48,14 +49,14 @@ impl Project {
                 frame.validate()?;
                 let z = frame.axes[2];
                 let end = frame.origin.0[2] + z[2] * depth;
-                if z[0].abs() > 1e-9
+                if hollow.is_some()
+                    || z[0].abs() > 1e-9
                     || z[1].abs() > 1e-9
                     || frame.origin.0[2].min(end) > 0.0
                     || frame.origin.0[2].max(end) < length
                 {
-                    return Err(ModelError::InvalidValue(
-                        "Непродольное или глухое отверстие требует операции сверления тела".into(),
-                    ));
+                    drilled.push((frame, diameter, depth));
+                    continue;
                 }
                 holes.push(([frame.origin.0[0], frame.origin.0[1]], diameter / 2.0));
             }
@@ -63,34 +64,32 @@ impl Project {
         let geometry_error =
             |e: open_bim_geometry::BodyError| ModelError::InvalidValue(e.to_string());
         let mut body = match hollow {
-            Some(shape) => {
-                if !holes.is_empty() {
-                    return Err(ModelError::InvalidValue(
-                        "Сверление стенки полого профиля требует поперечного инструмента".into(),
-                    ));
-                }
-                match *shape {
-                    ProfileShape::CircularHollow {
-                        diameter,
-                        thickness,
-                    } => Body::tube(
-                        diameter / 2.0,
-                        diameter / 2.0 - thickness,
-                        length,
-                        Point3([0.0; 3]),
-                    ),
-                    ProfileShape::RectangularHollow {
-                        width,
-                        height,
-                        thickness,
-                    } => Body::rectangular_tube(width, height, thickness, length, Point3([0.0; 3])),
-                    _ => unreachable!(),
-                }
-                .map_err(geometry_error)?
+            Some(shape) => match *shape {
+                ProfileShape::CircularHollow {
+                    diameter,
+                    thickness,
+                } => Body::tube(
+                    diameter / 2.0,
+                    diameter / 2.0 - thickness,
+                    length,
+                    Point3([0.0; 3]),
+                ),
+                ProfileShape::RectangularHollow {
+                    width,
+                    height,
+                    thickness,
+                } => Body::rectangular_tube(width, height, thickness, length, Point3([0.0; 3])),
+                _ => unreachable!(),
             }
+            .map_err(geometry_error)?,
             None => Body::prism_with_holes(&contour, length, &holes, Point3([0.0; 3]))
                 .map_err(geometry_error)?,
         };
+        for (frame, diameter, depth) in drilled {
+            body = body
+                .drill(frame.axes, frame.origin.0, diameter / 2.0, *depth)
+                .map_err(geometry_error)?;
+        }
         for detail in details {
             body = match &detail.kind {
                 DetailKind::PlaneCut { normal, offset, .. } => {

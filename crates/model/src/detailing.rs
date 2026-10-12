@@ -161,6 +161,16 @@ impl DetailKind {
                     return Err(invalid());
                 }
                 let mut per_part = std::collections::BTreeMap::<ObjectId, usize>::new();
+                let coordinates = |steps: &[f64]| {
+                    let mut values = vec![0.0];
+                    for step in steps {
+                        values.push(values.last().unwrap() + step);
+                    }
+                    values
+                };
+                let xs = coordinates(steps_x);
+                let ys = coordinates(steps_y);
+                let mut occupied = std::collections::BTreeSet::new();
                 for id in holes {
                     let detail = project
                         .details
@@ -169,6 +179,7 @@ impl DetailKind {
                     let DetailKind::Hole {
                         part,
                         diameter: hole_diameter,
+                        frame: hole_frame,
                         ..
                     } = &detail.kind
                     else {
@@ -176,6 +187,29 @@ impl DetailKind {
                     };
                     if !parts.contains(part) || (*hole_diameter - diameter - clearance).abs() > 1e-8
                     {
+                        return Err(invalid());
+                    }
+                    let parent = project.elements[part].shape.frame();
+                    let world = parent.world(hole_frame.origin);
+                    let delta: [f64; 3] = std::array::from_fn(|i| world.0[i] - frame.origin.0[i]);
+                    let dot = |a: [f64; 3], b: [f64; 3]| (0..3).map(|i| a[i] * b[i]).sum::<f64>();
+                    let world_axis: [f64; 3] = std::array::from_fn(|i| {
+                        (0..3)
+                            .map(|j| parent.axes[j][i] * hole_frame.axes[2][j])
+                            .sum()
+                    });
+                    if dot(world_axis, frame.axes[2]).abs() < 1.0 - 1e-9 {
+                        return Err(invalid());
+                    }
+                    let ix = xs
+                        .iter()
+                        .position(|x| (*x - dot(delta, frame.axes[0])).abs() < 1e-6)
+                        .ok_or_else(invalid)?;
+                    let iy = ys
+                        .iter()
+                        .position(|y| (*y - dot(delta, frame.axes[1])).abs() < 1e-6)
+                        .ok_or_else(invalid)?;
+                    if !occupied.insert((*part, ix, iy)) {
                         return Err(invalid());
                     }
                     *per_part.entry(*part).or_default() += 1;

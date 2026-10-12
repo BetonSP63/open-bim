@@ -1,6 +1,7 @@
 //! Double precision coordinates in millimetres; independent of presentation.
 
 mod kernel;
+mod prism_mesh;
 pub use kernel::{Body, BodyError, Mesh, TOLERANCE_MM, Tessellation64};
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]

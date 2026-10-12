@@ -332,3 +332,102 @@ fn gusset_and_stiffener_shapes_edit_atomically_and_persist() {
         );
     }
 }
+
+#[test]
+fn linked_bolts_and_weld_follow_whole_group_rigid_edits() {
+    use open_bim_commands::Document;
+    use open_bim_desktop::tools::{Draft, edit_commands};
+    use open_bim_model::{Detail, DetailKind, Frame, WeldType};
+    let mut doc = Document::new(Project::default()).unwrap();
+    for z in [0., 20.] {
+        let draft = Draft {
+            kind: ToolKind::Plate,
+            start: coords([0., 0., z]),
+            ..Draft::default()
+        };
+        doc.transact("Plate", &draft.commands(doc.project()).unwrap())
+            .unwrap();
+    }
+    let parts = BTreeSet::from([ObjectId(8), ObjectId(9)]);
+    let mut commands = Vec::new();
+    for (id, part, z) in [(10, 8, -1.), (11, 9, -21.)] {
+        commands.push(Command::CreateDetail {
+            detail: Detail {
+                id: ObjectId(id),
+                kind: DetailKind::Hole {
+                    part: ObjectId(part),
+                    frame: Frame {
+                        origin: Point3([50., 50., z]),
+                        ..Frame::default()
+                    },
+                    diameter: 22.,
+                    depth: 42.,
+                },
+            },
+        });
+    }
+    commands.push(Command::CreateDetail {
+        detail: Detail {
+            id: ObjectId(12),
+            kind: DetailKind::BoltGroup {
+                parts: parts.clone(),
+                holes: BTreeSet::from([ObjectId(10), ObjectId(11)]),
+                frame: Frame {
+                    origin: Point3([50., 50., -1.]),
+                    ..Frame::default()
+                },
+                diameter: 20.,
+                clearance: 2.,
+                steps_x: vec![],
+                steps_y: vec![],
+                standard: "ISO 4014".into(),
+                grade: "8.8".into(),
+            },
+        },
+    });
+    commands.push(Command::CreateDetail {
+        detail: Detail {
+            id: ObjectId(13),
+            kind: DetailKind::Weld {
+                parts: parts.clone(),
+                weld_type: WeldType::Fillet,
+                size: 6.,
+                path: vec![Point3([0., 0., 20.]), Point3([100., 0., 20.])],
+                shop: true,
+            },
+        },
+    });
+    doc.transact("Connection", &commands).unwrap();
+    let original = project_hash(doc.project()).unwrap();
+    assert!(
+        edit_commands(
+            doc.project(),
+            &BTreeSet::from([ObjectId(8)]),
+            &Edit::Move(Point3([10., 0., 0.]))
+        )
+        .is_err()
+    );
+    for edit in [
+        Edit::Move(Point3([100., 200., 300.])),
+        Edit::Rotate {
+            axis: Point3([0., 0., 1.]),
+            degrees: 90.,
+            pivot: Point3([0.; 3]),
+        },
+    ] {
+        let commands = edit_commands(doc.project(), &parts, &edit).unwrap();
+        doc.transact("Transform all", &commands).unwrap();
+        doc.project().validate().unwrap();
+        let DetailKind::BoltGroup { frame, .. } = &doc.project().details[&ObjectId(12)].kind else {
+            unreachable!()
+        };
+        if matches!(edit, Edit::Move(_)) {
+            assert_point(frame.origin, [150., 250., 299.]);
+        } else {
+            assert_point(frame.origin, [-250., 150., 299.]);
+        }
+    }
+    doc.undo().unwrap();
+    doc.undo().unwrap();
+    assert_eq!(project_hash(doc.project()).unwrap(), original);
+}

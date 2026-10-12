@@ -2164,6 +2164,7 @@ name = "open-bim-geometry"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "spade",
  "truck-meshalgo",
  "truck-modeling",
  "truck-shapeops",

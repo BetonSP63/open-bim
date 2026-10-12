@@ -201,7 +201,8 @@ impl Body {
             }
             let face = builder::try_attach_plane(&wires).map_err(|_| BodyError::KernelFailure)?;
             let solid = builder::tsweep(&face, Vector3::new(0.0, 0.0, length));
-            let mut body = Self::validated(solid, origin)?;
+            let mesh = crate::prism_mesh::prism_mesh(&points, length, holes)?;
+            let mut body = Self::validated_mesh(solid, origin, Some(mesh))?;
             body.exact_volume = Some(
                 base.volume_mm3()?
                     - holes
@@ -356,8 +357,264 @@ impl Body {
         self.boolean(other, false)
     }
 
+    pub fn cylinder(radius: f64, length: f64, origin: Point3) -> Result<Self, BodyError> {
+        if ![radius, length].iter().all(|v| v.is_finite() && *v > 0.001)
+            || !origin.0.iter().all(|v| v.is_finite() && v.abs() <= 1e9)
+        {
+            return Err(BodyError::InvalidInput);
+        }
+        guarded(|| {
+            let vertex = builder::vertex(truck_modeling::Point3::new(
+                radius / 2.0_f64.sqrt(),
+                radius / 2.0_f64.sqrt(),
+                0.0,
+            ));
+            let wire = builder::rsweep(
+                &vertex,
+                truck_modeling::Point3::new(0.0, 0.0, 0.0),
+                Vector3::unit_z(),
+                truck_modeling::Rad(std::f64::consts::TAU),
+            );
+            let face = builder::try_attach_plane(&[wire]).map_err(|_| BodyError::KernelFailure)?;
+            let n = 4096;
+            let mut positions = Vec::with_capacity(n * 2 + 2);
+            for z in [0.0, length] {
+                for i in 0..n {
+                    let a = std::f64::consts::TAU * i as f64 / n as f64;
+                    positions.push(truck_modeling::Point3::new(
+                        radius * a.cos(),
+                        radius * a.sin(),
+                        z,
+                    ));
+                }
+            }
+            positions.push(truck_modeling::Point3::new(0.0, 0.0, 0.0));
+            positions.push(truck_modeling::Point3::new(0.0, 0.0, length));
+            let mut triangles: Vec<[usize; 3]> = Vec::with_capacity(n * 4);
+            for i in 0..n {
+                let j = (i + 1) % n;
+                triangles.extend([
+                    [i, j, j + n],
+                    [i, j + n, i + n],
+                    [2 * n, j, i],
+                    [2 * n + 1, i + n, j + n],
+                ]);
+            }
+            let mesh = PolygonMesh::new(
+                StandardAttributes {
+                    positions,
+                    ..Default::default()
+                },
+                Faces::from_iter(triangles.iter()),
+            );
+            let mut body = Self::validated_mesh(
+                builder::tsweep(&face, Vector3::new(0.0, 0.0, length)),
+                origin,
+                Some(mesh),
+            )?;
+            body.exact_volume = Some(std::f64::consts::PI * radius * radius * length);
+            Ok(body)
+        })
+    }
+
+    /// Rigid local transformation; the separate world origin stays unchanged.
+    pub fn rigid_transform(
+        &self,
+        axes: [[f64; 3]; 3],
+        translation: [f64; 3],
+    ) -> Result<Self, BodyError> {
+        use truck_modeling::{InnerSpace, Matrix4, Vector4};
+        if !axes
+            .iter()
+            .flatten()
+            .chain(translation.iter())
+            .all(|v| v.is_finite())
+        {
+            return Err(BodyError::InvalidInput);
+        }
+        let [x, y, z] = axes.map(|a| Vector3::new(a[0], a[1], a[2]));
+        if [x, y, z]
+            .iter()
+            .any(|a| (a.magnitude2() - 1.0).abs() > 1e-9)
+            || x.dot(y).abs() > 1e-9
+            || y.dot(z).abs() > 1e-9
+            || z.dot(x).abs() > 1e-9
+            || (x.cross(y) - z).magnitude() > 1e-9
+        {
+            return Err(BodyError::InvalidInput);
+        }
+        guarded(|| {
+            let matrix = Matrix4::from_cols(
+                Vector4::new(x.x, x.y, x.z, 0.0),
+                Vector4::new(y.x, y.y, y.z, 0.0),
+                Vector4::new(z.x, z.y, z.z, 0.0),
+                Vector4::new(translation[0], translation[1], translation[2], 1.0),
+            );
+            let transform = |p: [f64; 3]| {
+                std::array::from_fn(|i| {
+                    translation[i] + (0..3).map(|j| axes[j][i] * p[j]).sum::<f64>()
+                })
+            };
+            let mesh = self.polygon();
+            let positions = mesh
+                .positions()
+                .iter()
+                .map(|p| {
+                    let q = transform([p.x, p.y, p.z]);
+                    truck_modeling::Point3::new(q[0], q[1], q[2])
+                })
+                .collect();
+            let mut body = Self::validated_mesh(
+                builder::transformed(&self.solid, matrix),
+                self.origin,
+                Some(PolygonMesh::new(
+                    StandardAttributes {
+                        positions,
+                        ..Default::default()
+                    },
+                    mesh.faces().clone(),
+                )),
+            )?;
+            body.exact_volume = self.exact_volume;
+            body.planar_faces = self.planar_faces.as_ref().map(|faces| {
+                faces
+                    .iter()
+                    .map(|f| f.iter().map(|p| transform(*p)).collect())
+                    .collect()
+            });
+            Ok(body)
+        })
+    }
+
     pub fn difference(&self, other: &Self) -> Result<Self, BodyError> {
         self.boolean(other, true)
+    }
+
+    /// Drill an exact cylinder. Uniform extrusions use shared cavity topology,
+    /// avoiding coincident intersections in the general Boolean algorithm.
+    pub fn drill(
+        &self,
+        axes: [[f64; 3]; 3],
+        start: [f64; 3],
+        radius: f64,
+        depth: f64,
+    ) -> Result<Self, BodyError> {
+        let tool = Self::cylinder(radius, depth, self.origin)?.rigid_transform(axes, start)?;
+        let Some(faces) = &self.planar_faces else {
+            return self.difference(&tool);
+        };
+        let local =
+            |p: [f64; 3]| axes.map(|a| (0..3).map(|i| a[i] * (p[i] - start[i])).sum::<f64>());
+        let points: Vec<_> = faces.iter().flatten().map(|p| local(*p)).collect();
+        let lower = points.iter().map(|p| p[2]).fold(f64::INFINITY, f64::min);
+        let upper = points
+            .iter()
+            .map(|p| p[2])
+            .fold(f64::NEG_INFINITY, f64::max);
+        let near = |a: f64, b: f64| (a - b).abs() < TOLERANCE_MM;
+        if !points
+            .iter()
+            .all(|p| near(p[2], lower) || near(p[2], upper))
+        {
+            return self.difference(&tool);
+        }
+        let Some(bottom) = faces
+            .iter()
+            .find(|f| f.iter().all(|p| near(local(*p)[2], lower)))
+        else {
+            return self.difference(&tool);
+        };
+        let contour: Vec<_> = bottom
+            .iter()
+            .map(|p| {
+                let p = local(*p);
+                [p[0], p[1]]
+            })
+            .collect();
+        if points
+            .iter()
+            .filter(|p| near(p[2], upper))
+            .any(|p| !contour.iter().any(|q| near(p[0], q[0]) && near(p[1], q[1])))
+        {
+            return self.difference(&tool);
+        }
+        let length = upper - lower;
+        let from = 0.0_f64.max(lower) - lower;
+        let to = depth.min(upper) - lower;
+        if to - from <= 0.001 {
+            return Err(BodyError::InvalidInput);
+        }
+        // Validate circle containment and topology even for a blind hole.
+        let mut result = if near(from, 0.0) && near(to, length) {
+            Self::prism_with_holes(&contour, length, &[([0.0, 0.0], radius)], self.origin)?
+        } else if near(to, length) {
+            Self::blind_prism(&contour, length, radius, from, self.origin)?
+        } else if near(from, 0.0) {
+            // Reverse drilling direction to construct a cavity open at the top.
+            let reversed: Vec<_> = contour.iter().map(|p| [p[0], -p[1]]).collect();
+            Self::blind_prism(&reversed, length, radius, length - to, self.origin)?
+                .rigid_transform(
+                    [[1.0, 0.0, 0.0], [0.0, -1.0, 0.0], [0.0, 0.0, -1.0]],
+                    [0.0, 0.0, length],
+                )?
+        } else {
+            return self.difference(&tool);
+        };
+        let translation = std::array::from_fn(|i| start[i] + axes[2][i] * lower);
+        result = result.rigid_transform(axes, translation)?;
+        Ok(result)
+    }
+
+    fn blind_prism(
+        contour: &[[f64; 2]],
+        length: f64,
+        radius: f64,
+        floor: f64,
+        origin: Point3,
+    ) -> Result<Self, BodyError> {
+        Self::prism_with_holes(contour, length, &[([0.0, 0.0], radius)], origin)?;
+        guarded(|| {
+            let base = Self::prism(contour, length, origin)?;
+            let cylinder = Self::cylinder(radius, length - floor, origin)?.rigid_transform(
+                [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+                [0.0, 0.0, floor],
+            )?;
+            let at_top = |face: &truck_modeling::Face| {
+                face.boundaries().iter().flat_map(|w| w.iter()).all(|e| {
+                    (e.front().point().z - length).abs() < 1e-8
+                        && (e.back().point().z - length).abs() < 1e-8
+                })
+            };
+            let base_top = base.solid.boundaries()[0]
+                .iter()
+                .find(|f| at_top(f))
+                .ok_or(BodyError::KernelFailure)?;
+            let cylinder_top = cylinder.solid.boundaries()[0]
+                .iter()
+                .find(|f| at_top(f))
+                .ok_or(BodyError::KernelFailure)?;
+            let mut wires = base_top.boundaries().to_vec();
+            wires.extend(cylinder_top.boundaries().iter().map(|w| w.inverse()));
+            let top = builder::try_attach_plane(&wires).map_err(|_| BodyError::KernelFailure)?;
+            let mut shell: truck_modeling::Shell = base.solid.boundaries()[0]
+                .iter()
+                .filter(|f| !at_top(f))
+                .cloned()
+                .collect();
+            shell.push(top);
+            shell.extend(
+                cylinder.solid.boundaries()[0]
+                    .iter()
+                    .filter(|f| !at_top(f))
+                    .map(|f| f.inverse()),
+            );
+            let mesh = crate::prism_mesh::blind_prism_mesh(contour, length, radius, floor)?;
+            let mut body = Self::validated_mesh(Solid::new(vec![shell]), origin, Some(mesh))?;
+            body.exact_volume = Some(
+                base.volume_mm3()? - std::f64::consts::PI * radius * radius * (length - floor),
+            );
+            Ok(body)
+        })
     }
 
     /// Keep the local half-space normal·point <= offset. The cutter is a
@@ -585,7 +842,7 @@ impl Body {
         }
         let mut mesh = self
             .solid
-            .robust_triangulation(TOLERANCE_MM * 2.0)
+            .robust_triangulation(TOLERANCE_MM * 0.5)
             .to_polygon();
         // CPU topology/volume only need positions. Welding the repeated normals
         // of a fine cylindrical surface has quadratic cost in truck's filter.

@@ -164,3 +164,32 @@ fn empty_detailing_preserves_legacy_canonical_hash() {
     let loaded = Project::from_json(&old).unwrap();
     assert_eq!(project_hash(&loaded).unwrap(), project_hash(&p).unwrap());
 }
+
+#[test]
+fn bolt_pattern_rejects_displaced_duplicate_and_tilted_holes() {
+    let mut doc = Document::new(plates()).unwrap();
+    let commands = bolt_commands(doc.project(), &pattern()).unwrap();
+    doc.transact("Pattern", &commands).unwrap();
+    let original = doc.project().clone();
+    let holes: Vec<_> = original
+        .details
+        .values()
+        .filter(|d| matches!(d.kind, DetailKind::Hole { .. }))
+        .map(|d| d.id)
+        .collect();
+    for mode in 0..3 {
+        let mut p = original.clone();
+        let DetailKind::Hole { frame: other, .. } = &original.details[&holes[1]].kind else {
+            unreachable!()
+        };
+        let DetailKind::Hole { frame, .. } = &mut p.details.get_mut(&holes[0]).unwrap().kind else {
+            unreachable!()
+        };
+        match mode {
+            0 => frame.origin.0[0] += 1.,
+            1 => *frame = *other,
+            _ => frame.axes = [[0., 1., 0.], [0., 0., 1.], [1., 0., 0.]],
+        }
+        assert!(p.validate().is_err(), "invalid mode {mode}");
+    }
+}

@@ -3,8 +3,8 @@ mod snap;
 pub mod ui;
 use open_bim_commands::{Command, Document, project_hash};
 use open_bim_model::{
-    Element, ElementShape, Frame, GridAxis, LengthMm, MemberKind, ObjectId, Point3, Project,
-    PropertyValue,
+    DetailKind, Element, ElementShape, Frame, GridAxis, LengthMm, MemberKind, ObjectId, Point3,
+    Project, PropertyValue,
 };
 use open_bim_renderer::{DVec3, Scene};
 use serde::Serialize;
@@ -329,6 +329,52 @@ pub fn edit_commands(
             });
         } else {
             return Err(format!("Объект {id} недоступен для преобразования"));
+        }
+    }
+    if let Edit::Move(_) | Edit::Rotate { .. } = edit {
+        let (r, pivot) = match edit {
+            Edit::Move(delta) => (
+                Frame {
+                    origin: *delta,
+                    ..Frame::default()
+                },
+                Point3([0.0; 3]),
+            ),
+            Edit::Rotate {
+                axis,
+                degrees,
+                pivot,
+            } => (rotation(*axis, *degrees)?, *pivot),
+            _ => unreachable!(),
+        };
+        for source in project.details.values() {
+            let mut detail = source.clone();
+            let parts = match &detail.kind {
+                DetailKind::BoltGroup { parts, .. } | DetailKind::Weld { parts, .. } => parts,
+                _ => continue,
+            };
+            if parts.is_disjoint(selected) {
+                continue;
+            }
+            if !parts.is_subset(selected) {
+                return Err("Для преобразования соединения выберите все связанные детали".into());
+            }
+            match &mut detail.kind {
+                DetailKind::BoltGroup { frame, .. } => {
+                    frame.origin = transform_point(frame.origin, r, pivot);
+                    for axis in &mut frame.axes {
+                        *axis =
+                            std::array::from_fn(|i| (0..3).map(|j| r.axes[j][i] * axis[j]).sum());
+                    }
+                }
+                DetailKind::Weld { path, .. } => {
+                    for point in path {
+                        *point = transform_point(*point, r, pivot);
+                    }
+                }
+                _ => unreachable!(),
+            }
+            commands.push(Command::ReplaceDetail { detail });
         }
     }
     Ok(commands)
