@@ -4,6 +4,7 @@ use open_bim_model::{ObjectId, Point3, PropertyValue};
 #[derive(Clone, Debug)]
 pub enum Action {
     Create,
+    Detail(Vec<open_bim_commands::Command>),
     Edit(Edit),
     Undo,
     Redo,
@@ -13,6 +14,7 @@ pub enum Action {
     Example,
 }
 pub struct ToolsUi {
+    pub detailing: super::detailing_ui::DetailingUi,
     pub plate_contour: String,
     pub plate_thickness: String,
     pub delta: [String; 3],
@@ -32,6 +34,7 @@ pub struct ToolsUi {
 impl Default for ToolsUi {
     fn default() -> Self {
         Self {
+            detailing: Default::default(),
             plate_contour: String::new(),
             plate_thickness: "20".into(),
             delta: ["1000".into(), "0".into(), "0".into()],
@@ -50,7 +53,7 @@ impl Default for ToolsUi {
         }
     }
 }
-fn vector_fields(ui: &mut egui::Ui, id: &str, values: &mut [String; 3]) {
+pub(super) fn vector_fields(ui: &mut egui::Ui, id: &str, values: &mut [String; 3]) {
     ui.push_id(id, |ui| {
         ui.horizontal(|ui| {
             for (i, value) in values.iter_mut().enumerate() {
@@ -267,6 +270,15 @@ impl ToolsUi {
                         }
                     }
                 });
+            }
+        }
+        if let Some(result) = self
+            .detailing
+            .show(ui, editor.document.project(), &editor.selected)
+        {
+            match result {
+                Ok(commands) => action = Some(Action::Detail(commands)),
+                Err(e) => self.message = Some(e),
             }
         }
         ui.label("Свойство / текстовое значение");

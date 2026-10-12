@@ -173,6 +173,7 @@ impl Desktop {
             || matches!(action, Action::New | Action::Example | Action::Open);
         let result = match action {
             Action::Create => self.editor.create(),
+            Action::Detail(commands) => self.editor.commit("Деталировка", &commands),
             Action::Edit(edit) => self.editor.edit(&edit),
             Action::Undo => self.editor.history(false),
             Action::Redo => self.editor.history(true),

@@ -430,4 +430,147 @@ fn linked_bolts_and_weld_follow_whole_group_rigid_edits() {
     doc.undo().unwrap();
     doc.undo().unwrap();
     assert_eq!(project_hash(doc.project()).unwrap(), original);
+    let mirror = Edit::Mirror {
+        normal: Point3([0., 0., 1.]),
+        offset: 0.,
+    };
+    let volume = doc.project().element_volume_mm3(ObjectId(8)).unwrap();
+    let commands = edit_commands(doc.project(), &parts, &mirror).unwrap();
+    doc.transact("Mirror connection", &commands).unwrap();
+    let DetailKind::BoltGroup { frame, .. } = &doc.project().details[&ObjectId(12)].kind else {
+        unreachable!()
+    };
+    assert_point(frame.origin, [50., 50., 1.]);
+    let DetailKind::Weld { path, .. } = &doc.project().details[&ObjectId(13)].kind else {
+        unreachable!()
+    };
+    assert_point(path[1], [100., 0., -20.]);
+    assert!((doc.project().element_volume_mm3(ObjectId(8)).unwrap() - volume).abs() < 1e-6);
+    let commands = edit_commands(doc.project(), &parts, &mirror).unwrap();
+    doc.transact("Mirror back", &commands).unwrap();
+    doc.undo().unwrap();
+    doc.undo().unwrap();
+    assert_eq!(project_hash(doc.project()).unwrap(), original);
+    let commands = edit_commands(
+        doc.project(),
+        &parts,
+        &Edit::Copy(Point3([100., 200., 300.])),
+    )
+    .unwrap();
+    doc.transact("Copy complete connection", &commands).unwrap();
+    assert_eq!(doc.project().elements.len(), 4);
+    assert_eq!(doc.project().details.len(), 8);
+    let created = doc
+        .project()
+        .details
+        .values()
+        .find(|d| d.id.0 > 13 && matches!(d.kind, DetailKind::BoltGroup { .. }))
+        .unwrap();
+    let DetailKind::BoltGroup {
+        parts: new_parts,
+        holes,
+        frame,
+        ..
+    } = &created.kind
+    else {
+        unreachable!()
+    };
+    assert!(parts.is_disjoint(new_parts));
+    assert!(holes.iter().all(|id| id.0 > 13));
+    assert_point(frame.origin, [150., 250., 299.]);
+    let saved = open_bim_persistence::encode(doc.project()).unwrap();
+    assert_eq!(
+        open_bim_persistence::decode(&saved).unwrap(),
+        *doc.project()
+    );
+    doc.undo().unwrap();
+    assert_eq!(project_hash(doc.project()).unwrap(), original);
+    let commands = edit_commands(
+        doc.project(),
+        &BTreeSet::from([ObjectId(8)]),
+        &Edit::Copy(Point3([100., 0., 0.])),
+    )
+    .unwrap();
+    doc.transact("Copy one drilled part", &commands).unwrap();
+    assert_eq!(doc.project().elements.len(), 3);
+    assert_eq!(doc.project().details.len(), 5);
+    doc.undo().unwrap();
+    assert_eq!(project_hash(doc.project()).unwrap(), original);
+}
+
+#[test]
+fn mirrored_local_cuts_and_blind_holes_preserve_net_volume() {
+    use open_bim_commands::Document;
+    use open_bim_desktop::tools::{Draft, edit_commands};
+    use open_bim_model::{Detail, DetailKind, Frame};
+    let kinds = [
+        DetailKind::PlaneCut {
+            part: ObjectId(8),
+            normal: [0., 0., 1.],
+            offset: 10.,
+        },
+        DetailKind::BoxCut {
+            part: ObjectId(8),
+            origin: Point3([20., 20., -1.]),
+            size: [20., 20., 11.],
+        },
+        DetailKind::Hole {
+            part: ObjectId(8),
+            frame: Frame {
+                origin: Point3([50., 50., 10.]),
+                ..Frame::default()
+            },
+            diameter: 10.,
+            depth: 11.,
+        },
+    ];
+    for kind in kinds {
+        let mut doc = Document::new(Project::default()).unwrap();
+        let draft = Draft {
+            kind: ToolKind::Plate,
+            contour: "0,0; 100,0; 100,100; 0,100".into(),
+            ..Draft::default()
+        };
+        doc.transact("Plate", &draft.commands(doc.project()).unwrap())
+            .unwrap();
+        doc.transact(
+            "Feature",
+            &[Command::CreateDetail {
+                detail: Detail {
+                    id: ObjectId(9),
+                    kind,
+                },
+            }],
+        )
+        .unwrap();
+        let hash = project_hash(doc.project()).unwrap();
+        let volume = doc.project().element_volume_mm3(ObjectId(8)).unwrap();
+        let commands = edit_commands(
+            doc.project(),
+            &BTreeSet::from([ObjectId(8)]),
+            &Edit::Mirror {
+                normal: Point3([0., 0., 1.]),
+                offset: 50.,
+            },
+        )
+        .unwrap();
+        doc.transact("Mirror", &commands).unwrap();
+        let mirrored = doc.project().element_volume_mm3(ObjectId(8)).unwrap();
+        assert!((mirrored - volume).abs() / volume < 1e-6);
+        let shape_frame = doc.project().elements[&ObjectId(8)].shape.frame();
+        match &doc.project().details[&ObjectId(9)].kind {
+            DetailKind::PlaneCut { normal, offset, .. } => {
+                assert_eq!(*normal, [0., 0., -1.]);
+                assert_eq!(*offset, -10.);
+            }
+            DetailKind::BoxCut { origin, .. } => assert_eq!(origin.0[2], 10.),
+            DetailKind::Hole { frame, .. } => {
+                assert_point(shape_frame.world(frame.origin), [50., 50., 90.]);
+                assert_eq!(frame.axes[2], [0., 0., -1.]);
+            }
+            _ => unreachable!(),
+        }
+        doc.undo().unwrap();
+        assert_eq!(project_hash(doc.project()).unwrap(), hash);
+    }
 }

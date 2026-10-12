@@ -1,0 +1,184 @@
+{
+  "magic": "open-bim-project",
+  "format_version": 1,
+  "payload_sha256": "7ea6b564b3c518e40fd682aa9e16d144455cff1a9e87116d8a98f254bf0d551d",
+  "project": {
+    "name": "Новый проект",
+    "units": "millimetres",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "revision": 3,
+    "next_id": 10,
+    "materials": {
+      "1": {
+        "id": 1,
+        "name": "S235 · тестовый материал",
+        "density_kg_m3": 7850.0
+      }
+    },
+    "profiles": {
+      "2": {
+        "id": 2,
+        "name": "I 300×150×8×12",
+        "shape": {
+          "kind": "i_section",
+          "height": 300.0,
+          "width": 150.0,
+          "web": 8.0,
+          "flange": 12.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "3": {
+        "id": 3,
+        "name": "L 100×75×8",
+        "shape": {
+          "kind": "angle",
+          "height": 100.0,
+          "width": 75.0,
+          "thickness": 8.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "4": {
+        "id": 4,
+        "name": "C 200×75×6×10",
+        "shape": {
+          "kind": "channel",
+          "height": 200.0,
+          "width": 75.0,
+          "web": 6.0,
+          "flange": 10.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "5": {
+        "id": 5,
+        "name": "CHS 114×6",
+        "shape": {
+          "kind": "circular_hollow",
+          "diameter": 114.0,
+          "thickness": 6.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "6": {
+        "id": 6,
+        "name": "RHS 150×100×6",
+        "shape": {
+          "kind": "rectangular_hollow",
+          "height": 150.0,
+          "width": 100.0,
+          "thickness": 6.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "7": {
+        "id": 7,
+        "name": "R 100×50",
+        "shape": {
+          "kind": "rectangle",
+          "height": 100.0,
+          "width": 50.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      }
+    },
+    "elements": {
+      "8": {
+        "id": 8,
+        "name": "Косынка",
+        "material": 1,
+        "shape": {
+          "kind": "plate",
+          "contour": [
+            [
+              0.0,
+              0.0
+            ],
+            [
+              300.0,
+              0.0
+            ],
+            [
+              0.0,
+              300.0
+            ]
+          ],
+          "thickness": 16.0,
+          "frame": {
+            "origin": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {
+          "fabrication_role": {
+            "type": "text",
+            "value": "gusset"
+          }
+        }
+      }
+    },
+    "assemblies": {},
+    "axes": {},
+    "levels": {},
+    "details": {
+      "9": {
+        "id": 9,
+        "kind": {
+          "kind": "hole",
+          "part": 8,
+          "frame": {
+            "origin": [
+              50.0,
+              50.0,
+              -1.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          },
+          "diameter": 20.0,
+          "depth": 42.0
+        }
+      }
+    }
+  }
+}

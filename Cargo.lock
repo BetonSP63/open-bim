@@ -2155,6 +2155,7 @@ dependencies = [
  "open-bim-model",
  "open-bim-persistence",
  "open-bim-renderer",
+ "open-bim-steel",
  "serde",
  "serde_json",
 ]

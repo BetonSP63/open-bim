@@ -1,4 +1,5 @@
 //! Model tools commit only validated documents and renderable geometry.
+pub mod detailing_ui;
 mod snap;
 pub mod ui;
 use open_bim_commands::{Command, Document, project_hash};
@@ -215,11 +216,13 @@ pub fn edit_commands(
     selected: &BTreeSet<ObjectId>,
     edit: &Edit,
 ) -> Result<Vec<Command>, String> {
+    project.validate().map_err(|e| e.to_string())?;
     if selected.is_empty() {
         return Err("Выберите объекты".into());
     }
     let mut next = project.next_id;
     let mut commands = Vec::new();
+    let mut copies = std::collections::BTreeMap::new();
     for id in selected {
         if let Edit::PlateShape { contour, thickness } = edit {
             let mut element = project.elements.get(id).ok_or("Выберите пластину")?.clone();
@@ -283,6 +286,9 @@ pub fn edit_commands(
             *id
         };
         if let Some(source) = project.elements.get(id) {
+            if copy {
+                copies.insert(*id, target_id);
+            }
             let mut element = source.clone();
             element.id = target_id;
             let extrusion = match &element.shape {
@@ -329,6 +335,133 @@ pub fn edit_commands(
             });
         } else {
             return Err(format!("Объект {id} недоступен для преобразования"));
+        }
+    }
+    if let Edit::Copy(delta) = edit {
+        let mut feature_copies = std::collections::BTreeMap::new();
+        for source in project.details.values() {
+            let Some(parent) = source.kind.part() else {
+                continue;
+            };
+            let Some(target) = copies.get(&parent) else {
+                continue;
+            };
+            let mut detail = source.clone();
+            detail.id = ObjectId(next);
+            next = next.checked_add(1).ok_or("Исчерпаны ID")?;
+            feature_copies.insert(source.id, detail.id);
+            match &mut detail.kind {
+                DetailKind::PlaneCut { part, .. }
+                | DetailKind::BoxCut { part, .. }
+                | DetailKind::Hole { part, .. } => *part = *target,
+                _ => unreachable!(),
+            }
+            commands.push(Command::CreateDetail { detail });
+        }
+        for source in project.details.values() {
+            let mut detail = source.clone();
+            let parts = match &detail.kind {
+                DetailKind::BoltGroup { parts, .. } | DetailKind::Weld { parts, .. } => parts,
+                _ => continue,
+            };
+            if !parts.iter().all(|p| copies.contains_key(p)) {
+                continue;
+            }
+            detail.id = ObjectId(next);
+            next = next.checked_add(1).ok_or("Исчерпаны ID")?;
+            match &mut detail.kind {
+                DetailKind::BoltGroup {
+                    parts,
+                    holes,
+                    frame,
+                    ..
+                } => {
+                    *parts = parts.iter().map(|p| copies[p]).collect();
+                    *holes = holes.iter().map(|h| feature_copies[h]).collect();
+                    frame.origin = Point3(std::array::from_fn(|i| frame.origin.0[i] + delta.0[i]));
+                }
+                DetailKind::Weld { parts, path, .. } => {
+                    *parts = parts.iter().map(|p| copies[p]).collect();
+                    for point in path {
+                        point.0 = std::array::from_fn(|i| point.0[i] + delta.0[i]);
+                    }
+                }
+                _ => unreachable!(),
+            }
+            commands.push(Command::CreateDetail { detail });
+        }
+    }
+    if let Edit::Mirror { normal, offset } = edit {
+        let n = DVec3::from_array(normal.0)
+            .try_normalize()
+            .ok_or("Нулевая нормаль зеркала")?;
+        let reflect_vector = |p: [f64; 3]| {
+            let v = DVec3::from_array(p);
+            (v - 2.0 * n.dot(v) * n).to_array()
+        };
+        let reflect_point = |p: Point3| {
+            let v = DVec3::from_array(p.0);
+            Point3((v - 2.0 * (n.dot(v) - offset) * n).to_array())
+        };
+        for source in project.details.values() {
+            let mut detail = source.clone();
+            if let Some(parent) = detail.kind.part() {
+                if !selected.contains(&parent) {
+                    continue;
+                }
+                let length = match &project.elements[&parent].shape {
+                    ElementShape::Member { length, .. } => length.value(),
+                    ElementShape::Plate { thickness, .. } => thickness.value(),
+                };
+                match &mut detail.kind {
+                    DetailKind::PlaneCut { normal, offset, .. } => {
+                        *offset -= normal[2] * length;
+                        normal[2] = -normal[2];
+                    }
+                    DetailKind::BoxCut { origin, size, .. } => {
+                        origin.0[2] = length - origin.0[2] - size[2]
+                    }
+                    DetailKind::Hole { frame, .. } => {
+                        frame.origin.0[2] = length - frame.origin.0[2];
+                        for (i, axis) in frame.axes.iter_mut().enumerate() {
+                            axis[2] = -axis[2];
+                            if i == 1 {
+                                *axis = axis.map(|v| -v);
+                            }
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            } else {
+                let parts = match &detail.kind {
+                    DetailKind::BoltGroup { parts, .. } | DetailKind::Weld { parts, .. } => parts,
+                    _ => unreachable!(),
+                };
+                if parts.is_disjoint(selected) {
+                    continue;
+                }
+                if !parts.is_subset(selected) {
+                    return Err("Для зеркала выберите все связанные детали".into());
+                }
+                match &mut detail.kind {
+                    DetailKind::BoltGroup { frame, .. } => {
+                        frame.origin = reflect_point(frame.origin);
+                        for (i, axis) in frame.axes.iter_mut().enumerate() {
+                            *axis = reflect_vector(*axis);
+                            if i == 2 {
+                                *axis = axis.map(|v| -v);
+                            }
+                        }
+                    }
+                    DetailKind::Weld { path, .. } => {
+                        for point in path {
+                            *point = reflect_point(*point);
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            commands.push(Command::ReplaceDetail { detail });
         }
     }
     if let Edit::Move(_) | Edit::Rotate { .. } = edit {
