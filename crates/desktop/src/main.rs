@@ -76,6 +76,7 @@ struct Desktop {
     capture_dir: Option<PathBuf>,
     manual_capture: Option<String>,
     capture_count: usize,
+    extend_selection: bool,
     scene: Arc<Scene>,
     camera: Camera,
     view: ViewState,
@@ -148,6 +149,7 @@ impl Desktop {
             capture_dir: options.capture_dir,
             manual_capture: None,
             capture_count: 0,
+            extend_selection: false,
             scene,
             camera,
             view: ViewState {
@@ -306,7 +308,8 @@ impl eframe::App for Desktop {
                 {
                     action = Some(Action::Redo);
                 }
-                ui.label("Shift/⌘ + выбор — добавить объект в группу");
+                ui.checkbox(&mut self.extend_selection, "Групповой выбор");
+                ui.label("Shift/⌘ + выбор — добавить объект");
             });
         });
         egui::Panel::bottom("status").show(ui, |ui| {
@@ -337,7 +340,7 @@ impl eframe::App for Desktop {
                     ui.push_id(id.0,|ui| {ui.horizontal(|ui| {
                         let mut visible=!self.view.hidden.contains(&id);
                         if ui.checkbox(&mut visible,"").changed() {if visible {self.view.hidden.remove(&id);} else {self.view.hidden.insert(id);}}
-                        if ui.selectable_label(self.editor.selected.contains(&id),format!("{name} · #{}",id.0)).clicked() {let extend=ui.input(|i|i.modifiers.shift || i.modifiers.command);select(&mut self.editor.selected,Some(id),extend);}
+                        if ui.selectable_label(self.editor.selected.contains(&id),format!("{name} · #{}",id.0)).clicked() {let extend=self.extend_selection || ui.input(|i|i.modifiers.shift || i.modifiers.command);select(&mut self.editor.selected,Some(id),extend);}
                     });});
                 }
             });
@@ -465,7 +468,8 @@ impl eframe::App for Desktop {
                     }
                 } else {
                     let id = hover.and_then(|ray| self.scene.pick(ray, &self.view));
-                    let extend = ctx.input(|i| i.modifiers.shift || i.modifiers.command);
+                    let extend = self.extend_selection
+                        || ctx.input(|i| i.modifiers.shift || i.modifiers.command);
                     select(&mut self.editor.selected, id, extend);
                     self.view.selected_ids = self.editor.selected.clone();
                     self.view.selected = self.editor.selected.first().copied();
