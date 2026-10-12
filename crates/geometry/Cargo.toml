@@ -1,0 +1,16 @@
+[package]
+name = "open-bim-geometry"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+serde.workspace = true
+truck-modeling = "=0.6.0"
+truck-topology = "=0.6.0"
+truck-shapeops = { version = "=0.4.0", default-features = false }
+truck-meshalgo = { version = "=0.4.0", default-features = false, features = ["tessellation", "analyzers"] }

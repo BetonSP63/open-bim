@@ -1,0 +1,26 @@
+[
+  {
+    "scenario": "empty",
+    "exit": 0,
+    "capture_saved": true,
+    "log": "GPU: Apple M5 · Metal; project=Новый проект objects=0\nCAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/viewport/empty.png 2560x1600\n"
+  },
+  {
+    "scenario": "frame",
+    "exit": 0,
+    "capture_saved": true,
+    "log": "GPU: Apple M5 · Metal; project=Контрольный стальной каркас objects=7\nCAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/viewport/frame.png 2560x1600\n"
+  },
+  {
+    "scenario": "section",
+    "exit": 0,
+    "capture_saved": true,
+    "log": "GPU: Apple M5 · Metal; project=Контрольный стальной каркас objects=7\nCAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/viewport/section.png 2560x1600\n"
+  },
+  {
+    "scenario": "gpu-error",
+    "exit": 0,
+    "capture_saved": true,
+    "log": "GPU: Apple M5 · Metal; project=Контрольный стальной каркас objects=7\nGPU error: Validation Error\n\nCaused by:\n  In Device::create_buffer, label = 'explicit GPU error diagnostic'\n    Buffer size 268435457 is greater than the maximum buffer size (268435456)\n\nCAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/viewport/gpu-error.png 2560x1600\n"
+  }
+]

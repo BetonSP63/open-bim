@@ -1,0 +1,46 @@
+[
+  {
+    "command": [
+      "cargo",
+      "build",
+      "--workspace",
+      "--locked"
+    ],
+    "exit": 0,
+    "log": "/Users/dmitrij/Documents/Codex/2026-10-12/s/work/phase-6-build.log"
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "--workspace",
+      "--locked"
+    ],
+    "exit": 0,
+    "log": "/Users/dmitrij/Documents/Codex/2026-10-12/s/work/phase-6-test.log"
+  },
+  {
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "exit": 0,
+    "log": "/Users/dmitrij/Documents/Codex/2026-10-12/s/work/phase-6-fmt.log"
+  },
+  {
+    "command": [
+      "cargo",
+      "clippy",
+      "--workspace",
+      "--all-targets",
+      "--locked",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit": 0,
+    "log": "/Users/dmitrij/Documents/Codex/2026-10-12/s/work/phase-6-clippy.log"
+  }
+]

@@ -1,0 +1,33 @@
+[workspace]
+members = ["crates/geometry", "crates/model", "crates/commands", "crates/persistence", "crates/renderer", "crates/desktop"]
+exclude = ["vendor/truck-shapeops"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+license = "Apache-2.0"
+
+[workspace.dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["float_roundtrip"] }
+open-bim-geometry = { path = "crates/geometry" }
+open-bim-model = { path = "crates/model" }
+open-bim-commands = { path = "crates/commands" }
+open-bim-persistence = { path = "crates/persistence" }
+open-bim-renderer = { path = "crates/renderer" }
+eframe = { version = "=0.36.2", default-features = false, features = ["accesskit", "default_fonts", "wgpu"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = "warn"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+
+[patch.crates-io]
+truck-shapeops = { path = "vendor/truck-shapeops" }

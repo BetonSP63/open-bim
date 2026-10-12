@@ -1,0 +1,20 @@
+[package]
+name = "open-bim-renderer"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+open-bim-model.workspace = true
+open-bim-geometry.workspace = true
+glam = { version = "=0.34.1", default-features = false, features = ["std", "f64"] }
+egui-wgpu = { version = "=0.36.2", default-features = false }
+
+egui = { version = "=0.36.2", default-features = false }
+
+[dev-dependencies]
+serde_json.workspace = true

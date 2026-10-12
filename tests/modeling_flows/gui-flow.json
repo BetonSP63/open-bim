@@ -1,0 +1,375 @@
+{
+  "events": [
+    {
+      "action": "Создать",
+      "revision": 1,
+      "objects": 0,
+      "axes": 1,
+      "sha256": "e7b77f2e96764df4fc9409de967ed90c21281c81efb54ceadbfbb3fb2b1e213f"
+    },
+    {
+      "action": "Создать",
+      "revision": 2,
+      "objects": 1,
+      "axes": 1,
+      "sha256": "07fecda342ae733ad8ef8e5c99eb1e4b9795e9b25c6ca2cb179d42568275f764"
+    },
+    {
+      "action": "Создать",
+      "revision": 3,
+      "objects": 2,
+      "axes": 1,
+      "sha256": "ad77038215ca4db5832ccb80fa55646bc85e9d52acfb4a7cb14b8ec2908a32cb"
+    },
+    {
+      "action": "Создать",
+      "revision": 4,
+      "objects": 3,
+      "axes": 1,
+      "sha256": "c63e72762d06ff96dcad0eaa0b510860f00ae03f5b54930bb761d921ffbcd574"
+    },
+    {
+      "action": "Переместить",
+      "revision": 5,
+      "objects": 3,
+      "axes": 1,
+      "sha256": "c51f26c545cb8b33d15820a75bcf5740f21681c80b35dbb30e2d74238247afa9"
+    },
+    {
+      "action": "Отменить",
+      "revision": 4,
+      "objects": 3,
+      "axes": 1,
+      "sha256": "c63e72762d06ff96dcad0eaa0b510860f00ae03f5b54930bb761d921ffbcd574"
+    },
+    {
+      "action": "Повторить",
+      "revision": 5,
+      "objects": 3,
+      "axes": 1,
+      "sha256": "c51f26c545cb8b33d15820a75bcf5740f21681c80b35dbb30e2d74238247afa9"
+    },
+    {
+      "action": "Копировать",
+      "revision": 6,
+      "objects": 4,
+      "axes": 1,
+      "sha256": "9b180bc4452cda73555e3fe310f67f2c2d6078ccff6e5460fce2081eb602d5b7"
+    },
+    {
+      "action": "Свойства",
+      "revision": 7,
+      "objects": 4,
+      "axes": 1,
+      "sha256": "c670472d1d0a2d0f39f51cd689660665fd8ee138e38cefd326a9d2c7136a0d3a"
+    },
+    {
+      "action": "Сохранить",
+      "revision": 7,
+      "objects": 4,
+      "axes": 1,
+      "sha256": "c670472d1d0a2d0f39f51cd689660665fd8ee138e38cefd326a9d2c7136a0d3a"
+    },
+    {
+      "action": "Новый проект",
+      "revision": 0,
+      "objects": 0,
+      "axes": 0,
+      "sha256": "dc899764d92d44b96270d76e596fc118e002a3057072a1d10346150cdfc89508"
+    },
+    {
+      "action": "Открыть",
+      "revision": 7,
+      "objects": 4,
+      "axes": 1,
+      "sha256": "c670472d1d0a2d0f39f51cd689660665fd8ee138e38cefd326a9d2c7136a0d3a"
+    }
+  ],
+  "project": {
+    "name": "Новый проект",
+    "units": "millimetres",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "revision": 7,
+    "next_id": 13,
+    "materials": {
+      "1": {
+        "id": 1,
+        "name": "S235 · тестовый материал",
+        "density_kg_m3": 7850.0
+      }
+    },
+    "profiles": {
+      "2": {
+        "id": 2,
+        "name": "I 300×150×8×12",
+        "shape": {
+          "kind": "i_section",
+          "height": 300.0,
+          "width": 150.0,
+          "web": 8.0,
+          "flange": 12.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "3": {
+        "id": 3,
+        "name": "L 100×75×8",
+        "shape": {
+          "kind": "angle",
+          "height": 100.0,
+          "width": 75.0,
+          "thickness": 8.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "4": {
+        "id": 4,
+        "name": "C 200×75×6×10",
+        "shape": {
+          "kind": "channel",
+          "height": 200.0,
+          "width": 75.0,
+          "web": 6.0,
+          "flange": 10.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "5": {
+        "id": 5,
+        "name": "CHS 114×6",
+        "shape": {
+          "kind": "circular_hollow",
+          "diameter": 114.0,
+          "thickness": 6.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "6": {
+        "id": 6,
+        "name": "RHS 150×100×6",
+        "shape": {
+          "kind": "rectangular_hollow",
+          "height": 150.0,
+          "width": 100.0,
+          "thickness": 6.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "7": {
+        "id": 7,
+        "name": "R 100×50",
+        "shape": {
+          "kind": "rectangle",
+          "height": 100.0,
+          "width": 50.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      }
+    },
+    "elements": {
+      "9": {
+        "id": 9,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3000.0,
+          "frame": {
+            "origin": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {
+          "Марка": {
+            "type": "text",
+            "value": "К1"
+          }
+        }
+      },
+      "10": {
+        "id": 10,
+        "name": "Балка",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "beam",
+          "profile": 2,
+          "length": 6000.0,
+          "frame": {
+            "origin": [
+              0.0,
+              0.0,
+              3000.0
+            ],
+            "axes": [
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "11": {
+        "id": 11,
+        "name": "Контурная плита",
+        "material": 1,
+        "shape": {
+          "kind": "plate",
+          "contour": [
+            [
+              0.0,
+              0.0
+            ],
+            [
+              400.0,
+              0.0
+            ],
+            [
+              300.0,
+              200.0
+            ],
+            [
+              0.0,
+              400.0
+            ]
+          ],
+          "thickness": 25.0,
+          "frame": {
+            "origin": [
+              1000.0,
+              0.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "12": {
+        "id": 12,
+        "name": "Контурная плита",
+        "material": 1,
+        "shape": {
+          "kind": "plate",
+          "contour": [
+            [
+              0.0,
+              0.0
+            ],
+            [
+              400.0,
+              0.0
+            ],
+            [
+              300.0,
+              200.0
+            ],
+            [
+              0.0,
+              400.0
+            ]
+          ],
+          "thickness": 25.0,
+          "frame": {
+            "origin": [
+              2000.0,
+              0.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      }
+    },
+    "assemblies": {},
+    "axes": {
+      "8": {
+        "id": 8,
+        "name": "A",
+        "start": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "end": [
+          6000.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "levels": {}
+  }
+}

@@ -1,0 +1,479 @@
+//! Model tools commit only validated documents and renderable geometry.
+mod snap;
+pub mod ui;
+use open_bim_commands::{Command, Document, project_hash};
+use open_bim_model::{
+    Element, ElementShape, Frame, GridAxis, LengthMm, MemberKind, ObjectId, Point3, Project,
+    PropertyValue,
+};
+use open_bim_renderer::{DVec3, Scene};
+use serde::Serialize;
+pub use snap::{SnapHit, SnapIndex, SnapMode};
+use std::collections::BTreeSet;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ToolKind {
+    Beam,
+    Column,
+    Plate,
+    Axis,
+}
+impl ToolKind {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Beam => "Балка",
+            Self::Column => "Колонна",
+            Self::Plate => "Контурная плита",
+            Self::Axis => "Ось",
+        }
+    }
+}
+#[derive(Clone, Debug)]
+pub struct Draft {
+    pub kind: ToolKind,
+    pub name: String,
+    pub start: [String; 3],
+    pub end: [String; 3],
+    pub profile: ObjectId,
+    pub material: ObjectId,
+    pub thickness: String,
+    pub contour: String,
+}
+impl Default for Draft {
+    fn default() -> Self {
+        Self {
+            kind: ToolKind::Beam,
+            name: "Балка".into(),
+            start: ["0".into(), "0".into(), "0".into()],
+            end: ["6000".into(), "0".into(), "0".into()],
+            profile: ObjectId(2),
+            material: ObjectId(1),
+            thickness: "20".into(),
+            contour: "0,0; 400,0; 400,300; 0,300".into(),
+        }
+    }
+}
+pub fn number(text: &str) -> Result<f64, String> {
+    let value = text
+        .trim()
+        .parse::<f64>()
+        .map_err(|_| format!("Некорректное число: {text}"))?;
+    if !value.is_finite() {
+        return Err("Число должно быть конечным".into());
+    }
+    Ok(value)
+}
+pub fn point(text: &[String; 3]) -> Result<Point3, String> {
+    Ok(Point3([
+        number(&text[0])?,
+        number(&text[1])?,
+        number(&text[2])?,
+    ]))
+}
+impl Draft {
+    pub fn commands(&self, project: &Project) -> Result<Vec<Command>, String> {
+        let id = ObjectId(project.next_id);
+        let start = point(&self.start)?;
+        if self.kind == ToolKind::Axis {
+            let end = point(&self.end)?;
+            return Ok(vec![Command::CreateAxis {
+                axis: GridAxis {
+                    id,
+                    name: self.name.clone(),
+                    start,
+                    end,
+                },
+            }]);
+        }
+        let shape = if self.kind == ToolKind::Plate {
+            let contour: Result<Vec<_>, String> = self
+                .contour
+                .split(';')
+                .map(|pair| {
+                    let p: Vec<_> = pair.trim().split(',').collect();
+                    if p.len() != 2 {
+                        return Err("Контур: X,Y; X,Y; …".into());
+                    }
+                    Ok([number(p[0])?, number(p[1])?])
+                })
+                .collect();
+            let mut contour = contour?;
+            open_bim_model::polygon_area(&contour).map_err(|e| e.to_string())?;
+            let signed: f64 = (0..contour.len())
+                .map(|i| {
+                    let a = contour[i];
+                    let b = contour[(i + 1) % contour.len()];
+                    a[0] * b[1] - b[0] * a[1]
+                })
+                .sum();
+            if signed < 0.0 {
+                contour.reverse();
+            }
+            ElementShape::Plate {
+                contour,
+                thickness: LengthMm::new(number(&self.thickness)?).map_err(|e| e.to_string())?,
+                frame: Frame {
+                    origin: start,
+                    ..Default::default()
+                },
+            }
+        } else {
+            let (frame, length) =
+                Frame::along(start, point(&self.end)?).map_err(|e| e.to_string())?;
+            ElementShape::Member {
+                member_kind: if self.kind == ToolKind::Beam {
+                    MemberKind::Beam
+                } else {
+                    MemberKind::Column
+                },
+                profile: self.profile,
+                length,
+                frame,
+            }
+        };
+        Ok(vec![Command::Create {
+            element: Element {
+                id,
+                name: self.name.clone(),
+                material: self.material,
+                shape,
+                properties: Default::default(),
+            },
+        }])
+    }
+}
+#[derive(Clone, Debug)]
+pub enum Edit {
+    Move(Point3),
+    Copy(Point3),
+    Rotate {
+        axis: Point3,
+        degrees: f64,
+        pivot: Point3,
+    },
+    Mirror {
+        normal: Point3,
+        offset: f64,
+    },
+    Property {
+        key: String,
+        value: PropertyValue,
+    },
+}
+fn transform_point(p: Point3, rotation: Frame, pivot: Point3) -> Point3 {
+    let r = rotation.world(Point3(std::array::from_fn(|i| p.0[i] - pivot.0[i])));
+    Point3(std::array::from_fn(|i| r.0[i] + pivot.0[i]))
+}
+fn rotation(axis: Point3, degrees: f64) -> Result<Frame, String> {
+    let axis = DVec3::from_array(axis.0)
+        .try_normalize()
+        .ok_or("Нулевая ось поворота")?;
+    if !degrees.is_finite() || !axis.is_finite() {
+        return Err("Некорректный поворот".into());
+    }
+    let (s, c) = degrees.to_radians().sin_cos();
+    let turn = |v: DVec3| v * c + axis.cross(v) * s + axis * axis.dot(v) * (1.0 - c);
+    Ok(Frame {
+        axes: [
+            turn(DVec3::X).to_array(),
+            turn(DVec3::Y).to_array(),
+            turn(DVec3::Z).to_array(),
+        ],
+        ..Default::default()
+    })
+}
+pub fn edit_commands(
+    project: &Project,
+    selected: &BTreeSet<ObjectId>,
+    edit: &Edit,
+) -> Result<Vec<Command>, String> {
+    if selected.is_empty() {
+        return Err("Выберите объекты".into());
+    }
+    let mut next = project.next_id;
+    let mut commands = Vec::new();
+    for id in selected {
+        if let Edit::Property { key, value } = edit {
+            commands.push(Command::ChangeProperty {
+                id: *id,
+                key: key.clone(),
+                value: Some(value.clone()),
+            });
+            continue;
+        }
+        let (r, pivot) = match edit {
+            Edit::Move(delta) | Edit::Copy(delta) => (
+                Frame {
+                    origin: *delta,
+                    ..Default::default()
+                },
+                Point3([0.0; 3]),
+            ),
+            Edit::Rotate {
+                axis,
+                degrees,
+                pivot,
+            } => (rotation(*axis, *degrees)?, *pivot),
+            _ => (Frame::default(), Point3([0.0; 3])),
+        };
+        let mirror = if let Edit::Mirror { normal, offset } = edit {
+            let n = DVec3::from_array(normal.0)
+                .try_normalize()
+                .ok_or("Нулевая нормаль зеркала")?;
+            if !n.is_finite() || !offset.is_finite() {
+                return Err("Некорректное зеркало".into());
+            }
+            Some((n, *offset))
+        } else {
+            None
+        };
+        let reflection = |p: Point3| {
+            let v = DVec3::from_array(p.0);
+            let (n, offset) = mirror.expect("mirror branch");
+            Point3((v - 2.0 * (n.dot(v) - offset) * n).to_array())
+        };
+        let copy = matches!(edit, Edit::Copy(_));
+        let target_id = if copy {
+            let value = ObjectId(next);
+            next = next.checked_add(1).ok_or("Исчерпаны ID")?;
+            value
+        } else {
+            *id
+        };
+        if let Some(source) = project.elements.get(id) {
+            let mut element = source.clone();
+            element.id = target_id;
+            let extrusion = match &element.shape {
+                ElementShape::Member { length, .. } => length.value(),
+                ElementShape::Plate { thickness, .. } => thickness.value(),
+            };
+            let frame = element.shape.frame_mut();
+            if let Some((n, _)) = mirror {
+                // Reverse extrusion, rather than flip an asymmetric profile or store a left-handed frame.
+                frame.origin = reflection(frame.world(Point3([0.0, 0.0, extrusion])));
+                for (index, axis) in frame.axes.iter_mut().enumerate() {
+                    let v = DVec3::from_array(*axis);
+                    let reflected = v - 2.0 * n.dot(v) * n;
+                    *axis = (if index == 2 { -reflected } else { reflected }).to_array();
+                }
+            } else {
+                frame.origin = transform_point(frame.origin, r, pivot);
+                for axis in &mut frame.axes {
+                    *axis = std::array::from_fn(|i| (0..3).map(|j| r.axes[j][i] * axis[j]).sum());
+                }
+            }
+            commands.push(if copy {
+                Command::Create { element }
+            } else {
+                Command::ReplaceElement { element }
+            });
+        } else if let Some(source) = project.axes.get(id) {
+            let mut axis = source.clone();
+            axis.id = target_id;
+            axis.start = if mirror.is_some() {
+                reflection(axis.start)
+            } else {
+                transform_point(axis.start, r, pivot)
+            };
+            axis.end = if mirror.is_some() {
+                reflection(axis.end)
+            } else {
+                transform_point(axis.end, r, pivot)
+            };
+            commands.push(if copy {
+                Command::CreateAxis { axis }
+            } else {
+                Command::ReplaceAxis { axis }
+            });
+        } else {
+            return Err(format!("Объект {id} недоступен для преобразования"));
+        }
+    }
+    Ok(commands)
+}
+#[derive(Clone, Debug, Serialize)]
+pub struct FlowEvent {
+    pub action: String,
+    pub revision: u64,
+    pub objects: usize,
+    pub axes: usize,
+    pub sha256: String,
+}
+#[derive(Serialize)]
+struct Recording<'a> {
+    events: &'a [FlowEvent],
+    project: &'a Project,
+}
+pub struct Editor {
+    pub document: Document,
+    pub selected: BTreeSet<ObjectId>,
+    pub draft: Draft,
+    pub active: bool,
+    pub picked: Vec<Point3>,
+    pub snap: SnapIndex,
+    pub events: Vec<FlowEvent>,
+    pub record_path: Option<PathBuf>,
+    pub record_warning: Option<String>,
+}
+impl Editor {
+    pub fn new(project: Project) -> Result<Self, String> {
+        let snap = SnapIndex::new(&project);
+        Ok(Self {
+            document: Document::new(project).map_err(|e| e.to_string())?,
+            selected: Default::default(),
+            draft: Draft::default(),
+            active: false,
+            picked: Vec::new(),
+            snap,
+            events: Vec::new(),
+            record_path: None,
+            record_warning: None,
+        })
+    }
+    pub fn begin(&mut self, kind: ToolKind) {
+        self.active = true;
+        self.picked.clear();
+        self.draft.kind = kind;
+        self.draft.name = kind.label().into();
+        if kind == ToolKind::Column {
+            self.draft.end = ["0".into(), "0".into(), "3000".into()];
+        }
+    }
+    pub fn cancel(&mut self) {
+        self.active = false;
+        self.picked.clear();
+    }
+    pub fn accept_point(&mut self, p: Point3) {
+        if !self.active {
+            return;
+        }
+        let string = |v: f64| format!("{v:.6}");
+        self.picked.push(p);
+        if self.picked.len() == 1 {
+            self.draft.start = p.0.map(string);
+        } else if self.draft.kind == ToolKind::Plate {
+            let first = self.picked[0];
+            self.draft.contour = self
+                .picked
+                .iter()
+                .map(|q| format!("{},{}", q.0[0] - first.0[0], q.0[1] - first.0[1]))
+                .collect::<Vec<_>>()
+                .join("; ");
+        } else {
+            self.draft.end = p.0.map(string);
+        }
+    }
+    pub fn commit(&mut self, label: &str, commands: &[Command]) -> Result<Arc<Scene>, String> {
+        let mut candidate = self.document.clone();
+        candidate
+            .transact(label, commands)
+            .map_err(|e| e.to_string())?;
+        let scene = Arc::new(Scene::from_project(candidate.project()).map_err(|e| e.to_string())?);
+        self.document = candidate;
+        self.snap = SnapIndex::new(self.document.project());
+        self.prune_selection();
+        self.record(label);
+        Ok(scene)
+    }
+    pub fn create(&mut self) -> Result<Arc<Scene>, String> {
+        if !self.active {
+            return Err("Инструмент не активен".into());
+        }
+        let commands = self.draft.commands(self.document.project())?;
+        let scene = self.commit("Создать", &commands)?;
+        self.selected = BTreeSet::from([ObjectId(self.document.project().next_id - 1)]);
+        self.cancel();
+        Ok(scene)
+    }
+    pub fn edit(&mut self, edit: &Edit) -> Result<Arc<Scene>, String> {
+        let commands = edit_commands(self.document.project(), &self.selected, edit)?;
+        self.commit(
+            match edit {
+                Edit::Move(_) => "Переместить",
+                Edit::Copy(_) => "Копировать",
+                Edit::Rotate { .. } => "Повернуть",
+                Edit::Mirror { .. } => "Зеркало",
+                Edit::Property { .. } => "Свойства",
+            },
+            &commands,
+        )
+    }
+    pub fn history(&mut self, redo: bool) -> Result<Arc<Scene>, String> {
+        let mut candidate = self.document.clone();
+        if redo {
+            candidate.redo()
+        } else {
+            candidate.undo()
+        }
+        .map_err(|e| e.to_string())?;
+        let scene = Arc::new(Scene::from_project(candidate.project()).map_err(|e| e.to_string())?);
+        self.document = candidate;
+        self.snap = SnapIndex::new(self.document.project());
+        self.prune_selection();
+        self.record(if redo {
+            "Повторить"
+        } else {
+            "Отменить"
+        });
+        Ok(scene)
+    }
+    fn prune_selection(&mut self) {
+        self.selected
+            .retain(|id| self.document.project().contains_id(*id));
+    }
+    pub fn save(&mut self, path: &Path) -> Result<(), String> {
+        open_bim_persistence::save_atomic(path, self.document.project())
+            .map_err(|e| e.to_string())?;
+        self.record("Сохранить");
+        Ok(())
+    }
+    pub fn open(&mut self, path: &Path) -> Result<Arc<Scene>, String> {
+        let project = open_bim_persistence::load(path).map_err(|e| e.to_string())?;
+        let scene = Arc::new(Scene::from_project(&project).map_err(|e| e.to_string())?);
+        self.document = Document::new(project).map_err(|e| e.to_string())?;
+        self.selected.clear();
+        self.cancel();
+        self.snap = SnapIndex::new(self.document.project());
+        self.record("Открыть");
+        Ok(scene)
+    }
+    pub fn replace(&mut self, project: Project, label: &str) -> Result<Arc<Scene>, String> {
+        let scene = Arc::new(Scene::from_project(&project).map_err(|e| e.to_string())?);
+        self.document = Document::new(project).map_err(|e| e.to_string())?;
+        self.selected.clear();
+        self.cancel();
+        self.snap = SnapIndex::new(self.document.project());
+        self.record(label);
+        Ok(scene)
+    }
+    fn record(&mut self, action: &str) {
+        let p = self.document.project();
+        let hash = match project_hash(p) {
+            Ok(hash) => hash,
+            Err(error) => {
+                self.record_warning = Some(error.to_string());
+                return;
+            }
+        };
+        self.events.push(FlowEvent {
+            action: action.into(),
+            revision: p.revision,
+            objects: p.elements.len(),
+            axes: p.axes.len(),
+            sha256: hash,
+        });
+        if let Some(path) = &self.record_path {
+            let result = serde_json::to_vec_pretty(&Recording {
+                events: &self.events,
+                project: p,
+            })
+            .map_err(|e| e.to_string())
+            .and_then(|bytes| std::fs::write(path, bytes).map_err(|e| e.to_string()));
+            if let Err(error) = result {
+                self.record_warning = Some(format!("Журнал сценария: {error}"));
+            }
+        }
+    }
+}

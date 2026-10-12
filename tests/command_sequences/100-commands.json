@@ -1,0 +1,2202 @@
+[
+  {
+    "command": "create",
+    "element": {
+      "id": 100,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      100
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 100,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-0"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 100,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 101,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      101
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 101,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-1"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 101,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 102,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      102
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 102,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-2"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 102,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 103,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      103
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 103,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-3"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 103,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 104,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      104
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 104,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-4"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 104,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 105,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      105
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 105,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-5"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 105,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 106,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      106
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 106,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-6"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 106,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 107,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      107
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 107,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-7"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 107,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 108,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      108
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 108,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-8"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 108,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 109,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      109
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 109,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-9"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 109,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 110,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      110
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 110,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-10"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 110,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 111,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      111
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 111,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-11"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 111,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 112,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      112
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 112,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-12"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 112,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 113,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      113
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 113,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-13"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 113,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 114,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      114
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 114,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-14"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 114,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 115,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      115
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 115,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-15"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 115,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 116,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      116
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 116,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-16"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 116,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 117,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      117
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 117,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-17"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 117,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 118,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      118
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 118,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-18"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 118,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 119,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      119
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 119,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-19"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 119,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 120,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      120
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 120,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-20"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 120,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 121,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      121
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 121,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-21"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 121,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 122,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      122
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 122,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-22"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 122,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 123,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      123
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 123,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-23"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 123,
+    "policy": "reject_dependencies"
+  },
+  {
+    "command": "create",
+    "element": {
+      "id": 124,
+      "name": "Колонна 1",
+      "material": 1,
+      "shape": {
+        "kind": "member",
+        "member_kind": "column",
+        "profile": 2,
+        "length": 3000.0,
+        "frame": {
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "axes": [
+            [
+              1.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        }
+      },
+      "properties": {}
+    }
+  },
+  {
+    "command": "transform",
+    "ids": [
+      124
+    ],
+    "rotation": {
+      "origin": [
+        10,
+        20,
+        30
+      ],
+      "axes": [
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          -1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "pivot": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "command": "change_property",
+    "id": 124,
+    "key": "Mark",
+    "value": {
+      "type": "text",
+      "value": "Test-24"
+    }
+  },
+  {
+    "command": "delete",
+    "id": 124,
+    "policy": "reject_dependencies"
+  }
+]

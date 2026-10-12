@@ -1,0 +1,17 @@
+//! GPU display geometry, double-precision camera and visibility-consistent selection.
+mod camera;
+mod gpu;
+mod scene;
+pub use camera::{Camera, NamedView, Ray};
+pub use glam::{DMat4, DVec3};
+pub use gpu::{GpuRenderer, ViewportCallback};
+pub use scene::{Bounds, ClipPlane, DisplayMesh, Instance, Scene, ViewState};
+
+#[derive(Debug)]
+pub struct RenderError(pub String);
+impl std::fmt::Display for RenderError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+impl std::error::Error for RenderError {}

@@ -1,0 +1,15 @@
+name: Rust macOS ARM64
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require ARM64 runner
+        run: test "$(uname -m)" = arm64
+      - name: Install pinned toolchain
+        run: rustup toolchain install 1.99.0 --profile minimal --component rustfmt --component clippy
+      - run: cargo build --workspace --locked
+      - run: cargo test --workspace --locked
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
