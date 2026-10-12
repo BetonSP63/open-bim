@@ -33,6 +33,13 @@ pub fn rebuild_base_plates(project: &mut Project, previous: &Project) -> Result<
             continue;
         }
         let recipe = base_plate_geometry(project, &instance)?;
+        crate::retain_children(
+            project,
+            &mut instance,
+            &[
+                "plate", "hole-0", "hole-1", "hole-2", "hole-3", "bolts", "weld",
+            ],
+        );
         let mut child = |role: &str| -> Result<ObjectId, ModelError> {
             if let Some(id) = instance.children.get(role) {
                 if !project.elements.contains_key(id) && !project.details.contains_key(id) {
@@ -59,7 +66,11 @@ pub fn rebuild_base_plates(project: &mut Project, previous: &Project) -> Result<
                 name: format!("{} — плита", t.name),
                 material: recipe.material,
                 shape: recipe.shape,
-                properties: Default::default(),
+                properties: project
+                    .elements
+                    .get(&plate)
+                    .map(|e| e.properties.clone())
+                    .unwrap_or_default(),
             },
         );
         for (id, position) in holes.iter().zip(recipe.holes) {

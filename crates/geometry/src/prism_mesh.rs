@@ -100,7 +100,18 @@ pub(crate) fn prism_void_mesh(
     }
     // Bound signed-volume error of the inscribed circular display polygon.
     // Exact B-rep circles are independent of this tessellation.
-    let n = (4096_usize).max(
+    let sagitta_segments = holes
+        .iter()
+        .map(|(_, radius)| {
+            (std::f64::consts::PI
+                / (1.0 - crate::TOLERANCE_MM * 0.5 / radius)
+                    .clamp(-1.0, 1.0)
+                    .acos())
+            .ceil() as usize
+        })
+        .max()
+        .unwrap_or(0);
+    let n = (256_usize).max(sagitta_segments).max(
         (2.0 * std::f64::consts::PI.powi(2) / 3.0 * circular_removed / (area - removed) / 5e-7)
             .sqrt()
             .ceil() as usize,

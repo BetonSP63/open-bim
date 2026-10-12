@@ -139,7 +139,9 @@ impl Document {
         for command in commands {
             apply_command(&mut staged, command)?;
         }
+        open_bim_connections::reject_generated_geometry_edits(&staged, &self.project)?;
         open_bim_connections::rebuild_base_plates(&mut staged, &self.project)?;
+        open_bim_connections::rebuild_end_plates(&mut staged, &self.project)?;
         staged.validate()?;
         staged.revision = staged
             .revision
