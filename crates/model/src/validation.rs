@@ -190,6 +190,10 @@ impl Project {
             text(&value.name)?;
             valid_point(Point3([0.0, 0.0, value.elevation_mm]))?;
         }
+        for (key, value) in &self.details {
+            register(*key, value.id)?;
+            value.kind.validate(self)?;
+        }
         let mut owners = BTreeMap::new();
         for (key, value) in &self.assemblies {
             register(*key, value.id)?;

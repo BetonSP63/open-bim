@@ -18,14 +18,22 @@ pub enum ToolKind {
     Beam,
     Column,
     Plate,
+    Gusset,
+    Stiffener,
     Axis,
 }
 impl ToolKind {
+    pub fn is_plate(self) -> bool {
+        matches!(self, Self::Plate | Self::Gusset | Self::Stiffener)
+    }
+
     pub fn label(self) -> &'static str {
         match self {
             Self::Beam => "Балка",
             Self::Column => "Колонна",
             Self::Plate => "Контурная плита",
+            Self::Gusset => "Косынка",
+            Self::Stiffener => "Ребро жёсткости",
             Self::Axis => "Ось",
         }
     }
@@ -72,6 +80,19 @@ pub fn point(text: &[String; 3]) -> Result<Point3, String> {
         number(&text[2])?,
     ]))
 }
+pub fn parse_contour(text: &str) -> Result<Vec<[f64; 2]>, String> {
+    let contour: Result<Vec<_>, String> = text
+        .split(';')
+        .map(|pair| {
+            let p: Vec<_> = pair.trim().split(',').collect();
+            if p.len() != 2 {
+                return Err("Контур: X,Y; X,Y; …".into());
+            }
+            Ok([number(p[0])?, number(p[1])?])
+        })
+        .collect();
+    contour
+}
 impl Draft {
     pub fn commands(&self, project: &Project) -> Result<Vec<Command>, String> {
         let id = ObjectId(project.next_id);
@@ -87,19 +108,8 @@ impl Draft {
                 },
             }]);
         }
-        let shape = if self.kind == ToolKind::Plate {
-            let contour: Result<Vec<_>, String> = self
-                .contour
-                .split(';')
-                .map(|pair| {
-                    let p: Vec<_> = pair.trim().split(',').collect();
-                    if p.len() != 2 {
-                        return Err("Контур: X,Y; X,Y; …".into());
-                    }
-                    Ok([number(p[0])?, number(p[1])?])
-                })
-                .collect();
-            let mut contour = contour?;
+        let shape = if self.kind.is_plate() {
+            let mut contour = parse_contour(&self.contour)?;
             open_bim_model::polygon_area(&contour).map_err(|e| e.to_string())?;
             let signed: f64 = (0..contour.len())
                 .map(|i| {
@@ -139,13 +149,29 @@ impl Draft {
                 name: self.name.clone(),
                 material: self.material,
                 shape,
-                properties: Default::default(),
+                properties: if self.kind.is_plate() {
+                    let role = match self.kind {
+                        ToolKind::Gusset => "gusset",
+                        ToolKind::Stiffener => "stiffener",
+                        _ => "plate",
+                    };
+                    std::collections::BTreeMap::from([(
+                        "fabrication_role".into(),
+                        PropertyValue::Text(role.into()),
+                    )])
+                } else {
+                    Default::default()
+                },
             },
         }])
     }
 }
 #[derive(Clone, Debug)]
 pub enum Edit {
+    PlateShape {
+        contour: Vec<[f64; 2]>,
+        thickness: f64,
+    },
     Move(Point3),
     Copy(Point3),
     Rotate {
@@ -195,6 +221,20 @@ pub fn edit_commands(
     let mut next = project.next_id;
     let mut commands = Vec::new();
     for id in selected {
+        if let Edit::PlateShape { contour, thickness } = edit {
+            let mut element = project.elements.get(id).ok_or("Выберите пластину")?.clone();
+            let frame = *element.shape.frame();
+            if !matches!(element.shape, ElementShape::Plate { .. }) {
+                return Err("Контур и толщина применимы к пластинам".into());
+            }
+            element.shape = ElementShape::Plate {
+                contour: contour.clone(),
+                thickness: LengthMm::new(*thickness).map_err(|e| e.to_string())?,
+                frame,
+            };
+            commands.push(Command::ReplaceElement { element });
+            continue;
+        }
         if let Edit::Property { key, value } = edit {
             commands.push(Command::ChangeProperty {
                 id: *id,
@@ -337,7 +377,13 @@ impl Editor {
         self.picked.clear();
         self.draft.kind = kind;
         self.draft.name = kind.label().into();
-        if kind == ToolKind::Column {
+        if kind == ToolKind::Gusset {
+            self.draft.contour = "0,0; 300,0; 0,300".into();
+            self.draft.thickness = "12".into();
+        } else if kind == ToolKind::Stiffener {
+            self.draft.contour = "0,0; 150,0; 150,250; 0,250".into();
+            self.draft.thickness = "10".into();
+        } else if kind == ToolKind::Column {
             self.draft.end = ["0".into(), "0".into(), "3000".into()];
         }
     }
@@ -353,7 +399,7 @@ impl Editor {
         self.picked.push(p);
         if self.picked.len() == 1 {
             self.draft.start = p.0.map(string);
-        } else if self.draft.kind == ToolKind::Plate {
+        } else if self.draft.kind.is_plate() {
             let first = self.picked[0];
             self.draft.contour = self
                 .picked
@@ -396,6 +442,7 @@ impl Editor {
                 Edit::Rotate { .. } => "Повернуть",
                 Edit::Mirror { .. } => "Зеркало",
                 Edit::Property { .. } => "Свойства",
+                Edit::PlateShape { .. } => "Изменить пластину",
             },
             &commands,
         )

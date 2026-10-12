@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/geometry", "crates/model", "crates/commands", "crates/persistence", "crates/renderer", "crates/desktop"]
+members = ["crates/geometry", "crates/model", "crates/commands", "crates/persistence", "crates/renderer", "crates/desktop", "crates/steel"]
 exclude = ["vendor/truck-shapeops"]
 resolver = "3"
 
@@ -17,6 +17,7 @@ open-bim-model = { path = "crates/model" }
 open-bim-commands = { path = "crates/commands" }
 open-bim-persistence = { path = "crates/persistence" }
 open-bim-renderer = { path = "crates/renderer" }
+open-bim-steel = { path = "crates/steel" }
 eframe = { version = "=0.36.2", default-features = false, features = ["accesskit", "default_fonts", "wgpu"] }
 
 [workspace.lints.rust]

@@ -1,4 +1,4 @@
-use super::{Edit, Editor, SnapMode, ToolKind, number, point};
+use super::{Edit, Editor, SnapMode, ToolKind, number, parse_contour, point};
 use eframe::egui;
 use open_bim_model::{ObjectId, Point3, PropertyValue};
 #[derive(Clone, Debug)]
@@ -13,6 +13,8 @@ pub enum Action {
     Example,
 }
 pub struct ToolsUi {
+    pub plate_contour: String,
+    pub plate_thickness: String,
     pub delta: [String; 3],
     pub pivot: [String; 3],
     pub angle: String,
@@ -30,6 +32,8 @@ pub struct ToolsUi {
 impl Default for ToolsUi {
     fn default() -> Self {
         Self {
+            plate_contour: String::new(),
+            plate_thickness: "20".into(),
             delta: ["1000".into(), "0".into(), "0".into()],
             pivot: ["0".into(), "0".into(), "0".into()],
             angle: "90".into(),
@@ -66,6 +70,8 @@ impl ToolsUi {
                 ToolKind::Beam,
                 ToolKind::Column,
                 ToolKind::Plate,
+                ToolKind::Gusset,
+                ToolKind::Stiffener,
             ] {
                 if ui
                     .selectable_label(editor.active && editor.draft.kind == kind, kind.label())
@@ -82,7 +88,7 @@ impl ToolsUi {
             ui.text_edit_singleline(&mut editor.draft.name);
             ui.label("Начало / начало плиты, мм");
             vector_fields(ui, "start", &mut editor.draft.start);
-            if editor.draft.kind == ToolKind::Plate {
+            if editor.draft.kind.is_plate() {
                 ui.label("Контур XY: X,Y; X,Y; …");
                 ui.add(egui::TextEdit::multiline(&mut editor.draft.contour).desired_rows(3));
                 ui.horizontal(|ui| {
@@ -231,6 +237,38 @@ impl ToolsUi {
             }
         }
         ui.separator();
+        if editor.selected.len() == 1 {
+            let id = *editor.selected.first().unwrap();
+            if let Some(element) = editor.document.project().elements.get(&id)
+                && let open_bim_model::ElementShape::Plate {
+                    contour, thickness, ..
+                } = &element.shape
+            {
+                ui.collapsing("Контур и толщина пластины", |ui| {
+                    if ui.button("Загрузить размеры выбранной").clicked() {
+                        self.plate_contour = contour
+                            .iter()
+                            .map(|p| format!("{},{}", p[0], p[1]))
+                            .collect::<Vec<_>>()
+                            .join("; ");
+                        self.plate_thickness = thickness.value().to_string();
+                    }
+                    ui.label("Контур XY, мм");
+                    ui.text_edit_multiline(&mut self.plate_contour);
+                    ui.label("Толщина, мм");
+                    ui.text_edit_singleline(&mut self.plate_thickness);
+                    if ui.button("Применить размеры").clicked() {
+                        match parse_contour(&self.plate_contour).and_then(|contour| {
+                            number(&self.plate_thickness)
+                                .map(|thickness| Edit::PlateShape { contour, thickness })
+                        }) {
+                            Ok(edit) => action = Some(Action::Edit(edit)),
+                            Err(e) => self.message = Some(e),
+                        }
+                    }
+                });
+            }
+        }
         ui.label("Свойство / текстовое значение");
         ui.text_edit_singleline(&mut self.key);
         ui.text_edit_singleline(&mut self.value);

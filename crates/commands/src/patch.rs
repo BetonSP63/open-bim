@@ -61,6 +61,7 @@ pub(crate) struct Patch {
     profiles: MapDelta<Profile>,
     axes: MapDelta<GridAxis>,
     levels: MapDelta<Level>,
+    details: MapDelta<open_bim_model::Detail>,
     before_meta: (u64, u64, String),
     after_meta: (u64, u64, String),
     pub touched: BTreeSet<ObjectId>,
@@ -75,6 +76,7 @@ impl Patch {
         let profiles = differences(&before.profiles, &after.profiles);
         let axes = differences(&before.axes, &after.axes);
         let levels = differences(&before.levels, &after.levels);
+        let details = differences(&before.details, &after.details);
         let mut touched: BTreeSet<_> = elements
             .keys()
             .chain(assemblies.keys())
@@ -82,6 +84,7 @@ impl Patch {
             .chain(profiles.keys())
             .chain(axes.keys())
             .chain(levels.keys())
+            .chain(details.keys())
             .copied()
             .collect();
         dependencies(before, &mut touched);
@@ -93,6 +96,7 @@ impl Patch {
             profiles,
             axes,
             levels,
+            details,
             before_meta: (before.revision, before.next_id, before.name.clone()),
             after_meta: (after.revision, after.next_id, after.name.clone()),
             touched,
@@ -107,6 +111,7 @@ impl Patch {
         apply(&mut project.profiles, &self.profiles, forward);
         apply(&mut project.axes, &self.axes, forward);
         apply(&mut project.levels, &self.levels, forward);
+        apply(&mut project.details, &self.details, forward);
         let metadata = if forward {
             &self.after_meta
         } else {
@@ -130,6 +135,16 @@ fn dependencies(project: &Project, touched: &mut BTreeSet<ObjectId>) {
     }
     loop {
         let count = touched.len();
+        for detail in project.details.values() {
+            if touched.contains(&detail.id)
+                && let Some(part) = detail.kind.part()
+            {
+                touched.insert(part);
+            }
+            if !detail.kind.references().is_disjoint(touched) {
+                touched.insert(detail.id);
+            }
+        }
         for assembly in project.assemblies.values() {
             if assembly
                 .members

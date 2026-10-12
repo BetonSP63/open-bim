@@ -18,6 +18,12 @@ pub enum DeletePolicy {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "snake_case")]
 pub enum Command {
+    CreateDetail {
+        detail: open_bim_model::Detail,
+    },
+    ReplaceDetail {
+        detail: open_bim_model::Detail,
+    },
     Create {
         element: Element,
     },
@@ -231,6 +237,24 @@ impl<T> DependencyCache<T> {
 
 fn apply_command(project: &mut Project, command: &Command) -> Result<(), CommandError> {
     match command {
+        Command::CreateDetail { detail } => {
+            if project.contains_id(detail.id) || detail.id.0 == 0 {
+                return Err(ModelError::DuplicateId(detail.id).into());
+            }
+            project.next_id =
+                project.next_id.max(
+                    detail.id.0.checked_add(1).ok_or_else(|| {
+                        CommandError::InvalidTransaction("Invalid detail ID".into())
+                    })?,
+                );
+            project.details.insert(detail.id, detail.clone());
+        }
+        Command::ReplaceDetail { detail } => {
+            if !project.details.contains_key(&detail.id) {
+                return Err(ModelError::MissingReference(detail.id).into());
+            }
+            project.details.insert(detail.id, detail.clone());
+        }
         Command::Create { element } => {
             if project.contains_id(element.id) || element.id.0 == 0 {
                 return Err(ModelError::DuplicateId(element.id).into());
@@ -345,6 +369,16 @@ fn delete(project: &mut Project, id: ObjectId, policy: DeletePolicy) -> Result<(
                 removed.extend(&assembly.children);
             }
         }
+        for detail in project.details.values() {
+            if !detail.kind.references().is_disjoint(&removed) {
+                removed.insert(detail.id);
+            }
+            if removed.contains(&detail.id)
+                && let open_bim_model::DetailKind::BoltGroup { holes, .. } = &detail.kind
+            {
+                removed.extend(holes);
+            }
+        }
         if previous == removed.len() {
             break;
         }
@@ -364,6 +398,7 @@ fn delete(project: &mut Project, id: ObjectId, policy: DeletePolicy) -> Result<(
         project.profiles.remove(id);
         project.axes.remove(id);
         project.levels.remove(id);
+        project.details.remove(id);
     }
     for assembly in project.assemblies.values_mut() {
         assembly.members.retain(|id| !removed.contains(id));

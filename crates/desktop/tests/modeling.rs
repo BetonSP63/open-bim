@@ -289,3 +289,46 @@ fn axis_creation_and_transform_participate_in_document_history() {
     );
     assert_eq!(project_hash(editor.document.project()).unwrap(), original);
 }
+
+#[test]
+fn gusset_and_stiffener_shapes_edit_atomically_and_persist() {
+    let mut editor = Editor::new(Project::default()).unwrap();
+    for (kind, role) in [
+        (ToolKind::Gusset, "gusset"),
+        (ToolKind::Stiffener, "stiffener"),
+    ] {
+        let id = create(&mut editor, kind, [0.; 3], [0.; 3]);
+        let before = project_hash(editor.document.project()).unwrap();
+        let element = &editor.document.project().elements[&id];
+        assert_eq!(
+            element.properties["fabrication_role"],
+            PropertyValue::Text(role.into())
+        );
+        editor
+            .edit(&Edit::PlateShape {
+                contour: vec![[0., 0.], [120., 0.], [0., 80.]],
+                thickness: 15.,
+            })
+            .unwrap();
+        assert!((editor.document.project().element_volume_mm3(id).unwrap() - 72000.).abs() < 1e-6);
+        let after = project_hash(editor.document.project()).unwrap();
+        editor.history(false).unwrap();
+        assert_eq!(project_hash(editor.document.project()).unwrap(), before);
+        editor.history(true).unwrap();
+        assert_eq!(project_hash(editor.document.project()).unwrap(), after);
+        assert!(
+            editor
+                .edit(&Edit::PlateShape {
+                    contour: vec![[0., 0.], [1., 0.], [0., 1.]],
+                    thickness: f64::NAN
+                })
+                .is_err()
+        );
+        assert_eq!(project_hash(editor.document.project()).unwrap(), after);
+        let bytes = open_bim_persistence::encode(editor.document.project()).unwrap();
+        assert_eq!(
+            open_bim_persistence::decode(&bytes).unwrap(),
+            *editor.document.project()
+        );
+    }
+}

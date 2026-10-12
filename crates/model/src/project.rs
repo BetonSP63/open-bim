@@ -103,6 +103,12 @@ pub struct Project {
     pub axes: BTreeMap<ObjectId, GridAxis>,
     #[serde(deserialize_with = "unique_map")]
     pub levels: BTreeMap<ObjectId, Level>,
+    #[serde(
+        default,
+        skip_serializing_if = "BTreeMap::is_empty",
+        deserialize_with = "unique_map"
+    )]
+    pub details: BTreeMap<ObjectId, crate::Detail>,
 }
 
 impl Default for Project {
@@ -120,6 +126,7 @@ impl Default for Project {
             assemblies: BTreeMap::new(),
             axes: BTreeMap::new(),
             levels: BTreeMap::new(),
+            details: BTreeMap::new(),
         }
     }
 }
@@ -145,9 +152,16 @@ impl Project {
             || self.assemblies.contains_key(&id)
             || self.axes.contains_key(&id)
             || self.levels.contains_key(&id)
+            || self.details.contains_key(&id)
     }
 
     pub fn element_volume_mm3(&self, id: ObjectId) -> Result<f64, ModelError> {
+        if self.details.values().any(|d| d.kind.part() == Some(id)) {
+            return self
+                .element_body(id)?
+                .volume_mm3()
+                .map_err(|e| ModelError::InvalidValue(e.to_string()));
+        }
         let element = self
             .elements
             .get(&id)

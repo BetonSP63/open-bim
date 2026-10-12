@@ -146,7 +146,7 @@ impl Scene {
         let mut cache = BTreeMap::new();
         let mut total = Bounds::empty();
         for element in project.elements.values() {
-            let (mesh_index, color) = match &element.shape {
+            let (mut mesh_index, color) = match &element.shape {
                 ElementShape::Member {
                     profile,
                     length,
@@ -177,6 +177,23 @@ impl Scene {
                     (index, [0.86, 0.61, 0.26, 1.0])
                 }
             };
+            if project
+                .details
+                .values()
+                .any(|d| d.kind.part() == Some(element.id))
+            {
+                let body = project
+                    .element_body(element.id)
+                    .map_err(|e| RenderError(e.to_string()))?;
+                let (positions, triangles) = body
+                    .tessellation_f64()
+                    .map_err(|e| RenderError(e.to_string()))?;
+                mesh_index = meshes.len();
+                meshes.push(Arc::new(DisplayMesh {
+                    positions: positions.into_iter().map(DVec3::from_array).collect(),
+                    triangles,
+                }));
+            }
             let frame = *element.shape.frame();
             let mesh: &DisplayMesh = &meshes[mesh_index];
             let mut bounds = Bounds::empty();

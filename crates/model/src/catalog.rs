@@ -55,6 +55,74 @@ pub enum ProfileShape {
 }
 
 impl ProfileShape {
+    pub fn solid_contour(&self) -> Result<Vec<[f64; 2]>, ModelError> {
+        self.area_mm2()?;
+        match *self {
+            Self::ISection {
+                height: h,
+                width: w,
+                web: tw,
+                flange: tf,
+            } => Ok([
+                [-w / 2.0, -h / 2.0],
+                [w / 2.0, -h / 2.0],
+                [w / 2.0, -h / 2.0 + tf],
+                [tw / 2.0, -h / 2.0 + tf],
+                [tw / 2.0, h / 2.0 - tf],
+                [w / 2.0, h / 2.0 - tf],
+                [w / 2.0, h / 2.0],
+                [-w / 2.0, h / 2.0],
+                [-w / 2.0, h / 2.0 - tf],
+                [-tw / 2.0, h / 2.0 - tf],
+                [-tw / 2.0, -h / 2.0 + tf],
+                [-w / 2.0, -h / 2.0 + tf],
+            ]
+            .to_vec()),
+            Self::Angle {
+                height: h,
+                width: w,
+                thickness: t,
+            } => Ok([
+                [-w / 2.0, -h / 2.0],
+                [w / 2.0, -h / 2.0],
+                [w / 2.0, -h / 2.0 + t],
+                [-w / 2.0 + t, -h / 2.0 + t],
+                [-w / 2.0 + t, h / 2.0],
+                [-w / 2.0, h / 2.0],
+            ]
+            .to_vec()),
+            Self::Channel {
+                height: h,
+                width: w,
+                web: tw,
+                flange: tf,
+            } => Ok([
+                [-w / 2.0, -h / 2.0],
+                [w / 2.0, -h / 2.0],
+                [w / 2.0, -h / 2.0 + tf],
+                [-w / 2.0 + tw, -h / 2.0 + tf],
+                [-w / 2.0 + tw, h / 2.0 - tf],
+                [w / 2.0, h / 2.0 - tf],
+                [w / 2.0, h / 2.0],
+                [-w / 2.0, h / 2.0],
+            ]
+            .to_vec()),
+            Self::Rectangle {
+                height: h,
+                width: w,
+            } => Ok([
+                [-w / 2.0, -h / 2.0],
+                [w / 2.0, -h / 2.0],
+                [w / 2.0, h / 2.0],
+                [-w / 2.0, h / 2.0],
+            ]
+            .to_vec()),
+            Self::CircularHollow { .. } | Self::RectangularHollow { .. } => Err(
+                ModelError::InvalidValue("Полое сечение требует тела с внутренним контуром".into()),
+            ),
+        }
+    }
+
     pub fn area_mm2(&self) -> Result<f64, ModelError> {
         let invalid = || ModelError::InvalidValue("Размеры профиля".into());
         let valid = |values: &[f64]| {

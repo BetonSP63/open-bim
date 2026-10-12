@@ -1,0 +1,6 @@
+[
+  {"case":"plain", "volume_mm3":200000.0},
+  {"case":"hole", "volume_mm3":193716.81469282042},
+  {"case":"box_cut", "volume_mm3":192000.0},
+  {"case":"plane_cut", "volume_mm3":100000.0}
+]

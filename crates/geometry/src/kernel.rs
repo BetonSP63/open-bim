@@ -36,6 +36,9 @@ impl std::error::Error for BodyError {}
 pub struct Body {
     solid: Solid,
     origin: Point3,
+    exact_volume: Option<f64>,
+    mesh: Option<PolygonMesh>,
+    planar_faces: Option<Vec<Vec<[f64; 3]>>>,
 }
 
 /// Local display geometry. World placement is separate to avoid f32 precision loss.
@@ -97,7 +100,236 @@ impl Body {
                 .collect();
             let face = builder::try_attach_plane(&[wire]).map_err(|_| BodyError::KernelFailure)?;
             let solid = builder::tsweep(&face, Vector3::new(0.0, 0.0, length));
-            Self::validated(solid, origin)
+            let mut body = Self::validated(solid, origin)?;
+            body.exact_volume = Some(area.abs() * 0.5 * length);
+            let lower: Vec<_> = contour.iter().map(|p| [p[0], p[1], 0.0]).collect();
+            let upper: Vec<_> = contour.iter().map(|p| [p[0], p[1], length]).collect();
+            let mut reversed = lower.clone();
+            reversed.reverse();
+            let mut faces = vec![reversed, upper.clone()];
+            for i in 0..contour.len() {
+                let j = (i + 1) % contour.len();
+                faces.push(vec![lower[i], lower[j], upper[j], upper[i]]);
+            }
+            body.planar_faces = Some(faces);
+            Ok(body)
+        })
+    }
+
+    /// Circular through-holes are exact swept circles, never polygonal bores.
+    /// Centres/radii are local XY; holes must be wholly inside and disjoint.
+    pub fn prism_with_holes(
+        contour: &[[f64; 2]],
+        length: f64,
+        holes: &[([f64; 2], f64)],
+        origin: Point3,
+    ) -> Result<Self, BodyError> {
+        let base = Self::prism(contour, length, origin)?;
+        if holes.is_empty() {
+            return Ok(base);
+        }
+        if holes.len() > 10000 {
+            return Err(BodyError::InvalidInput);
+        }
+        for (i, (centre, radius)) in holes.iter().enumerate() {
+            if !centre.iter().all(|v| v.is_finite())
+                || !radius.is_finite()
+                || *radius <= 10.0 * TOLERANCE_MM
+            {
+                return Err(BodyError::InvalidInput);
+            }
+            let mut inside = false;
+            for j in 0..contour.len() {
+                let a = contour[j];
+                let b = contour[(j + 1) % contour.len()];
+                let ab = [b[0] - a[0], b[1] - a[1]];
+                let t = (((centre[0] - a[0]) * ab[0] + (centre[1] - a[1]) * ab[1])
+                    / (ab[0] * ab[0] + ab[1] * ab[1]))
+                    .clamp(0.0, 1.0);
+                if (centre[0] - a[0] - t * ab[0]).hypot(centre[1] - a[1] - t * ab[1])
+                    <= radius + 10.0 * TOLERANCE_MM
+                {
+                    return Err(BodyError::InvalidInput);
+                }
+                if (a[1] > centre[1]) != (b[1] > centre[1])
+                    && centre[0] < (b[0] - a[0]) * (centre[1] - a[1]) / (b[1] - a[1]) + a[0]
+                {
+                    inside = !inside;
+                }
+            }
+            if !inside
+                || holes[..i].iter().any(|(other, other_radius)| {
+                    (centre[0] - other[0]).hypot(centre[1] - other[1])
+                        <= radius + other_radius + 10.0 * TOLERANCE_MM
+                })
+            {
+                return Err(BodyError::InvalidInput);
+            }
+        }
+        guarded(|| {
+            let mut points = contour.to_vec();
+            let area: f64 = (0..points.len())
+                .map(|i| {
+                    let a = points[i];
+                    let b = points[(i + 1) % points.len()];
+                    a[0] * b[1] - a[1] * b[0]
+                })
+                .sum();
+            if area < 0.0 {
+                points.reverse();
+            }
+            let vertices: Vec<_> = points
+                .iter()
+                .map(|p| builder::vertex(truck_modeling::Point3::new(p[0], p[1], 0.0)))
+                .collect();
+            let outer: Wire = (0..vertices.len())
+                .map(|i| builder::line(&vertices[i], &vertices[(i + 1) % vertices.len()]))
+                .collect();
+            let mut wires = vec![outer];
+            for (centre, radius) in holes {
+                let vertex = builder::vertex(truck_modeling::Point3::new(
+                    centre[0] + radius,
+                    centre[1],
+                    0.0,
+                ));
+                wires.push(builder::rsweep(
+                    &vertex,
+                    truck_modeling::Point3::new(centre[0], centre[1], 0.0),
+                    -Vector3::unit_z(),
+                    truck_modeling::Rad(std::f64::consts::TAU),
+                ));
+            }
+            let face = builder::try_attach_plane(&wires).map_err(|_| BodyError::KernelFailure)?;
+            let solid = builder::tsweep(&face, Vector3::new(0.0, 0.0, length));
+            let mut body = Self::validated(solid, origin)?;
+            body.exact_volume = Some(
+                base.volume_mm3()?
+                    - holes
+                        .iter()
+                        .map(|(_, r)| std::f64::consts::PI * r * r * length)
+                        .sum::<f64>(),
+            );
+            Ok(body)
+        })
+    }
+
+    /// Exact annular extrusion, with clockwise inner and anticlockwise outer circles.
+    pub fn tube(outer: f64, inner: f64, length: f64, origin: Point3) -> Result<Self, BodyError> {
+        if ![outer, inner, length]
+            .iter()
+            .all(|v| v.is_finite() && *v > 0.001)
+            || inner >= outer - 0.001
+            || !origin.0.iter().all(|v| v.is_finite() && v.abs() <= 1e9)
+        {
+            return Err(BodyError::InvalidInput);
+        }
+        guarded(|| {
+            let centre = truck_modeling::Point3::new(0.0, 0.0, 0.0);
+            let wires = [(outer, 1.0), (inner, -1.0)].map(|(radius, direction)| {
+                let vertex = builder::vertex(truck_modeling::Point3::new(radius, 0.0, 0.0));
+                builder::rsweep(
+                    &vertex,
+                    centre,
+                    Vector3::unit_z() * direction,
+                    truck_modeling::Rad(std::f64::consts::TAU),
+                )
+            });
+            let face = builder::try_attach_plane(&wires).map_err(|_| BodyError::KernelFailure)?;
+            let n = 4096;
+            let mut positions = Vec::with_capacity(n * 4);
+            for z in [0.0, length] {
+                for radius in [outer, inner] {
+                    for i in 0..n {
+                        let a = std::f64::consts::TAU * i as f64 / n as f64;
+                        positions.push(truck_modeling::Point3::new(
+                            radius * a.cos(),
+                            radius * a.sin(),
+                            z,
+                        ));
+                    }
+                }
+            }
+            let mut triangles: Vec<[usize; 3]> = Vec::with_capacity(n * 8);
+            let mut quad = |v: [usize; 4]| {
+                triangles.push([v[0], v[1], v[2]]);
+                triangles.push([v[0], v[2], v[3]]);
+            };
+            for i in 0..n {
+                let j = (i + 1) % n;
+                quad([i, j, j + 2 * n, i + 2 * n]);
+                quad([i + n, i + 3 * n, j + 3 * n, j + n]);
+                quad([i, i + n, j + n, j]);
+                quad([i + 2 * n, j + 2 * n, j + 3 * n, i + 3 * n]);
+            }
+            let mesh = PolygonMesh::new(
+                StandardAttributes {
+                    positions,
+                    ..Default::default()
+                },
+                Faces::from_iter(triangles.iter()),
+            );
+            let mut body = Self::validated_mesh(
+                builder::tsweep(&face, Vector3::new(0.0, 0.0, length)),
+                origin,
+                Some(mesh),
+            )?;
+            body.exact_volume =
+                Some(std::f64::consts::PI * (outer * outer - inner * inner) * length);
+            Ok(body)
+        })
+    }
+
+    pub fn rectangular_tube(
+        width: f64,
+        height: f64,
+        thickness: f64,
+        length: f64,
+        origin: Point3,
+    ) -> Result<Self, BodyError> {
+        let base = Self::prism(
+            &[
+                [-width / 2.0, -height / 2.0],
+                [width / 2.0, -height / 2.0],
+                [width / 2.0, height / 2.0],
+                [-width / 2.0, height / 2.0],
+            ],
+            length,
+            origin,
+        )?;
+        if !thickness.is_finite() || thickness <= 0.001 || 2.0 * thickness >= width.min(height) {
+            return Err(BodyError::InvalidInput);
+        }
+        guarded(|| {
+            let iw = width / 2.0 - thickness;
+            let ih = height / 2.0 - thickness;
+            let contours = [
+                [
+                    [-width / 2.0, -height / 2.0],
+                    [width / 2.0, -height / 2.0],
+                    [width / 2.0, height / 2.0],
+                    [-width / 2.0, height / 2.0],
+                ],
+                [[-iw, -ih], [-iw, ih], [iw, ih], [iw, -ih]],
+            ];
+            let wires: Vec<Wire> = contours
+                .iter()
+                .map(|points| {
+                    let vertices: Vec<_> = points
+                        .iter()
+                        .map(|p| builder::vertex(truck_modeling::Point3::new(p[0], p[1], 0.0)))
+                        .collect();
+                    (0..4)
+                        .map(|i| builder::line(&vertices[i], &vertices[(i + 1) % 4]))
+                        .collect()
+                })
+                .collect();
+            let face = builder::try_attach_plane(&wires).map_err(|_| BodyError::KernelFailure)?;
+            let mut body = Self::validated(
+                builder::tsweep(&face, Vector3::new(0.0, 0.0, length)),
+                origin,
+            )?;
+            body.exact_volume = Some(base.volume_mm3()? - 4.0 * iw * ih * length);
+            Ok(body)
         })
     }
 
@@ -128,6 +360,68 @@ impl Body {
         self.boolean(other, true)
     }
 
+    /// Keep the local half-space normal·point <= offset. The cutter is a
+    /// bounded exact planar solid enclosing this body's complete mesh bounds.
+    pub fn clip_plane(&self, normal: [f64; 3], offset: f64) -> Result<Self, BodyError> {
+        use truck_modeling::{InnerSpace, Matrix4, Vector4};
+        if !normal.iter().all(|v| v.is_finite()) || !offset.is_finite() {
+            return Err(BodyError::InvalidInput);
+        }
+        let n = Vector3::new(normal[0], normal[1], normal[2]);
+        let magnitude = n.magnitude();
+        if magnitude < 1e-12 {
+            return Err(BodyError::InvalidInput);
+        }
+        let n = n / magnitude;
+        let offset = offset / magnitude;
+        let points = self.polygon();
+        if points
+            .positions()
+            .iter()
+            .all(|p| n.dot(Vector3::new(p.x, p.y, p.z)) <= offset)
+        {
+            return Ok(self.clone());
+        }
+        let q = n * offset;
+        let span = points
+            .positions()
+            .iter()
+            .map(|p| (Vector3::new(p.x, p.y, p.z) - q).magnitude())
+            .fold(1.0_f64, f64::max)
+            + 1.0;
+        let reference = if n.x.abs() < 0.8 {
+            Vector3::unit_x()
+        } else {
+            Vector3::unit_y()
+        };
+        let u = n.cross(reference).normalize();
+        let z = -n;
+        let v = z.cross(u);
+        // Exact planar fallback avoids Boolean degeneracy when the section
+        // passes through existing vertices. Preserve the requested plane.
+        if let Some(faces) = &self.planar_faces
+            && faces.iter().all(|face| convex_face(face))
+        {
+            return self.clip_polyhedron(faces, n, offset, u, v);
+        }
+        let mut tool = Self::prism(
+            &[[-span, -span], [span, -span], [span, span], [-span, span]],
+            2.0 * span,
+            self.origin,
+        )?;
+        tool.solid = builder::transformed(
+            &tool.solid,
+            Matrix4::from_cols(
+                Vector4::new(u.x, u.y, u.z, 0.0),
+                Vector4::new(v.x, v.y, v.z, 0.0),
+                Vector4::new(z.x, z.y, z.z, 0.0),
+                Vector4::new(q.x, q.y, q.z, 1.0),
+            ),
+        );
+        tool.mesh = None;
+        self.intersection(&tool)
+    }
+
     fn boolean(&self, other: &Self, subtract: bool) -> Result<Self, BodyError> {
         guarded(|| {
             let offset = Vector3::new(
@@ -145,7 +439,120 @@ impl Body {
         })
     }
 
+    fn clip_polyhedron(
+        &self,
+        faces: &[Vec<[f64; 3]>],
+        n: Vector3,
+        offset: f64,
+        u: Vector3,
+        v: Vector3,
+    ) -> Result<Self, BodyError> {
+        use truck_modeling::InnerSpace;
+        guarded(|| {
+            let dot = |p: [f64; 3]| n.dot(Vector3::new(p[0], p[1], p[2])) - offset;
+            let mut clipped = Vec::new();
+            let mut cap = Vec::<[f64; 3]>::new();
+            for face in faces {
+                let mut polygon = Vec::new();
+                for i in 0..face.len() {
+                    let a = face[i];
+                    let b = face[(i + 1) % face.len()];
+                    let da = dot(a);
+                    let db = dot(b);
+                    if da <= 0.0 {
+                        polygon.push(a);
+                    }
+                    if (da < 0.0 && db > 0.0) || (da > 0.0 && db < 0.0) {
+                        let t = da / (da - db);
+                        let p = std::array::from_fn(|j| a[j] + t * (b[j] - a[j]));
+                        polygon.push(p);
+                        cap.push(p);
+                    }
+                    if da.abs() < 1e-9 {
+                        cap.push(a);
+                    }
+                }
+                polygon.dedup_by(|a, b| Point3(*a).distance(Point3(*b)) < 1e-9);
+                if polygon.len() > 2 {
+                    clipped.push(polygon);
+                }
+            }
+            cap.sort_by(|a, b| {
+                a[0].total_cmp(&b[0])
+                    .then(a[1].total_cmp(&b[1]))
+                    .then(a[2].total_cmp(&b[2]))
+            });
+            cap.dedup_by(|a, b| Point3(*a).distance(Point3(*b)) < 1e-8);
+            if cap.len() < 3 {
+                return Err(BodyError::InvalidVolume);
+            }
+            let centre: [f64; 3] =
+                std::array::from_fn(|i| cap.iter().map(|p| p[i]).sum::<f64>() / cap.len() as f64);
+            // v was constructed for -n; reverse it so the cap points outwards.
+            let angle = |p: [f64; 3]| {
+                let d = Vector3::new(p[0] - centre[0], p[1] - centre[1], p[2] - centre[2]);
+                (-v).dot(d).atan2(u.dot(d))
+            };
+            cap.sort_by(|a, b| angle(*a).total_cmp(&angle(*b)));
+            clipped.push(cap);
+            let mut vertices = Vec::<([f64; 3], truck_modeling::Vertex)>::new();
+            let mut edges =
+                std::collections::BTreeMap::<(usize, usize), truck_modeling::Edge>::new();
+            let mut shell = truck_modeling::Shell::new();
+            for polygon in &clipped {
+                let indices: Vec<_> = polygon
+                    .iter()
+                    .map(|p| {
+                        if let Some(i) = vertices
+                            .iter()
+                            .position(|(q, _)| Point3(*p).distance(Point3(*q)) < 1e-8)
+                        {
+                            i
+                        } else {
+                            let i = vertices.len();
+                            vertices.push((
+                                *p,
+                                builder::vertex(truck_modeling::Point3::new(p[0], p[1], p[2])),
+                            ));
+                            i
+                        }
+                    })
+                    .collect();
+                let mut wire = Wire::new();
+                for i in 0..indices.len() {
+                    let a = indices[i];
+                    let b = indices[(i + 1) % indices.len()];
+                    if a == b {
+                        continue;
+                    }
+                    if let Some(edge) = edges.get(&(b, a)) {
+                        wire.push_back(edge.inverse());
+                    } else {
+                        let edge = builder::line(&vertices[a].1, &vertices[b].1);
+                        edges.insert((a, b), edge.clone());
+                        wire.push_back(edge);
+                    }
+                }
+                shell.push(
+                    builder::try_attach_plane(&[wire]).map_err(|_| BodyError::KernelFailure)?,
+                );
+            }
+            let solid = Solid::new(vec![shell]);
+            let mut body = Self::validated(solid, self.origin)?;
+            body.planar_faces = Some(clipped);
+            Ok(body)
+        })
+    }
+
     fn validated(solid: Solid, origin: Point3) -> Result<Self, BodyError> {
+        Self::validated_mesh(solid, origin, None)
+    }
+
+    fn validated_mesh(
+        solid: Solid,
+        origin: Point3,
+        mesh: Option<PolygonMesh>,
+    ) -> Result<Self, BodyError> {
         if solid.boundaries().is_empty()
             || solid
                 .boundaries()
@@ -154,7 +561,13 @@ impl Body {
         {
             return Err(BodyError::OpenOrInvertedBody);
         }
-        let body = Self { solid, origin };
+        let mut body = Self {
+            solid,
+            origin,
+            exact_volume: None,
+            mesh,
+            planar_faces: None,
+        };
         let mesh = body.polygon();
         if mesh.shell_condition() != ShellCondition::Closed {
             return Err(BodyError::OpenDisplayMesh);
@@ -162,34 +575,93 @@ impl Body {
         if !mesh.volume().is_finite() || mesh.volume() <= 0.0 {
             return Err(BodyError::InvalidVolume);
         }
+        body.mesh = Some(mesh);
         Ok(body)
     }
 
     fn polygon(&self) -> PolygonMesh {
+        if let Some(mesh) = &self.mesh {
+            return mesh.clone();
+        }
         let mut mesh = self
             .solid
             .robust_triangulation(TOLERANCE_MM * 2.0)
             .to_polygon();
-        // truck's welding normalizes each axis by its bounding-box span.
-        // Convert the absolute millimetre tolerance to that normalized frame.
-        let mut minimum = [f64::INFINITY; 3];
-        let mut maximum = [f64::NEG_INFINITY; 3];
-        for point in mesh.positions() {
-            for i in 0..3 {
-                minimum[i] = minimum[i].min(point[i]);
-                maximum[i] = maximum[i].max(point[i]);
+        // CPU topology/volume only need positions. Welding the repeated normals
+        // of a fine cylindrical surface has quadratic cost in truck's filter.
+        let faces: Vec<_> = mesh
+            .faces()
+            .triangle_iter()
+            .map(|face| face.map(|vertex| vertex.pos))
+            .collect();
+        mesh = PolygonMesh::new(
+            StandardAttributes {
+                positions: mesh.positions().to_vec(),
+                ..Default::default()
+            },
+            Faces::from_iter(faces.iter()),
+        );
+        // Spatial buckets keep exact duplicates and neighbouring tessellation
+        // seams linear in typical meshes; compare all 27 adjacent cells.
+        let tolerance = 2.0 * TOLERANCE_MM;
+        let mut buckets: std::collections::HashMap<[i64; 3], Vec<usize>> = Default::default();
+        let mut positions: Vec<truck_modeling::Point3> = Vec::new();
+        let mut remap = Vec::with_capacity(mesh.positions().len());
+        for p in mesh.positions() {
+            let cell = [p.x, p.y, p.z].map(|v| (v / tolerance).floor() as i64);
+            let mut found = None;
+            'search: for x in -1..=1 {
+                for y in -1..=1 {
+                    for z in -1..=1 {
+                        if let Some(indices) = buckets.get(&[cell[0] + x, cell[1] + y, cell[2] + z])
+                        {
+                            for index in indices {
+                                let q = positions[*index];
+                                if (p.x - q.x).powi(2) + (p.y - q.y).powi(2) + (p.z - q.z).powi(2)
+                                    <= tolerance * tolerance
+                                {
+                                    found = Some(*index);
+                                    break 'search;
+                                }
+                            }
+                        }
+                    }
+                }
             }
+            let index = found.unwrap_or_else(|| {
+                let index = positions.len();
+                positions.push(*p);
+                buckets.entry(cell).or_default().push(index);
+                index
+            });
+            remap.push(index);
         }
-        let extent = (0..3)
-            .map(|i| maximum[i] - minimum[i])
-            .fold(1.0_f64, f64::max);
-        mesh.put_together_same_attrs(2.0 * TOLERANCE_MM / extent);
+        let faces: Vec<Vec<StandardVertex>> = mesh
+            .faces()
+            .face_iter()
+            .map(|face| {
+                face.iter()
+                    .map(|v| StandardVertex {
+                        pos: remap[v.pos],
+                        uv: None,
+                        nor: None,
+                    })
+                    .collect()
+            })
+            .collect();
+        mesh = PolygonMesh::new(
+            StandardAttributes {
+                positions,
+                ..Default::default()
+            },
+            Faces::from_iter(faces.iter()),
+        );
         mesh.remove_degenerate_faces().remove_unused_attrs();
         mesh
     }
 
     pub fn volume_mm3(&self) -> Result<f64, BodyError> {
-        guarded(|| Ok(self.polygon().volume()))
+        guarded(|| Ok(self.exact_volume.unwrap_or_else(|| self.polygon().volume())))
     }
 
     /// Double-precision tessellation for CPU selection; float conversion belongs to the GPU boundary.
@@ -259,4 +731,30 @@ fn segments_cross(a: [f64; 2], b: [f64; 2], c: [f64; 2], d: [f64; 2]) -> bool {
             && p[1] >= x[1].min(y[1]) - TOLERANCE_MM
             && p[1] <= x[1].max(y[1]) + TOLERANCE_MM
     })
+}
+
+fn convex_face(face: &[[f64; 3]]) -> bool {
+    use truck_modeling::InnerSpace;
+    let vector = |a: [f64; 3], b: [f64; 3]| Vector3::new(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+    let mut normal = Vector3::new(0.0, 0.0, 0.0);
+    for i in 0..face.len() {
+        let cross = vector(face[i], face[(i + 1) % face.len()]).cross(vector(
+            face[(i + 1) % face.len()],
+            face[(i + 2) % face.len()],
+        ));
+        if cross.magnitude2() > 1e-16 {
+            normal = cross;
+            break;
+        }
+    }
+    normal.magnitude2() > 1e-16
+        && (0..face.len()).all(|i| {
+            vector(face[i], face[(i + 1) % face.len()])
+                .cross(vector(
+                    face[(i + 1) % face.len()],
+                    face[(i + 2) % face.len()],
+                ))
+                .dot(normal)
+                >= -1e-8
+        })
 }
