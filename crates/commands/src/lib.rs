@@ -18,6 +18,12 @@ pub enum DeletePolicy {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "snake_case")]
 pub enum Command {
+    CreateConnection {
+        connection: open_bim_model::ConnectionInstance,
+    },
+    ReplaceConnection {
+        connection: open_bim_model::ConnectionInstance,
+    },
     CreateDetail {
         detail: open_bim_model::Detail,
     },
@@ -133,6 +139,7 @@ impl Document {
         for command in commands {
             apply_command(&mut staged, command)?;
         }
+        open_bim_connections::rebuild_base_plates(&mut staged, &self.project)?;
         staged.validate()?;
         staged.revision = staged
             .revision
@@ -237,6 +244,39 @@ impl<T> DependencyCache<T> {
 
 fn apply_command(project: &mut Project, command: &Command) -> Result<(), CommandError> {
     match command {
+        Command::CreateConnection { connection } => {
+            if project.contains_id(connection.id) || connection.id.0 == 0 {
+                return Err(ModelError::DuplicateId(connection.id).into());
+            }
+            if !connection.children.is_empty() {
+                return Err(CommandError::InvalidTransaction(
+                    "Новый узел не должен содержать внешние ID деталей".into(),
+                ));
+            }
+            project.next_id =
+                project
+                    .next_id
+                    .max(connection.id.0.checked_add(1).ok_or_else(|| {
+                        CommandError::InvalidTransaction("Недопустимый ID узла".into())
+                    })?);
+            project
+                .connections
+                .insert(connection.id, connection.clone());
+        }
+        Command::ReplaceConnection { connection } => {
+            let old = project
+                .connections
+                .get(&connection.id)
+                .ok_or(ModelError::MissingReference(connection.id))?;
+            if old.children != connection.children {
+                return Err(CommandError::InvalidTransaction(
+                    "ID деталей узла управляются генератором".into(),
+                ));
+            }
+            project
+                .connections
+                .insert(connection.id, connection.clone());
+        }
         Command::CreateDetail { detail } => {
             if project.contains_id(detail.id) || detail.id.0 == 0 {
                 return Err(ModelError::DuplicateId(detail.id).into());
@@ -351,6 +391,17 @@ fn delete(project: &mut Project, id: ObjectId, policy: DeletePolicy) -> Result<(
     let mut removed = BTreeSet::from([id]);
     loop {
         let previous = removed.len();
+        for connection in project.connections.values() {
+            if removed.contains(&connection.primary)
+                || connection.secondary.is_some_and(|id| removed.contains(&id))
+                || connection.children.values().any(|id| removed.contains(id))
+            {
+                removed.insert(connection.id);
+            }
+            if removed.contains(&connection.id) {
+                removed.extend(connection.children.values());
+            }
+        }
         for element in project.elements.values() {
             let uses_profile = match &element.shape {
                 open_bim_model::ElementShape::Member { profile, .. } => removed.contains(profile),
@@ -399,6 +450,7 @@ fn delete(project: &mut Project, id: ObjectId, policy: DeletePolicy) -> Result<(
         project.axes.remove(id);
         project.levels.remove(id);
         project.details.remove(id);
+        project.connections.remove(id);
     }
     for assembly in project.assemblies.values_mut() {
         assembly.members.retain(|id| !removed.contains(id));

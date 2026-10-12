@@ -125,6 +125,46 @@ impl Project {
                 Ok(())
             }
         };
+        let mut generated = BTreeSet::new();
+        for (key, connection) in &self.connections {
+            register(*key, connection.id)?;
+            connection.template.validate()?;
+            if connection.children.is_empty() {
+                return Err(ModelError::InvalidValue(
+                    "Соединение не содержит сгенерированных объектов".into(),
+                ));
+            }
+            for parent in std::iter::once(connection.primary).chain(connection.secondary) {
+                if !self.elements.contains_key(&parent) {
+                    return Err(ModelError::MissingReference(parent));
+                }
+            }
+            if connection.secondary == Some(connection.primary) {
+                return Err(ModelError::InvalidValue(
+                    "Родители соединения должны различаться".into(),
+                ));
+            }
+            for (role, child) in &connection.children {
+                text(role)?;
+                if role.is_empty() || !generated.insert(*child) {
+                    return Err(ModelError::MultipleOwners(*child));
+                }
+                if !self.elements.contains_key(child) && !self.details.contains_key(child) {
+                    return Err(ModelError::MissingReference(*child));
+                }
+            }
+        }
+        // Initial built-in connections attach to source parts. Generated parts
+        // cannot become parents until a dependency graph is explicitly supported.
+        for connection in self.connections.values() {
+            if generated.contains(&connection.primary)
+                || connection
+                    .secondary
+                    .is_some_and(|id| generated.contains(&id))
+            {
+                return Err(ModelError::OwnershipCycle(connection.id));
+            }
+        }
         for (key, value) in &self.materials {
             register(*key, value.id)?;
             text(&value.name)?;

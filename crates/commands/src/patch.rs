@@ -62,6 +62,7 @@ pub(crate) struct Patch {
     axes: MapDelta<GridAxis>,
     levels: MapDelta<Level>,
     details: MapDelta<open_bim_model::Detail>,
+    connections: MapDelta<open_bim_model::ConnectionInstance>,
     before_meta: (u64, u64, String),
     after_meta: (u64, u64, String),
     pub touched: BTreeSet<ObjectId>,
@@ -77,6 +78,7 @@ impl Patch {
         let axes = differences(&before.axes, &after.axes);
         let levels = differences(&before.levels, &after.levels);
         let details = differences(&before.details, &after.details);
+        let connections = differences(&before.connections, &after.connections);
         let mut touched: BTreeSet<_> = elements
             .keys()
             .chain(assemblies.keys())
@@ -85,6 +87,7 @@ impl Patch {
             .chain(axes.keys())
             .chain(levels.keys())
             .chain(details.keys())
+            .chain(connections.keys())
             .copied()
             .collect();
         dependencies(before, &mut touched);
@@ -97,6 +100,7 @@ impl Patch {
             axes,
             levels,
             details,
+            connections,
             before_meta: (before.revision, before.next_id, before.name.clone()),
             after_meta: (after.revision, after.next_id, after.name.clone()),
             touched,
@@ -112,6 +116,7 @@ impl Patch {
         apply(&mut project.axes, &self.axes, forward);
         apply(&mut project.levels, &self.levels, forward);
         apply(&mut project.details, &self.details, forward);
+        apply(&mut project.connections, &self.connections, forward);
         let metadata = if forward {
             &self.after_meta
         } else {
@@ -135,6 +140,16 @@ fn dependencies(project: &Project, touched: &mut BTreeSet<ObjectId>) {
     }
     loop {
         let count = touched.len();
+        for connection in project.connections.values() {
+            if touched.contains(&connection.id)
+                || touched.contains(&connection.primary)
+                || connection.secondary.is_some_and(|id| touched.contains(&id))
+                || connection.children.values().any(|id| touched.contains(id))
+            {
+                touched.insert(connection.id);
+                touched.extend(connection.children.values());
+            }
+        }
         for detail in project.details.values() {
             if touched.contains(&detail.id)
                 && let Some(part) = detail.kind.part()
