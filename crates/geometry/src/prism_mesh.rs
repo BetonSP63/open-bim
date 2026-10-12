@@ -72,6 +72,15 @@ pub(crate) fn prism_mesh(
     length: f64,
     holes: &[([f64; 2], f64)],
 ) -> Result<PolygonMesh, BodyError> {
+    prism_void_mesh(contour, length, holes, &[])
+}
+
+pub(crate) fn prism_void_mesh(
+    contour: &[[f64; 2]],
+    length: f64,
+    holes: &[([f64; 2], f64)],
+    voids: &[Vec<[f64; 2]>],
+) -> Result<PolygonMesh, BodyError> {
     let area: f64 = (0..contour.len())
         .map(|i| {
             let a = contour[i];
@@ -81,17 +90,18 @@ pub(crate) fn prism_mesh(
         .sum::<f64>()
         .abs()
         / 2.0;
-    let removed: f64 = holes
+    let circular_removed: f64 = holes
         .iter()
         .map(|(_, r)| std::f64::consts::PI * r * r)
         .sum();
+    let removed = circular_removed + voids.iter().map(|v| polygon_area(v)).sum::<f64>();
     if removed >= area {
         return Err(BodyError::InvalidVolume);
     }
     // Bound signed-volume error of the inscribed circular display polygon.
     // Exact B-rep circles are independent of this tessellation.
     let n = (4096_usize).max(
-        (2.0 * std::f64::consts::PI.powi(2) / 3.0 * removed / (area - removed) / 5e-7)
+        (2.0 * std::f64::consts::PI.powi(2) / 3.0 * circular_removed / (area - removed) / 5e-7)
             .sqrt()
             .ceil() as usize,
     );
@@ -106,6 +116,13 @@ pub(crate) fn prism_mesh(
             let a = std::f64::consts::TAU * i as f64 / n as f64;
             [centre[0] + radius * a.cos(), centre[1] + radius * a.sin()]
         }));
+    }
+    for v in voids {
+        loops.push((points.len(), v.len()));
+        points.extend(v);
+    }
+    if points.len() > 2_000_000 {
+        return Err(BodyError::InvalidInput);
     }
     let mut cdt = ConstrainedDelaunayTriangulation::<Vertex>::new();
     let handles: Vec<_> = points
@@ -165,7 +182,7 @@ pub(crate) fn prism_mesh(
         let ids = face.vertices().map(|v| v.data().index);
         let p: [f64; 2] =
             std::array::from_fn(|i| ids.iter().map(|v| points[*v][i]).sum::<f64>() / 3.0);
-        if !inside_outer(p) || inside_hole(p) {
+        if !inside_outer(p) || inside_hole(p) || voids.iter().any(|v| inside_polygon(p, v)) {
             continue;
         }
         triangles.push([ids[0], ids[2], ids[1]]);
@@ -189,4 +206,30 @@ pub(crate) fn prism_mesh(
         },
         Faces::from_iter(triangles.iter()),
     ))
+}
+
+fn polygon_area(contour: &[[f64; 2]]) -> f64 {
+    (0..contour.len())
+        .map(|i| {
+            let a = contour[i];
+            let b = contour[(i + 1) % contour.len()];
+            a[0] * b[1] - a[1] * b[0]
+        })
+        .sum::<f64>()
+        .abs()
+        / 2.0
+}
+
+fn inside_polygon(p: [f64; 2], contour: &[[f64; 2]]) -> bool {
+    let mut inside = false;
+    for i in 0..contour.len() {
+        let a = contour[i];
+        let b = contour[(i + 1) % contour.len()];
+        if (a[1] > p[1]) != (b[1] > p[1])
+            && p[0] < (b[0] - a[0]) * (p[1] - a[1]) / (b[1] - a[1]) + a[0]
+        {
+            inside = !inside;
+        }
+    }
+    inside
 }

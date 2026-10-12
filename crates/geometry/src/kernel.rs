@@ -214,6 +214,140 @@ impl Body {
         })
     }
 
+    /// Exact extrusion with disjoint circular and polygonal through voids.
+    /// Invalid or intersecting loops are rejected rather than approximated.
+    pub fn prism_with_voids(
+        contour: &[[f64; 2]],
+        length: f64,
+        holes: &[([f64; 2], f64)],
+        voids: &[Vec<[f64; 2]>],
+        origin: Point3,
+    ) -> Result<Self, BodyError> {
+        if voids.is_empty() {
+            return Self::prism_with_holes(contour, length, holes, origin);
+        }
+        if voids.len() > 10000 {
+            return Err(BodyError::InvalidInput);
+        }
+        let base = Self::prism_with_holes(contour, length, holes, origin)?;
+        let inside = |p: [f64; 2], ring: &[[f64; 2]]| {
+            let mut yes = false;
+            for i in 0..ring.len() {
+                let a = ring[i];
+                let b = ring[(i + 1) % ring.len()];
+                if (a[1] > p[1]) != (b[1] > p[1])
+                    && p[0] < (b[0] - a[0]) * (p[1] - a[1]) / (b[1] - a[1]) + a[0]
+                {
+                    yes = !yes;
+                }
+            }
+            yes
+        };
+        let distance = |p: [f64; 2], a: [f64; 2], b: [f64; 2]| {
+            let ab = [b[0] - a[0], b[1] - a[1]];
+            let t = (((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1])
+                / (ab[0] * ab[0] + ab[1] * ab[1]))
+                .clamp(0.0, 1.0);
+            (p[0] - a[0] - t * ab[0]).hypot(p[1] - a[1] - t * ab[1])
+        };
+        let touches = |a: &[[f64; 2]], b: &[[f64; 2]]| {
+            (0..a.len()).any(|i| {
+                (0..b.len()).any(|j| {
+                    let (p, q) = (a[i], a[(i + 1) % a.len()]);
+                    let (r, s) = (b[j], b[(j + 1) % b.len()]);
+                    segments_cross(p, q, r, s)
+                        || [
+                            distance(p, r, s),
+                            distance(q, r, s),
+                            distance(r, p, q),
+                            distance(s, p, q),
+                        ]
+                        .into_iter()
+                        .any(|d| d <= TOLERANCE_MM * 10.0)
+                })
+            })
+        };
+        let mut removed = 0.0;
+        let mut normalized = Vec::new();
+        for (i, v) in voids.iter().enumerate() {
+            let primitive = Self::prism(v, length, origin)?;
+            if !v.iter().all(|p| inside(*p, contour))
+                || touches(v, contour)
+                || voids[..i]
+                    .iter()
+                    .any(|other| touches(v, other) || inside(v[0], other) || inside(other[0], v))
+                || holes.iter().any(|(c, r)| {
+                    inside(*c, v)
+                        || (0..v.len()).any(|j| {
+                            distance(*c, v[j], v[(j + 1) % v.len()]) <= r + TOLERANCE_MM * 10.0
+                        })
+                })
+            {
+                return Err(BodyError::InvalidInput);
+            }
+            removed += primitive.volume_mm3()?;
+            let signed: f64 = (0..v.len())
+                .map(|j| {
+                    let a = v[j];
+                    let b = v[(j + 1) % v.len()];
+                    a[0] * b[1] - a[1] * b[0]
+                })
+                .sum();
+            let mut v = v.clone();
+            if signed < 0.0 {
+                v.reverse();
+            }
+            normalized.push(v);
+        }
+        guarded(|| {
+            let mut outer = contour.to_vec();
+            let signed: f64 = (0..outer.len())
+                .map(|i| {
+                    let a = outer[i];
+                    let b = outer[(i + 1) % outer.len()];
+                    a[0] * b[1] - a[1] * b[0]
+                })
+                .sum();
+            if signed < 0.0 {
+                outer.reverse();
+            }
+            let wire = |points: &[[f64; 2]]| -> Wire {
+                let vertices: Vec<_> = points
+                    .iter()
+                    .map(|p| builder::vertex(truck_modeling::Point3::new(p[0], p[1], 0.0)))
+                    .collect();
+                (0..vertices.len())
+                    .map(|i| builder::line(&vertices[i], &vertices[(i + 1) % vertices.len()]))
+                    .collect()
+            };
+            let mut wires = vec![wire(&outer)];
+            wires.extend(normalized.iter().map(|v| wire(v).inverse()));
+            for (centre, radius) in holes {
+                let vertex = builder::vertex(truck_modeling::Point3::new(
+                    centre[0] + radius,
+                    centre[1],
+                    0.0,
+                ));
+                wires.push(builder::rsweep(
+                    &vertex,
+                    truck_modeling::Point3::new(centre[0], centre[1], 0.0),
+                    -Vector3::unit_z(),
+                    truck_modeling::Rad(std::f64::consts::TAU),
+                ));
+            }
+            let face = builder::try_attach_plane(&wires).map_err(|_| BodyError::KernelFailure)?;
+            let solid = builder::tsweep(&face, Vector3::new(0.0, 0.0, length));
+            let mesh = crate::prism_mesh::prism_void_mesh(&outer, length, holes, &normalized)?;
+            let mut body = Self::validated_mesh(solid, origin, Some(mesh))?;
+            let volume = base.volume_mm3()? - removed;
+            if !volume.is_finite() || volume <= 0.0 {
+                return Err(BodyError::InvalidVolume);
+            }
+            body.exact_volume = Some(volume);
+            Ok(body)
+        })
+    }
+
     /// Exact annular extrusion, with clockwise inner and anticlockwise outer circles.
     pub fn tube(outer: f64, inner: f64, length: f64, origin: Point3) -> Result<Self, BodyError> {
         if ![outer, inner, length]

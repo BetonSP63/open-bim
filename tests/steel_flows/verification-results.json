@@ -1,0 +1,25 @@
+{
+  "sha256": "eb254a1160466f6e73f73acb9645a7ebdf038fd1ec6da46c7b10ea8769b39528",
+  "payload_hash_independently_verified": true,
+  "model_equal": true,
+  "undo_redo_equal": true,
+  "save_open_equal": true,
+  "events": 15,
+  "parts": 2,
+  "details": 11,
+  "bolt_count": 4,
+  "weld_length_mm": 100.07996802557443,
+  "reference_parts": [
+    {
+      "part": 8,
+      "volume_mm3": 690644.958244857,
+      "mass_kg": 5.421562922222128
+    },
+    {
+      "part": 10,
+      "volume_mm3": 503712.56817927555,
+      "mass_kg": 3.954143660207313
+    }
+  ],
+  "screenshots": 8
+}

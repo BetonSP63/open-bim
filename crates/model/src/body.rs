@@ -63,6 +63,12 @@ impl Project {
         }
         let geometry_error =
             |e: open_bim_geometry::BodyError| ModelError::InvalidValue(e.to_string());
+        if hollow.is_none()
+            && drilled.is_empty()
+            && let Some(body) = uniform_cut_body(&contour, length, &holes, &details)
+        {
+            return Ok(body);
+        }
         let mut body = match hollow {
             Some(shape) => match *shape {
                 ProfileShape::CircularHollow {
@@ -104,4 +110,64 @@ impl Project {
         }
         Ok(body)
     }
+}
+
+/// Set subtraction and half-space intersection commute. For a uniform section
+/// with separate through voids, construct the resulting exact extrusion once.
+/// Unsupported orientations or intersecting loops retain the general kernel path.
+fn uniform_cut_body(
+    contour: &[[f64; 2]],
+    length: f64,
+    holes: &[([f64; 2], f64)],
+    details: &[&crate::Detail],
+) -> Option<Body> {
+    let mut contour = contour.to_vec();
+    let mut voids = Vec::new();
+    let mut changed = false;
+    for detail in details {
+        match &detail.kind {
+            DetailKind::PlaneCut { normal, offset, .. } => {
+                if normal[2].abs() > 1e-12 {
+                    return None;
+                }
+                changed = true;
+                let mut clipped = Vec::new();
+                for i in 0..contour.len() {
+                    let a = contour[i];
+                    let b = contour[(i + 1) % contour.len()];
+                    let da = normal[0] * a[0] + normal[1] * a[1] - offset;
+                    let db = normal[0] * b[0] + normal[1] * b[1] - offset;
+                    if da <= 0.0 {
+                        clipped.push(a);
+                    }
+                    if (da < 0.0 && db > 0.0) || (da > 0.0 && db < 0.0) {
+                        let t = da / (da - db);
+                        clipped.push([a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]);
+                    }
+                }
+                contour = clipped;
+                if contour.len() < 3 {
+                    return None;
+                }
+            }
+            DetailKind::BoxCut { origin, size, .. } => {
+                if origin.0[2] > 0.0 || origin.0[2] + size[2] < length {
+                    return None;
+                }
+                changed = true;
+                let [x, y, _] = origin.0;
+                voids.push(vec![
+                    [x, y],
+                    [x + size[0], y],
+                    [x + size[0], y + size[1]],
+                    [x, y + size[1]],
+                ]);
+            }
+            _ => {}
+        }
+    }
+    if !changed {
+        return None;
+    }
+    Body::prism_with_voids(&contour, length, holes, &voids, Point3([0.0; 3])).ok()
 }
