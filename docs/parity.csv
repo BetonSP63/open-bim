@@ -26,3 +26,4 @@ collaboration,Совместная работа и разрешение конф
 api,API и пользовательские компоненты,api,https://support.tekla.com/tekla-2025/tekla-structures,open,later,Создать компонент через публичный API и проверить обновление,
 windows-linux,Windows и Linux,platform,https://support.tekla.com/tekla-2025/tekla-structures,open,later,"Сборка, запуск и полный пользовательский сценарий на каждой ОС",
 viewport,"Трёхмерный вид, камера, выбор и сечение",modeling,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,"GPU-каркас, глубина, выбор передней поверхности, маски и сечение",tests/viewport/VERIFICATION.md
+modeling-tools,Creation and group editing,modeling,phase-7,verified,initial,"Numeric creation, four snaps, history, save/open",tests/modeling_flows/VERIFICATION.md; crates/desktop/tests/modeling.rs

@@ -1,0 +1,20 @@
+{
+  "gui": {
+    "save_open_equal": true,
+    "model_equal": true,
+    "sha256": "c670472d1d0a2d0f39f51cd689660665fd8ee138e38cefd326a9d2c7136a0d3a",
+    "objects": 4,
+    "axes": 1,
+    "events": 12
+  },
+  "group": {
+    "save_open_equal": true,
+    "model_equal": true,
+    "sha256": "f1671279baff51039ddecb1a7d5dd670c520002ce7cc2af006cc0bd1cfded9c5",
+    "objects": 4,
+    "axes": 1,
+    "events": 9,
+    "undo_redo_equal": true,
+    "invalid_input_then_cancel_preserves_model": true
+  }
+}
