@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "name": "Соединение",
+  "kind": {
+    "type": "base_plate",
+    "overhang": 70.0
+  },
+  "thickness": 25.0,
+  "edge_distance": 35.0,
+  "bolt_diameter": 20.0,
+  "clearance": 2.0,
+  "bolt_standard": "ISO 4014",
+  "bolt_grade": "8.8",
+  "weld_size": 6.0
+}

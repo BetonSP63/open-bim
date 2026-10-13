@@ -368,7 +368,10 @@ impl eframe::App for Desktop {
             }
             let (rect, response) =
                 ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
-            if response.hovered() || response.has_focus() {
+            let viewport_hovered = response.hovered();
+            let middle_drag = response.dragged_by(egui::PointerButton::Middle);
+            let secondary_drag = response.dragged_by(egui::PointerButton::Secondary);
+            if viewport_hovered || response.has_focus() {
                 ctx.input(|input| {
                     if !input.modifiers.command && !input.modifiers.ctrl {
                         for (key, view) in [
@@ -412,17 +415,14 @@ impl eframe::App for Desktop {
                             self.camera.orbit(dx, dy);
                         }
                     }
-                    if response.hovered() {
+                    if viewport_hovered {
                         self.camera.zoom(input.smooth_scroll_delta.y as f64);
                     }
                     let delta = input.pointer.delta();
-                    if response.dragged_by(egui::PointerButton::Middle)
-                        || (response.dragged_by(egui::PointerButton::Secondary)
-                            && input.modifiers.shift)
-                    {
+                    if middle_drag || (secondary_drag && input.modifiers.shift) {
                         self.camera
                             .pan(delta.x as f64, delta.y as f64, rect.height() as f64);
-                    } else if response.dragged_by(egui::PointerButton::Secondary) {
+                    } else if secondary_drag {
                         self.camera.orbit(delta.x as f64, delta.y as f64);
                     }
                 });

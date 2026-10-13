@@ -1,0 +1,75 @@
+{
+  "payload_sha256": "74ff9a2c0cc5f09709f2b3ba3d4615fa72da72f76e373ecc21d654eacac8ce09",
+  "independent_hash": true,
+  "save_open_equal": true,
+  "undo_redo_equal": true,
+  "nodes": 6,
+  "parts": 16,
+  "details": 52,
+  "child_ids_unique": 60,
+  "next_id": 106,
+  "native_events": 21,
+  "captures": 8,
+  "reference_masses": [
+    {
+      "part": 41,
+      "volume_mm3": 3151986.728891563,
+      "mass_kg": 24.74309582179877
+    },
+    {
+      "part": 49,
+      "volume_mm3": 3151986.728891563,
+      "mass_kg": 24.74309582179877
+    },
+    {
+      "part": 57,
+      "volume_mm3": 2521589.3831132506,
+      "mass_kg": 19.794476657439017
+    },
+    {
+      "part": 11,
+      "volume_mm3": 58529589.38311325,
+      "mass_kg": 459.457276657439
+    },
+    {
+      "part": 69,
+      "volume_mm3": 2521589.3831132506,
+      "mass_kg": 19.794476657439017
+    },
+    {
+      "part": 15,
+      "volume_mm3": 58529589.38311325,
+      "mass_kg": 459.457276657439
+    },
+    {
+      "part": 81,
+      "volume_mm3": 653589.3831132508,
+      "mass_kg": 5.130676657439019
+    },
+    {
+      "part": 13,
+      "volume_mm3": 58544794.691556625,
+      "mass_kg": 459.57663832871947
+    },
+    {
+      "part": 12,
+      "volume_mm3": 17417917.87662265,
+      "mass_kg": 136.7306553314878
+    },
+    {
+      "part": 94,
+      "volume_mm3": 653589.3831132508,
+      "mass_kg": 5.130676657439019
+    },
+    {
+      "part": 17,
+      "volume_mm3": 58544794.691556625,
+      "mass_kg": 459.57663832871947
+    },
+    {
+      "part": 16,
+      "volume_mm3": 17417917.87662265,
+      "mass_kg": 136.7306553314878
+    }
+  ]
+}
