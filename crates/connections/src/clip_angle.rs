@@ -1,4 +1,4 @@
-use crate::end_plate::{bounds, local_frame};
+use crate::end_plate::{bounds, contact_material_depth, local_frame};
 use crate::{child_id, instance_changed, retain_children};
 use open_bim_model::{
     ConnectionInstance, Detail, DetailKind, Element, ElementShape, Frame, LengthMm, MemberKind,
@@ -222,7 +222,9 @@ pub fn clip_angle_geometry(
         primary_bolts,
         support_bolts,
         primary_depth: t + web + 2.,
-        support_depth: t + extent[axis][1] - extent[axis][0] + 2.,
+        support_depth: t
+            + contact_material_depth(project, &host.shape, axis, direction[axis])?
+            + 2.,
         support,
     })
 }

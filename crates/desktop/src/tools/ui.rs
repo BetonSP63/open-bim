@@ -5,6 +5,7 @@ use open_bim_model::{ObjectId, Point3, PropertyValue};
 pub enum Action {
     Create,
     Detail(Vec<open_bim_commands::Command>),
+    Connection(Vec<open_bim_commands::Command>),
     Edit(Edit),
     Undo,
     Redo,
@@ -14,6 +15,7 @@ pub enum Action {
     Example,
 }
 pub struct ToolsUi {
+    pub connection: super::connection_ui::ConnectionUi,
     pub detailing: super::detailing_ui::DetailingUi,
     pub plate_contour: String,
     pub plate_thickness: String,
@@ -34,6 +36,7 @@ pub struct ToolsUi {
 impl Default for ToolsUi {
     fn default() -> Self {
         Self {
+            connection: Default::default(),
             detailing: Default::default(),
             plate_contour: String::new(),
             plate_thickness: "20".into(),
@@ -278,6 +281,15 @@ impl ToolsUi {
         {
             match result {
                 Ok(commands) => action = Some(Action::Detail(commands)),
+                Err(e) => self.message = Some(e),
+            }
+        }
+        if let Some(result) = self
+            .connection
+            .show(ui, editor.document.project(), &editor.selected)
+        {
+            match result {
+                Ok(commands) => action = Some(Action::Connection(commands)),
                 Err(e) => self.message = Some(e),
             }
         }

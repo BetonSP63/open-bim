@@ -88,6 +88,42 @@ fn actual_angle_drills_both_legs_and_parents_without_profile_or_id_leaks() {
         )
         .unwrap();
         let instance = doc.project().connections[&ObjectId(10)].clone();
+        let original = project_hash(doc.project()).unwrap();
+        let mut foreign = doc.project().elements[&instance.children["angle"]].clone();
+        foreign.id = ObjectId(doc.project().next_id);
+        assert!(
+            doc.transact(
+                "Borrow owned profile",
+                &[Command::Create { element: foreign }]
+            )
+            .unwrap_err()
+            .to_string()
+            .contains("Профиль принадлежит")
+        );
+        assert_eq!(project_hash(doc.project()).unwrap(), original);
+        let mut malformed = doc.project().clone();
+        let profile = instance.children["angle-profile"];
+        malformed.profiles.get_mut(&profile).unwrap().shape = ProfileShape::Angle {
+            height: 120.,
+            width: 120.,
+            thickness: 20.,
+        };
+        assert!(malformed.validate().is_err());
+        let mut malformed = doc.project().clone();
+        let value = malformed
+            .connections
+            .get_mut(&ObjectId(10))
+            .unwrap()
+            .children
+            .remove("angle-hole-0")
+            .unwrap();
+        malformed
+            .connections
+            .get_mut(&ObjectId(10))
+            .unwrap()
+            .children
+            .insert("unknown-role".into(), value);
+        assert!(malformed.validate().is_err());
         assert_eq!(instance.children.len(), 12);
         assert_eq!(doc.project().profiles.len(), profiles + 1);
         assert_eq!(doc.project().elements.len(), 3);

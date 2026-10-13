@@ -1,4 +1,5 @@
 //! Model tools commit only validated documents and renderable geometry.
+pub mod connection_ui;
 pub mod detailing_ui;
 mod snap;
 pub mod ui;
@@ -223,6 +224,11 @@ pub fn edit_commands(
     let mut next = project.next_id;
     let mut commands = Vec::new();
     let mut copies = std::collections::BTreeMap::new();
+    let generated: BTreeSet<_> = project
+        .connections
+        .values()
+        .flat_map(|c| c.children.values().copied())
+        .collect();
     for id in selected {
         if let Edit::PlateShape { contour, thickness } = edit {
             let mut element = project.elements.get(id).ok_or("Выберите пластину")?.clone();
@@ -404,6 +410,9 @@ pub fn edit_commands(
             Point3((v - 2.0 * (n.dot(v) - offset) * n).to_array())
         };
         for source in project.details.values() {
+            if generated.contains(&source.id) {
+                continue;
+            }
             let mut detail = source.clone();
             if let Some(parent) = detail.kind.part() {
                 if !selected.contains(&parent) {
@@ -486,6 +495,9 @@ pub fn edit_commands(
                 DetailKind::BoltGroup { parts, .. } | DetailKind::Weld { parts, .. } => parts,
                 _ => continue,
             };
+            if generated.contains(&source.id) {
+                continue;
+            }
             if parts.is_disjoint(selected) {
                 continue;
             }

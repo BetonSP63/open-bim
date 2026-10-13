@@ -174,6 +174,7 @@ impl Desktop {
         let result = match action {
             Action::Create => self.editor.create(),
             Action::Detail(commands) => self.editor.commit("Деталировка", &commands),
+            Action::Connection(commands) => self.editor.commit("Соединение", &commands),
             Action::Edit(edit) => self.editor.edit(&edit),
             Action::Undo => self.editor.history(false),
             Action::Redo => self.editor.history(true),

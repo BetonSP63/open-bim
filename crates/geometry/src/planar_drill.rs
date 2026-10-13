@@ -88,6 +88,8 @@ impl Body {
             let z = points[0][2];
             let contour: Vec<_> = points.iter().map(|p| [p[0], p[1]]).collect();
             if points.iter().all(|p| (p[2] - z).abs() < TOLERANCE_MM)
+                && z >= -TOLERANCE_MM
+                && z <= depth + TOLERANCE_MM
                 && contains_circle(&contour, [0., 0.], radius)
             {
                 targets.push((z, face));

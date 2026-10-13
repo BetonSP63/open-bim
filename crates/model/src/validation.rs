@@ -129,6 +129,7 @@ impl Project {
         for (key, connection) in &self.connections {
             register(*key, connection.id)?;
             connection.template.validate()?;
+            connection.validate_child_roles(self)?;
             if connection.children.is_empty() {
                 return Err(ModelError::InvalidValue(
                     "Соединение не содержит сгенерированных объектов".into(),
@@ -196,6 +197,9 @@ impl Project {
                 ElementShape::Member {
                     profile, length, ..
                 } => {
+                    if generated.contains(profile) && !generated.contains(&value.id) {
+                        return Err(ModelError::InvalidValue("Профиль принадлежит соединению; используйте самостоятельный профиль или копию шаблона узла".into()));
+                    }
                     if !self.profiles.contains_key(profile) {
                         return Err(ModelError::MissingReference(*profile));
                     }

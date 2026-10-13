@@ -55,6 +55,36 @@ pub(crate) fn bounds(project: &Project, shape: &ElementShape) -> Result<[[f64; 2
     }))
 }
 
+/// Length of the nearest material layer at an accepted flat contact face.
+/// Box dimensions include voids and opposite flanges, so cannot define grip.
+pub(crate) fn contact_material_depth(
+    project: &Project,
+    shape: &ElementShape,
+    axis: usize,
+    direction: f64,
+) -> Result<f64, ModelError> {
+    let extent = bounds(project, shape)?;
+    let ElementShape::Member { profile, .. } = shape else {
+        return Ok(extent[axis][1] - extent[axis][0]);
+    };
+    let section = &project
+        .profiles
+        .get(profile)
+        .ok_or(ModelError::MissingReference(*profile))?
+        .shape;
+    Ok(match *section {
+        ProfileShape::ISection { flange, .. } | ProfileShape::Channel { flange, .. }
+            if axis == 1 =>
+        {
+            flange
+        }
+        ProfileShape::Channel { web, .. } if axis == 0 && direction > 0. => web,
+        ProfileShape::Angle { thickness, .. } if axis < 2 && direction > 0. => thickness,
+        ProfileShape::RectangularHollow { thickness, .. } if axis < 2 => thickness,
+        _ => extent[axis][1] - extent[axis][0],
+    })
+}
+
 #[derive(Clone, Debug)]
 pub struct EndPlateGeometry {
     pub plate: BasePlateGeometry,
@@ -214,7 +244,9 @@ pub fn end_plate_geometry(
     Ok(EndPlateGeometry {
         plate,
         support,
-        hole_depth: instance.template.thickness + extent[axis][1] - extent[axis][0] + 2.,
+        hole_depth: instance.template.thickness
+            + contact_material_depth(project, &host.shape, axis, projected[axis])?
+            + 2.,
     })
 }
 
