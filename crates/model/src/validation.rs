@@ -149,7 +149,10 @@ impl Project {
                 if role.is_empty() || !generated.insert(*child) {
                     return Err(ModelError::MultipleOwners(*child));
                 }
-                if !self.elements.contains_key(child) && !self.details.contains_key(child) {
+                if !self.elements.contains_key(child)
+                    && !self.details.contains_key(child)
+                    && !self.profiles.contains_key(child)
+                {
                     return Err(ModelError::MissingReference(*child));
                 }
             }

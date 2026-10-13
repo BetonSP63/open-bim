@@ -4,6 +4,8 @@ mod base_plate;
 pub use base_plate::{BasePlateGeometry, base_plate_geometry, rebuild_base_plates};
 mod end_plate;
 pub use end_plate::{EndPlateGeometry, end_plate_geometry, rebuild_end_plates};
+mod clip_angle;
+pub use clip_angle::{ClipAngleGeometry, clip_angle_geometry, rebuild_clip_angles};
 
 pub(crate) fn child_id(
     project: &mut open_bim_model::Project,
@@ -11,7 +13,10 @@ pub(crate) fn child_id(
     role: &str,
 ) -> Result<open_bim_model::ObjectId, open_bim_model::ModelError> {
     if let Some(id) = instance.children.get(role) {
-        if !project.elements.contains_key(id) && !project.details.contains_key(id) {
+        if !project.elements.contains_key(id)
+            && !project.details.contains_key(id)
+            && !project.profiles.contains_key(id)
+        {
             return Err(open_bim_model::ModelError::MissingReference(*id));
         }
         return Ok(*id);
@@ -36,6 +41,7 @@ pub(crate) fn retain_children(
         instance.children.remove(&role);
         project.elements.remove(&id);
         project.details.remove(&id);
+        project.profiles.remove(&id);
     }
 }
 
@@ -60,6 +66,7 @@ pub(crate) fn instance_changed(
         || instance.children.values().any(|id| {
             project.elements.get(id) != previous.elements.get(id)
                 || project.details.get(id) != previous.details.get(id)
+                || project.profiles.get(id) != previous.profiles.get(id)
         })
 }
 

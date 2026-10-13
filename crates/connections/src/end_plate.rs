@@ -14,7 +14,7 @@ pub(crate) fn local_frame(world: Frame, parent: Frame) -> Frame {
     }
 }
 
-fn bounds(project: &Project, shape: &ElementShape) -> Result<[[f64; 2]; 3], ModelError> {
+pub(crate) fn bounds(project: &Project, shape: &ElementShape) -> Result<[[f64; 2]; 3], ModelError> {
     let (contour, depth) = match shape {
         ElementShape::Plate {
             contour, thickness, ..
