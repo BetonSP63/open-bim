@@ -2,6 +2,8 @@ use crate::Point3;
 use truck_meshalgo::prelude::*;
 use truck_modeling::{Solid, Vector3, Wire, builder};
 use truck_topology::shell::ShellCondition;
+#[path = "planar_drill.rs"]
+mod planar_drill;
 
 /// Absolute modeling tolerance in millimetres. All features must exceed 10× it.
 pub const TOLERANCE_MM: f64 = 0.0001;
@@ -39,6 +41,7 @@ pub struct Body {
     exact_volume: Option<f64>,
     mesh: Option<PolygonMesh>,
     planar_faces: Option<Vec<Vec<[f64; 3]>>>,
+    planar_bores: Vec<planar_drill::FlatBore>,
 }
 
 /// Local display geometry. World placement is separate to avoid f32 precision loss.
@@ -616,6 +619,15 @@ impl Body {
                     .map(|f| f.iter().map(|p| transform(*p)).collect())
                     .collect()
             });
+            body.planar_bores = self
+                .planar_bores
+                .iter()
+                .map(|b| planar_drill::FlatBore {
+                    start: transform(b.start),
+                    end: transform(b.end),
+                    radius: b.radius,
+                })
+                .collect();
             Ok(body)
         })
     }
@@ -634,6 +646,12 @@ impl Body {
         depth: f64,
     ) -> Result<Self, BodyError> {
         let tool = Self::cylinder(radius, depth, self.origin)?.rigid_transform(axes, start)?;
+        if let Some(result) = self.drill_planar_slab(axes, start, radius, depth) {
+            return result;
+        }
+        if !self.planar_bores.is_empty() {
+            return self.difference(&tool);
+        }
         let Some(faces) = &self.planar_faces else {
             return self.difference(&tool);
         };
@@ -791,6 +809,7 @@ impl Body {
         // Exact planar fallback avoids Boolean degeneracy when the section
         // passes through existing vertices. Preserve the requested plane.
         if let Some(faces) = &self.planar_faces
+            && self.planar_bores.is_empty()
             && faces.iter().all(|face| convex_face(face))
         {
             return self.clip_polyhedron(faces, n, offset, u, v);
@@ -958,6 +977,7 @@ impl Body {
             exact_volume: None,
             mesh,
             planar_faces: None,
+            planar_bores: Vec::new(),
         };
         let mesh = body.polygon();
         if mesh.shell_condition() != ShellCondition::Closed {
@@ -974,10 +994,18 @@ impl Body {
         if let Some(mesh) = &self.mesh {
             return mesh.clone();
         }
-        let mut mesh = self
+        let mesh = self
             .solid
             .robust_triangulation(TOLERANCE_MM * 0.5)
             .to_polygon();
+        Self::weld_polygon(mesh)
+    }
+
+    fn weld_polygon(mesh: PolygonMesh) -> PolygonMesh {
+        Self::weld_polygon_at_tolerance(mesh, 2.0 * TOLERANCE_MM)
+    }
+
+    fn weld_polygon_at_tolerance(mut mesh: PolygonMesh, tolerance: f64) -> PolygonMesh {
         // CPU topology/volume only need positions. Welding the repeated normals
         // of a fine cylindrical surface has quadratic cost in truck's filter.
         let faces: Vec<_> = mesh
@@ -994,7 +1022,6 @@ impl Body {
         );
         // Spatial buckets keep exact duplicates and neighbouring tessellation
         // seams linear in typical meshes; compare all 27 adjacent cells.
-        let tolerance = 2.0 * TOLERANCE_MM;
         let mut buckets: std::collections::HashMap<[i64; 3], Vec<usize>> = Default::default();
         let mut positions: Vec<truck_modeling::Point3> = Vec::new();
         let mut remap = Vec::with_capacity(mesh.positions().len());

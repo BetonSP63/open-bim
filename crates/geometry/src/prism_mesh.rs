@@ -81,6 +81,16 @@ pub(crate) fn prism_void_mesh(
     holes: &[([f64; 2], f64)],
     voids: &[Vec<[f64; 2]>],
 ) -> Result<PolygonMesh, BodyError> {
+    prism_void_mesh_at_least(contour, length, holes, voids, 0)
+}
+
+pub(crate) fn prism_void_mesh_at_least(
+    contour: &[[f64; 2]],
+    length: f64,
+    holes: &[([f64; 2], f64)],
+    voids: &[Vec<[f64; 2]>],
+    minimum_segments: usize,
+) -> Result<PolygonMesh, BodyError> {
     let area: f64 = (0..contour.len())
         .map(|i| {
             let a = contour[i];
@@ -111,7 +121,7 @@ pub(crate) fn prism_void_mesh(
         })
         .max()
         .unwrap_or(0);
-    let n = (256_usize).max(sagitta_segments).max(
+    let n = (256_usize).max(minimum_segments).max(sagitta_segments).max(
         (2.0 * std::f64::consts::PI.powi(2) / 3.0 * circular_removed / (area - removed) / 5e-7)
             .sqrt()
             .ceil() as usize,
