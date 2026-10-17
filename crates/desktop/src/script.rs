@@ -66,6 +66,8 @@ pub struct Runner {
     index: usize,
     phase: u32,
     wait: u32,
+    /// Capture requested but not yet saved, with frames waited.
+    pending: Option<(String, u32)>,
 }
 
 impl Runner {
@@ -76,7 +78,11 @@ impl Runner {
         }
     }
     pub fn finished(&self) -> bool {
-        self.index >= self.steps.len()
+        self.index >= self.steps.len() && self.pending.is_none()
+    }
+    /// The application saved the requested capture.
+    pub fn captured(&mut self) {
+        self.pending = None;
     }
     /// Feed one frame of events; returns an effect when the step needs one.
     pub fn frame(&mut self, input: &mut egui::RawInput) -> Option<Effect> {
@@ -92,6 +98,15 @@ impl Runner {
                     | egui::Event::MouseMoved(_)
             )
         });
+        // Hold the script until the screenshot is written; re-request it if
+        // the frame that should have carried it was dropped.
+        if let Some((path, frames)) = &mut self.pending {
+            *frames += 1;
+            if (*frames).is_multiple_of(30) {
+                return Some(Effect::Capture(path.clone()));
+            }
+            return None;
+        }
         if self.wait > 0 {
             self.wait -= 1;
             return None;
@@ -210,7 +225,8 @@ impl Runner {
             }
             Step::Note(_) => advance(self, 0),
             Step::Capture(path) => {
-                advance(self, 6);
+                advance(self, 2);
+                self.pending = Some((path.clone(), 0));
                 return Some(Effect::Capture(path.clone()));
             }
             Step::Quit => {

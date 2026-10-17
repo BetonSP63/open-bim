@@ -2263,6 +2263,7 @@ dependencies = [
  "open-bim-coordination",
  "open-bim-drawing-export",
  "open-bim-drawings",
+ "open-bim-ifc",
  "open-bim-model",
  "open-bim-numbering",
  "open-bim-persistence",
@@ -2311,6 +2312,18 @@ dependencies = [
  "truck-modeling",
  "truck-shapeops",
  "truck-topology",
+]
+
+[[package]]
+name = "open-bim-ifc"
+version = "0.1.0"
+dependencies = [
+ "open-bim-drawings",
+ "open-bim-model",
+ "open-bim-persistence",
+ "serde",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]

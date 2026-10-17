@@ -1,0 +1,21 @@
+GPU: Apple M5 · Metal; project=Connection GUI fixture objects=16
+SCRIPT: step 1 Wait(20)
+SCRIPT: step 2 Note("Экспорт IFC4")
+SCRIPT: step 3 Click([1011.0, 718.5])
+SCRIPT: step 4 Wait(10)
+SCRIPT: step 5 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ifc_flow/step-1.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ifc_flow/step-1.png 2560x1600
+SCRIPT: step 6 Note("Новый проект")
+SCRIPT: step 7 Click([451.0, 10.9])
+SCRIPT: step 8 Wait(10)
+SCRIPT: step 9 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ifc_flow/step-2.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ifc_flow/step-2.png 2560x1600
+SCRIPT: step 10 Note("Импорт IFC4")
+SCRIPT: step 11 Click([1102.5, 718.5])
+SCRIPT: step 12 Wait(20)
+SCRIPT: step 13 Key { name: "F", command: false, shift: false }
+SCRIPT: step 14 Wait(5)
+SCRIPT: step 15 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ifc_flow/step-3.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ifc_flow/step-3.png 2560x1600
+SCRIPT: step 16 Quit
+SCRIPT: finished

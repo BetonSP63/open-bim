@@ -1,0 +1,227 @@
+{
+ "connections.ifc": {
+  "elements": 16,
+  "schema_errors": 0,
+  "length_unit_m": 0.001,
+  "shapes": {
+   "1aCvDuhZ1Qo9ainvaBmsr3": {
+    "type": "IfcBeam",
+    "name": "End A beam",
+    "volume_mm3": 17424000.0,
+    "material": "S235 · тестовый материал",
+    "openings": 0,
+    "psets": []
+   },
+   "2Z$svb7wnRIeXB4fcPXBuS": {
+    "type": "IfcBeam",
+    "name": "Clip A beam",
+    "volume_mm3": 17417976.9,
+    "material": "S235 · тестовый материал",
+    "openings": 2,
+    "psets": []
+   },
+   "1jLd6Yih5SDAx94ohLuh6H": {
+    "type": "IfcBeam",
+    "name": "End B beam",
+    "volume_mm3": 17424000.0,
+    "material": "S235 · тестовый материал",
+    "openings": 0,
+    "psets": []
+   },
+   "0LMYeLUf1KtPRrBiIRn$MI": {
+    "type": "IfcBeam",
+    "name": "Clip B beam",
+    "volume_mm3": 17417976.9,
+    "material": "S235 · тестовый материал",
+    "openings": 2,
+    "psets": []
+   },
+   "3qHNwklRHSYhweubdyRmAi": {
+    "type": "IfcBeam",
+    "name": "Соединение — уголок",
+    "volume_mm3": 653884.5,
+    "material": "S235 · тестовый материал",
+    "openings": 4,
+    "psets": []
+   },
+   "0WED51M$bMmPG_$f9xBf$T": {
+    "type": "IfcBeam",
+    "name": "Соединение — уголок",
+    "volume_mm3": 653884.5,
+    "material": "S235 · тестовый материал",
+    "openings": 4,
+    "psets": []
+   },
+   "0rn5tgyfTMc9pm0gYwouSq": {
+    "type": "IfcColumn",
+    "name": "Base column A",
+    "volume_mm3": 17424000.0,
+    "material": "S235 · тестовый материал",
+    "openings": 0,
+    "psets": []
+   },
+   "3H4lbv7kPH7ewYD5cQitgg": {
+    "type": "IfcColumn",
+    "name": "Base column B",
+    "volume_mm3": 17424000.0,
+    "material": "S235 · тестовый материал",
+    "openings": 0,
+    "psets": []
+   },
+   "1xmP1O1qfV4BP_hArG0OPX": {
+    "type": "IfcColumn",
+    "name": "End A support",
+    "volume_mm3": 58529884.5,
+    "material": "S235 · тестовый материал",
+    "openings": 4,
+    "psets": []
+   },
+   "2jJ3JtSKbOfANmPQEFvO7x": {
+    "type": "IfcColumn",
+    "name": "Clip A support",
+    "volume_mm3": 58544942.3,
+    "material": "S235 · тестовый материал",
+    "openings": 2,
+    "psets": []
+   },
+   "2bp$JQ4dHJ$Oi6dnkYr6JG": {
+    "type": "IfcColumn",
+    "name": "End B support",
+    "volume_mm3": 58529884.5,
+    "material": "S235 · тестовый материал",
+    "openings": 4,
+    "psets": []
+   },
+   "31eOXg5lDRAwlILtv$qzMr": {
+    "type": "IfcColumn",
+    "name": "Clip B support",
+    "volume_mm3": 58544942.3,
+    "material": "S235 · тестовый материал",
+    "openings": 2,
+    "psets": []
+   },
+   "0M73KB_MnU1wJjxEceucEd": {
+    "type": "IfcPlate",
+    "name": "Соединение — плита",
+    "volume_mm3": 3152355.6,
+    "material": "S235 · тестовый материал",
+    "openings": 4,
+    "psets": []
+   },
+   "16lfX1ob9TIh7wkGJkV0OV": {
+    "type": "IfcPlate",
+    "name": "Соединение — плита",
+    "volume_mm3": 3152355.6,
+    "material": "S235 · тестовый материал",
+    "openings": 4,
+    "psets": []
+   },
+   "1eaQ2TVyPGYA2axXVRK2Ua": {
+    "type": "IfcPlate",
+    "name": "Соединение — торцевая пластина",
+    "volume_mm3": 2521884.5,
+    "material": "S235 · тестовый материал",
+    "openings": 4,
+    "psets": []
+   },
+   "3eh00I$Q1JVPAjoIjMDeR2": {
+    "type": "IfcPlate",
+    "name": "Соединение — торцевая пластина",
+    "volume_mm3": 2521884.5,
+    "material": "S235 · тестовый материал",
+    "openings": 4,
+    "psets": []
+   }
+  }
+ },
+ "drawing-control.ifc": {
+  "elements": 2,
+  "schema_errors": 0,
+  "length_unit_m": 0.001,
+  "shapes": {
+   "0rn5tgyfTMc9pm0gYwouSq": {
+    "type": "IfcBeam",
+    "name": "Балка Б1",
+    "volume_mm3": 17417976.9,
+    "material": "S235 · тестовый материал",
+    "openings": 2,
+    "psets": []
+   },
+   "1xmP1O1qfV4BP_hArG0OPX": {
+    "type": "IfcPlate",
+    "name": "Пластина П1",
+    "volume_mm3": 2384942.3,
+    "material": "S235 · тестовый материал",
+    "openings": 2,
+    "psets": []
+   }
+  }
+ },
+ "steel-frame.ifc": {
+  "elements": 7,
+  "schema_errors": 0,
+  "length_unit_m": 0.001,
+  "shapes": {
+   "2Z$svb7wnRIeXB4fcPXBuS": {
+    "type": "IfcBeam",
+    "name": "Балка 1",
+    "volume_mm3": 34848000.0,
+    "material": "S235 · тестовый материал",
+    "openings": 0,
+    "psets": []
+   },
+   "2jJ3JtSKbOfANmPQEFvO7x": {
+    "type": "IfcBeam",
+    "name": "Балка 2",
+    "volume_mm3": 34848000.0,
+    "material": "S235 · тестовый материал",
+    "openings": 0,
+    "psets": []
+   },
+   "0rn5tgyfTMc9pm0gYwouSq": {
+    "type": "IfcColumn",
+    "name": "Колонна 1",
+    "volume_mm3": 17424000.0,
+    "material": "S235 · тестовый материал",
+    "openings": 0,
+    "psets": [
+     "Open BIM"
+    ]
+   },
+   "3H4lbv7kPH7ewYD5cQitgg": {
+    "type": "IfcColumn",
+    "name": "Колонна 2",
+    "volume_mm3": 17424000.0,
+    "material": "S235 · тестовый материал",
+    "openings": 0,
+    "psets": []
+   },
+   "1aCvDuhZ1Qo9ainvaBmsr3": {
+    "type": "IfcColumn",
+    "name": "Колонна 3",
+    "volume_mm3": 17424000.0,
+    "material": "S235 · тестовый материал",
+    "openings": 0,
+    "psets": []
+   },
+   "1xmP1O1qfV4BP_hArG0OPX": {
+    "type": "IfcColumn",
+    "name": "Колонна 4",
+    "volume_mm3": 17424000.0,
+    "material": "S235 · тестовый материал",
+    "openings": 0,
+    "psets": []
+   },
+   "1jLd6Yih5SDAx94ohLuh6H": {
+    "type": "IfcPlate",
+    "name": "Опорная пластина",
+    "volume_mm3": 3200000.0,
+    "material": "S235 · тестовый материал",
+    "openings": 0,
+    "psets": [
+     "Open BIM"
+    ]
+   }
+  }
+ }
+}

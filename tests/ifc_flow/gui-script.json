@@ -1,0 +1,3 @@
+[{"wait":20},{"note":"Экспорт IFC4"},{"click":[1011,718.5]},{"wait":10},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ifc_flow/step-1.png"},
+{"note":"Новый проект"},{"click":[451,10.9]},{"wait":10},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ifc_flow/step-2.png"},
+{"note":"Импорт IFC4"},{"click":[1102.5,718.5]},{"wait":20},{"key":{"name":"F"}},{"wait":5},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ifc_flow/step-3.png"},"quit"]

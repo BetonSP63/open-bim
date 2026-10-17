@@ -689,6 +689,53 @@ impl Editor {
         self.record("Открыть");
         Ok(scene)
     }
+    /// IFC4 export; returns a short report of skipped model data.
+    pub fn export_ifc(&mut self, path: &Path) -> Result<String, String> {
+        let (text, report) = open_bim_ifc::export(self.document.project())?;
+        std::fs::write(path, text).map_err(|e| e.to_string())?;
+        self.record(&format!("Экспорт IFC {}", path.display()));
+        let skipped: Vec<String> = report
+            .skipped
+            .iter()
+            .map(|(k, v)| format!("{k}: {}", v.len()))
+            .collect();
+        Ok(format!(
+            "IFC4: балок {}, колонн {}, пластин {}, проёмов {}; вне подмножества — {}",
+            report.beams,
+            report.columns,
+            report.plates,
+            report.openings,
+            if skipped.is_empty() {
+                "нет".into()
+            } else {
+                skipped.join(", ")
+            }
+        ))
+    }
+    /// IFC4 import replaces the project; the report lists unsupported content.
+    pub fn import_ifc(&mut self, path: &Path) -> Result<(Arc<Scene>, String), String> {
+        let bytes = std::fs::metadata(path).map_err(|e| e.to_string())?.len();
+        if bytes > open_bim_ifc::step::MAX_FILE_BYTES as u64 {
+            return Err("IFC: файл слишком большой".into());
+        }
+        let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+        let (project, report) = open_bim_ifc::import(&text)?;
+        let scene = self.replace(project, &format!("Импорт IFC {}", path.display()))?;
+        let unsupported: usize = report.unsupported_entities.values().sum();
+        Ok((
+            scene,
+            format!(
+                "Импорт IFC: {:?}; неподдерживаемых сущностей {unsupported}; замечаний {}{}",
+                report.imported,
+                report.issues.len(),
+                report
+                    .issues
+                    .first()
+                    .map(|i| format!(" — {i}"))
+                    .unwrap_or_default()
+            ),
+        ))
+    }
     pub fn replace(&mut self, project: Project, label: &str) -> Result<Arc<Scene>, String> {
         let scene = Arc::new(Scene::from_project(&project).map_err(|e| e.to_string())?);
         self.document = Document::new(project).map_err(|e| e.to_string())?;

@@ -208,6 +208,23 @@ impl Desktop {
                 .map_err(|e| e.to_string())
                 .and_then(|p| self.editor.replace(p, "Контрольный каркас")),
             Action::Open => self.editor.open(std::path::Path::new(&self.tools.path)),
+            Action::ExportIfc => {
+                let path = std::path::Path::new(&self.tools.path).with_extension("ifc");
+                self.tools.message = Some(self.editor.export_ifc(&path).unwrap_or_else(|e| e));
+                return;
+            }
+            Action::ImportIfc => {
+                let path = std::path::Path::new(&self.tools.path).with_extension("ifc");
+                match self.editor.import_ifc(&path) {
+                    Ok((scene, report)) => {
+                        self.camera.fit(scene.bounds);
+                        self.scene = scene;
+                        self.tools.message = Some(report);
+                    }
+                    Err(error) => self.tools.message = Some(error),
+                }
+                return;
+            }
             Action::Save => {
                 match self.editor.save(std::path::Path::new(&self.tools.path)) {
                     Ok(()) => self.tools.message = Some("Проект сохранён".into()),
@@ -261,7 +278,10 @@ impl Desktop {
                     image::ColorType::Rgba8,
                 ) {
                     Ok(()) => {
-                        eprintln!("CAPTURE_SAVED: {path} {}x{}", image.size[0], image.size[1])
+                        eprintln!("CAPTURE_SAVED: {path} {}x{}", image.size[0], image.size[1]);
+                        if let Some(runner) = &mut self.script {
+                            runner.captured();
+                        }
                     }
                     Err(error) => eprintln!("CAPTURE_ERROR: {error}"),
                 }

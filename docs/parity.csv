@@ -12,7 +12,7 @@ part-assembly-drawings,Чертежи деталей и сборок,drawings,ht
 drawing-edit,Редактор чертежей,drawings,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,"Изменить размер, вид и текст, проверить undo",crates/desktop/tests/drawing_editor.rs; tests/drawing_flows/VERIFICATION.md; tests/fixtures/exports/verify.py
 reports,Спецификации и ведомости,fabrication,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,Сверить массу и количество с моделью,crates/reports/tests/release.rs; tests/steel_release_flow/VERIFICATION.md; tests/fixtures/steel_release/verify.py
 nc-dstv,NC/DSTV для станков,fabrication,https://support.tekla.com/tekla-2025/tekla-structures,open,later,Сверить координаты обработки независимым reader,
-ifc,IFC: заявленное подмножество,exchange,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,"Независимая схема и viewer, round-trip GUID и единиц",
+ifc,IFC: заявленное подмножество,exchange,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,"Независимая схема и viewer, round-trip GUID и единиц",crates/ifc/tests/roundtrip.rs; tests/fixtures/ifc/verify.py (IfcOpenShell 0.8.4); tests/ifc_flow/VERIFICATION.md; docs/ifc-support.md
 ifc43,Расширенное IFC4.3,exchange,https://support.tekla.com/tekla-2025/tekla-structures,open,later,Корпус IFC4.3 и независимая проверка представлений,
 reference-models,Reference-модели и координация BCF,exchange,https://support.tekla.com/tekla-2025/tekla-structures,open,later,Обновить reference без потери связей и замечаний,
 dwg,Обмен DWG,exchange,https://support.tekla.com/tekla-2025/tekla-structures,open,later,Независимое чтение и масштаб чертежа,

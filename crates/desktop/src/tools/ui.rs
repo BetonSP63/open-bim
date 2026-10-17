@@ -11,6 +11,8 @@ pub enum Action {
     Redo,
     Save,
     Open,
+    ExportIfc,
+    ImportIfc,
     New,
     Example,
 }
@@ -320,6 +322,18 @@ impl ToolsUi {
             }
             if ui.button("Открыть").clicked() {
                 action = Some(Action::Open);
+            }
+        });
+        ui.horizontal(|ui| {
+            if ui
+                .button("Экспорт IFC4")
+                .on_hover_text("Файл с тем же именем и расширением .ifc")
+                .clicked()
+            {
+                action = Some(Action::ExportIfc);
+            }
+            if ui.button("Импорт IFC4").clicked() {
+                action = Some(Action::ImportIfc);
             }
         });
         if let Some(message) = &self.message {
