@@ -22,6 +22,7 @@ struct Options {
     record: Option<PathBuf>,
     capture_dir: Option<PathBuf>,
     project_path: Option<String>,
+    script: Option<PathBuf>,
 }
 impl Options {
     fn parse() -> Result<Self, String> {
@@ -39,6 +40,9 @@ impl Options {
                 }
                 "--project-path" => {
                     options.project_path = Some(args.next().ok_or("--project-path требует путь")?)
+                }
+                "--script" => {
+                    options.script = Some(args.next().ok_or("--script требует путь JSON")?.into())
                 }
                 "--gpu-error-test" => options.gpu_error_test = true,
                 "--open" => options.open = Some(args.next().ok_or("--open требует путь")?),
@@ -86,6 +90,7 @@ struct Desktop {
     frames: u32,
     section_enabled: bool,
     section_height: f64,
+    script: Option<open_bim_desktop::script::Runner>,
 }
 impl Desktop {
     fn new(
@@ -98,6 +103,12 @@ impl Desktop {
             example_steel_frame()?
         } else {
             Project::default()
+        };
+        let script = match &options.script {
+            Some(path) => Some(open_bim_desktop::script::Runner::new(
+                open_bim_desktop::script::parse(&std::fs::read_to_string(path)?)?,
+            )),
+            None => None,
         };
         let scene = Arc::new(Scene::from_project(&project)?);
         let mut editor = Editor::new(project.clone())?;
@@ -166,6 +177,7 @@ impl Desktop {
             frames: 0,
             section_enabled: options.section.is_some(),
             section_height: options.section.unwrap_or(1500.0),
+            script,
         })
     }
     fn action(&mut self, action: Action) {
@@ -251,6 +263,25 @@ impl Desktop {
     }
 }
 impl eframe::App for Desktop {
+    fn raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) {
+        use open_bim_desktop::script::Effect;
+        let Some(runner) = &mut self.script else {
+            return;
+        };
+        match runner.frame(raw_input) {
+            Some(Effect::Capture(path)) => {
+                self.manual_capture = Some(path);
+                ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::default()));
+            }
+            Some(Effect::Quit) => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+            None => {}
+        }
+        if runner.finished() {
+            eprintln!("SCRIPT: finished");
+            self.script = None;
+        }
+        ctx.request_repaint();
+    }
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
         self.screenshot(&ctx);

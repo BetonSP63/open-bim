@@ -1,0 +1,8 @@
+[{"wait":20},
+{"note":"Выбрать Base column B #9 в дереве модели"},{"click":[92.8,128.6]},
+{"note":"Смещение X = -1300"},{"click":[1014,262]},{"key":{"name":"A","command":true}},{"text":"-1300"},
+{"click":[1011,283.5]},{"wait":20},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/coordination_flows/step-1.png"},
+{"note":"Нумеровать и проверить"},{"click":[1081.6,502.4]},{"wait":20},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/coordination_flows/step-2.png"},
+{"note":"Строка 1: пересечение #8/#9"},{"click":[872,583]},{"wait":20},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/coordination_flows/step-3.png"},
+{"note":"Строка 21: болт #46.3 через плиту #49"},{"click":[876,625]},{"wait":20},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/coordination_flows/step-4.png"},
+{"note":"Сохранить ⌘S"},{"key":{"name":"S","command":true}},{"wait":10},"quit"]

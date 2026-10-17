@@ -2242,9 +2242,11 @@ dependencies = [
 name = "open-bim-coordination"
 version = "0.1.0"
 dependencies = [
+ "open-bim-commands",
  "open-bim-geometry",
  "open-bim-model",
  "open-bim-numbering",
+ "open-bim-steel",
  "parry3d-f64",
  "serde",
  "serde_json",
@@ -2258,7 +2260,9 @@ dependencies = [
  "egui-wgpu",
  "image",
  "open-bim-commands",
+ "open-bim-coordination",
  "open-bim-model",
+ "open-bim-numbering",
  "open-bim-persistence",
  "open-bim-renderer",
  "open-bim-steel",

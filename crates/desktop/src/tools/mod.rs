@@ -1,5 +1,6 @@
 //! Model tools commit only validated documents and renderable geometry.
 pub mod connection_ui;
+pub mod coordination_ui;
 pub mod detailing_ui;
 mod snap;
 pub mod ui;

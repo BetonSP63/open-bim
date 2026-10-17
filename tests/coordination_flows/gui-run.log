@@ -1,0 +1,32 @@
+GPU: Apple M5 · Metal; project=Connection GUI fixture objects=16
+SCRIPT: step 1 Wait(20)
+SCRIPT: step 2 Note("Выбрать Base column B #9 в дереве модели")
+SCRIPT: step 3 Click([92.8, 128.6])
+SCRIPT: step 4 Note("Смещение X = -1300")
+SCRIPT: step 5 Click([1014.0, 262.0])
+SCRIPT: step 6 Key { name: "A", command: true, shift: false }
+SCRIPT: step 7 Text("-1300")
+SCRIPT: step 8 Click([1011.0, 283.5])
+SCRIPT: step 9 Wait(20)
+SCRIPT: step 10 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/coordination_flows/step-1.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/coordination_flows/step-1.png 2560x1600
+SCRIPT: step 11 Note("Нумеровать и проверить")
+SCRIPT: step 12 Click([1081.6, 502.4])
+SCRIPT: step 13 Wait(20)
+SCRIPT: step 14 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/coordination_flows/step-2.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/coordination_flows/step-2.png 2560x1600
+SCRIPT: step 15 Note("Строка 1: пересечение #8/#9")
+SCRIPT: step 16 Click([872.0, 583.0])
+SCRIPT: step 17 Wait(20)
+SCRIPT: step 18 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/coordination_flows/step-3.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/coordination_flows/step-3.png 2560x1600
+SCRIPT: step 19 Note("Строка 21: болт #46.3 через плиту #49")
+SCRIPT: step 20 Click([876.0, 625.0])
+SCRIPT: step 21 Wait(20)
+SCRIPT: step 22 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/coordination_flows/step-4.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/coordination_flows/step-4.png 2560x1600
+SCRIPT: step 23 Note("Сохранить ⌘S")
+SCRIPT: step 24 Key { name: "S", command: true, shift: false }
+SCRIPT: step 25 Wait(10)
+SCRIPT: step 26 Quit
+SCRIPT: finished

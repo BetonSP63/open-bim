@@ -16,6 +16,7 @@ pub enum Action {
 }
 pub struct ToolsUi {
     pub connection: super::connection_ui::ConnectionUi,
+    pub coordination: super::coordination_ui::CoordinationUi,
     pub detailing: super::detailing_ui::DetailingUi,
     pub plate_contour: String,
     pub plate_thickness: String,
@@ -37,6 +38,7 @@ impl Default for ToolsUi {
     fn default() -> Self {
         Self {
             connection: Default::default(),
+            coordination: Default::default(),
             detailing: Default::default(),
             plate_contour: String::new(),
             plate_thickness: "20".into(),
@@ -293,6 +295,7 @@ impl ToolsUi {
                 Err(e) => self.message = Some(e),
             }
         }
+        self.coordination.show(ui, editor);
         ui.label("Свойство / текстовое значение");
         ui.text_edit_singleline(&mut self.key);
         ui.text_edit_singleline(&mut self.value);
