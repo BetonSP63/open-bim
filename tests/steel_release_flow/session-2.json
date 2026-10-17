@@ -1,0 +1,5 @@
+[{"wait":20},{"note":"Повторное открытие: F4, ведомости, экспорт CSV"},{"key":{"name":"F4"}},
+{"click":[1067,101.8]},{"wait":5},
+{"click":[1139,131.8]},{"key":{"name":"A","command":true}},{"text":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/reopen"},
+{"click":[1010,153.6]},{"wait":10},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/step-6.png"},
+{"key":{"name":"F3"}},{"wait":10},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/step-7.png"},"quit"]

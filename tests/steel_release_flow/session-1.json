@@ -1,0 +1,8 @@
+[{"wait":20},{"note":"F4 — ведомости"},{"key":{"name":"F4"}},
+{"note":"Сборки по заводским швам"},{"click":[1056,80.6]},{"wait":10},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/step-1.png"},
+{"click":[384.6,62.7]},{"wait":5},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/step-2.png"},
+{"click":[473.6,62.7]},{"wait":5},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/step-3.png"},
+{"note":"Выпуск комплекта в папку release"},{"click":[1139,131.8]},{"key":{"name":"A","command":true}},{"text":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/release"},
+{"click":[1034,174.7]},{"wait":10},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/step-4.png"},
+{"key":{"name":"F3"}},{"wait":10},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/step-5.png"},
+{"note":"Сохранить"},{"key":{"name":"S","command":true}},{"wait":5},"quit"]

@@ -1,0 +1,19 @@
+GPU: Apple M5 · Metal; project=Connection GUI fixture objects=16
+SCRIPT: step 1 Wait(20)
+SCRIPT: step 2 Note("Повторное открытие: F4, ведомости, экспорт CSV")
+SCRIPT: step 3 Key { name: "F4", command: false, shift: false }
+SCRIPT: step 4 Click([1067.0, 101.8])
+SCRIPT: step 5 Wait(5)
+SCRIPT: step 6 Click([1139.0, 131.8])
+SCRIPT: step 7 Key { name: "A", command: true, shift: false }
+SCRIPT: step 8 Text("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/reopen")
+SCRIPT: step 9 Click([1010.0, 153.6])
+SCRIPT: step 10 Wait(10)
+SCRIPT: step 11 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/step-6.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/step-6.png 2560x1600
+SCRIPT: step 12 Key { name: "F3", command: false, shift: false }
+SCRIPT: step 13 Wait(10)
+SCRIPT: step 14 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/step-7.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/step-7.png 2560x1600
+SCRIPT: step 15 Quit
+SCRIPT: finished

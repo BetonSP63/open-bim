@@ -1,0 +1,34 @@
+GPU: Apple M5 · Metal; project=Connection GUI fixture objects=16
+SCRIPT: step 1 Wait(20)
+SCRIPT: step 2 Note("F4 — ведомости")
+SCRIPT: step 3 Key { name: "F4", command: false, shift: false }
+SCRIPT: step 4 Note("Сборки по заводским швам")
+SCRIPT: step 5 Click([1056.0, 80.6])
+SCRIPT: step 6 Wait(10)
+SCRIPT: step 7 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/step-1.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/step-1.png 2560x1600
+SCRIPT: step 8 Click([384.6, 62.7])
+SCRIPT: step 9 Wait(5)
+SCRIPT: step 10 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/step-2.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/step-2.png 2560x1600
+SCRIPT: step 11 Click([473.6, 62.7])
+SCRIPT: step 12 Wait(5)
+SCRIPT: step 13 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/step-3.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/step-3.png 2560x1600
+SCRIPT: step 14 Note("Выпуск комплекта в папку release")
+SCRIPT: step 15 Click([1139.0, 131.8])
+SCRIPT: step 16 Key { name: "A", command: true, shift: false }
+SCRIPT: step 17 Text("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/release")
+SCRIPT: step 18 Click([1034.0, 174.7])
+SCRIPT: step 19 Wait(10)
+SCRIPT: step 20 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/step-4.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/step-4.png 2560x1600
+SCRIPT: step 21 Key { name: "F3", command: false, shift: false }
+SCRIPT: step 22 Wait(10)
+SCRIPT: step 23 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/step-5.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/steel_release_flow/step-5.png 2560x1600
+SCRIPT: step 24 Note("Сохранить")
+SCRIPT: step 25 Key { name: "S", command: true, shift: false }
+SCRIPT: step 26 Wait(5)
+SCRIPT: step 27 Quit
+SCRIPT: finished

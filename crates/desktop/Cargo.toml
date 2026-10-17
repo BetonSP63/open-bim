@@ -24,3 +24,4 @@ open-bim-numbering.workspace = true
 open-bim-coordination.workspace = true
 open-bim-drawings.workspace = true
 open-bim-drawing-export.workspace = true
+open-bim-reports.workspace = true

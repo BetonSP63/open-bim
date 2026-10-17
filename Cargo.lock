@@ -2267,6 +2267,7 @@ dependencies = [
  "open-bim-numbering",
  "open-bim-persistence",
  "open-bim-renderer",
+ "open-bim-reports",
  "open-bim-steel",
  "serde",
  "serde_json",
@@ -2352,6 +2353,20 @@ dependencies = [
  "glam 0.34.1",
  "open-bim-geometry",
  "open-bim-model",
+ "serde_json",
+]
+
+[[package]]
+name = "open-bim-reports"
+version = "0.1.0"
+dependencies = [
+ "open-bim-commands",
+ "open-bim-drawing-export",
+ "open-bim-drawings",
+ "open-bim-model",
+ "open-bim-numbering",
+ "open-bim-persistence",
+ "serde",
  "serde_json",
 ]
 

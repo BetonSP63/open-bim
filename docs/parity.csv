@@ -1,16 +1,16 @@
 id,feature,category,source,status,release,verification,evidence
 grid-levels,Оси и уровни,modeling,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,"Построить сетку и уровни, сохранить и сверить координаты",
-steel-members,"Балки, колонны и профили",modeling,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,"Создать пять сечений, сравнить площадь и размеры",
-plates,Контурные плиты,modeling,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,Построить контур с отверстием и сверить объём,
-cuts-holes,Обрезки и отверстия,detailing,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,Сверить топологию и объём после выреза,
-bolts-welds,Болты и сварные швы,detailing,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,Проверить группы крепежа и строки ведомости,
-connections,Параметрические соединения,detailing,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,Обновить родительское сечение и сверить узел,
+steel-members,"Балки, колонны и профили",modeling,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,"Создать пять сечений, сравнить площадь и размеры",crates/model/tests/domain.rs; tests/modeling_flows/VERIFICATION.md (initial analytic sections only)
+plates,Контурные плиты,modeling,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,Построить контур с отверстием и сверить объём,tests/steel_flows/VERIFICATION.md; crates/steel/tests/detailing.rs
+cuts-holes,Обрезки и отверстия,detailing,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,Сверить топологию и объём после выреза,"tests/steel_flows/VERIFICATION.md; crates/geometry/tests (prismatic voids, drilling)"
+bolts-welds,Болты и сварные швы,detailing,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,Проверить группы крепежа и строки ведомости,tests/steel_flows/VERIFICATION.md; crates/reports/tests/release.rs (fastener rows)
+connections,Параметрические соединения,detailing,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,Обновить родительское сечение и сверить узел,"tests/connections_flows/VERIFICATION.md (base plate, end plate, clip angle only)"
 numbering,Нумерация деталей и сборок,detailing,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,Сверить позиции при перестановке объектов,crates/numbering/tests/equivalence.rs; crates/desktop/tests/coordination.rs; tests/coordination_flows/VERIFICATION.md
 clashes,Геометрические коллизии,coordination,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,"Различить пересечение, касание и болт в отверстии",crates/coordination/tests/clashes.rs; crates/coordination/tests/bolts.rs; tests/coordination_flows/VERIFICATION.md
 ga-drawings,Общие виды,drawings,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,Сверить виды и размер после правки модели,crates/drawings/tests/engine.rs; tests/fixtures/drawings/general.svg; tests/fixtures/drawings/verify.py
 part-assembly-drawings,Чертежи деталей и сборок,drawings,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,Выпустить связанные листы и обновить ревизию,"crates/drawings/tests/engine.rs; tests/fixtures/drawings/{beam-part,plate-part,assembly}.svg"
 drawing-edit,Редактор чертежей,drawings,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,"Изменить размер, вид и текст, проверить undo",crates/desktop/tests/drawing_editor.rs; tests/drawing_flows/VERIFICATION.md; tests/fixtures/exports/verify.py
-reports,Спецификации и ведомости,fabrication,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,Сверить массу и количество с моделью,
+reports,Спецификации и ведомости,fabrication,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,Сверить массу и количество с моделью,crates/reports/tests/release.rs; tests/steel_release_flow/VERIFICATION.md; tests/fixtures/steel_release/verify.py
 nc-dstv,NC/DSTV для станков,fabrication,https://support.tekla.com/tekla-2025/tekla-structures,open,later,Сверить координаты обработки независимым reader,
 ifc,IFC: заявленное подмножество,exchange,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,"Независимая схема и viewer, round-trip GUID и единиц",
 ifc43,Расширенное IFC4.3,exchange,https://support.tekla.com/tekla-2025/tekla-structures,open,later,Корпус IFC4.3 и независимая проверка представлений,

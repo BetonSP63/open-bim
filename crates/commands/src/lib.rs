@@ -18,6 +18,12 @@ pub enum DeletePolicy {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "snake_case")]
 pub enum Command {
+    CreateAssembly {
+        assembly: open_bim_model::Assembly,
+    },
+    ReplaceAssembly {
+        assembly: open_bim_model::Assembly,
+    },
     CreateDrawing {
         drawing: open_bim_model::Drawing,
     },
@@ -303,6 +309,24 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
                 return Err(ModelError::MissingReference(detail.id).into());
             }
             project.details.insert(detail.id, detail.clone());
+        }
+        Command::CreateAssembly { assembly } => {
+            if project.contains_id(assembly.id) || assembly.id.0 == 0 {
+                return Err(ModelError::DuplicateId(assembly.id).into());
+            }
+            project.next_id =
+                project
+                    .next_id
+                    .max(assembly.id.0.checked_add(1).ok_or_else(|| {
+                        CommandError::InvalidTransaction("Недопустимый ID сборки".into())
+                    })?);
+            project.assemblies.insert(assembly.id, assembly.clone());
+        }
+        Command::ReplaceAssembly { assembly } => {
+            if !project.assemblies.contains_key(&assembly.id) {
+                return Err(ModelError::MissingReference(assembly.id).into());
+            }
+            project.assemblies.insert(assembly.id, assembly.clone());
         }
         Command::CreateDrawing { drawing } => {
             if project.contains_id(drawing.id) || drawing.id.0 == 0 {
