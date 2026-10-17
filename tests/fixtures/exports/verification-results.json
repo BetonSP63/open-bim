@@ -1,0 +1,131 @@
+{
+ "assembly-a3": {
+  "page_mm": [
+   420.0,
+   297.0
+  ],
+  "cyrillic_sample": "Вид спереди 1:10",
+  "dxf_layers": [
+   "0",
+   "Defpoints",
+   "OB_FRAME",
+   "OB_HATCH",
+   "OB_HIDDEN",
+   "OB_LOST",
+   "OB_SECTION",
+   "OB_TEXT",
+   "OB_THIN",
+   "OB_VISIBLE"
+  ],
+  "dxf_counts": {
+   "OB_THIN": 11,
+   "OB_FRAME": 5,
+   "OB_HIDDEN": 7,
+   "OB_VISIBLE": 8,
+   "OB_TEXT": 16
+  }
+ },
+ "beam-a3": {
+  "page_mm": [
+   420.0,
+   297.0
+  ],
+  "cyrillic_sample": "Вид спереди 1:10",
+  "pdf_dimension_3000_at_mm": [
+   181.052,
+   276.0
+  ],
+  "dxf_layers": [
+   "0",
+   "Defpoints",
+   "OB_FRAME",
+   "OB_HATCH",
+   "OB_HIDDEN",
+   "OB_LOST",
+   "OB_SECTION",
+   "OB_TEXT",
+   "OB_THIN",
+   "OB_VISIBLE"
+  ],
+  "dxf_counts": {
+   "OB_THIN": 23,
+   "OB_FRAME": 5,
+   "OB_VISIBLE": 7,
+   "OB_TEXT": 19,
+   "OB_HIDDEN": 4
+  },
+  "dxf_dimension_3000_at_mm": [
+   185.0,
+   276.0
+  ]
+ },
+ "general-a1": {
+  "page_mm": [
+   841.0,
+   594.0
+  ],
+  "cyrillic_sample": "Фасад по оси А 1:20",
+  "dxf_layers": [
+   "0",
+   "Defpoints",
+   "OB_FRAME",
+   "OB_HATCH",
+   "OB_HIDDEN",
+   "OB_LOST",
+   "OB_SECTION",
+   "OB_TEXT",
+   "OB_THIN",
+   "OB_VISIBLE"
+  ],
+  "dxf_counts": {
+   "OB_THIN": 20,
+   "OB_FRAME": 5,
+   "OB_HIDDEN": 76,
+   "OB_VISIBLE": 54,
+   "OB_TEXT": 29
+  }
+ },
+ "plate-a3": {
+  "page_mm": [
+   420.0,
+   297.0
+  ],
+  "cyrillic_sample": "Вид на плиту 1:2",
+  "dxf_layers": [
+   "0",
+   "Defpoints",
+   "OB_FRAME",
+   "OB_HATCH",
+   "OB_HIDDEN",
+   "OB_LOST",
+   "OB_SECTION",
+   "OB_TEXT",
+   "OB_THIN",
+   "OB_VISIBLE"
+  ],
+  "dxf_counts": {
+   "OB_THIN": 31,
+   "OB_FRAME": 5,
+   "OB_VISIBLE": 3,
+   "OB_TEXT": 19
+  }
+ },
+ "control-set.pdf": [
+  [
+   420.0,
+   297.0
+  ],
+  [
+   420.0,
+   297.0
+  ],
+  [
+   420.0,
+   297.0
+  ],
+  [
+   841.0,
+   594.0
+  ]
+ ]
+}

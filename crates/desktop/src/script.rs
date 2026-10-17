@@ -15,6 +15,8 @@ pub enum Step {
     RightClick([f32; 2]),
     /// Move the pointer without clicking.
     Hover([f32; 2]),
+    /// Primary-button drag in logical points: [x0, y0, x1, y1].
+    Drag([f32; 4]),
     /// Scroll by the given logical delta at a point: [x, y, dy].
     Scroll([f32; 3]),
     /// Key by egui name, e.g. "K", "Enter", "Tab", with optional modifiers.
@@ -78,6 +80,18 @@ impl Runner {
     }
     /// Feed one frame of events; returns an effect when the step needs one.
     pub fn frame(&mut self, input: &mut egui::RawInput) -> Option<Effect> {
+        // The script owns the pointer: drop the physical mouse so a cursor
+        // resting over the window cannot move or cancel scripted clicks.
+        input.events.retain(|e| {
+            !matches!(
+                e,
+                egui::Event::PointerMoved(_)
+                    | egui::Event::PointerButton { .. }
+                    | egui::Event::PointerGone
+                    | egui::Event::MouseWheel { .. }
+                    | egui::Event::MouseMoved(_)
+            )
+        });
         if self.wait > 0 {
             self.wait -= 1;
             return None;
@@ -117,6 +131,29 @@ impl Runner {
                     1 => input.events.push(button(*p, kind, true)),
                     _ => {
                         input.events.push(button(*p, kind, false));
+                        advance(self, 3);
+                        return None;
+                    }
+                }
+                self.phase += 1;
+            }
+            Step::Drag([x0, y0, x1, y1]) => {
+                const MOVES: u32 = 8;
+                let at = |k: u32| {
+                    let t = k as f32 / MOVES as f32;
+                    egui::pos2(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t)
+                };
+                match self.phase {
+                    0 => input.events.push(egui::Event::PointerMoved(at(0))),
+                    1 => input
+                        .events
+                        .push(button([*x0, *y0], egui::PointerButton::Primary, true)),
+                    k if k < MOVES + 2 => input.events.push(egui::Event::PointerMoved(at(k - 1))),
+                    _ => {
+                        input.events.push(egui::Event::PointerMoved(at(MOVES)));
+                        input
+                            .events
+                            .push(button([*x1, *y1], egui::PointerButton::Primary, false));
                         advance(self, 3);
                         return None;
                     }

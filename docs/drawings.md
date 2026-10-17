@@ -28,3 +28,18 @@ independently by `tests/fixtures/drawings/verify.py`.
 
 Limits: no curved-edge dimensions, radius/angle dimensions, weld symbols, bolt
 symbols, automatic mark collision avoidance or multi-sheet sets yet.
+
+## Editor and export (phase 12)
+
+* GUI: «Чертежи · F3» mode. Panel `crates/desktop/src/drawing_editor/`: create
+  part/assembly/GA drawings, sheet A4–A0, scale, view position (field or mouse
+  drag on the sheet), dimension chains (new chain from selection, add/remove
+  anchors, offset), notes, update, issue, delete, export. Each edit is one
+  `ReplaceDrawing` transaction (⌘Z/⇧⌘Z).
+* `crates/drawing_export`: PDF 1.7 in millimetre user space with embedded
+  Ubuntu Light (Cyrillic, Identity-H + ToUnicode), DXF R12 (layers OB_*,
+  DASHED hidden lines, $INSUNITS=4, \U+XXXX text), SVG; `qa::check` reports
+  labels outside the frame, overlapping labels and missing glyphs.
+* Control set `tests/fixtures/exports/` (A3 part/plate/assembly, A1 GA):
+  byte-stable references, PDFKit raster snapshots, independent check
+  `verify.py` (pypdf, ezdxf).

@@ -615,6 +615,17 @@ impl Editor {
         self.record(label);
         Ok(scene)
     }
+    /// Commit commands that do not change model geometry (drawings, reports):
+    /// the 3D scene stays valid, so it is not rebuilt.
+    pub fn commit_data(&mut self, label: &str, commands: &[Command]) -> Result<(), String> {
+        let mut candidate = self.document.clone();
+        candidate
+            .transact(label, commands)
+            .map_err(|e| e.to_string())?;
+        self.document = candidate;
+        self.record(label);
+        Ok(())
+    }
     pub fn create(&mut self) -> Result<Arc<Scene>, String> {
         if !self.active {
             return Err("Инструмент не активен".into());
@@ -687,7 +698,7 @@ impl Editor {
         self.record(label);
         Ok(scene)
     }
-    fn record(&mut self, action: &str) {
+    pub fn record(&mut self, action: &str) {
         let p = self.document.project();
         let hash = match project_hash(p) {
             Ok(hash) => hash,

@@ -4,121 +4,10 @@ use open_bim_drawings::{
     svg, updated,
 };
 use open_bim_model::{
-    Assembly, Detail, DetailKind, Drawing, Element, ElementShape, Frame, LengthMm, MemberKind,
-    ObjectId, Point3, Project, SheetSize, ViewDirection,
+    Drawing, ElementShape, LengthMm, ObjectId, Project, SheetSize, ViewDirection,
 };
-use std::collections::{BTreeMap, BTreeSet};
 
-const H: f64 = 300.;
-const B: f64 = 150.;
-const TW: f64 = 8.;
-const TF: f64 = 12.;
-const HOLES_Z: [f64; 2] = [500., 1250.];
-
-struct Fixture {
-    project: Project,
-    beam: ObjectId,
-    plate: ObjectId,
-    assembly: ObjectId,
-}
-
-/// I300x150x8x12 beam 3000 mm along world X with two web holes, end plate
-/// 400x300x20 with two holes, assembled with the beam as main part.
-fn fixture() -> Fixture {
-    let mut p = Project::default();
-    let beam = p.allocate_id().unwrap();
-    p.elements.insert(
-        beam,
-        Element {
-            id: beam,
-            name: "Балка Б1".into(),
-            material: ObjectId(1),
-            shape: ElementShape::Member {
-                member_kind: MemberKind::Beam,
-                profile: ObjectId(2),
-                length: LengthMm::new(3000.).unwrap(),
-                frame: Frame {
-                    origin: Point3([0., 0., 3000.]),
-                    axes: [[0., 1., 0.], [0., 0., 1.], [1., 0., 0.]],
-                },
-            },
-            properties: BTreeMap::new(),
-        },
-    );
-    for z in HOLES_Z {
-        let id = p.allocate_id().unwrap();
-        p.details.insert(
-            id,
-            Detail {
-                id,
-                kind: DetailKind::Hole {
-                    part: beam,
-                    frame: Frame {
-                        origin: Point3([-20., 40., z]),
-                        axes: [[0., 1., 0.], [0., 0., 1.], [1., 0., 0.]],
-                    },
-                    diameter: 22.,
-                    depth: 40.,
-                },
-            },
-        );
-    }
-    let plate = p.allocate_id().unwrap();
-    p.elements.insert(
-        plate,
-        Element {
-            id: plate,
-            name: "Пластина П1".into(),
-            material: ObjectId(1),
-            shape: ElementShape::Plate {
-                contour: vec![[0., 0.], [400., 0.], [400., 300.], [0., 300.]],
-                thickness: LengthMm::new(20.).unwrap(),
-                frame: Frame {
-                    origin: Point3([3000., -200., 2850.]),
-                    axes: [[0., 1., 0.], [0., 0., 1.], [1., 0., 0.]],
-                },
-            },
-            properties: BTreeMap::new(),
-        },
-    );
-    for (x, y) in [(60., 80.), (340., 220.)] {
-        let id = p.allocate_id().unwrap();
-        p.details.insert(
-            id,
-            Detail {
-                id,
-                kind: DetailKind::Hole {
-                    part: plate,
-                    frame: Frame {
-                        origin: Point3([x, y, 0.]),
-                        ..Frame::default()
-                    },
-                    diameter: 22.,
-                    depth: 20.,
-                },
-            },
-        );
-    }
-    let assembly = p.allocate_id().unwrap();
-    p.assemblies.insert(
-        assembly,
-        Assembly {
-            id: assembly,
-            name: "Балка в сборе Б1".into(),
-            main_part: beam,
-            members: BTreeSet::from([beam, plate]),
-            children: BTreeSet::new(),
-            properties: BTreeMap::new(),
-        },
-    );
-    p.validate().unwrap();
-    Fixture {
-        project: p,
-        beam,
-        plate,
-        assembly,
-    }
-}
+use open_bim_drawings::sample::{B, H, HOLES_Z, TF, TW, control_project as fixture};
 
 fn view(sheet: &Sheet, id: u32) -> &open_bim_drawings::ViewGraphic {
     sheet.views.iter().find(|v| v.id == id).unwrap()
@@ -368,4 +257,15 @@ fn deleted_reference_is_reported_as_lost_binding() {
     let text = svg::render(&sheet);
     assert!(text.contains("data-lost=\"true\""));
     assert!(text.contains("ПОТЕРЯНЫ ПРИВЯЗКИ"));
+}
+
+#[test]
+fn control_model_file_matches_sample() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/drawings/control.obim");
+    let f = fixture();
+    if std::env::var_os("OPEN_BIM_BLESS").is_some() {
+        open_bim_persistence::save_atomic(&path, &f.project).unwrap();
+    }
+    assert_eq!(open_bim_persistence::load(&path).unwrap(), f.project);
 }

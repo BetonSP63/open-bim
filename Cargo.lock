@@ -2261,6 +2261,8 @@ dependencies = [
  "image",
  "open-bim-commands",
  "open-bim-coordination",
+ "open-bim-drawing-export",
+ "open-bim-drawings",
  "open-bim-model",
  "open-bim-numbering",
  "open-bim-persistence",
@@ -2271,9 +2273,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "open-bim-drawing-export"
+version = "0.1.0"
+dependencies = [
+ "flate2",
+ "open-bim-commands",
+ "open-bim-drawings",
+ "open-bim-model",
+ "serde_json",
+]
+
+[[package]]
 name = "open-bim-drawings"
 version = "0.1.0"
 dependencies = [
+ "epaint_default_fonts",
  "open-bim-commands",
  "open-bim-model",
  "open-bim-numbering",
@@ -2283,6 +2297,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "skrifa",
 ]
 
 [[package]]

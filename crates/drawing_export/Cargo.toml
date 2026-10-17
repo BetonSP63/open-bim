@@ -1,0 +1,18 @@
+[package]
+name = "open-bim-drawing-export"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+open-bim-drawings.workspace = true
+open-bim-model.workspace = true
+flate2 = "=1.1.10"
+
+[dev-dependencies]
+open-bim-commands.workspace = true
+serde_json.workspace = true

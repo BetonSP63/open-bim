@@ -1,7 +1,9 @@
 //! Drawing engine: regenerates sheets from model references. Nothing drawn is
 //! stored in the model; a drawing keeps view definitions, associative
 //! dimension anchors and object fingerprints used for up-to-date checks.
+pub mod font;
 pub mod projection;
+pub mod sample;
 pub mod svg;
 
 use open_bim_model::{
@@ -651,31 +653,7 @@ fn view_graphic(
         lost: false,
     }];
     if view.id == drawing.views[0].id {
-        for m in meshes {
-            let Some(mark) = marks.get(&m.id) else {
-                continue;
-            };
-            let centre = m.vertices.iter().fold([0.; 2], |acc, p| {
-                let q = vb.project(*p);
-                [acc[0] + q[0], acc[1] + q[1]]
-            });
-            let n = m.vertices.len().max(1) as f64;
-            let at = context.paper([centre[0] / n, centre[1] / n]);
-            labels.push(Label {
-                position: [at[0] + 4., at[1] + 4.],
-                text: mark.clone(),
-                height: TEXT_HEIGHT,
-                align: Align::Start,
-                rotation: 0.,
-                object: Some(m.id),
-                lost: false,
-            });
-            lines.push(Polyline {
-                points: vec![at, [at[0] + 4., at[1] + 3.5]],
-                style: LineStyle::Thin,
-                object: Some(m.id),
-            });
-        }
+        place_marks(&mut lines, &mut labels, meshes, &context, marks);
     }
     (
         ViewGraphic {
@@ -688,6 +666,81 @@ fn view_graphic(
         },
         context,
     )
+}
+
+/// Marks next to the part centre, moved around it until the label does not
+/// overlap another mark or the view title.
+fn place_marks(
+    lines: &mut Vec<Polyline>,
+    labels: &mut Vec<Label>,
+    meshes: &[PartMesh],
+    context: &ViewContext,
+    marks: &BTreeMap<ObjectId, String>,
+) {
+    let Ok(metrics) = font::Font::load() else {
+        return;
+    };
+    let rect = |label: &Label| {
+        let width = metrics.width(&label.text, label.height);
+        let x0 = match label.align {
+            Align::Start => label.position[0],
+            Align::Middle => label.position[0] - width / 2.,
+            Align::End => label.position[0] - width,
+        };
+        [
+            [x0 - 0.5, label.position[1] - 0.3 * label.height],
+            [x0 + width + 0.5, label.position[1] + label.height],
+        ]
+    };
+    let mut placed: Vec<[[f64; 2]; 2]> = labels.iter().map(rect).collect();
+    let free = |r: [[f64; 2]; 2], placed: &[[[f64; 2]; 2]]| {
+        placed.iter().all(|q| {
+            r[1][0] <= q[0][0] || q[1][0] <= r[0][0] || r[1][1] <= q[0][1] || q[1][1] <= r[0][1]
+        })
+    };
+    for m in meshes {
+        let Some(mark) = marks.get(&m.id) else {
+            continue;
+        };
+        let centre = m.vertices.iter().fold([0.; 2], |acc, p| {
+            let q = context.basis.project(*p);
+            [acc[0] + q[0], acc[1] + q[1]]
+        });
+        let n = m.vertices.len().max(1) as f64;
+        let at = context.paper([centre[0] / n, centre[1] / n]);
+        let mut label = Label {
+            position: [at[0] + 4., at[1] + 4.],
+            text: mark.clone(),
+            height: TEXT_HEIGHT,
+            align: Align::Start,
+            rotation: 0.,
+            object: Some(m.id),
+            lost: false,
+        };
+        'search: for radius in [4., 9., 14., 20., 27., 35.] {
+            for (dx, dy) in [
+                (1., 1.),
+                (-1., 1.),
+                (1., -1.),
+                (-1., -1.),
+                (0., 1.),
+                (0., -1.),
+            ] {
+                label.align = if dx < 0. { Align::End } else { Align::Start };
+                label.position = [at[0] + dx * radius, at[1] + dy * radius];
+                if free(rect(&label), &placed) {
+                    break 'search;
+                }
+            }
+        }
+        placed.push(rect(&label));
+        lines.push(Polyline {
+            points: vec![at, label.position],
+            style: LineStyle::Thin,
+            object: Some(m.id),
+        });
+        labels.push(label);
+    }
 }
 
 fn title_block(

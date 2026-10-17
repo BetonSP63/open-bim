@@ -22,3 +22,5 @@ serde_json.workspace = true
 open-bim-steel.workspace = true
 open-bim-numbering.workspace = true
 open-bim-coordination.workspace = true
+open-bim-drawings.workspace = true
+open-bim-drawing-export.workspace = true

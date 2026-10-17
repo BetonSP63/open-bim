@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="594mm" height="420mm" viewBox="0 0 594 420" font-family="DejaVu Sans, Arial, sans-serif" data-drawing="15">
+<rect width="594" height="420" fill="#fff"/>
+<polyline class="Thin" points="0,420 594,420 594,0 0,0 0,420" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Frame" points="20,415 589,415 589,5 20,5 20,415" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="404,415 589,415 589,360 404,360 404,415" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="404,375 589,375" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="404,390 589,390" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="404,405 589,405" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Thin" points="474,405 474,390" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="509,405 509,390" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="544,405 544,390" fill="none" stroke="#000" stroke-width="0.25"/>
+<g class="view" data-view="1">
+<polyline class="Visible" data-object="8" points="110,185.5 110,184.9 260,184.9 260,185.5 110,185.5" fill="none" stroke="#000" stroke-width="0.5"/>
+<polyline class="Visible" data-object="8" points="110,184.9 110,170.5 260,170.5 260,184.9" fill="none" stroke="#000" stroke-width="0.5"/>
+<polyline class="Visible" data-object="8" points="110,171.1 260,171.1" fill="none" stroke="#000" stroke-width="0.5"/>
+<polyline class="Visible" data-object="8" points="134.45,176.002 134.491,175.791 134.609,175.613 134.787,175.493 135,175.45 135.21,175.492 135.388,175.611 135.508,175.788 135.55,175.998 135.509,176.209 135.391,176.387 135.213,176.507 135,176.55 134.79,176.508 134.612,176.389 134.492,176.212 134.45,176.002" fill="none" stroke="#000" stroke-width="0.5"/>
+<polyline class="Visible" data-object="8" points="171.95,176.002 171.992,176.212 172.112,176.389 172.293,176.51 172.503,176.55 172.713,176.507 172.891,176.387 173.009,176.209 173.05,175.998 173.006,175.785 172.886,175.608 172.707,175.49 172.497,175.45 172.287,175.493 172.109,175.613 171.991,175.791 171.95,176.002" fill="none" stroke="#000" stroke-width="0.5"/>
+<polyline class="Thin" data-object="8" points="153.929,176.011 157.929,172.011" fill="none" stroke="#000" stroke-width="0.25"/>
+<text x="185" y="195.5" font-size="5" text-anchor="middle" fill="#000">Вид спереди 1:20</text>
+<text x="157.929" y="172.011" font-size="3.5" text-anchor="start" fill="#000" data-object="8">P0002</text>
+</g>
+<g class="view" data-view="2">
+<polyline class="Hidden" data-object="8" points="110,310.379 260,310.379" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="8" points="110,309.979 260,309.979" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Visible" data-object="8" points="110,313.929 110,306.429 260,306.429 260,313.929 110,313.929" fill="none" stroke="#000" stroke-width="0.5"/>
+<text x="185" y="323.929" font-size="5" text-anchor="middle" fill="#000">Вид сверху 1:20</text>
+</g>
+<g class="view" data-view="3">
+<polyline class="Hidden" data-object="8" points="372.3,176.55 372.7,176.55" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="8" points="372.3,175.45 372.7,175.45" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Visible" data-object="8" points="368.75,185.5 368.75,184.9 372.3,184.9 372.3,171.1 368.75,171.1 368.75,170.5 376.25,170.5 376.25,171.1 372.7,171.1 372.7,184.9 376.25,184.9 376.25,185.5 368.75,185.5" fill="none" stroke="#000" stroke-width="0.5"/>
+<text x="372.5" y="195.5" font-size="5" text-anchor="middle" fill="#000">Вид слева 1:20</text>
+</g>
+<g class="dimension" data-dimension="1" data-view="1">
+<polyline class="Thin" points="110,177 110,150.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="260,177 260,150.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="110,152.5 260,152.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="112.5,152.95 110,152.5 112.5,152.05" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="257.5,152.05 260,152.5 257.5,152.95" fill="none" stroke="#000" stroke-width="0.25"/>
+<text x="185" y="151.5" font-size="3.5" text-anchor="middle" fill="#000">3000</text>
+</g>
+<g class="dimension" data-dimension="2" data-view="1">
+<polyline class="Thin" points="110,177 110,160.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="135,175 135,160.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="172.5,175 172.5,160.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="260,177 260,160.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="110,162.5 135,162.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="112.5,162.95 110,162.5 112.5,162.05" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="132.5,162.05 135,162.5 132.5,162.95" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="135,162.5 172.5,162.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="137.5,162.95 135,162.5 137.5,162.05" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="170,162.05 172.5,162.5 170,162.95" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="172.5,162.5 260,162.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="175,162.95 172.5,162.5 175,162.05" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="257.5,162.05 260,162.5 257.5,162.95" fill="none" stroke="#000" stroke-width="0.25"/>
+<text x="122.5" y="161.5" font-size="3.5" text-anchor="middle" fill="#000">500</text>
+<text x="153.75" y="161.5" font-size="3.5" text-anchor="middle" fill="#000">750</text>
+<text x="216.25" y="161.5" font-size="3.5" text-anchor="middle" fill="#000">1750</text>
+</g>
+<text x="407" y="370.5" font-size="7" text-anchor="start" fill="#000">КМД-1</text>
+<text x="407" y="385" font-size="5" text-anchor="start" fill="#000">Балка Б1</text>
+<text x="407" y="397" font-size="2.5" text-anchor="start" fill="#000">Материал</text>
+<text x="407" y="401" font-size="3.5" text-anchor="start" fill="#000">S235 · тестовый материал</text>
+<text x="477" y="397" font-size="2.5" text-anchor="start" fill="#000">Масса, кг</text>
+<text x="477" y="401" font-size="3.5" text-anchor="start" fill="#000">136,7</text>
+<text x="512" y="397" font-size="2.5" text-anchor="start" fill="#000">Масштаб</text>
+<text x="512" y="401" font-size="3.5" text-anchor="start" fill="#000">1:20</text>
+<text x="547" y="397" font-size="2.5" text-anchor="start" fill="#000">Лист / формат</text>
+<text x="547" y="401" font-size="3.5" text-anchor="start" fill="#000">1 / A2</text>
+<text x="407" y="412" font-size="3" text-anchor="start" fill="#000">Актуален · модель рев. 4 · чертёж рев. 0</text>
+</svg>

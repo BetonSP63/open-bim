@@ -9,7 +9,7 @@ numbering,Нумерация деталей и сборок,detailing,https://su
 clashes,Геометрические коллизии,coordination,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,"Различить пересечение, касание и болт в отверстии",crates/coordination/tests/clashes.rs; crates/coordination/tests/bolts.rs; tests/coordination_flows/VERIFICATION.md
 ga-drawings,Общие виды,drawings,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,Сверить виды и размер после правки модели,crates/drawings/tests/engine.rs; tests/fixtures/drawings/general.svg; tests/fixtures/drawings/verify.py
 part-assembly-drawings,Чертежи деталей и сборок,drawings,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,Выпустить связанные листы и обновить ревизию,"crates/drawings/tests/engine.rs; tests/fixtures/drawings/{beam-part,plate-part,assembly}.svg"
-drawing-edit,Редактор чертежей,drawings,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,"Изменить размер, вид и текст, проверить undo",
+drawing-edit,Редактор чертежей,drawings,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,"Изменить размер, вид и текст, проверить undo",crates/desktop/tests/drawing_editor.rs; tests/drawing_flows/VERIFICATION.md; tests/fixtures/exports/verify.py
 reports,Спецификации и ведомости,fabrication,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,Сверить массу и количество с моделью,
 nc-dstv,NC/DSTV для станков,fabrication,https://support.tekla.com/tekla-2025/tekla-structures,open,later,Сверить координаты обработки независимым reader,
 ifc,IFC: заявленное подмножество,exchange,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,"Независимая схема и viewer, round-trip GUID и единиц",

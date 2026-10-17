@@ -1,0 +1,30 @@
+{
+ "sheet": "a2",
+ "scale": 20.0,
+ "top_view": [
+  185.0,
+  109.82050704956055
+ ],
+ "issued_revision": 7,
+ "pdf_mm": [
+  594.0,
+  420.0
+ ],
+ "dxf_texts": 19,
+ "events": [
+  "Создать чертёж КМД-1",
+  "Чертёж КМД-1: лист A2",
+  "Чертёж КМД-1: масштаб 1:20",
+  "Чертёж КМД-1: вид 2 перемещён",
+  "Экспорт /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/drawing_flows/export/КМД-1.pdf",
+  "Экспорт /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/drawing_flows/export/КМД-1.svg",
+  "Экспорт /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/drawing_flows/export/КМД-1.dxf",
+  "Чертёж КМД-1: текст добавлен",
+  "Отменить",
+  "Повторить",
+  "Переместить",
+  "Чертёж КМД-1: обновлён по модели",
+  "Чертёж КМД-1: выдан",
+  "Сохранить"
+ ]
+}

@@ -74,7 +74,15 @@ impl Options {
         Ok(options)
     }
 }
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Mode {
+    Model,
+    Drawings,
+}
+
 struct Desktop {
+    mode: Mode,
+    drawings: open_bim_desktop::drawing_editor::DrawingEditor,
     editor: Editor,
     tools: ToolsUi,
     capture_dir: Option<PathBuf>,
@@ -155,6 +163,8 @@ impl Desktop {
         }
         cc.egui_ctx.set_visuals(egui::Visuals::dark());
         Ok(Self {
+            mode: Mode::Model,
+            drawings: open_bim_desktop::drawing_editor::DrawingEditor::new(),
             editor,
             tools,
             capture_dir: options.capture_dir,
@@ -300,9 +310,18 @@ impl eframe::App for Desktop {
         if ctx.input(|i| i.modifiers.command && i.key_pressed(egui::Key::S)) {
             action = Some(Action::Save);
         }
+        if ctx.input(|i| i.key_pressed(egui::Key::F2)) {
+            self.mode = Mode::Model;
+        }
+        if ctx.input(|i| i.key_pressed(egui::Key::F3)) {
+            self.mode = Mode::Drawings;
+        }
         egui::Panel::top("tools").show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.strong("Open BIM");
+                ui.separator();
+                ui.selectable_value(&mut self.mode, Mode::Model, "3D модель · F2");
+                ui.selectable_value(&mut self.mode, Mode::Drawings, "Чертежи · F3");
                 ui.separator();
                 if ui.button("Новый проект").clicked() {
                     action = Some(Action::New);
@@ -360,7 +379,9 @@ impl eframe::App for Desktop {
             .default_size(320.0)
             .show(ui, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    if let Some(a) = self.tools.show(ui, &mut self.editor) {
+                    if self.mode == Mode::Drawings {
+                        self.drawings.show(ui, &mut self.editor);
+                    } else if let Some(a) = self.tools.show(ui, &mut self.editor) {
                         action = Some(a);
                     }
                 });
@@ -388,6 +409,10 @@ impl eframe::App for Desktop {
         self.view.selected_ids = self.editor.selected.clone();
         self.view.selected = self.editor.selected.first().copied();
         egui::CentralPanel::default().show(ui, |ui| {
+            if self.mode == Mode::Drawings {
+                self.drawings.show_sheet(ui, &mut self.editor);
+                return;
+            }
             let fault = self.error.lock().unwrap_or_else(|e| e.into_inner()).clone();
             if let Some(fault) = fault {
                 ui.heading("Ошибка GPU");

@@ -1,0 +1,77 @@
+GPU: Apple M5 · Metal; project=Новый проект objects=2
+SCRIPT: step 1 Wait(20)
+SCRIPT: step 2 Note("F3 — режим чертежей; выбрать балку Б1; создать чертёж детали")
+SCRIPT: step 3 Key { name: "F3", command: false, shift: false }
+SCRIPT: step 4 Click([70.4, 107.5])
+SCRIPT: step 5 Click([1017.6, 80.6])
+SCRIPT: step 6 Wait(10)
+SCRIPT: step 7 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/drawing_flows/step-1.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/drawing_flows/step-1.png 2560x1600
+SCRIPT: step 8 Note("Лист A2")
+SCRIPT: step 9 Click([1036.8, 265.0])
+SCRIPT: step 10 Click([1007.5, 332.0])
+SCRIPT: step 11 Wait(5)
+SCRIPT: step 12 Note("Масштаб 1:20")
+SCRIPT: step 13 Click([1220.0, 265.0])
+SCRIPT: step 14 Click([1190.0, 437.5])
+SCRIPT: step 15 Wait(10)
+SCRIPT: step 16 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/drawing_flows/step-2.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/drawing_flows/step-2.png 2560x1600
+SCRIPT: step 17 Note("Перетащить вид сверху вниз на листе")
+SCRIPT: step 18 Drag([456.0, 434.6, 456.0, 525.0])
+SCRIPT: step 19 Wait(10)
+SCRIPT: step 20 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/drawing_flows/step-3.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/drawing_flows/step-3.png 2560x1600
+SCRIPT: step 21 Note("Экспорт PDF/SVG/DXF")
+SCRIPT: step 22 Click([1132.8, 608.0])
+SCRIPT: step 23 Key { name: "A", command: true, shift: false }
+SCRIPT: step 24 Text("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/drawing_flows/export")
+SCRIPT: step 25 Click([967.0, 629.0])
+SCRIPT: step 26 Click([1006.7, 629.0])
+SCRIPT: step 27 Click([1046.4, 629.0])
+SCRIPT: step 28 Wait(5)
+SCRIPT: step 29 Note("Текст примечания")
+SCRIPT: step 30 Click([1088.0, 516.0])
+SCRIPT: step 31 Key { name: "A", command: true, shift: false }
+SCRIPT: step 32 Text("Швы по ГОСТ 5264-80, катет 6 мм")
+SCRIPT: step 33 Click([992.0, 537.6])
+SCRIPT: step 34 Key { name: "A", command: true, shift: false }
+SCRIPT: step 35 Text("60")
+SCRIPT: step 36 Click([1065.6, 537.6])
+SCRIPT: step 37 Key { name: "A", command: true, shift: false }
+SCRIPT: step 38 Text("120")
+SCRIPT: step 39 Click([1001.6, 559.4])
+SCRIPT: step 40 Wait(10)
+SCRIPT: step 41 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/drawing_flows/step-4.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/drawing_flows/step-4.png 2560x1600
+SCRIPT: step 42 Note("Отмена и повтор")
+SCRIPT: step 43 Key { name: "Z", command: true, shift: false }
+SCRIPT: step 44 Wait(10)
+SCRIPT: step 45 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/drawing_flows/step-5.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/drawing_flows/step-5.png 2560x1600
+SCRIPT: step 46 Key { name: "Z", command: true, shift: true }
+SCRIPT: step 47 Wait(10)
+SCRIPT: step 48 Note("Ревизия модели: переместить балку на 500 мм")
+SCRIPT: step 49 Key { name: "F2", command: false, shift: false }
+SCRIPT: step 50 Wait(5)
+SCRIPT: step 51 Click([1014.0, 262.0])
+SCRIPT: step 52 Key { name: "A", command: true, shift: false }
+SCRIPT: step 53 Text("500")
+SCRIPT: step 54 Click([1011.0, 283.5])
+SCRIPT: step 55 Wait(10)
+SCRIPT: step 56 Key { name: "F3", command: false, shift: false }
+SCRIPT: step 57 Wait(10)
+SCRIPT: step 58 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/drawing_flows/step-6.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/drawing_flows/step-6.png 2560x1600
+SCRIPT: step 59 Note("Обновить по модели и выдать")
+SCRIPT: step 60 Click([1033.6, 179.2])
+SCRIPT: step 61 Wait(10)
+SCRIPT: step 62 Click([1150.0, 179.2])
+SCRIPT: step 63 Wait(10)
+SCRIPT: step 64 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/drawing_flows/step-7.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/drawing_flows/step-7.png 2560x1600
+SCRIPT: step 65 Note("Сохранить")
+SCRIPT: step 66 Key { name: "S", command: true, shift: false }
+SCRIPT: step 67 Wait(10)
+SCRIPT: step 68 Quit
+SCRIPT: finished
