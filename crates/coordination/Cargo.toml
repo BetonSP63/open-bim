@@ -1,0 +1,17 @@
+[package]
+name = "open-bim-coordination"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+open-bim-model.workspace = true
+open-bim-geometry.workspace = true
+open-bim-numbering.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+parry3d-f64 = "=0.31.1"

@@ -1,0 +1,18 @@
+[package]
+name = "open-bim-numbering"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+open-bim-model.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2 = "=0.11.0"
+
+[dev-dependencies]
+open-bim-persistence.workspace = true

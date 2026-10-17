@@ -1,0 +1,9 @@
+[
+  {"name":"separated","offset":[101,0,0],"kind":null,"volume":0},
+  {"name":"face_touch","offset":[100,0,0],"kind":"touching","volume":0},
+  {"name":"edge_touch","offset":[100,100,0],"kind":"touching","volume":0},
+  {"name":"point_touch","offset":[100,100,10],"kind":"touching","volume":0},
+  {"name":"half_overlap","offset":[50,0,0],"kind":"intersection","volume":50000},
+  {"name":"corner_overlap","offset":[75,80,5],"kind":"intersection","volume":2500},
+  {"name":"identical","offset":[0,0,0],"kind":"intersection","volume":100000}
+]

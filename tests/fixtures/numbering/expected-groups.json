@@ -1,0 +1,5 @@
+{
+  "source": "../model/steel-frame.json",
+  "part_groups": [[8, 9, 10, 11], [12, 13], [14]],
+  "explanation": "Four I300 columns of 3000mm, two I300 beams of 6000mm, one400x400x20plate. Authored reference; no numbering output used."
+}
