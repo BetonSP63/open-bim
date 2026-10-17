@@ -1,0 +1,36 @@
+{
+ "beam-part.svg": {
+  "texts": 20,
+  "dimension_texts": [
+   "3000",
+   "500",
+   "750",
+   "1750"
+  ],
+  "measured_length_mm": 3000.0
+ },
+ "plate-part.svg": {
+  "texts": 19,
+  "dimension_texts": [
+   "60",
+   "280",
+   "60",
+   "80",
+   "140",
+   "80"
+  ],
+  "measured_length_mm": 400.0
+ },
+ "assembly.svg": {
+  "texts": 16,
+  "dimension_texts": [
+   "3000"
+  ],
+  "measured_length_mm": 0.0
+ },
+ "general.svg": {
+  "texts": 15,
+  "dimension_texts": [],
+  "measured_length_mm": 0.0
+ }
+}

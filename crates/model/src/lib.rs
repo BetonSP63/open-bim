@@ -3,6 +3,7 @@ mod body;
 mod catalog;
 mod connection;
 mod detailing;
+mod drawing;
 mod frame;
 mod project;
 mod validation;
@@ -10,6 +11,10 @@ mod validation;
 pub use catalog::{Material, Profile, ProfileShape};
 pub use connection::{ConnectionInstance, ConnectionTemplate, TemplateKind};
 pub use detailing::{Detail, DetailKind, WeldType};
+pub use drawing::{
+    Anchor, AnchorPoint, DimensionAxis, DimensionDef, Drawing, DrawingKind, DrawingView,
+    MAX_DRAWING_ITEMS, SheetSize, TextNote, ViewDirection,
+};
 pub use frame::{Frame, GridAxis, Level};
 pub use open_bim_geometry::{GeometryError, LengthMm, Point3};
 pub use project::{

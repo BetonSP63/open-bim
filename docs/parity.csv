@@ -7,8 +7,8 @@ bolts-welds,Болты и сварные швы,detailing,https://support.tekla.
 connections,Параметрические соединения,detailing,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,Обновить родительское сечение и сверить узел,
 numbering,Нумерация деталей и сборок,detailing,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,Сверить позиции при перестановке объектов,crates/numbering/tests/equivalence.rs; crates/desktop/tests/coordination.rs; tests/coordination_flows/VERIFICATION.md
 clashes,Геометрические коллизии,coordination,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,"Различить пересечение, касание и болт в отверстии",crates/coordination/tests/clashes.rs; crates/coordination/tests/bolts.rs; tests/coordination_flows/VERIFICATION.md
-ga-drawings,Общие виды,drawings,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,Сверить виды и размер после правки модели,
-part-assembly-drawings,Чертежи деталей и сборок,drawings,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,Выпустить связанные листы и обновить ревизию,
+ga-drawings,Общие виды,drawings,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,Сверить виды и размер после правки модели,crates/drawings/tests/engine.rs; tests/fixtures/drawings/general.svg; tests/fixtures/drawings/verify.py
+part-assembly-drawings,Чертежи деталей и сборок,drawings,https://support.tekla.com/tekla-2025/tekla-structures,verified,initial,Выпустить связанные листы и обновить ревизию,"crates/drawings/tests/engine.rs; tests/fixtures/drawings/{beam-part,plate-part,assembly}.svg"
 drawing-edit,Редактор чертежей,drawings,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,"Изменить размер, вид и текст, проверить undo",
 reports,Спецификации и ведомости,fabrication,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,Сверить массу и количество с моделью,
 nc-dstv,NC/DSTV для станков,fabrication,https://support.tekla.com/tekla-2025/tekla-structures,open,later,Сверить координаты обработки независимым reader,

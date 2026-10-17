@@ -115,6 +115,12 @@ pub struct Project {
         deserialize_with = "unique_map"
     )]
     pub connections: BTreeMap<ObjectId, crate::ConnectionInstance>,
+    #[serde(
+        default,
+        skip_serializing_if = "BTreeMap::is_empty",
+        deserialize_with = "unique_map"
+    )]
+    pub drawings: BTreeMap<ObjectId, crate::Drawing>,
 }
 
 impl Default for Project {
@@ -134,6 +140,7 @@ impl Default for Project {
             levels: BTreeMap::new(),
             details: BTreeMap::new(),
             connections: BTreeMap::new(),
+            drawings: BTreeMap::new(),
         }
     }
 }
@@ -161,6 +168,7 @@ impl Project {
             || self.levels.contains_key(&id)
             || self.details.contains_key(&id)
             || self.connections.contains_key(&id)
+            || self.drawings.contains_key(&id)
     }
 
     pub fn element_volume_mm3(&self, id: ObjectId) -> Result<f64, ModelError> {

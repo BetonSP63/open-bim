@@ -63,6 +63,7 @@ pub(crate) struct Patch {
     levels: MapDelta<Level>,
     details: MapDelta<open_bim_model::Detail>,
     connections: MapDelta<open_bim_model::ConnectionInstance>,
+    drawings: MapDelta<open_bim_model::Drawing>,
     before_meta: (u64, u64, String),
     after_meta: (u64, u64, String),
     pub touched: BTreeSet<ObjectId>,
@@ -79,6 +80,7 @@ impl Patch {
         let levels = differences(&before.levels, &after.levels);
         let details = differences(&before.details, &after.details);
         let connections = differences(&before.connections, &after.connections);
+        let drawings = differences(&before.drawings, &after.drawings);
         let mut touched: BTreeSet<_> = elements
             .keys()
             .chain(assemblies.keys())
@@ -88,6 +90,7 @@ impl Patch {
             .chain(levels.keys())
             .chain(details.keys())
             .chain(connections.keys())
+            .chain(drawings.keys())
             .copied()
             .collect();
         dependencies(before, &mut touched);
@@ -101,6 +104,7 @@ impl Patch {
             levels,
             details,
             connections,
+            drawings,
             before_meta: (before.revision, before.next_id, before.name.clone()),
             after_meta: (after.revision, after.next_id, after.name.clone()),
             touched,
@@ -117,6 +121,7 @@ impl Patch {
         apply(&mut project.levels, &self.levels, forward);
         apply(&mut project.details, &self.details, forward);
         apply(&mut project.connections, &self.connections, forward);
+        apply(&mut project.drawings, &self.drawings, forward);
         let metadata = if forward {
             &self.after_meta
         } else {

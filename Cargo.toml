@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/geometry", "crates/model", "crates/commands", "crates/persistence", "crates/renderer", "crates/desktop", "crates/steel", "crates/connections", "crates/numbering", "crates/coordination"]
+members = ["crates/geometry", "crates/model", "crates/commands", "crates/persistence", "crates/renderer", "crates/desktop", "crates/steel", "crates/connections", "crates/numbering", "crates/coordination", "crates/drawings"]
 exclude = ["vendor/truck-shapeops"]
 resolver = "3"
 
@@ -21,6 +21,7 @@ open-bim-steel = { path = "crates/steel" }
 open-bim-connections = { path = "crates/connections" }
 open-bim-numbering = { path = "crates/numbering" }
 open-bim-coordination = { path = "crates/coordination" }
+open-bim-drawings = { path = "crates/drawings" }
 eframe = { version = "=0.36.2", default-features = false, features = ["accesskit", "default_fonts", "wgpu"] }
 
 [workspace.lints.rust]

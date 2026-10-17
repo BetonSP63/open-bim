@@ -241,6 +241,10 @@ impl Project {
             register(*key, value.id)?;
             value.kind.validate(self)?;
         }
+        for (key, value) in &self.drawings {
+            register(*key, value.id)?;
+            value.validate()?;
+        }
         let mut owners = BTreeMap::new();
         for (key, value) in &self.assemblies {
             register(*key, value.id)?;

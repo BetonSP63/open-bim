@@ -18,6 +18,12 @@ pub enum DeletePolicy {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "snake_case")]
 pub enum Command {
+    CreateDrawing {
+        drawing: open_bim_model::Drawing,
+    },
+    ReplaceDrawing {
+        drawing: open_bim_model::Drawing,
+    },
     CreateConnection {
         connection: open_bim_model::ConnectionInstance,
     },
@@ -298,6 +304,24 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
             }
             project.details.insert(detail.id, detail.clone());
         }
+        Command::CreateDrawing { drawing } => {
+            if project.contains_id(drawing.id) || drawing.id.0 == 0 {
+                return Err(ModelError::DuplicateId(drawing.id).into());
+            }
+            project.next_id =
+                project
+                    .next_id
+                    .max(drawing.id.0.checked_add(1).ok_or_else(|| {
+                        CommandError::InvalidTransaction("Недопустимый ID чертежа".into())
+                    })?);
+            project.drawings.insert(drawing.id, drawing.clone());
+        }
+        Command::ReplaceDrawing { drawing } => {
+            if !project.drawings.contains_key(&drawing.id) {
+                return Err(ModelError::MissingReference(drawing.id).into());
+            }
+            project.drawings.insert(drawing.id, drawing.clone());
+        }
         Command::Create { element } => {
             if project.contains_id(element.id) || element.id.0 == 0 {
                 return Err(ModelError::DuplicateId(element.id).into());
@@ -454,6 +478,7 @@ fn delete(project: &mut Project, id: ObjectId, policy: DeletePolicy) -> Result<(
         project.levels.remove(id);
         project.details.remove(id);
         project.connections.remove(id);
+        project.drawings.remove(id);
     }
     for assembly in project.assemblies.values_mut() {
         assembly.members.retain(|id| !removed.contains(id));
