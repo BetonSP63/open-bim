@@ -263,3 +263,65 @@ pub fn update_commands(project: &Project, spec: &GridSpec) -> Result<Vec<Command
     }
     Ok(commands)
 }
+
+/// Grid node typed as «Б/2», «2/Б», «Б2» or with a level: «Б/2/+3,600»,
+/// «Б/2/3600» or «Б/2/Верх» (level name). `None` when the text is not a
+/// grid reference (plain coordinates), `Some(Err)` for unknown axes.
+pub fn grid_node(project: &Project, text: &str, plane_z: f64) -> Option<Result<DVec3, String>> {
+    let text = text.trim();
+    if !text.chars().any(|c| c.is_alphabetic()) {
+        return None;
+    }
+    let mut parts: Vec<String> = text.split('/').map(|s| s.trim().to_string()).collect();
+    // «Б2» or «Б2/+3,600»: letters directly followed by digits are two axes.
+    let first = parts[0].clone();
+    if let Some(split) = first.find(|c: char| c.is_ascii_digit())
+        && split > 0
+        && first[..split].chars().all(|c| c.is_alphabetic())
+    {
+        let (a, b) = first.split_at(split);
+        parts.splice(0..1, [a.to_string(), b.to_string()]);
+    }
+    if parts.len() == 1 {
+        return None;
+    }
+    if !(2..=3).contains(&parts.len()) {
+        return Some(Err("Узел сетки: «Б/2» или «Б/2/+3,600»".into()));
+    }
+    let (xs, ys) = split_axes(project);
+    fn find<'a>(name: &str, lines: &[&'a GridAxis]) -> Option<&'a GridAxis> {
+        lines
+            .iter()
+            .find(|a| a.name.to_uppercase() == name.to_uppercase())
+            .copied()
+    }
+    let (a, b) = (parts[0].as_str(), parts[1].as_str());
+    let (x_line, y_line) = match (find(a, &xs), find(b, &ys), find(b, &xs), find(a, &ys)) {
+        (Some(x), Some(y), _, _) | (_, _, Some(x), Some(y)) => (x, y),
+        _ => {
+            let missing = if find(a, &xs).or(find(a, &ys)).is_none() {
+                a
+            } else {
+                b
+            };
+            return Some(Err(format!("Нет такой оси «{missing}»")));
+        }
+    };
+    let z = match parts.get(2) {
+        None => plane_z,
+        Some(level) => {
+            if let Some(l) = project.levels.values().find(|l| l.name == *level) {
+                l.elevation_mm
+            } else {
+                // «+3,600» (metres, ГОСТ marks) or «3600» (mm).
+                let t = level.replace(',', ".");
+                match t.parse::<f64>() {
+                    Ok(v) if t.contains('.') => v * 1000.,
+                    Ok(v) => v,
+                    Err(_) => return Some(Err(format!("Нет уровня «{level}»"))),
+                }
+            }
+        }
+    };
+    Some(Ok(DVec3::new(x_line.start.0[0], y_line.start.0[1], z)))
+}

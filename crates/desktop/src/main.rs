@@ -545,6 +545,31 @@ impl eframe::App for Desktop {
             self.viewport = Some(rect);
             let viewport_hovered = response.hovered();
             let mut fit_home = false;
+            // Keyboard cursor: Alt+arrows (taken before the arrows navigate the view).
+            // Not while a field is edited or a control has keyboard focus
+            // (Space then presses that control).
+            let typing = ctx.egui_wants_keyboard_input() || ctx.memory(|m| m.focused().is_some());
+            let kb_arrow = (!typing).then(|| {
+                use open_bim_desktop::interaction::keyboard_cursor::Arrow;
+                [
+                    (egui::Key::ArrowLeft, Arrow::Left),
+                    (egui::Key::ArrowRight, Arrow::Right),
+                    (egui::Key::ArrowUp, Arrow::Up),
+                    (egui::Key::ArrowDown, Arrow::Down),
+                ]
+                .into_iter()
+                .find(|(k, _)| ctx.input_mut(|i| i.consume_key(egui::Modifiers::ALT, *k)))
+                .map(|(_, a)| a)
+            });
+            let kb_space = if typing {
+                None
+            } else if ctx.input_mut(|i| i.consume_key(egui::Modifiers::ALT, egui::Key::Space)) {
+                Some(selection::Click::Toggle)
+            } else if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Space)) {
+                Some(selection::Click::Replace)
+            } else {
+                None
+            };
             let middle_drag = response.dragged_by(egui::PointerButton::Middle);
             let hover = response.hover_pos().and_then(|point| {
                 let uv = [
@@ -619,6 +644,14 @@ impl eframe::App for Desktop {
                 min: [rect.min.x as f64, rect.min.y as f64],
                 size: [rect.width() as f64, rect.height() as f64],
             };
+            if let Some(arrow) = kb_arrow.flatten() {
+                self.bench.keyboard_step(&projector, arrow);
+            }
+            if let Some(mode) = kb_space
+                && let Some(r) = self.bench.keyboard_space(mode)
+            {
+                self.pending.push(r);
+            }
             let modifiers = ctx.input(|i| i.modifiers);
             let project = self.bench.editor.document.project();
             // Snapping runs while a command picks points or a handle is dragged.
@@ -690,6 +723,12 @@ impl eframe::App for Desktop {
                 candidates[(self.bench.snap_cycle % n + n) % n]
             });
             let cursor = hit.map(|h| (open_bim_model::Point3(h.point.to_array()), h));
+            // Without the mouse over the view the keyboard cursor is shown instead.
+            let kb_mark = self
+                .bench
+                .kb_cursor
+                .filter(|_| hit.is_none())
+                .map(|p| (p, open_bim_renderer::overlay::Glyph::Reference));
             self.bench.cursor = hit.map(|h| h.point);
             self.bench.last_snap = hit.map(|h| h.kind);
             // Tekla right button: context menu.
@@ -916,12 +955,14 @@ impl eframe::App for Desktop {
                     .map(|b| overlay::work_area(b, WORK_AREA_MARGIN_MM)),
                     picks: &picks,
                     polygon,
-                    cursor: cursor.map(|(p, hit)| {
-                        (
-                            DVec3::from_array(p.0),
-                            open_bim_desktop::viewport::glyph(hit.kind),
-                        )
-                    }),
+                    cursor: cursor
+                        .map(|(p, hit)| {
+                            (
+                                DVec3::from_array(p.0),
+                                open_bim_desktop::viewport::glyph(hit.kind),
+                            )
+                        })
+                        .or(kb_mark),
                     plate_preview: self.bench.plate_preview(self.bench.cursor),
                     snap_label: hit.map(|h| h.kind.label().to_string()),
                     highlight,

@@ -2,6 +2,7 @@
 //! Russian prompt per step; picks are projected onto the work plane; the
 //! object is created after the last pick and the command re-arms until Esc.
 pub mod grid_edit;
+pub mod keyboard_cursor;
 pub mod numeric;
 pub mod polygon;
 pub mod selection;

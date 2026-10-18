@@ -263,6 +263,16 @@ impl Workbench {
                     } else {
                         response.on_hover_text(UNAVAILABLE)
                     };
+                    if tab == self.ribbon_tab && self.focus_target == Some(super::FocusArea::Ribbon)
+                    {
+                        self.focus_target = None;
+                        response.request_focus();
+                    }
+                    if self.keytips == super::keytips::KeyTips::Tabs
+                        && let Some(tip) = super::keytips::tab_tip(tab)
+                    {
+                        super::keytips::badge(ui.ctx(), response.rect, tip);
+                    }
                     if response.clicked() {
                         self.ribbon_tab = tab;
                         if matches!(
@@ -285,6 +295,9 @@ impl Workbench {
                 egui::ScrollArea::horizontal()
                     .id_salt("ribbon scroll")
                     .show(ui, |ui| {
+                        let all = super::keytips::tab_items(self.ribbon_tab);
+                        let tips = super::keytips::button_tips(&all.iter().collect::<Vec<_>>());
+                        let mut k = 0;
                         ui.horizontal(|ui| {
                             for (name, items) in groups(self.ribbon_tab) {
                                 ui.vertical(|ui| {
@@ -295,7 +308,7 @@ impl Workbench {
                                                 it.cmd.map_or(UNAVAILABLE.to_string(), tooltip);
                                             let selected =
                                                 it.cmd.is_some_and(|c| self.ribbon_selected(c));
-                                            if icons::button(
+                                            let response = icons::button(
                                                 ui,
                                                 it.icon,
                                                 30.,
@@ -304,8 +317,14 @@ impl Workbench {
                                                 &tip,
                                                 enabled,
                                                 selected,
-                                            )
-                                            .clicked()
+                                            );
+                                            if self.keytips == super::keytips::KeyTips::Buttons
+                                                && let Some(t) = tips.get(k).copied().flatten()
+                                            {
+                                                super::keytips::badge(ui.ctx(), response.rect, t);
+                                            }
+                                            k += 1;
+                                            if response.clicked()
                                                 && let Some(cmd) = it.cmd
                                             {
                                                 self.run(cmd, requests);

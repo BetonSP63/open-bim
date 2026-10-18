@@ -38,6 +38,8 @@ pub enum Cmd {
     ToggleDirectModification,
     SelectAll,
     UndoPick,
+    CycleFocus,
+    FocusSearch,
     GridViews,
     PanelViews,
     PlaneOr3d,
@@ -407,6 +409,20 @@ pub const ALL: &[Spec] = &[
         keywords: "создать построить",
     },
     Spec {
+        cmd: Cmd::CycleFocus,
+        label: "Следующая область окна",
+        category: "Вид",
+        shortcut: s(NONE, Key::F6),
+        keywords: "фокус область панель клавиатура f6",
+    },
+    Spec {
+        cmd: Cmd::FocusSearch,
+        label: "Поиск в модели",
+        category: "Правка",
+        shortcut: s(CTRL, Key::F),
+        keywords: "поиск найти объект",
+    },
+    Spec {
         cmd: Cmd::UndoPick,
         label: "Убрать последнюю точку",
         category: "Моделирование",
@@ -708,7 +724,7 @@ pub fn pressed(ctx: &eframe::egui::Context) -> Vec<Cmd> {
         let plain = sc.modifiers.is_none()
             && !matches!(
                 sc.logical_key,
-                Key::F1 | Key::F2 | Key::F3 | Key::F4 | Key::Escape
+                Key::F1 | Key::F2 | Key::F3 | Key::F4 | Key::F6 | Key::Escape
             );
         if typing && plain {
             continue;

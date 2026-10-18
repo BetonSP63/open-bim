@@ -5,6 +5,7 @@ pub mod chrome;
 pub mod commands;
 pub mod icons;
 pub mod jobs;
+pub mod keytips;
 pub mod palette;
 pub mod property_pane;
 pub mod ribbon;
@@ -45,6 +46,39 @@ pub enum Request {
     FitSelected,
     /// Switch the camera and view depth to a model view.
     ApplyView(Box<views::ModelView>),
+}
+
+/// Keyboard focus areas cycled by F6.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FocusArea {
+    Viewport,
+    Ribbon,
+    QuickLaunch,
+    SidePane,
+    Toolbar,
+    Search,
+}
+
+impl FocusArea {
+    pub fn next(self) -> Self {
+        match self {
+            Self::Viewport => Self::Ribbon,
+            Self::Ribbon => Self::QuickLaunch,
+            Self::QuickLaunch => Self::SidePane,
+            Self::SidePane => Self::Toolbar,
+            Self::Toolbar | Self::Search => Self::Viewport,
+        }
+    }
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Viewport => "3D-вид (Alt+стрелки — курсор, Пробел — указать/выбрать)",
+            Self::Ribbon => "лента (Tab — кнопки, Пробел — выполнить)",
+            Self::QuickLaunch => "быстрый запуск (введите команду, Enter)",
+            Self::SidePane => "боковые панели (Tab — поля панели)",
+            Self::Toolbar => "панель привязок и выбора (Tab — переключатели)",
+            Self::Search => "поиск в модели (текст, Enter)",
+        }
+    }
 }
 
 pub enum ActiveJob {
@@ -105,6 +139,17 @@ pub struct Workbench {
     pub grid: Option<crate::interaction::tools::GridSpec>,
     /// The dialog edits the existing grid (otherwise it creates a new one).
     pub grid_editing: bool,
+    /// Keyboard cursor (Alt+arrows): a snap point while picking, or the
+    /// object it rests on when idle.
+    pub kb_cursor: Option<open_bim_renderer::DVec3>,
+    pub kb_object: Option<ObjectId>,
+    /// Ribbon KeyTips state and Alt press tracking (Alt alone toggles them).
+    pub keytips: keytips::KeyTips,
+    pub alt_down: bool,
+    pub alt_clean: bool,
+    /// F6 / Ctrl+F: area of the window that takes keyboard focus next frame.
+    pub focus_target: Option<FocusArea>,
+    pub focus_area: FocusArea,
     /// Edit buffer of the selected grid line in the property pane.
     pub axis_buffer: Option<open_bim_model::GridAxis>,
     /// Green dashed work area box around the model (Вид tab).
@@ -176,6 +221,13 @@ impl Workbench {
             grid: None,
             grid_editing: false,
             axis_buffer: None,
+            kb_cursor: None,
+            kb_object: None,
+            keytips: Default::default(),
+            alt_down: false,
+            alt_clean: false,
+            focus_target: None,
+            focus_area: FocusArea::Viewport,
             theme_applied: None,
             quick_launch: String::new(),
             search: String::new(),
@@ -444,6 +496,7 @@ impl Workbench {
                 } else {
                     self.engine.cancel();
                     self.editor.cancel();
+                    self.kb_cursor = None;
                     self.message("Команда прервана");
                 }
             }
@@ -595,6 +648,16 @@ impl Workbench {
                 self.measure = Some(Vec::new());
                 self.mode = Mode::Model;
                 self.message(self.prompt());
+            }
+            Cmd::CycleFocus => {
+                self.focus_area = self.focus_area.next();
+                self.focus_target = Some(self.focus_area);
+                self.message(format!("Фокус: {}", self.focus_area.label()));
+            }
+            Cmd::FocusSearch => {
+                self.focus_area = FocusArea::Search;
+                self.focus_target = Some(FocusArea::Search);
+                self.message(format!("Фокус: {}", FocusArea::Search.label()));
             }
             Cmd::SelectAll => {
                 let project = self.editor.document.project();
@@ -1050,6 +1113,27 @@ impl Workbench {
 
     /// Typed coordinates for the next pick.
     pub fn pick_numeric(&mut self, text: &str) -> Option<Request> {
+        // A typed point replaces the keyboard cursor as the reference.
+        self.kb_cursor = None;
+        // A grid node («Б/2», «Б/2/+3,600») is an exact pick of that intersection.
+        if let Some(node) = crate::interaction::grid_edit::grid_node(
+            self.editor.document.project(),
+            text,
+            self.engine.workplane.origin.z,
+        ) {
+            return match node {
+                Ok(point) => {
+                    self.engine.numeric = None;
+                    self.engine.error = None;
+                    self.pick(point)
+                }
+                Err(e) => {
+                    self.engine.error = Some(e.clone());
+                    self.message(e);
+                    None
+                }
+            };
+        }
         let outcome = self.engine.pick_numeric(text, self.cursor);
         self.outcome(outcome)
     }
@@ -1101,21 +1185,34 @@ impl Workbench {
             return;
         }
         if self.engine.numeric.is_none() && !ctx.egui_wants_keyboard_input() {
-            let start = ctx.input(|i| {
-                i.events.iter().find_map(|e| match e {
-                    egui::Event::Text(t)
-                        if t.starts_with(|c: char| {
-                            c.is_ascii_digit() || matches!(c, '@' | '-' | '$' | '!')
-                        }) =>
-                    {
-                        Some(t.clone())
-                    }
+            // The opening character goes into the box once: take it out of the
+            // events so the newly focused field does not type it again.
+            let start = ctx.input_mut(|i| {
+                let at = i.events.iter().position(|e| {
+                    matches!(e, egui::Event::Text(t) if t.starts_with(|c: char| {
+                        c.is_ascii_digit()
+                            || matches!(c, '@' | '-' | '$' | '!')
+                            // Cyrillic letters start a grid node («Б/2»).
+                            || ('А'..='я').contains(&c)
+                    }))
+                })?;
+                match i.events.remove(at) {
+                    egui::Event::Text(t) => Some(t),
                     _ => None,
-                })
+                }
             });
             if let Some(text) = start {
+                let id = egui::Id::new("numeric location");
+                let end = egui::text::CCursor::new(text.chars().count());
+                let mut state = egui::text_edit::TextEditState::load(ctx, id).unwrap_or_default();
+                state
+                    .cursor
+                    .set_char_range(Some(egui::text::CCursorRange::one(end)));
+                state.store(ctx, id);
                 self.engine.numeric = Some(text);
-                ctx.memory_mut(|m| m.request_focus(egui::Id::new("numeric location")));
+                ctx.memory_mut(|m| m.request_focus(id));
+                let pass = ctx.cumulative_pass_nr();
+                ctx.data_mut(|d| d.insert_temp(egui::Id::new("numeric opened"), pass));
             }
         }
         let Some(mut text) = self.engine.numeric.clone() else {
@@ -1129,7 +1226,7 @@ impl Workbench {
             .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0., -80.))
             .show(ctx, |ui| {
                 let label =
-                    ui.label("x,y,z — от предыдущей точки · $x,y,z — от начала плоскости · !x,y,z — глобально · d<угол — полярно · d — по курсору");
+                    ui.label("x,y,z — от предыдущей точки · $x,y,z — от начала плоскости · !x,y,z — глобально · d<угол — полярно · d — по курсору · Б/2 или Б/2/+3,600 — узел сетки");
                 let edit = ui
                     .add(
                         egui::TextEdit::singleline(&mut text)
@@ -1137,6 +1234,18 @@ impl Workbench {
                             .desired_width(320.),
                     )
                     .labelled_by(label.id);
+                // A new window is laid out invisibly on its first frames and
+                // may drop the focus request: hold the focus on the box for a
+                // few frames after it opens so the next typed keys land in it.
+                let opened: u64 = ui
+                    .data(|d| d.get_temp(egui::Id::new("numeric opened")))
+                    .unwrap_or_default();
+                if !edit.lost_focus()
+                    && (ui.ctx().cumulative_pass_nr() <= opened + 3
+                        || ui.memory(|m| m.focused().is_none()))
+                {
+                    edit.request_focus();
+                }
                 if edit.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                     submit = true;
                 }
@@ -1157,6 +1266,7 @@ impl Workbench {
         let ctx = ui.ctx().clone();
         let mut requests = Vec::new();
         self.engine.plate_mode = self.editor.draft.plate_mode;
+        self.keytips_input(&ctx, &mut requests);
         for cmd in commands::pressed(&ctx) {
             if let Some(r) = self.execute(cmd) {
                 requests.push(r);
@@ -1182,6 +1292,14 @@ impl Workbench {
         self.grid_window(&ctx, &mut requests);
         self.delete_window(&ctx, &mut requests);
         self.chrome(ui, &mut requests);
+        if self.focus_target.take() == Some(FocusArea::Viewport) {
+            // Viewport: no widget keeps focus, so keys drive the view and picks.
+            ctx.memory_mut(|m| {
+                if let Some(id) = m.focused() {
+                    m.surrender_focus(id);
+                }
+            });
+        }
         requests
     }
 

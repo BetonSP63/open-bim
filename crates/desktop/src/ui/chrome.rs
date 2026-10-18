@@ -3,7 +3,7 @@
 //! toolbars (work plane, model search, snap and selection switches) and the
 //! blue status bar with the current prompt.
 use super::icons::{self, Icon};
-use super::{Cmd, Mode, Request, Workbench, commands, theme};
+use super::{Cmd, FocusArea, Mode, Request, Workbench, commands, theme};
 use crate::interaction::snap::SnapKind;
 use crate::tools::ui::{Action, ToolsPanel, select};
 use eframe::egui;
@@ -103,6 +103,81 @@ impl Workbench {
             return;
         }
         apply(&mut self.editor.selected, &ids, mode);
+    }
+
+    /// Give keyboard focus to a field when its area was chosen by F6/Ctrl+F.
+    fn take_focus(&mut self, ui: &egui::Ui, area: FocusArea, id: egui::Id) {
+        if self.focus_target == Some(area) {
+            self.focus_target = None;
+            ui.memory_mut(|m| m.request_focus(id));
+        }
+    }
+
+    /// Alt+arrow: move the keyboard cursor to the next snap point (while a
+    /// command picks points) or the next part (otherwise) in that direction.
+    pub fn keyboard_step(
+        &mut self,
+        p: &open_bim_renderer::overlay::Projector,
+        arrow: crate::interaction::keyboard_cursor::Arrow,
+    ) {
+        use crate::interaction::keyboard_cursor::{object_points, snap_points, step};
+        let project = self.editor.document.project();
+        if self.picking() {
+            let points = snap_points(project);
+            let from = self
+                .kb_cursor
+                .or(self.engine.picks.last().copied())
+                .unwrap_or(self.engine.workplane.origin);
+            match step(p, &points, from, arrow) {
+                Some(i) => {
+                    let q = points[i];
+                    self.kb_cursor = Some(q);
+                    self.message(format!(
+                        "Курсор: {:.0}, {:.0}, {:.0} — Пробел указывает точку",
+                        q.x, q.y, q.z
+                    ));
+                }
+                None => self.message("В этом направлении нет точек привязки"),
+            }
+        } else {
+            let objects = object_points(project);
+            let from = self.kb_cursor.unwrap_or_default();
+            let points: Vec<_> = objects.iter().map(|o| o.1).collect();
+            // The first press lands on the first part; later ones step.
+            let found = if self.kb_object.is_none() {
+                (!objects.is_empty()).then_some(0)
+            } else {
+                step(p, &points, from, arrow)
+            };
+            match found {
+                Some(i) => {
+                    let (id, q) = objects[i];
+                    self.kb_cursor = Some(q);
+                    self.kb_object = Some(id);
+                    let name = &project.elements[&id].name;
+                    self.message(format!(
+                        "Объект: {name} #{} — Пробел выбирает, Alt+Пробел добавляет/убирает",
+                        id.0
+                    ));
+                }
+                None => self.message("В этом направлении нет объектов"),
+            }
+        }
+    }
+
+    /// Space: pick the keyboard cursor point, or select the object under it.
+    pub fn keyboard_space(
+        &mut self,
+        mode: crate::interaction::selection::Click,
+    ) -> Option<Request> {
+        if self.picking() {
+            let point = self.kb_cursor?;
+            return self.pick(point);
+        }
+        let id = self.kb_object?;
+        self.select_picked(Some(id), mode);
+        self.message(format!("Выбрано объектов: {}", self.editor.selected.len()));
+        None
     }
 
     /// Plate contour preview for the overlay: the picked points plus the
@@ -306,6 +381,7 @@ impl Workbench {
                     }
                     let edit = ui.add(
                         egui::TextEdit::singleline(&mut self.quick_launch)
+                            .id(egui::Id::new("quick launch"))
                             .hint_text("Быстрый запуск")
                             .desired_width(200.),
                     );
@@ -488,10 +564,12 @@ impl Workbench {
     fn snap_toolbar(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
         egui::Panel::bottom("snap toolbar").show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
+                self.take_focus(ui, FocusArea::QuickLaunch, egui::Id::new("quick launch"));
+                self.take_focus(ui, FocusArea::Search, egui::Id::new("model search"));
                 let custom = self.engine.workplane != crate::interaction::Workplane::default()
                     && self.engine.workplane.axes[2] != open_bim_renderer::DVec3::Z;
                 let mut choice = custom;
-                egui::ComboBox::new("coordinate system", "Система координат")
+                let coordinate = egui::ComboBox::new("coordinate system", "Система координат")
                     .selected_text(if custom {
                         "Рабочая плоскость"
                     } else {
@@ -501,6 +579,10 @@ impl Workbench {
                         ui.selectable_value(&mut choice, false, "Начало координат модели");
                         ui.selectable_value(&mut choice, true, "Рабочая плоскость по 3 точкам…");
                     });
+                if self.focus_target == Some(FocusArea::Toolbar) {
+                    self.focus_target = None;
+                    coordinate.response.request_focus();
+                }
                 if choice != custom {
                     self.run(
                         if choice {
@@ -514,6 +596,7 @@ impl Workbench {
                 ui.separator();
                 let edit = ui.add(
                     egui::TextEdit::singleline(&mut self.search)
+                        .id(egui::Id::new("model search"))
                         .hint_text("Поиск в модели")
                         .desired_width(150.),
                 );
@@ -631,7 +714,7 @@ impl Workbench {
                         (SidePanel::Views, Icon::View3d, Cmd::PanelViews),
                     ] {
                         let open = self.mode == Mode::Model && self.side_panel == Some(panel);
-                        if icons::button(
+                        let response = icons::button(
                             ui,
                             icon,
                             20.,
@@ -640,9 +723,17 @@ impl Workbench {
                             &tooltip(cmd),
                             true,
                             open,
-                        )
-                        .clicked()
+                        );
+                        // F6: an open pane takes the focus on its first field
+                        // (below); a closed one leaves it on its strip button.
+                        if panel == SidePanel::Properties
+                            && self.focus_target == Some(FocusArea::SidePane)
+                            && !(self.mode == Mode::Model && self.side_panel.is_some())
                         {
+                            self.focus_target = None;
+                            response.request_focus();
+                        }
+                        if response.clicked() {
                             self.run(cmd, requests);
                         }
                     }
@@ -725,6 +816,22 @@ impl Workbench {
                         },
                     });
                 });
+                if self.focus_target == Some(FocusArea::SidePane) {
+                    self.focus_target = None;
+                    let (layer, area) = (ui.layer_id(), ui.max_rect());
+                    let first = ui.ctx().viewport(|v| {
+                        v.this_pass
+                            .widgets
+                            .get_layer(layer)
+                            .find(|w| {
+                                w.enabled && w.sense.is_focusable() && area.contains_rect(w.rect)
+                            })
+                            .map(|w| w.id)
+                    });
+                    if let Some(id) = first {
+                        ui.memory_mut(|m| m.request_focus(id));
+                    }
+                }
             });
     }
 

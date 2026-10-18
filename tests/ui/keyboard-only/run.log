@@ -1,0 +1,114 @@
+LOAD_MS: 0.6
+GPU: Apple M5 · Metal; project=Новый проект objects=0
+SCRIPT: step 1 Wait(30)
+SCRIPT: step 2 Note("⌘N — новый проект")
+SCRIPT: step 3 Key { name: "N", command: true, shift: false, alt: false, ctrl: false }
+SCRIPT: step 4 Wait(8)
+SCRIPT: step 5 Note("⌥C — колонна; узлы сетки набираются с клавиатуры")
+SCRIPT: step 6 Key { name: "C", command: false, shift: false, alt: true, ctrl: false }
+SCRIPT: step 7 Wait(4)
+SCRIPT: step 8 Text("А")
+SCRIPT: step 9 Text("/1")
+SCRIPT: step 10 Wait(3)
+SCRIPT: step 11 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard-only/01-node-typed.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard-only/01-node-typed.png 2560x1600
+SCRIPT: step 12 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 13 Wait(6)
+SCRIPT: step 14 Text("Б")
+SCRIPT: step 15 Text("/2")
+SCRIPT: step 16 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 17 Wait(6)
+SCRIPT: step 18 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 19 Wait(3)
+SCRIPT: step 20 Note("⌥B — балка: первая точка набрана, вторая — клавиатурным курсором")
+SCRIPT: step 21 Key { name: "B", command: false, shift: false, alt: true, ctrl: false }
+SCRIPT: step 22 Wait(4)
+SCRIPT: step 23 Text("А")
+SCRIPT: step 24 Text("/1/+3,600")
+SCRIPT: step 25 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 26 Wait(6)
+SCRIPT: step 27 Key { name: "ArrowRight", command: false, shift: false, alt: true, ctrl: false }
+SCRIPT: step 28 Wait(4)
+SCRIPT: step 29 Key { name: "ArrowRight", command: false, shift: false, alt: true, ctrl: false }
+SCRIPT: step 30 Wait(6)
+SCRIPT: step 31 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard-only/02-keyboard-cursor.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard-only/02-keyboard-cursor.png 2560x1600
+SCRIPT: step 32 Key { name: "Space", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 33 Wait(6)
+SCRIPT: step 34 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 35 Wait(3)
+SCRIPT: step 36 Note("⌥P — пластина по узлам сетки, Enter — замкнуть")
+SCRIPT: step 37 Key { name: "P", command: false, shift: false, alt: true, ctrl: false }
+SCRIPT: step 38 Wait(4)
+SCRIPT: step 39 Text("В")
+SCRIPT: step 40 Text("/3")
+SCRIPT: step 41 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 42 Wait(5)
+SCRIPT: step 43 Text("В")
+SCRIPT: step 44 Text("/4")
+SCRIPT: step 45 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 46 Wait(5)
+SCRIPT: step 47 Text("Г")
+SCRIPT: step 48 Text("/4")
+SCRIPT: step 49 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 50 Wait(5)
+SCRIPT: step 51 Text("Г")
+SCRIPT: step 52 Text("/3")
+SCRIPT: step 53 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 54 Wait(5)
+SCRIPT: step 55 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard-only/03-plate-preview.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard-only/03-plate-preview.png 2560x1600
+SCRIPT: step 56 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 57 Wait(8)
+SCRIPT: step 58 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 59 Wait(3)
+SCRIPT: step 60 Note("Alt+→ — к детали, Пробел — выбрать; F6 — боковая панель")
+SCRIPT: step 61 Key { name: "ArrowRight", command: false, shift: false, alt: true, ctrl: false }
+SCRIPT: step 62 Wait(4)
+SCRIPT: step 63 Key { name: "Space", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 64 Wait(5)
+SCRIPT: step 65 Key { name: "F6", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 66 Wait(3)
+SCRIPT: step 67 Key { name: "F6", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 68 Wait(3)
+SCRIPT: step 69 Key { name: "F6", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 70 Wait(3)
+SCRIPT: step 71 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard-only/04-f6-side.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard-only/04-f6-side.png 2560x1600
+SCRIPT: step 72 Note("Tab ×5 — к значению свойства «Марка», набрать, Enter")
+SCRIPT: step 73 Key { name: "Tab", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 74 Wait(2)
+SCRIPT: step 75 Key { name: "Tab", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 76 Wait(2)
+SCRIPT: step 77 Key { name: "Tab", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 78 Wait(2)
+SCRIPT: step 79 Key { name: "Tab", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 80 Wait(2)
+SCRIPT: step 81 Key { name: "Tab", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 82 Wait(2)
+SCRIPT: step 83 Key { name: "A", command: true, shift: false, alt: false, ctrl: false }
+SCRIPT: step 84 Text("К-1")
+SCRIPT: step 85 Wait(3)
+SCRIPT: step 86 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard-only/05-pane-value.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard-only/05-pane-value.png 2560x1600
+SCRIPT: step 87 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 88 Wait(6)
+SCRIPT: step 89 Note("F6 — назад в вид; ⌘D — чертёж детали; ⇧⌘P — PDF; ⌘S — сохранить")
+SCRIPT: step 90 Key { name: "F6", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 91 Wait(2)
+SCRIPT: step 92 Key { name: "F6", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 93 Wait(2)
+SCRIPT: step 94 Key { name: "F6", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 95 Wait(3)
+SCRIPT: step 96 Key { name: "D", command: true, shift: false, alt: false, ctrl: false }
+SCRIPT: step 97 Wait(20)
+SCRIPT: step 98 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard-only/06-part-drawing.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard-only/06-part-drawing.png 2560x1600
+SCRIPT: step 99 Key { name: "P", command: true, shift: true, alt: false, ctrl: false }
+SCRIPT: step 100 Wait(10)
+SCRIPT: step 101 Key { name: "S", command: true, shift: false, alt: false, ctrl: false }
+SCRIPT: step 102 Wait(8)
+SCRIPT: step 103 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard-only/07-saved.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard-only/07-saved.png 2560x1600
+SCRIPT: step 104 Quit
+SCRIPT: finished
