@@ -26,6 +26,8 @@ pub enum Step {
     DragWorld([f64; 6]),
     /// Primary-button drag in logical points: [x0, y0, x1, y1].
     Drag([f32; 4]),
+    /// Middle-button drag (Tekla pan) in logical points: [x0, y0, x1, y1].
+    MiddleDrag([f32; 4]),
     /// Scroll by the given logical delta at a point: [x, y, dy].
     Scroll([f32; 3]),
     /// Key by egui name, e.g. "K", "Enter", "Tab", with optional modifiers.
@@ -214,7 +216,12 @@ impl Runner {
                 }
                 self.phase += 1;
             }
-            Step::Drag([x0, y0, x1, y1]) => {
+            Step::Drag([x0, y0, x1, y1]) | Step::MiddleDrag([x0, y0, x1, y1]) => {
+                let which = if matches!(step, Step::Drag(_)) {
+                    egui::PointerButton::Primary
+                } else {
+                    egui::PointerButton::Middle
+                };
                 const MOVES: u32 = 8;
                 let at = |k: u32| {
                     let t = k as f32 / MOVES as f32;
@@ -222,15 +229,11 @@ impl Runner {
                 };
                 match self.phase {
                     0 => input.events.push(egui::Event::PointerMoved(at(0))),
-                    1 => input
-                        .events
-                        .push(button([*x0, *y0], egui::PointerButton::Primary, true)),
+                    1 => input.events.push(button([*x0, *y0], which, true)),
                     k if k < MOVES + 2 => input.events.push(egui::Event::PointerMoved(at(k - 1))),
                     _ => {
                         input.events.push(egui::Event::PointerMoved(at(MOVES)));
-                        input
-                            .events
-                            .push(button([*x1, *y1], egui::PointerButton::Primary, false));
+                        input.events.push(button([*x1, *y1], which, false));
                         advance(self, 3);
                         return None;
                     }

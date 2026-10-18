@@ -7,6 +7,7 @@ pub mod icons;
 pub mod jobs;
 pub mod palette;
 pub mod property_pane;
+pub mod ribbon;
 pub mod theme;
 pub mod views;
 

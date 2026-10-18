@@ -21,7 +21,7 @@ Peak memory: `/usr/bin/time -l` maximum resident set size.
 |---|---|---|---|---|---|
 | synthetic-100k-run1 | 100 000 | 0.26 s | 16.7 / 17.25 / 17.9 ms | 0.037 ms | 344 MiB |
 | synthetic-100k-run2 | 100 000 | 0.26 s | 16.7 / 17.27 / — ms | 0.031 ms | 344 MiB |
-| synthetic-100k, Tekla UI, all selected (2026-10-19) | 100 000 | 0.53 s | 16.67 / 20.61 / 251 ms | 0.011 ms | 345 MiB |
+| synthetic-100k, Tekla UI, all selected (2026-10-19) | 100 000 | 0.45 s | 16.67 / 16.78 / 33.5 ms | 0.015 ms | 345 MiB |
 | connections-16 (complex) | 16 drilled parts, 6 nodes | 0.64 s | — / 17.1 ms | 0.001 ms | 137 MiB |
 
 Limits: frame p95 ≤ 33.3 ms, pick p95 ≤ 100 ms, memory ≤ 4 GB, open ≤ 30 s — met.

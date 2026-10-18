@@ -13,6 +13,6 @@ It uses only the ribbon, picks, snapping, a handle drag, the property pane and s
 | Captures | 01-new-model … 12-reopened.png |
 | Independent checks (JSON geometry, pypdf, IfcOpenShell IFC4 counts, CSV) | check_outputs.py → check.txt |
 | The same scenario on the packaged `dist/Open BIM.app` | check-packaged.txt |
-| 100 000 objects, all selected, packaged app | bench-100k.json: frame p50 16.67 / p95 20.61 ms, pick p95 0.011 ms, open 0.53 s, peak RSS 345 MiB (`/usr/bin/time -l`) |
+| 100 000 objects, all selected, packaged app | bench-100k.json: frame p50 16.67 / p95 16.78 ms, pick p95 0.015 ms, open 0.45 s, peak RSS 345 MiB (`/usr/bin/time -l`) |
 
 Defect found by the benchmark and fixed: with 100 000 selected objects, drawing direct-modification handles for 2000 of them pushed the frame p95 to 33–47 ms. Handles are now drawn for the first 500 selected objects, and the selection set is shared with the renderer instead of copied every frame.

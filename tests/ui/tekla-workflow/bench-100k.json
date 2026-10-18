@@ -6,14 +6,14 @@
   ],
   "pixels_per_point": 1.5,
   "gpu": "Apple M5 · Metal",
-  "load_ms": 530.213042,
+  "load_ms": 449.51691700000003,
   "warmup_frames": 120,
   "frames": 600,
-  "frame_ms_p50": 16.672417,
-  "frame_ms_p95": 20.605542,
-  "frame_ms_max": 251.18699999999998,
+  "frame_ms_p50": 16.666875,
+  "frame_ms_p95": 16.779625,
+  "frame_ms_max": 33.469125000000005,
   "picks": 200,
-  "pick_ms_p95": 0.010709,
-  "pick_ms_max": 0.037834,
-  "peak_rss_mb": 282.78125
+  "pick_ms_p95": 0.015208000000000001,
+  "pick_ms_max": 0.035833000000000004,
+  "peak_rss_mb": 267.265625
 }

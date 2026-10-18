@@ -139,6 +139,9 @@ impl View<'_> {
 
 type Segment = (DVec3, DVec3, Option<ObjectId>, bool);
 
+/// Most snap candidates kept for Tab cycling.
+pub const MAX_CANDIDATES: usize = 32;
+
 /// Feature edges per display mesh, cached across queries.
 #[derive(Default)]
 pub struct Snapper {
@@ -380,7 +383,15 @@ impl Snapper {
             }
         }
         if switches.intersection {
-            let references: Vec<&Segment> = lines.iter().filter(|l| l.3).take(128).collect();
+            // An intersection near the cursor needs both lines near the cursor.
+            let references: Vec<&Segment> = lines
+                .iter()
+                .filter(|l| {
+                    l.3 && pixels(closest_on_segment_to_ray(l.0, l.1, ray))
+                        .is_some_and(|px| px <= tolerance)
+                })
+                .take(128)
+                .collect();
             for (i, x) in references.iter().enumerate() {
                 for y in references.iter().skip(i + 1) {
                     let scale = (x.1 - x.0).length().max((y.1 - y.0).length()).max(1.);
@@ -396,10 +407,18 @@ impl Snapper {
                 .partial_cmp(&(b.kind.priority(), !b.reference, b.pixels))
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
+        // Distinct points (1 µm grid), best first; Tab cycles through at most
+        // `MAX_CANDIDATES`. Dense areas offer thousands of points, so this must
+        // stay linear.
+        let mut seen = std::collections::HashSet::new();
         let mut distinct: Vec<Hit> = Vec::new();
         for hit in found {
-            if distinct.iter().all(|d| d.point.distance(hit.point) > 1e-6) {
+            let key = (hit.point * 1e3).round().to_array().map(|v| v as i64);
+            if seen.insert(key) {
                 distinct.push(hit);
+                if distinct.len() == MAX_CANDIDATES {
+                    break;
+                }
             }
         }
         if !distinct.is_empty() {

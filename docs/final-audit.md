@@ -7,7 +7,39 @@ parity rows remain open (below). Phases 15 (concrete) and 16 (rebar) of the
 approved 18-phase plan were **not implemented**: the user decided on 2026-10-18 to
 skip them and continue with phases 17–18.
 
-## Method
+## Tekla-style interaction run (2026-10-19)
+
+**Verdict unchanged:** Open BIM is still not a full equivalent of Tekla Structures.
+13 of 35 parity rows are open (grid-levels is now verified; the new
+row «tekla-interaction» is verified).
+This run makes the way of working and the interface Tekla-like:
+- **Window:** light chrome with ribbon, quick launch, side pane, toolbars and the blue prompt.
+- **Viewport:** gradient, origin symbol, gizmo, work area, grid bubbles, snap symbols, rubber band and handles.
+- **Creating:** objects by picks; grid strings; columns with bottom/top; bolts by parts and points; welds between parts.
+- **Editing:** window/crossing selection with switches; direct modification; move, copy, mirror and rotate by picks.
+- **Properties and views:** property pane with «— разные —», contextual toolbar, views along grid lines with view depth, measuring.
+
+It was checked against the user-supplied Tekla 2026 manuals (`docs/tekla-docs-comparison.md`). The mechanics still missing are listed in `docs/tekla-interaction.md`.
+
+| Check (final tree) | Result |
+|---|---|
+| 4 mandatory commands | exit 0, 0 warnings; 151 tests passed, 2 ignored release benchmarks (run separately below) |
+| End-to-end GUI scenario `tests/ui/tekla-workflow` (dev build and packaged `.app`) | 17 journal events; JSON/pypdf/IfcOpenShell checks pass (`check.txt`, `check-packaged.txt`) |
+| GUI runs of phases 5 and 6 (only picks and drags) re-run | Python coordinate checks pass |
+| Earlier keyboard/screens/focus/jobs scenarios re-run on the new chrome | same journals; captures updated |
+| 100 000 objects, all selected, packaged app | frame p95 16.78 ms, pick p95 0.015 ms, open 0.45 s, peak RSS 345 MiB (`tests/ui/tekla-workflow/bench-100k.json`) |
+| Snap query on 100 000 objects (release) | p95 2.9 ms (`work/tekla-audit-snap-bench.txt`), limit 5 ms |
+| Deliverables vs baseline `b31b406` | 22/22 present |
+
+The audit found these gaps and fixed them in round 1:
+1. **Missing deliverable:** the ribbon lived in `chrome.rs`. It was extracted to `ui/ribbon.rs`.
+2. **Evidence links:** documentation rows that cited only «native viewport» now point to captures in `tests/ui/navigation/`.
+3. **Snap regression:** p95 was 91 ms (limit 5 ms). Deduplicating snap candidates was quadratic, and the intersection search ran over all lines. Both now stay near the cursor and run in linear time.
+4. **Frame-time regression with a huge selection:** p95 was 33–47 ms. Handles were drawn for 2000 objects, and the selection was copied every frame. Handles are now capped at 500 objects and the selection is shared.
+
+Coverage: 46 of 49 ROADMAP criteria were re-verified by tests, scripts or measurements. The other 3 visual capture criteria rely on the earlier verification. With the 22 deliverables included, coverage is 95.8 %.
+
+## Method (steel workflow run, 2026-10-18)
 
 The audit re-read the original `ROADMAP.md` criteria (not phase self-reports),
 re-ran the mandatory commands on the final tree, re-ran every independent
@@ -69,7 +101,7 @@ Totals for implemented phases: 81 criteria, 73 re-verified, 8 trust-prior
 
 ## Open parity rows
 
-grid-levels (levels not editable in the GUI), concrete, rebar, advanced-rebar,
+concrete, rebar, advanced-rebar,
 pour-management, nc-dstv, ifc43, reference-models, dwg, native-tekla, catalogs,
 collaboration, api, windows-linux. Each needs an executable scenario and
 reference before it may be marked verified.

@@ -1,4 +1,4 @@
-LOAD_MS: 1.8
+LOAD_MS: 0.9
 GPU: Apple M5 · Metal; project=Новый проект objects=0
 SCRIPT: step 1 Wait(40)
 SCRIPT: step 2 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/01-new-model-grid.png")
@@ -32,7 +32,7 @@ SCRIPT: step 20 Click([478.48407, 363.6382])
 SCRIPT: step 21 Wait(10)
 SCRIPT: step 22 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/02-columns.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/02-columns.png 2560x1600
-SCRIPT: step 23 Key { name: "Escape", command: false, shift: false, alt: false }
+SCRIPT: step 23 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 24 Wait(5)
 SCRIPT: step 25 Note("Балки по верхам колонн")
 SCRIPT: step 26 Click([97.0, 78.0])
@@ -87,7 +87,7 @@ SCRIPT: step 58 Click([479.06775, 329.8977])
 SCRIPT: step 59 Wait(10)
 SCRIPT: step 60 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/03-beams.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/03-beams.png 2560x1600
-SCRIPT: step 61 Key { name: "Escape", command: false, shift: false, alt: false }
+SCRIPT: step 61 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 62 Wait(5)
 SCRIPT: step 63 Note("Пластина по узлам А1 А3 В3 В1")
 SCRIPT: step 64 Click([160.0, 78.0])
@@ -116,11 +116,11 @@ SCRIPT: step 79 Wait(6)
 SCRIPT: world [0.0, 12000.0, 0.0] → screen [311.2859, 485.88406]
 SCRIPT: step 80 Click([311.2859, 485.88406])
 SCRIPT: step 81 Wait(10)
-SCRIPT: step 82 Key { name: "Enter", command: false, shift: false, alt: false }
+SCRIPT: step 82 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 83 Wait(10)
 SCRIPT: step 84 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/04-plate.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/04-plate.png 2560x1600
-SCRIPT: step 85 Key { name: "Escape", command: false, shift: false, alt: false }
+SCRIPT: step 85 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 86 Wait(5)
 SCRIPT: step 87 Note("Болт: деталь, Enter, начало Б2, направление Б3")
 SCRIPT: step 88 Click([355.0, 78.0])
@@ -131,7 +131,7 @@ SCRIPT: step 91 Wait(6)
 SCRIPT: world [3000.0, 9000.0, 20.0] → screen [369.00143, 485.86606]
 SCRIPT: step 92 Click([369.00143, 485.86606])
 SCRIPT: step 93 Wait(10)
-SCRIPT: step 94 Key { name: "Enter", command: false, shift: false, alt: false }
+SCRIPT: step 94 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 95 Wait(10)
 SCRIPT: world [6000.0, 6000.0, 0.0] → screen [426.80173, 486.29657]
 SCRIPT: step 96 Hover([426.80173, 486.29657])
@@ -148,8 +148,8 @@ SCRIPT: step 103 Wait(10)
 SCRIPT: step 104 Wait(10)
 SCRIPT: step 105 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/05-bolt.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/05-bolt.png 2560x1600
-SCRIPT: step 106 Key { name: "Escape", command: false, shift: false, alt: false }
-SCRIPT: step 107 Key { name: "S", command: true, shift: false, alt: false }
+SCRIPT: step 106 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 107 Key { name: "S", command: true, shift: false, alt: false, ctrl: false }
 SCRIPT: step 108 Wait(30)
 SCRIPT: step 109 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/06-saved.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/06-saved.png 2560x1600

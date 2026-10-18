@@ -1,0 +1,41 @@
+LOAD_MS: 1.9
+GPU: Apple M5 · Metal; project=Контрольный стальной каркас objects=7
+SCRIPT: step 1 Wait(40)
+SCRIPT: step 2 Hover([450.0, 450.0])
+SCRIPT: step 3 Wait(5)
+SCRIPT: step 4 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/navigation/01-start.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/navigation/01-start.png 2560x1600
+SCRIPT: step 5 Key { name: "ArrowLeft", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 6 Key { name: "ArrowLeft", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 7 Key { name: "ArrowLeft", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 8 Wait(5)
+SCRIPT: step 9 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/navigation/02-arrows-pan.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/navigation/02-arrows-pan.png 2560x1600
+SCRIPT: step 10 Key { name: "ArrowLeft", command: false, shift: false, alt: false, ctrl: true }
+SCRIPT: step 11 Wait(5)
+SCRIPT: step 12 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/navigation/03-ctrl-arrow-rotate-15.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/navigation/03-ctrl-arrow-rotate-15.png 2560x1600
+SCRIPT: step 13 Key { name: "ArrowLeft", command: false, shift: true, alt: false, ctrl: false }
+SCRIPT: step 14 Wait(5)
+SCRIPT: step 15 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/navigation/04-shift-arrow-rotate-5.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/navigation/04-shift-arrow-rotate-5.png 2560x1600
+SCRIPT: step 16 Key { name: "PageUp", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 17 Key { name: "PageUp", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 18 Wait(5)
+SCRIPT: step 19 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/navigation/05-pageup-zoom.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/navigation/05-pageup-zoom.png 2560x1600
+SCRIPT: step 20 MiddleDrag([450.0, 450.0, 300.0, 380.0])
+SCRIPT: step 21 Wait(5)
+SCRIPT: step 22 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/navigation/06-middle-drag-pan.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/navigation/06-middle-drag-pan.png 2560x1600
+SCRIPT: step 23 Key { name: "Home", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 24 Wait(5)
+SCRIPT: step 25 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/navigation/07-home-fit.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/navigation/07-home-fit.png 2560x1600
+SCRIPT: step 26 RightClick([450.0, 450.0])
+SCRIPT: step 27 Wait(10)
+SCRIPT: step 28 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/navigation/08-context-menu.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/navigation/08-context-menu.png 2560x1600
+SCRIPT: step 29 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 30 Quit
+SCRIPT: finished

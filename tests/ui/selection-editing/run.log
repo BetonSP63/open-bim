@@ -1,4 +1,4 @@
-LOAD_MS: 0.8
+LOAD_MS: 0.3
 GPU: Apple M5 · Metal; project=Новый проект objects=0
 SCRIPT: step 1 Wait(40)
 SCRIPT: step 2 Note("Три балки: А1–А2, А2–А3, Б1–Б2")
