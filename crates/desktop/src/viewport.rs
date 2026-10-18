@@ -96,6 +96,16 @@ pub fn paint(painter: &egui::Painter, marks: &[Mark]) {
                     );
                 }
             }
+            Mark::Fill { points, color: c } => {
+                let mut mesh = egui::Mesh::default();
+                for q in points {
+                    mesh.colored_vertex(pos(*q), color(*c));
+                }
+                for t in crate::interaction::polygon::triangulate(points) {
+                    mesh.add_triangle(t[0] as u32, t[1] as u32, t[2] as u32);
+                }
+                painter.add(egui::Shape::mesh(mesh));
+            }
             Mark::Text {
                 at,
                 text,

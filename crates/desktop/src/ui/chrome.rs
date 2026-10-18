@@ -105,6 +105,55 @@ impl Workbench {
         apply(&mut self.editor.selected, &ids, mode);
     }
 
+    /// Plate contour preview for the overlay: the picked points plus the
+    /// cursor (or the rectangle corners) and whether the cursor point would be
+    /// accepted.
+    pub fn plate_preview(
+        &self,
+        cursor: Option<open_bim_renderer::DVec3>,
+    ) -> Option<(Vec<open_bim_renderer::DVec3>, bool)> {
+        use crate::interaction::polygon::{self, PlateMode};
+        self.engine.tool.filter(|k| k.is_plate())?;
+        let wp = &self.engine.workplane;
+        let local = |p: open_bim_renderer::DVec3| {
+            let l = wp.to_local(p);
+            [l.x, l.y]
+        };
+        let picks = &self.engine.picks;
+        let level = picks.first().map_or(0., |p| wp.to_local(*p).z);
+        let world = |c: [f64; 2]| wp.to_world(open_bim_renderer::DVec3::new(c[0], c[1], level));
+        match (self.editor.draft.plate_mode, picks.as_slice(), cursor) {
+            (PlateMode::Polygon, _, _) => {
+                let mut points = picks.clone();
+                let valid = match cursor {
+                    Some(c) => {
+                        let ok = polygon::check_next(
+                            &picks.iter().map(|p| local(*p)).collect::<Vec<_>>(),
+                            local(c),
+                        )
+                        .is_ok();
+                        points.push(c);
+                        ok
+                    }
+                    None => self.engine.error.is_none(),
+                };
+                (!points.is_empty()).then_some((points, valid))
+            }
+            (PlateMode::Rectangle, [a], Some(c)) => match polygon::rectangle(local(*a), local(c)) {
+                Ok(r) => Some((r.into_iter().map(world).collect(), true)),
+                Err(_) => Some((vec![*a, c], false)),
+            },
+            (PlateMode::RotatedRectangle, [a, b], Some(c)) => {
+                match polygon::rotated_rectangle(local(*a), local(*b), local(c)) {
+                    Ok(r) => Some((r.into_iter().map(world).collect(), true)),
+                    Err(_) => Some((vec![*a, *b, c], false)),
+                }
+            }
+            (PlateMode::RotatedRectangle, [a], Some(c)) => Some((vec![*a, c], true)),
+            _ => None,
+        }
+    }
+
     /// Viewport click: the part under the cursor, otherwise the grid line
     /// near it (when the «Выбор осей» switch is on).
     pub fn select_clicked(
@@ -310,11 +359,15 @@ impl Workbench {
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     let white = |t: String| egui::RichText::new(t).color(theme::STATUS_TEXT);
-                    ui.label(white(if self.picking() {
-                        self.prompt()
-                    } else {
-                        self.tools.message.clone().unwrap_or_else(|| self.prompt())
-                    }));
+                    let text =
+                        if let Some(error) = self.engine.error.clone().filter(|_| self.picking()) {
+                            // A refused pick says why; the next step follows on hover.
+                            format!("⚠ {error}")
+                        } else if self.picking() {
+                            self.prompt()
+                        } else {
+                            self.tools.message.clone().unwrap_or_else(|| self.prompt())
+                        };
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.label(white(format!(
                             "{} объектов выбрано",
@@ -329,6 +382,13 @@ impl Workbench {
                         if let Some(kind) = self.last_snap.filter(|_| self.picking()) {
                             ui.label(white(kind.label().to_string()));
                         }
+                        // The prompt takes the remaining width and is cut, never
+                        // overlapping the counters on the right.
+                        ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                            let prompt = self.prompt();
+                            ui.add(egui::Label::new(white(text.clone())).truncate())
+                                .on_hover_text(format!("{text}\n{prompt}"));
+                        });
                     });
                 });
             });

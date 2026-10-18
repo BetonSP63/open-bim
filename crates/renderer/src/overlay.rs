@@ -62,6 +62,8 @@ pub enum Mark {
         color: Rgba,
         fill: bool,
     },
+    /// Filled simple polygon (screen points), e.g. the plate preview.
+    Fill { points: Vec<[f64; 2]>, color: Rgba },
     Text {
         at: [f64; 2],
         text: String,
@@ -278,6 +280,9 @@ pub struct Input<'a> {
     pub reference: Option<DVec3>,
     /// Direct modification on: handles are blue and draggable.
     pub direct: bool,
+    /// Plate being picked: contour points (with the cursor) and whether the
+    /// next point is accepted (red when it would cross the contour).
+    pub plate_preview: Option<(Vec<DVec3>, bool)>,
     pub light: bool,
 }
 
@@ -531,6 +536,57 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
             None,
         ));
     }
+    if let Some((points, valid)) = &input.plate_preview {
+        let screen: Vec<[f64; 2]> = points.iter().filter_map(|w| p.screen(*w)).collect();
+        if screen.len() == points.len() && screen.len() >= 2 {
+            let (fill, edge) = if *valid {
+                ([30, 110, 230, 60], [30, 110, 230, 255])
+            } else {
+                ([220, 40, 40, 70], [220, 40, 40, 255])
+            };
+            if screen.len() >= 3 {
+                marks.push(Mark::Fill {
+                    points: screen.clone(),
+                    color: fill,
+                });
+            }
+            let n = screen.len();
+            for i in 0..n {
+                let j = (i + 1) % n;
+                if n == 2 && j == 0 {
+                    break;
+                }
+                let closing = j == 0;
+                marks.push(line(
+                    screen[i],
+                    screen[j],
+                    edge,
+                    2.,
+                    closing.then_some([5., 4.]),
+                ));
+                let mid = [
+                    (screen[i][0] + screen[j][0]) / 2.,
+                    (screen[i][1] + screen[j][1]) / 2.,
+                ];
+                marks.push(text(
+                    mid,
+                    format!("{:.0}", points[i].distance(points[j])),
+                    edge,
+                    [0, 1],
+                    11.,
+                ));
+            }
+            for (k, s) in screen.iter().enumerate() {
+                marks.push(Mark::Circle {
+                    center: *s,
+                    radius: 8.,
+                    color: edge,
+                    fill: Some([255, 255, 255, 230]),
+                });
+                marks.push(text(*s, format!("{}", k + 1), edge, [0, 0], 10.));
+            }
+        }
+    }
     // Rubber band with live length, then the snap symbol on top.
     let picked: Vec<[f64; 2]> = input.picks.iter().filter_map(|w| p.screen(*w)).collect();
     for w in picked.windows(2) {
@@ -738,6 +794,7 @@ mod tests {
             highlight: None,
             reference: None,
             direct: false,
+            plate_preview: None,
             light: true,
         };
         let marks = build(&p, &input);

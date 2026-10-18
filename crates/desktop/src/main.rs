@@ -897,7 +897,7 @@ impl eframe::App for Desktop {
             });
             let polygon = self.bench.engine.tool.is_some_and(|k| {
                 matches!(
-                    open_bim_desktop::interaction::picks(k),
+                    self.bench.engine.rule(k),
                     open_bim_desktop::interaction::Picks::AtLeast(_)
                 )
             });
@@ -922,6 +922,7 @@ impl eframe::App for Desktop {
                             open_bim_desktop::viewport::glyph(hit.kind),
                         )
                     }),
+                    plate_preview: self.bench.plate_preview(self.bench.cursor),
                     snap_label: hit.map(|h| h.kind.label().to_string()),
                     highlight,
                     reference: self.bench.engine.reference,

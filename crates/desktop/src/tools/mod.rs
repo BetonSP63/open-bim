@@ -50,6 +50,9 @@ pub struct Draft {
     pub profile: ObjectId,
     pub material: ObjectId,
     pub thickness: String,
+    /// Plate contour picking mode and position across the thickness.
+    pub plate_mode: crate::interaction::polygon::PlateMode,
+    pub plate_position: crate::interaction::polygon::PlatePosition,
     pub contour: String,
     /// Column bottom and top, global Z in mm (Tekla «Низ»/«Верх»).
     pub bottom: String,
@@ -66,6 +69,8 @@ impl Default for Draft {
             material: ObjectId(1),
             thickness: "20".into(),
             contour: "0,0; 400,0; 400,300; 0,300".into(),
+            plate_mode: Default::default(),
+            plate_position: Default::default(),
             bottom: "0".into(),
             top: "3600".into(),
         }

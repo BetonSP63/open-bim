@@ -3,6 +3,7 @@
 //! object is created after the last pick and the command re-arms until Esc.
 pub mod grid_edit;
 pub mod numeric;
+pub mod polygon;
 pub mod selection;
 pub mod snap;
 pub mod tools;
@@ -32,6 +33,22 @@ pub fn picks(kind: ToolKind) -> Picks {
     }
 }
 
+/// Prompt for the next pick of a plate in rectangle mode.
+fn rectangle_prompt(mode: polygon::PlateMode, picked: usize) -> Option<String> {
+    use polygon::PlateMode::*;
+    Some(
+        match (mode, picked) {
+            (Polygon, _) => return None,
+            (Rectangle, 0) => "Укажите первый угол прямоугольника пластины",
+            (Rectangle, _) => "Укажите противоположный угол прямоугольника",
+            (RotatedRectangle, 0) => "Укажите начало стороны пластины",
+            (RotatedRectangle, 1) => "Укажите конец стороны пластины",
+            (RotatedRectangle, _) => "Укажите точку на противоположной стороне",
+        }
+        .into(),
+    )
+}
+
 /// Prompt for the next pick (status bar text).
 pub fn prompt(kind: ToolKind, picked: usize) -> String {
     let object = match kind {
@@ -46,13 +63,17 @@ pub fn prompt(kind: ToolKind, picked: usize) -> String {
         (Picks::Exactly(1), _) => format!("Укажите положение {object}"),
         (Picks::Exactly(_), 0) => format!("Укажите начальную точку {object}"),
         (Picks::Exactly(_), _) => format!("Укажите конечную точку {object}"),
-        (Picks::AtLeast(_), 0) => format!("Укажите первую точку контура {object}"),
-        (Picks::AtLeast(n), p) if p < n => format!("Укажите следующую точку контура {object}"),
-        (Picks::AtLeast(_), _) => {
-            format!(
-                "Укажите следующую точку контура {object} (Enter или средняя кнопка — завершить)"
-            )
+        (Picks::AtLeast(_), 0) => {
+            format!("Укажите первую точку контура {object} (по часовой или против — не важно)")
         }
+        (Picks::AtLeast(n), p) if p < n => format!(
+            "Укажите точку {} контура {object} (Backspace — убрать последнюю)",
+            p + 1
+        ),
+        (Picks::AtLeast(_), p) => format!(
+            "Укажите точку {} контура {object} или замкните контур: Enter / средняя кнопка (Backspace — убрать последнюю)",
+            p + 1
+        ),
     }
 }
 
@@ -78,6 +99,8 @@ pub struct Engine {
     /// Text being typed as a numeric location, if the input box is open.
     pub numeric: Option<String>,
     pub error: Option<String>,
+    /// How plate contours are picked (polygon, rectangle by 2 or 3 points).
+    pub plate_mode: polygon::PlateMode,
     /// Temporary snap reference point (Tekla Ctrl+pick): numeric input,
     /// ortho and perpendicular snapping work from it until the next pick.
     pub reference: Option<DVec3>,
@@ -96,8 +119,31 @@ impl Engine {
         self.tool.is_some()
     }
 
+    /// Pick rule of a command; plates follow the plate mode.
+    pub fn rule(&self, kind: ToolKind) -> Picks {
+        match (kind.is_plate(), self.plate_mode) {
+            (true, polygon::PlateMode::Rectangle) => Picks::Exactly(2),
+            (true, polygon::PlateMode::RotatedRectangle) => Picks::Exactly(3),
+            _ => picks(kind),
+        }
+    }
+
+    /// Backspace: drop the last pick of the running command.
+    pub fn undo_pick(&mut self) -> Outcome {
+        match (self.tool, self.picks.pop()) {
+            (Some(_), Some(_)) => {
+                self.error = None;
+                Outcome::Continue
+            }
+            (Some(_), None) => Outcome::Ignored("Нет точек для отмены".into()),
+            (None, _) => Outcome::Ignored("Нет активной команды".into()),
+        }
+    }
+
     pub fn prompt(&self) -> String {
         match self.tool {
+            Some(kind) if kind.is_plate() => rectangle_prompt(self.plate_mode, self.picks.len())
+                .unwrap_or_else(|| prompt(kind, self.picks.len())),
             Some(kind) => prompt(kind, self.picks.len()),
             None => "Выберите команду на ленте или объект в модели".into(),
         }
@@ -118,8 +164,22 @@ impl Engine {
     /// Enter / middle click: finish an open polygon, or repeat the last command.
     pub fn finish(&mut self) -> Outcome {
         match self.tool {
-            Some(kind) => match picks(kind) {
-                Picks::AtLeast(n) if self.picks.len() >= n => self.complete(kind),
+            Some(kind) => match self.rule(kind) {
+                Picks::AtLeast(n) if self.picks.len() >= n => {
+                    let local: Vec<[f64; 2]> = self
+                        .picks
+                        .iter()
+                        .map(|p| {
+                            let l = self.workplane.to_local(*p);
+                            [l.x, l.y]
+                        })
+                        .collect();
+                    if let Err(e) = polygon::check_closed(&local) {
+                        self.error = Some(e.clone());
+                        return Outcome::Ignored(e);
+                    }
+                    self.complete(kind)
+                }
                 Picks::AtLeast(n) => Outcome::Ignored(format!("Нужно не меньше {n} точек")),
                 Picks::Exactly(_) => Outcome::Ignored("Укажите оставшиеся точки".into()),
             },
@@ -150,9 +210,21 @@ impl Engine {
         if self.picks.last().is_some_and(|p| p.distance(point) < 1e-6) {
             return Outcome::Ignored("Точка совпадает с предыдущей".into());
         }
+        if kind.is_plate() && self.plate_mode == polygon::PlateMode::Polygon {
+            let local = |p: DVec3| {
+                let l = self.workplane.to_local(p);
+                [l.x, l.y]
+            };
+            let picked: Vec<[f64; 2]> = self.picks.iter().map(|p| local(*p)).collect();
+            if let Err(e) = polygon::check_next(&picked, local(point)) {
+                self.error = Some(e.clone());
+                return Outcome::Ignored(e);
+            }
+        }
+        self.error = None;
         self.picks.push(point);
         self.reference = None;
-        match picks(kind) {
+        match self.rule(kind) {
             Picks::Exactly(n) if self.picks.len() >= n => self.complete(kind),
             _ => Outcome::Continue,
         }
@@ -243,6 +315,32 @@ pub fn commands(
             }])
         }
         ToolKind::Plate | ToolKind::Gusset | ToolKind::Stiffener => {
+            // Rectangle modes turn their picks into the four corners.
+            let local = |q: DVec3| {
+                let l = workplane.to_local(q);
+                [l.x, l.y]
+            };
+            let corners = match (draft.plate_mode, points) {
+                (polygon::PlateMode::Rectangle, [a, b]) => {
+                    Some(polygon::rectangle(local(*a), local(*b))?)
+                }
+                (polygon::PlateMode::RotatedRectangle, [a, b, c]) => {
+                    Some(polygon::rotated_rectangle(local(*a), local(*b), local(*c))?)
+                }
+                _ => None,
+            };
+            let level = workplane.to_local(points[0]).z;
+            let corner_points: Vec<DVec3>;
+            let points: &[DVec3] = match corners {
+                Some(c) => {
+                    corner_points = c
+                        .iter()
+                        .map(|p| workplane.to_world(DVec3::new(p[0], p[1], level)))
+                        .collect();
+                    &corner_points
+                }
+                None => points,
+            };
             // Contour in work plane coordinates relative to the first pick.
             let first = workplane.to_local(points[0]);
             let mut contour: Vec<[f64; 2]> = points
@@ -278,7 +376,10 @@ pub fn commands(
                         thickness: LengthMm::new(number(&draft.thickness)?)
                             .map_err(|e| e.to_string())?,
                         frame: Frame {
-                            origin: p(points[0]),
+                            // Across the thickness: above, centred on or below the plane.
+                            origin: p(points[0]
+                                + workplane.axes[2]
+                                    * draft.plate_position.offset(number(&draft.thickness)?)),
                             axes: workplane.axes.map(|a| a.to_array()),
                         },
                     },

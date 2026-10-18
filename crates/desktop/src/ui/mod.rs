@@ -661,11 +661,29 @@ impl Workbench {
                     "Ортогонально: выключено"
                 });
             }
+            Cmd::UndoPick => {
+                self.engine.plate_mode = self.editor.draft.plate_mode;
+                if let Some(points) = &mut self.workplane_picks {
+                    points.pop();
+                } else if self.edit_pick.op.is_some() {
+                    self.edit_pick.points.pop();
+                } else if self.detail.picks_points() {
+                    self.detail.points.pop();
+                } else if !self.engine.active() && !self.editor.selected.is_empty() {
+                    // macOS «delete» is Backspace: without a command it deletes.
+                    return self.execute(Cmd::DeleteSelected);
+                } else if let crate::interaction::Outcome::Ignored(e) = self.engine.undo_pick() {
+                    self.message(e);
+                    return None;
+                }
+                self.message(self.prompt());
+            }
             Cmd::FinishPicks if self.detail.tool.is_some() => match self.detail.finish_parts() {
                 Ok(()) => self.message(self.prompt()),
                 Err(e) => self.message(e),
             },
             Cmd::FinishPicks => {
+                self.engine.plate_mode = self.editor.draft.plate_mode;
                 let outcome = self.engine.finish();
                 if let Some(kind) = self.engine.tool
                     && !self.editor.active
@@ -842,6 +860,7 @@ impl Workbench {
             }
             return None;
         }
+        self.engine.plate_mode = self.editor.draft.plate_mode;
         let outcome = self.engine.pick(point);
         self.outcome(outcome)
     }
@@ -1137,6 +1156,7 @@ impl Workbench {
     pub fn panels(&mut self, ui: &mut egui::Ui) -> Vec<Request> {
         let ctx = ui.ctx().clone();
         let mut requests = Vec::new();
+        self.engine.plate_mode = self.editor.draft.plate_mode;
         for cmd in commands::pressed(&ctx) {
             if let Some(r) = self.execute(cmd) {
                 requests.push(r);

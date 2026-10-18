@@ -37,6 +37,7 @@ pub enum Cmd {
     ShowOnlySelected,
     ToggleDirectModification,
     SelectAll,
+    UndoPick,
     GridViews,
     PanelViews,
     PlaneOr3d,
@@ -404,6 +405,13 @@ pub const ALL: &[Spec] = &[
         category: "Моделирование",
         shortcut: s(CMD, Key::Enter),
         keywords: "создать построить",
+    },
+    Spec {
+        cmd: Cmd::UndoPick,
+        label: "Убрать последнюю точку",
+        category: "Моделирование",
+        shortcut: s(NONE, Key::Backspace),
+        keywords: "отменить точку назад backspace",
     },
     Spec {
         cmd: Cmd::FinishPicks,

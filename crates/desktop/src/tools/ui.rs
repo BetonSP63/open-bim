@@ -187,6 +187,22 @@ impl ToolsUi {
                         ui.text_edit_singleline(&mut editor.draft.thickness)
                             .labelled_by(t.id);
                     });
+                    use crate::interaction::polygon::{PlateMode, PlatePosition};
+                    egui::ComboBox::new("plate mode", "Способ построения")
+                        .selected_text(editor.draft.plate_mode.label())
+                        .show_ui(ui, |ui| {
+                            for m in PlateMode::ALL {
+                                ui.selectable_value(&mut editor.draft.plate_mode, m, m.label());
+                            }
+                        });
+                    egui::ComboBox::new("plate position", "Положение по толщине")
+                        .selected_text(editor.draft.plate_position.label())
+                        .show_ui(ui, |ui| {
+                            for m in PlatePosition::ALL {
+                                ui.selectable_value(&mut editor.draft.plate_position, m, m.label());
+                            }
+                        });
+                    ui.small("Точки — в 3D-виде с привязкой; Enter или средняя кнопка замыкает контур, Backspace убирает последнюю точку.");
                 } else if editor.draft.kind == ToolKind::Column {
                     ui.horizontal(|ui| {
                         let b = ui.label("Низ, мм");
