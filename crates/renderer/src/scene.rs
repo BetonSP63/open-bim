@@ -254,6 +254,46 @@ impl Scene {
             bvh,
         })
     }
+    /// Instances whose bounds come within `radius(distance)` of the ray,
+    /// nearest first (screen-space snapping candidates). `radius` maps the
+    /// distance along the ray to a world tolerance (pixels × mm per pixel).
+    pub fn near_ray(&self, ray: Ray, radius: impl Fn(f64) -> f64, limit: usize) -> Vec<usize> {
+        let mut out: Vec<(f64, usize)> = Vec::new();
+        let mut stack = Vec::new();
+        if let Some(root) = &self.bvh {
+            stack.push(root);
+        }
+        let expanded = |b: Bounds| {
+            let centre = (b.min + b.max) * 0.5;
+            let far = (centre - ray.origin).length() + (b.max - b.min).length() * 0.5;
+            let r = radius(far.max(0.0));
+            Bounds {
+                min: b.min - DVec3::splat(r),
+                max: b.max + DVec3::splat(r),
+            }
+        };
+        while let Some(node) = stack.pop() {
+            if expanded(node.bounds()).hit(ray).is_none() {
+                continue;
+            }
+            match node {
+                Bvh::Branch { left, right, .. } => {
+                    stack.push(left);
+                    stack.push(right);
+                }
+                Bvh::Leaf { indices, .. } => {
+                    for index in indices {
+                        if let Some(t) = expanded(self.instances[*index].bounds).hit(ray) {
+                            out.push((t, *index));
+                        }
+                    }
+                }
+            }
+        }
+        out.sort_by(|a, b| a.0.total_cmp(&b.0));
+        out.truncate(limit);
+        out.into_iter().map(|(_, i)| i).collect()
+    }
     pub fn pick(&self, ray: Ray, state: &ViewState) -> Option<ObjectId> {
         let mut nearest = f64::INFINITY;
         let mut selected = None;

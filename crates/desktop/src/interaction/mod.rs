@@ -2,6 +2,7 @@
 //! Russian prompt per step; picks are projected onto the work plane; the
 //! object is created after the last pick and the command re-arms until Esc.
 pub mod numeric;
+pub mod snap;
 pub mod workplane;
 
 use crate::tools::ToolKind;

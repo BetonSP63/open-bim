@@ -81,6 +81,10 @@ pub struct Workbench {
     pub gpu: String,
     /// Delay added to background project loading (verification of cancel).
     pub load_delay_ms: u64,
+    /// Screen-space snapping and its switches (bottom toolbar).
+    pub snapper: crate::interaction::snap::Snapper,
+    pub switches: crate::interaction::snap::Switches,
+    pub snap_tolerance_px: f64,
     /// Pick-command engine (Tekla-style creation by points).
     pub engine: crate::interaction::Engine,
     /// World point under the cursor on the work plane (set by the viewport).
@@ -109,6 +113,9 @@ impl Workbench {
             load_delay_ms: 0,
             tree: ((usize::MAX, 0), Arc::new(Vec::new())),
             engine: Default::default(),
+            snapper: Default::default(),
+            switches: Default::default(),
+            snap_tolerance_px: 12.,
             cursor: None,
         }
     }
@@ -323,6 +330,14 @@ impl Workbench {
                     self.editor.cancel();
                     self.message("Команда прервана");
                 }
+            }
+            Cmd::ToggleOrtho => {
+                self.switches.ortho = !self.switches.ortho;
+                self.message(if self.switches.ortho {
+                    "Ортогонально: включено"
+                } else {
+                    "Ортогонально: выключено"
+                });
             }
             Cmd::FinishPicks => {
                 let outcome = self.engine.finish();

@@ -2,7 +2,7 @@ use eframe::egui;
 use egui_wgpu::wgpu;
 use open_bim_desktop::tools::{
     Editor, number,
-    ui::{Action, select, snap_label},
+    ui::{Action, select},
 };
 use open_bim_desktop::ui::{Request, Workbench};
 use open_bim_model::{ObjectId, Project, example_steel_frame};
@@ -530,31 +530,42 @@ impl eframe::App for Desktop {
                 });
             }
             let cursor = if self.bench.editor.active {
-                hover.and_then(|ray| {
+                hover.and_then(|_| {
                     // The elevation field moves a horizontal work plane.
                     if let Ok(z) = number(&self.bench.tools.workplane)
                         && self.bench.engine.workplane.axes[2] == DVec3::Z
                     {
                         self.bench.engine.workplane.origin.z = z;
                     }
-                    let p = open_bim_model::Point3(
-                        self.bench
-                            .engine
-                            .workplane
-                            .intersect(ray.origin, ray.direction)?
-                            .to_array(),
-                    );
-                    let hit = if self.bench.tools.snap_enabled {
-                        self.bench.editor.snap.snap(
-                            p,
-                            self.bench.tools.snap_tolerance,
-                            self.bench.tools.snap_mode,
-                            &self.view.hidden,
-                        )
-                    } else {
-                        None
+                    let px = response.hover_pos()? - rect.min;
+                    let view = open_bim_desktop::interaction::snap::View {
+                        camera: &self.camera,
+                        origin: self.scene.origin,
+                        size: [rect.width() as f64, rect.height() as f64],
                     };
-                    Some((hit.map_or(p, |h| h.point), hit))
+                    let mut switches = self.bench.switches;
+                    if !self.bench.tools.snap_enabled {
+                        switches = open_bim_desktop::interaction::snap::Switches {
+                            reference: false,
+                            end: false,
+                            mid: false,
+                            intersection: false,
+                            perpendicular: false,
+                            nearest: false,
+                            ..switches
+                        };
+                    }
+                    let hit = self.bench.snapper.snap(
+                        self.bench.editor.document.project(),
+                        &self.scene,
+                        view,
+                        [px.x as f64, px.y as f64],
+                        switches,
+                        self.bench.snap_tolerance_px,
+                        self.bench.engine.picks.last().copied(),
+                        &self.bench.engine.workplane,
+                    )?;
+                    Some((open_bim_model::Point3(hit.point.to_array()), hit))
                 })
             } else {
                 None
@@ -654,7 +665,7 @@ impl eframe::App for Desktop {
                         egui::Align2::LEFT_BOTTOM,
                         format!(
                             "{}: {:.3}, {:.3}, {:.3} мм",
-                            hit.map_or("Точка", |h| snap_label(h.kind)),
+                            hit.kind.label(),
                             point.0[0],
                             point.0[1],
                             point.0[2]

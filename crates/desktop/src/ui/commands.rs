@@ -29,6 +29,7 @@ pub enum Cmd {
     CreateElement,
     CancelTool,
     FinishPicks,
+    ToggleOrtho,
     EditProperty,
     ApplyProperty,
     NumberAndCheck,
@@ -263,6 +264,13 @@ pub const ALL: &[Spec] = &[
         category: "Моделирование",
         shortcut: s(NONE, Key::Enter),
         keywords: "enter завершить повторить",
+    },
+    Spec {
+        cmd: Cmd::ToggleOrtho,
+        label: "Ортогонально (углы 45°)",
+        category: "Привязки",
+        shortcut: s(NONE, Key::O),
+        keywords: "орто ortho угол 90",
     },
     Spec {
         cmd: Cmd::CancelTool,
