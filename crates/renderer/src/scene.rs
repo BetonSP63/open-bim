@@ -330,6 +330,11 @@ impl Scene {
         out.into_iter().map(|(_, i)| i).collect()
     }
     pub fn pick(&self, ray: Ray, state: &ViewState) -> Option<ObjectId> {
+        self.pick_hit(ray, state).map(|(id, _)| id)
+    }
+
+    /// Nearest visible part along the ray and the hit distance.
+    pub fn pick_hit(&self, ray: Ray, state: &ViewState) -> Option<(ObjectId, f64)> {
         let mut nearest = f64::INFINITY;
         let mut selected = None;
         let mut stack = Vec::new();
@@ -386,7 +391,7 @@ impl Scene {
                 }
             }
         }
-        selected
+        selected.map(|id| (id, nearest))
     }
     pub fn visible_triangles(&self, state: &ViewState) -> usize {
         self.instances

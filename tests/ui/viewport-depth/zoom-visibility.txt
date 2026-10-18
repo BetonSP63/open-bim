@@ -1,0 +1,10 @@
+after-zoom-00.png: model pixels 3.8 %
+after-zoom-10.png: model pixels 15.9 %
+after-zoom-20.png: model pixels 24.7 %
+after-zoom-30.png: model pixels 79.3 %
+after-zoom-40.png: model pixels 91.8 %
+before-zoom-00.png: model pixels 4.0 %
+before-zoom-10.png: model pixels 19.3 %
+before-zoom-20.png: model pixels 1.0 %
+before-zoom-30.png: model pixels 1.0 %
+before-zoom-40.png: model pixels 1.0 %

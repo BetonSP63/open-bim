@@ -124,7 +124,7 @@ impl GpuRenderer {
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth32Float,
                 depth_write_enabled: Some(true),
-                depth_compare: Some(wgpu::CompareFunction::LessEqual),
+                depth_compare: Some(wgpu::CompareFunction::GreaterEqual),
                 stencil: Default::default(),
                 bias: Default::default(),
             }),
@@ -364,7 +364,8 @@ impl GpuRenderer {
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: &target.depth,
                 depth_ops: Some(wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(1.0),
+                    // Reversed-Z (see Camera::matrix): far is 0.
+                    load: wgpu::LoadOp::Clear(0.0),
                     store: wgpu::StoreOp::Store,
                 }),
                 stencil_ops: None,

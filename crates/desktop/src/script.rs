@@ -24,6 +24,8 @@ pub enum Step {
     HoverWorld([f64; 3]),
     /// Primary drag between two world points (mm) as seen in the 3D view.
     DragWorld([f64; 6]),
+    /// Wheel scroll [x, y, z, dy] at the screen position of a world point.
+    ScrollWorld([f64; 4]),
     /// Primary-button drag in logical points: [x0, y0, x1, y1].
     Drag([f32; 4]),
     /// Middle-button drag (Tekla pan) in logical points: [x0, y0, x1, y1].
@@ -143,6 +145,14 @@ impl Runner {
             return None;
         }
         // World steps become ordinary pointer steps at the projected position.
+        if let Some(Step::ScrollWorld(w)) = self.steps.get(self.index) {
+            let Some(at) = project([w[0], w[1], w[2]]) else {
+                eprintln!("SCRIPT: step {} scroll {w:?} is off screen", self.index + 1);
+                self.index += 1;
+                return None;
+            };
+            self.steps[self.index] = Step::Scroll([at[0], at[1], w[3] as f32]);
+        }
         if let Some(Step::DragWorld(w)) = self.steps.get(self.index) {
             let (a, b) = (project([w[0], w[1], w[2]]), project([w[3], w[4], w[5]]));
             let (Some(a), Some(b)) = (a, b) else {
@@ -291,7 +301,10 @@ impl Runner {
                 advance(self, 2);
             }
             Step::Note(_) => advance(self, 0),
-            Step::ClickWorld(_) | Step::HoverWorld(_) | Step::DragWorld(_) => {
+            Step::ClickWorld(_)
+            | Step::HoverWorld(_)
+            | Step::DragWorld(_)
+            | Step::ScrollWorld(_) => {
                 unreachable!("resolved above")
             }
             Step::Capture(path) => {

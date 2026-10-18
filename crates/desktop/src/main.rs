@@ -508,6 +508,10 @@ impl eframe::App for Desktop {
         requests.append(&mut self.pending);
         self.handle(requests);
         self.view.hidden = self.bench.hidden.clone();
+        // Clip planes follow the whole model (parts and grid), every frame.
+        self.camera.extent =
+            overlay::model_bounds(&self.scene, self.bench.editor.document.project())
+                .or(Some(self.scene.bounds));
         // The section tool overrides the lower plane of the view depth.
         self.view.section = if self.bench.section_enabled {
             Some(ClipPlane {
@@ -588,8 +592,14 @@ impl eframe::App for Desktop {
                     // Tekla mouse: wheel zooms about the cursor, middle drag pans,
                     // Ctrl + middle drag rotates; the right button opens the context menu.
                     if viewport_hovered && input.smooth_scroll_delta.y != 0.0 {
+                        // Zoom towards the model surface under the cursor (Tekla).
+                        let hit = hover.and_then(|ray| {
+                            self.scene
+                                .pick_hit(ray, &self.view)
+                                .map(|(_, t)| ray.origin + ray.direction * t)
+                        });
                         self.camera
-                            .zoom_at(input.smooth_scroll_delta.y as f64, hover);
+                            .zoom_to(input.smooth_scroll_delta.y as f64, hover, hit);
                     }
                     let delta = input.pointer.delta();
                     if middle_drag && (input.modifiers.ctrl || input.modifiers.command) {

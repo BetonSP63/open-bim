@@ -21,7 +21,13 @@ pub struct Camera {
     pub pitch: f64,
     pub orthographic: bool,
     pub ortho_height: f64,
+    /// Model extent (parts and grid): the clip planes always enclose it, so
+    /// zooming in never cuts the model away.
+    pub extent: Option<Bounds>,
 }
+
+/// Closest the camera gets to the point it zooms to (mm).
+pub const MIN_DISTANCE: f64 = 50.0;
 impl Default for Camera {
     fn default() -> Self {
         Self {
@@ -31,6 +37,7 @@ impl Default for Camera {
             pitch: 0.52,
             orthographic: false,
             ortho_height: 9000.0,
+            extent: None,
         }
     }
 }
@@ -56,8 +63,9 @@ impl Camera {
             self.target - origin,
             self.up(),
         );
-        let near = (self.distance * 0.0001).max(0.01);
-        let far = (self.distance * 100.0).max(near + 100.0);
+        let (near, far) = self.clip_range();
+        // Reversed-Z: near maps to depth 1 and far to 0, which keeps f32 depth
+        // precise over the whole range (no z-fighting «ripple» far away).
         let projection = if self.orthographic {
             let half = self.ortho_height * 0.5;
             glam::dcamera::rh::proj::directx::orthographic(
@@ -65,15 +73,48 @@ impl Camera {
                 half * aspect,
                 -half,
                 half,
-                near,
                 far,
+                near,
             )
         } else {
-            glam::dcamera::rh::proj::directx::perspective(45_f64.to_radians(), aspect, near, far)
+            glam::dcamera::rh::proj::directx::perspective(45_f64.to_radians(), aspect, far, near)
         };
         projection * view
     }
+    /// Near and far clip distances along the view direction: from the model
+    /// extent and the target, never from the orbit distance alone.
+    pub fn clip_range(&self) -> (f64, f64) {
+        let eye = self.eye();
+        let forward = (self.target - eye).normalize_or_zero();
+        let Some(b) = self.extent else {
+            let near = (self.distance * 0.0001).max(0.01);
+            return (near, (self.distance * 100.0).max(near + 100.0));
+        };
+        let size = (b.max - b.min).length().max(1.0);
+        let margin = size * 0.01 + 10.0;
+        let (mut lo, mut hi) = (self.distance, self.distance);
+        for i in 0..8 {
+            let c = DVec3::new(
+                if i & 1 == 0 { b.min.x } else { b.max.x },
+                if i & 2 == 0 { b.min.y } else { b.max.y },
+                if i & 4 == 0 { b.min.z } else { b.max.z },
+            );
+            let d = (c - eye).dot(forward);
+            lo = lo.min(d);
+            hi = hi.max(d);
+        }
+        let far = hi + margin;
+        let near = if self.orthographic {
+            // Parallel projection: geometry behind the eye position is still seen.
+            lo - margin
+        } else {
+            (lo - margin).max(far * 1e-7).max(1.0)
+        };
+        (near, far.max(near + 1.0))
+    }
+
     pub fn fit(&mut self, bounds: Bounds) {
+        self.extent = Some(bounds);
         self.target = (bounds.min + bounds.max) * 0.5;
         let radius = ((bounds.max - bounds.min).length() * 0.5).max(100.0);
         self.distance = (radius / (22.5_f64.to_radians().tan()) * 1.3).clamp(1.0, 1e9);
@@ -114,31 +155,47 @@ impl Camera {
             return;
         }
         let factor = (-delta.clamp(-1000.0, 1000.0) * 0.002).exp();
-        self.distance = (self.distance * factor).clamp(0.01, 1e9);
-        self.ortho_height = (self.ortho_height * factor).clamp(0.01, 1e9);
+        self.distance = (self.distance * factor).clamp(MIN_DISTANCE, 1e9);
+        self.ortho_height = (self.ortho_height * factor).clamp(MIN_DISTANCE, 1e9);
     }
     /// Zoom keeping the world point under the cursor fixed (Tekla wheel zoom):
-    /// a homothety about the point where the cursor ray meets the plane
-    /// through the target perpendicular to the view direction.
+    /// a homothety of eye and target about that point. `hit` is the model
+    /// surface under the cursor; without it the point is where the cursor ray
+    /// meets the plane through the target. The eye never gets closer than
+    /// `MIN_DISTANCE` to that point, so zooming in cannot fly through the model.
     pub fn zoom_at(&mut self, delta: f64, ray: Option<Ray>) {
+        self.zoom_to(delta, ray, None);
+    }
+
+    pub fn zoom_to(&mut self, delta: f64, ray: Option<Ray>, hit: Option<DVec3>) {
         if !delta.is_finite() {
             return;
         }
-        let factor = (-delta.clamp(-1000.0, 1000.0) * 0.002).exp();
-        let forward = (self.target - self.eye()).normalize_or_zero();
-        let anchor = ray.and_then(|ray| {
-            let denominator = ray.direction.dot(forward);
-            (denominator.abs() > 1e-12).then(|| {
-                ray.origin + ray.direction * ((self.target - ray.origin).dot(forward) / denominator)
+        let mut factor = (-delta.clamp(-1000.0, 1000.0) * 0.002).exp();
+        let eye = self.eye();
+        let forward = (self.target - eye).normalize_or_zero();
+        let anchor = hit.filter(|h| h.is_finite()).or_else(|| {
+            ray.and_then(|ray| {
+                let denominator = ray.direction.dot(forward);
+                (denominator.abs() > 1e-12).then(|| {
+                    ray.origin
+                        + ray.direction * ((self.target - ray.origin).dot(forward) / denominator)
+                })
             })
         });
-        let distance = (self.distance * factor).clamp(0.01, 1e9);
-        let applied = distance / self.distance;
         if let Some(anchor) = anchor.filter(|a| a.is_finite()) {
+            let gap = (eye - anchor).length();
+            if gap > 0.0 && factor < 1.0 {
+                factor = factor.max((MIN_DISTANCE / gap).min(1.0));
+            }
+            let distance = (self.distance * factor).clamp(1.0, 1e9);
+            let applied = distance / self.distance;
             self.target = anchor + (self.target - anchor) * applied;
+            self.distance = distance;
+            self.ortho_height = (self.ortho_height * applied).clamp(MIN_DISTANCE, 1e9);
+        } else {
+            self.zoom(delta);
         }
-        self.distance = distance;
-        self.ortho_height = (self.ortho_height * applied).clamp(0.01, 1e9);
     }
     pub fn pan(&mut self, dx: f64, dy: f64, viewport_height: f64) {
         if !dx.is_finite() || !dy.is_finite() || viewport_height <= 0.0 {
@@ -161,8 +218,9 @@ impl Camera {
         let inverse = self.matrix(origin, aspect).inverse();
         let x = uv[0] * 2.0 - 1.0;
         let y = 1.0 - uv[1] * 2.0;
-        let near = inverse.project_point3(DVec3::new(x, y, 0.0)) + origin;
-        let far = inverse.project_point3(DVec3::new(x, y, 1.0)) + origin;
+        // Reversed-Z: depth 1 is the near plane, 0 the far plane.
+        let near = inverse.project_point3(DVec3::new(x, y, 1.0)) + origin;
+        let far = inverse.project_point3(DVec3::new(x, y, 0.0)) + origin;
         let direction = (far - near).try_normalize()?;
         Some(Ray {
             origin: near,

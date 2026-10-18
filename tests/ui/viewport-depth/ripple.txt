@@ -1,0 +1,4 @@
+tests/ui/viewport-depth/user-report-ripple.png: part pixels 22100, ripple 1.41 % (user report, crop 255 40 320 380)
+tests/ui/viewport-depth/user-report-ripple.png: part pixels 3444, ripple 2.56 % (user report, crop 380 480 470 525)
+tests/ui/viewport-depth/after-closeup-column-beam.png: part pixels 358837, ripple 0.02 % (after fix, crop 650 300 1050 1200)
+tests/ui/viewport-depth/after-closeup-column-beam.png: part pixels 355, ripple 0.56 % (after fix, crop 250 300 420 1200)
