@@ -28,6 +28,7 @@ pub enum Cmd {
     ToolStiffener,
     CreateElement,
     CancelTool,
+    FinishPicks,
     EditProperty,
     ApplyProperty,
     NumberAndCheck,
@@ -255,6 +256,13 @@ pub const ALL: &[Spec] = &[
         category: "Моделирование",
         shortcut: s(CMD, Key::Enter),
         keywords: "создать построить",
+    },
+    Spec {
+        cmd: Cmd::FinishPicks,
+        label: "Завершить контур / повторить команду",
+        category: "Моделирование",
+        shortcut: s(NONE, Key::Enter),
+        keywords: "enter завершить повторить",
     },
     Spec {
         cmd: Cmd::CancelTool,

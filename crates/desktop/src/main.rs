@@ -128,6 +128,8 @@ struct Desktop {
     frames: u32,
     script: Option<open_bim_desktop::script::Runner>,
     measure: Option<open_bim_desktop::bench::Bench>,
+    /// Requests raised inside the central panel, handled next frame.
+    pending: Vec<Request>,
     load_ms: f64,
 }
 impl Desktop {
@@ -227,6 +229,7 @@ impl Desktop {
                 open_bim_desktop::bench::Bench::new(path, options.bench_frames.max(10))
             }),
             load_ms,
+            pending: Vec::new(),
         })
     }
     fn action(&mut self, action: Action) {
@@ -234,6 +237,7 @@ impl Desktop {
             || matches!(action, Action::New | Action::Example | Action::Open);
         let result = match action {
             Action::Create => self.bench.editor.create(),
+            Action::Commit(label, commands) => self.bench.editor.commit(&label, &commands),
             Action::Detail(commands) => self.bench.editor.commit("Деталировка", &commands),
             Action::Connection(commands) => self.bench.editor.commit("Соединение", &commands),
             Action::Edit(edit) => self.bench.editor.edit(&edit),
@@ -294,6 +298,20 @@ impl Desktop {
                 ));
             }
             Err(error) => self.bench.tools.message = Some(error),
+        }
+    }
+    fn handle(&mut self, requests: Vec<Request>) {
+        for request in requests {
+            match request {
+                Request::Action(action) => self.action(action),
+                Request::Fit => self.camera.fit(self.scene.bounds),
+                Request::View(view) => self.camera.set_view(view),
+                Request::Loaded(scene) => {
+                    self.camera.fit(scene.bounds);
+                    self.bench.objects = scene.instances.len();
+                    self.scene = scene;
+                }
+            }
         }
     }
     fn benchmark(&mut self, ctx: &egui::Context) {
@@ -425,18 +443,9 @@ impl eframe::App for Desktop {
         let ctx = ui.ctx().clone();
         self.screenshot(&ctx);
         self.benchmark(&ctx);
-        for request in self.bench.panels(ui) {
-            match request {
-                Request::Action(action) => self.action(action),
-                Request::Fit => self.camera.fit(self.scene.bounds),
-                Request::View(view) => self.camera.set_view(view),
-                Request::Loaded(scene) => {
-                    self.camera.fit(scene.bounds);
-                    self.bench.objects = scene.instances.len();
-                    self.scene = scene;
-                }
-            }
-        }
+        let mut requests = self.bench.panels(ui);
+        requests.append(&mut self.pending);
+        self.handle(requests);
         self.view.hidden = self.bench.hidden.clone();
         self.view.section = self.bench.section_enabled.then_some(ClipPlane {
             normal: DVec3::Z,
@@ -462,6 +471,14 @@ impl eframe::App for Desktop {
             let viewport_hovered = response.hovered();
             let middle_drag = response.dragged_by(egui::PointerButton::Middle);
             let secondary_drag = response.dragged_by(egui::PointerButton::Secondary);
+            let hover = response.hover_pos().and_then(|point| {
+                let uv = [
+                    ((point.x - rect.min.x) / rect.width()) as f64,
+                    ((point.y - rect.min.y) / rect.height()) as f64,
+                ];
+                self.camera
+                    .ray(self.scene.origin, uv, rect.aspect_ratio() as f64)
+            });
             if viewport_hovered || response.has_focus() {
                 ctx.input(|input| {
                     if !input.modifiers.command && !input.modifiers.ctrl {
@@ -493,11 +510,18 @@ impl eframe::App for Desktop {
                             self.camera.orbit(dx, dy);
                         }
                     }
-                    if viewport_hovered {
-                        self.camera.zoom(input.smooth_scroll_delta.y as f64);
+                    // Tekla mouse: wheel zooms about the cursor, middle drag pans,
+                    // Ctrl/Shift + middle drag rotates; right drag also rotates.
+                    if viewport_hovered && input.smooth_scroll_delta.y != 0.0 {
+                        self.camera
+                            .zoom_at(input.smooth_scroll_delta.y as f64, hover);
                     }
                     let delta = input.pointer.delta();
-                    if middle_drag || (secondary_drag && input.modifiers.shift) {
+                    let rotate_modifier =
+                        input.modifiers.ctrl || input.modifiers.shift || input.modifiers.command;
+                    if middle_drag && rotate_modifier {
+                        self.camera.orbit(delta.x as f64, delta.y as f64);
+                    } else if middle_drag {
                         self.camera
                             .pan(delta.x as f64, delta.y as f64, rect.height() as f64);
                     } else if secondary_drag {
@@ -505,26 +529,21 @@ impl eframe::App for Desktop {
                     }
                 });
             }
-            let hover = response.hover_pos().and_then(|point| {
-                let uv = [
-                    ((point.x - rect.min.x) / rect.width()) as f64,
-                    ((point.y - rect.min.y) / rect.height()) as f64,
-                ];
-                self.camera
-                    .ray(self.scene.origin, uv, rect.aspect_ratio() as f64)
-            });
             let cursor = if self.bench.editor.active {
                 hover.and_then(|ray| {
-                    let z = number(&self.bench.tools.workplane).ok()?;
-                    if ray.direction.z.abs() < 1e-10 {
-                        return None;
+                    // The elevation field moves a horizontal work plane.
+                    if let Ok(z) = number(&self.bench.tools.workplane)
+                        && self.bench.engine.workplane.axes[2] == DVec3::Z
+                    {
+                        self.bench.engine.workplane.origin.z = z;
                     }
-                    let distance = (z - ray.origin.z) / ray.direction.z;
-                    if distance < 0.0 {
-                        return None;
-                    }
-                    let p =
-                        open_bim_model::Point3((ray.origin + distance * ray.direction).to_array());
+                    let p = open_bim_model::Point3(
+                        self.bench
+                            .engine
+                            .workplane
+                            .intersect(ray.origin, ray.direction)?
+                            .to_array(),
+                    );
                     let hit = if self.bench.tools.snap_enabled {
                         self.bench.editor.snap.snap(
                             p,
@@ -540,11 +559,22 @@ impl eframe::App for Desktop {
             } else {
                 None
             };
+            self.bench.cursor = cursor.map(|(p, _)| DVec3::from_array(p.0));
+            if response.middle_clicked()
+                && self.bench.engine.active()
+                && let Some(r) = self
+                    .bench
+                    .execute(open_bim_desktop::ui::commands::Cmd::FinishPicks)
+            {
+                self.pending.push(r);
+            }
             if response.clicked() {
                 response.request_focus();
-                if self.bench.editor.active {
-                    if let Some((point, _)) = cursor {
-                        self.bench.editor.accept_point(point);
+                if self.bench.engine.active() {
+                    if let Some((point, _)) = cursor
+                        && let Some(r) = self.bench.pick(DVec3::from_array(point.0))
+                    {
+                        self.pending.push(r);
                     }
                 } else {
                     let id = hover.and_then(|ray| self.scene.pick(ray, &self.view));

@@ -81,6 +81,10 @@ pub struct Workbench {
     pub gpu: String,
     /// Delay added to background project loading (verification of cancel).
     pub load_delay_ms: u64,
+    /// Pick-command engine (Tekla-style creation by points).
+    pub engine: crate::interaction::Engine,
+    /// World point under the cursor on the work plane (set by the viewport).
+    pub cursor: Option<open_bim_renderer::DVec3>,
     /// Model tree rows keyed by (journal length, revision).
     tree: ((usize, u64), TreeRows),
 }
@@ -104,6 +108,8 @@ impl Workbench {
             gpu: String::new(),
             load_delay_ms: 0,
             tree: ((usize::MAX, 0), Arc::new(Vec::new())),
+            engine: Default::default(),
+            cursor: None,
         }
     }
 
@@ -301,10 +307,8 @@ impl Workbench {
                 });
                 self.mode = mode;
                 self.editor.begin(kind);
-                self.message(format!(
-                    "Инструмент: {} — поля справа, ⌘↩ создать",
-                    kind.label()
-                ));
+                self.engine.start(kind);
+                self.message(self.engine.prompt());
             }
             Cmd::CreateElement => return Some(Request::Action(Action::Create)),
             Cmd::CancelTool => {
@@ -312,10 +316,22 @@ impl Workbench {
                     self.cancel_job();
                 } else if self.palette.open {
                     self.palette.open = false;
+                } else if self.engine.numeric.is_some() {
+                    self.engine.numeric = None;
                 } else {
+                    self.engine.cancel();
                     self.editor.cancel();
-                    self.message("Инструмент отменён");
+                    self.message("Команда прервана");
                 }
+            }
+            Cmd::FinishPicks => {
+                let outcome = self.engine.finish();
+                if let Some(kind) = self.engine.tool
+                    && !self.editor.active
+                {
+                    self.editor.begin(kind);
+                }
+                return self.outcome(outcome);
             }
             Cmd::EditProperty => {
                 self.mode = Mode::Model;
@@ -391,6 +407,114 @@ impl Workbench {
         None
     }
 
+    /// A pick from the viewport (world point, already snapped).
+    pub fn pick(&mut self, point: open_bim_renderer::DVec3) -> Option<Request> {
+        let outcome = self.engine.pick(point);
+        self.outcome(outcome)
+    }
+
+    /// Typed coordinates for the next pick.
+    pub fn pick_numeric(&mut self, text: &str) -> Option<Request> {
+        let outcome = self.engine.pick_numeric(text, self.cursor);
+        self.outcome(outcome)
+    }
+
+    fn outcome(&mut self, outcome: crate::interaction::Outcome) -> Option<Request> {
+        use crate::interaction::Outcome;
+        self.editor.active = self.engine.active();
+        self.editor.picked = self
+            .engine
+            .picks
+            .iter()
+            .map(|p| open_bim_model::Point3(p.to_array()))
+            .collect();
+        match outcome {
+            Outcome::Complete { kind, points } => match crate::interaction::commands(
+                self.editor.document.project(),
+                kind,
+                &points,
+                &self.engine.workplane,
+                &self.editor.draft,
+            ) {
+                Ok(commands) => {
+                    self.message(self.engine.prompt());
+                    Some(Request::Action(Action::Commit(
+                        format!("Создать: {}", kind.label()),
+                        commands,
+                    )))
+                }
+                Err(e) => {
+                    self.message(e);
+                    None
+                }
+            },
+            Outcome::Ignored(text) => {
+                self.message(text);
+                None
+            }
+            Outcome::Continue | Outcome::Cancelled => {
+                self.message(self.engine.prompt());
+                None
+            }
+        }
+    }
+
+    /// Typing a digit, «@» or «-» during a pick opens the coordinate box.
+    fn numeric_input(&mut self, ctx: &egui::Context, requests: &mut Vec<Request>) {
+        if !self.engine.active() {
+            self.engine.numeric = None;
+            return;
+        }
+        if self.engine.numeric.is_none() && !ctx.egui_wants_keyboard_input() {
+            let start = ctx.input(|i| {
+                i.events.iter().find_map(|e| match e {
+                    egui::Event::Text(t)
+                        if t.starts_with(|c: char| c.is_ascii_digit() || c == '@' || c == '-') =>
+                    {
+                        Some(t.clone())
+                    }
+                    _ => None,
+                })
+            });
+            if let Some(text) = start {
+                self.engine.numeric = Some(text);
+                ctx.memory_mut(|m| m.request_focus(egui::Id::new("numeric location")));
+            }
+        }
+        let Some(mut text) = self.engine.numeric.clone() else {
+            return;
+        };
+        let mut submit = false;
+        egui::Window::new("Ввод координат")
+            .id(egui::Id::new("numeric window"))
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0., -80.))
+            .show(ctx, |ui| {
+                let label =
+                    ui.label("x,y,z — абсолютно · @dx,dy,dz — относительно · d — по направлению");
+                let edit = ui
+                    .add(
+                        egui::TextEdit::singleline(&mut text)
+                            .id(egui::Id::new("numeric location"))
+                            .desired_width(320.),
+                    )
+                    .labelled_by(label.id);
+                if edit.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                    submit = true;
+                }
+                if let Some(e) = &self.engine.error {
+                    ui.colored_label(theme::ERROR, e);
+                }
+            });
+        if self.engine.numeric.is_some() {
+            self.engine.numeric = Some(text.clone());
+        }
+        if submit && let Some(r) = self.pick_numeric(&text) {
+            requests.push(r);
+        }
+    }
+
     fn command_button(&mut self, ui: &mut egui::Ui, cmd: Cmd, requests: &mut Vec<Request>) {
         let enabled = match cmd {
             Cmd::Undo => self.editor.document.history_depth().0 > 0,
@@ -422,6 +546,7 @@ impl Workbench {
             requests.push(r);
         }
         palette::help(&ctx, &mut self.help);
+        self.numeric_input(&ctx, &mut requests);
         if let Some(r) = self.poll_job() {
             requests.push(r);
         }

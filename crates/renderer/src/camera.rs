@@ -117,6 +117,29 @@ impl Camera {
         self.distance = (self.distance * factor).clamp(0.01, 1e9);
         self.ortho_height = (self.ortho_height * factor).clamp(0.01, 1e9);
     }
+    /// Zoom keeping the world point under the cursor fixed (Tekla wheel zoom):
+    /// a homothety about the point where the cursor ray meets the plane
+    /// through the target perpendicular to the view direction.
+    pub fn zoom_at(&mut self, delta: f64, ray: Option<Ray>) {
+        if !delta.is_finite() {
+            return;
+        }
+        let factor = (-delta.clamp(-1000.0, 1000.0) * 0.002).exp();
+        let forward = (self.target - self.eye()).normalize_or_zero();
+        let anchor = ray.and_then(|ray| {
+            let denominator = ray.direction.dot(forward);
+            (denominator.abs() > 1e-12).then(|| {
+                ray.origin + ray.direction * ((self.target - ray.origin).dot(forward) / denominator)
+            })
+        });
+        let distance = (self.distance * factor).clamp(0.01, 1e9);
+        let applied = distance / self.distance;
+        if let Some(anchor) = anchor.filter(|a| a.is_finite()) {
+            self.target = anchor + (self.target - anchor) * applied;
+        }
+        self.distance = distance;
+        self.ortho_height = (self.ortho_height * applied).clamp(0.01, 1e9);
+    }
     pub fn pan(&mut self, dx: f64, dy: f64, viewport_height: f64) {
         if !dx.is_finite() || !dy.is_finite() || viewport_height <= 0.0 {
             return;
