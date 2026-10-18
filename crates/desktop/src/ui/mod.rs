@@ -103,6 +103,10 @@ pub struct Workbench {
     pub detail: crate::interaction::tools::DetailPicker,
     /// Open grid dialog («Сетка осей…»).
     pub grid: Option<crate::interaction::tools::GridSpec>,
+    /// The dialog edits the existing grid (otherwise it creates a new one).
+    pub grid_editing: bool,
+    /// Edit buffer of the selected grid line in the property pane.
+    pub axis_buffer: Option<open_bim_model::GridAxis>,
     /// Green dashed work area box around the model (Вид tab).
     pub work_area: bool,
     /// Picks for «рабочая плоскость по трём точкам».
@@ -170,6 +174,8 @@ impl Workbench {
             work_area: true,
             detail: Default::default(),
             grid: None,
+            grid_editing: false,
+            axis_buffer: None,
             theme_applied: None,
             quick_launch: String::new(),
             search: String::new(),
@@ -406,8 +412,13 @@ impl Workbench {
                 self.message(self.prompt());
             }
             Cmd::GridDialog => {
-                self.grid = Some(Default::default());
-                self.message("Сетка: строки координат как в Tekla («0 4*6000»)");
+                // An existing grid opens prefilled for editing (Tekla: double-click a grid).
+                let existing = crate::interaction::grid_edit::spec_from_project(
+                    self.editor.document.project(),
+                );
+                self.grid_editing = existing.is_some();
+                self.grid = Some(existing.unwrap_or_default());
+                self.message("Сетка: X/Y — шаги («0 4*6000»), Z — отметки");
             }
             Cmd::CreateElement => return Some(Request::Action(Action::Create)),
             Cmd::CancelTool => {
@@ -950,6 +961,7 @@ impl Workbench {
         let Some(spec) = &mut self.grid else { return };
         let mut open = true;
         let mut create = false;
+        let mut modify = false;
         egui::Window::new("Сетка осей")
             .open(&mut open)
             .collapsible(false)
@@ -980,16 +992,34 @@ impl Workbench {
                         ui.end_row();
                     });
                 ui.small("«0 4*6000» — начало 0 и четыре шага по 6000 мм");
-                create = ui.button("Создать сетку").clicked();
+                ui.horizontal(|ui| {
+                    if self.grid_editing && ui.button("Изменить сетку").clicked() {
+                        modify = true;
+                    }
+                    create = ui.button("Создать новую сетку").clicked();
+                });
             });
-        if create {
-            match crate::interaction::tools::grid_commands(self.editor.document.project(), spec) {
-                Ok(commands) => {
+        let result = if modify {
+            Some(
+                crate::interaction::grid_edit::update_commands(
+                    self.editor.document.project(),
+                    spec,
+                )
+                .map(|c| ("Изменить: сетка", c)),
+            )
+        } else if create {
+            Some(
+                crate::interaction::tools::grid_commands(self.editor.document.project(), spec)
+                    .map(|c| ("Создать: сетка", c)),
+            )
+        } else {
+            None
+        };
+        if let Some(result) = result {
+            match result {
+                Ok((label, commands)) => {
                     self.grid = None;
-                    requests.push(Request::Action(Action::Commit(
-                        "Создать: сетка".into(),
-                        commands,
-                    )));
+                    requests.push(Request::Action(Action::Commit(label.into(), commands)));
                     requests.push(Request::Fit);
                 }
                 Err(e) => self.message(e),

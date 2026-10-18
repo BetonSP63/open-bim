@@ -78,8 +78,8 @@ pub fn elevations(text: &str) -> Result<Vec<f64>, String> {
     Ok(values)
 }
 
-/// Grid letters per ГОСТ 21.101 (no Ё, З, Й, О, Х, Ц, Ч, Щ, Ъ, Ы, Ь).
-const CYRILLIC: &str = "АБВГДЕЖИКЛМНПРСТУФШЭЮЯ";
+/// Grid letters per ГОСТ Р 21.101-2026 5.3.2 (no Е, Ё, З, Й, О, Х, Ц, Ч, Щ, Ъ, Ы, Ь).
+const CYRILLIC: &str = "АБВГДЖИКЛМНПРСТУФШЭЮЯ";
 const LATIN: &str = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 
 fn next_label(label: &str) -> Option<String> {

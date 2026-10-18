@@ -1,6 +1,7 @@
 //! Pick-command engine (Tekla-style): a command declares its picks and a
 //! Russian prompt per step; picks are projected onto the work plane; the
 //! object is created after the last pick and the command re-arms until Esc.
+pub mod grid_edit;
 pub mod numeric;
 pub mod selection;
 pub mod snap;

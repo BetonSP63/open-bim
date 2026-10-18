@@ -772,7 +772,15 @@ impl eframe::App for Desktop {
                     // Alt+click selects the whole assembly once (Tekla).
                     let saved = self.bench.select;
                     self.bench.select.assemblies |= modifiers.alt;
-                    self.bench.select_picked(id, click_mode);
+                    let axis = response.interact_pointer_pos().and_then(|p| {
+                        open_bim_desktop::interaction::grid_edit::pick_axis(
+                            self.bench.editor.document.project(),
+                            &projector,
+                            [p.x as f64, p.y as f64],
+                            6.,
+                        )
+                    });
+                    self.bench.select_clicked(id, axis, click_mode);
                     self.bench.select = saved;
                 }
             }

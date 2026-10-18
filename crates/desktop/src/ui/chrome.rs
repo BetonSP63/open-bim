@@ -105,6 +105,28 @@ impl Workbench {
         apply(&mut self.editor.selected, &ids, mode);
     }
 
+    /// Viewport click: the part under the cursor, otherwise the grid line
+    /// near it (when the «Выбор осей» switch is on).
+    pub fn select_clicked(
+        &mut self,
+        part: Option<ObjectId>,
+        axis: Option<ObjectId>,
+        mode: crate::interaction::selection::Click,
+    ) {
+        match (part, axis.filter(|_| self.select.grids)) {
+            (None, Some(axis)) => {
+                crate::interaction::selection::apply(
+                    &mut self.editor.selected,
+                    &BTreeSet::from([axis]),
+                    mode,
+                );
+                let name = &self.editor.document.project().axes[&axis].name;
+                self.message(format!("Выбрана ось {name}"));
+            }
+            _ => self.select_picked(part, mode),
+        }
+    }
+
     /// Area selection (left→right window, right→left crossing).
     pub fn select_area(
         &mut self,
@@ -599,6 +621,13 @@ impl Workbench {
             .show(ui, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     let has_selection = self.selection_common().is_some();
+                    let has_axes = {
+                        let project = self.editor.document.project();
+                        self.editor
+                            .selected
+                            .iter()
+                            .any(|id| project.axes.contains_key(id))
+                    };
                     ui.add_enabled_ui(!self.busy(), |ui| match self.mode {
                         Mode::Drawings => self.drawings.show(ui, &mut self.editor),
                         Mode::Reports => {
@@ -612,6 +641,7 @@ impl Workbench {
                             Some(SidePanel::Properties) if has_selection => {
                                 self.selection_pane(ui, requests)
                             }
+                            Some(SidePanel::Properties) if has_axes => self.axis_pane(ui, requests),
                             Some(panel) => {
                                 if panel == SidePanel::Properties {
                                     self.object_type(ui, requests);
@@ -636,6 +666,76 @@ impl Workbench {
                     });
                 });
             });
+    }
+
+    /// Property pane of selected grid lines: name (ГОСТ letters), end points,
+    /// the whole grid dialog and delete.
+    fn axis_pane(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
+        let project = self.editor.document.project();
+        let axes: Vec<&open_bim_model::GridAxis> = self
+            .editor
+            .selected
+            .iter()
+            .filter_map(|id| project.axes.get(id))
+            .collect();
+        ui.heading(format!("Свойства: ось ({})", axes.len()));
+        if axes.len() == 1 {
+            let axis = axes[0].clone();
+            if self.axis_buffer.as_ref().is_none_or(|b| b.id != axis.id) {
+                self.axis_buffer = Some(axis.clone());
+            }
+            let buffer = self.axis_buffer.as_mut().expect("filled above");
+            egui::Grid::new("axis fields")
+                .num_columns(4)
+                .show(ui, |ui| {
+                    let l = ui.label("Обозначение");
+                    ui.text_edit_singleline(&mut buffer.name).labelled_by(l.id);
+                    ui.end_row();
+                    for (label, p) in [
+                        ("Начало, мм", &mut buffer.start),
+                        ("Конец, мм", &mut buffer.end),
+                    ] {
+                        ui.label(label);
+                        for (k, axis_name) in ["X", "Y", "Z"].iter().enumerate() {
+                            ui.add(
+                                egui::DragValue::new(&mut p.0[k])
+                                    .speed(10.)
+                                    .prefix(format!("{axis_name} ")),
+                            );
+                        }
+                        ui.end_row();
+                    }
+                });
+            if ui.button("Изменить").clicked() {
+                let edited = buffer.clone();
+                match crate::interaction::grid_edit::validate_axis_name(&edited.name) {
+                    Ok(()) if edited != axis => requests.push(Request::Action(Action::Commit(
+                        format!("Изменить ось {}", edited.name),
+                        vec![open_bim_commands::Command::ReplaceAxis { axis: edited }],
+                    ))),
+                    Ok(()) => self.tools.message = Some("Нет изменений".into()),
+                    Err(e) => self.tools.message = Some(e),
+                }
+            }
+        } else {
+            ui.label(
+                axes.iter()
+                    .map(|a| a.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            );
+        }
+        ui.horizontal(|ui| {
+            if ui.button(commands::caption(Cmd::GridDialog)).clicked() {
+                self.run(Cmd::GridDialog, requests);
+            }
+            if ui.button(commands::caption(Cmd::DeleteSelected)).clicked() {
+                self.run(Cmd::DeleteSelected, requests);
+            }
+        });
+        if let Some(m) = &self.tools.message {
+            ui.label(m.clone());
+        }
     }
 
     /// Tekla contextual toolbar next to the pointer after a selecting click:

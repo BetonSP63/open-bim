@@ -27,7 +27,7 @@ impl Default for Filter {
             assemblies: false,
             bolts: true,
             welds: true,
-            grids: false,
+            grids: true,
         }
     }
 }
@@ -282,6 +282,19 @@ pub fn move_handle(
 ) -> Result<Vec<Command>, String> {
     if !target.is_finite() {
         return Err("Точка вне диапазона".into());
+    }
+    if let Some(axis) = project.axes.get(&handle.object) {
+        let mut axis = axis.clone();
+        let p = Point3(target.to_array());
+        match handle.kind {
+            HandleKind::Start => axis.start = p,
+            HandleKind::End => axis.end = p,
+            HandleKind::Vertex(_) => return Err("Ручка не принадлежит оси".into()),
+        }
+        if v(axis.start).distance(v(axis.end)) < 1. {
+            return Err("Ось нулевой длины".into());
+        }
+        return Ok(vec![Command::ReplaceAxis { axis }]);
     }
     let mut element = project
         .elements

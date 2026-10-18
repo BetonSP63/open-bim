@@ -18,6 +18,8 @@ pub const START_HANDLE: Rgba = [240, 200, 0, 255];
 pub const END_HANDLE: Rgba = [210, 0, 200, 255];
 /// Direct modification handles (Tekla: blue).
 pub const DIRECT_HANDLE: Rgba = [30, 110, 230, 255];
+/// Selected grid line.
+pub const SELECTED_AXIS: Rgba = [255, 107, 20, 255];
 /// Line the snapped point belongs to (Tekla: turquoise).
 pub const SNAP_LINE: Rgba = [0, 185, 195, 255];
 pub const AXIS_COLORS: [Rgba; 3] = [[210, 40, 40, 255], [20, 150, 50, 255], [30, 80, 220, 255]];
@@ -204,6 +206,22 @@ pub fn handles(project: &Project, selected: &BTreeSet<ObjectId>, p: &Projector) 
     let mut out = Vec::new();
     for id in selected.iter().take(MAX_HANDLES) {
         let Some(e) = project.elements.get(id) else {
+            // Grid lines have start/end handles too.
+            if let Some(axis) = project.axes.get(id) {
+                for (kind, world) in [
+                    (HandleKind::Start, v(axis.start)),
+                    (HandleKind::End, v(axis.end)),
+                ] {
+                    if let Some(screen) = p.screen(world) {
+                        out.push(Handle {
+                            object: *id,
+                            kind,
+                            world,
+                            screen,
+                        });
+                    }
+                }
+            }
             continue;
         };
         let frame = e.shape.frame();
@@ -361,6 +379,9 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
             continue;
         }
         first_axis.get_or_insert((wa, wb));
+        if input.selected.contains(&axis.id) {
+            marks.push(line(a, b, SELECTED_AXIS, 3., None));
+        }
         marks.push(line(a, b, grid, 1., Some([2., 4.])));
         // The same grid line at the other levels, fainter.
         let faint = [grid[0], grid[1], grid[2], 110];
