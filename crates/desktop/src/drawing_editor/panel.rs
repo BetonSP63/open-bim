@@ -171,11 +171,13 @@ impl DrawingEditor {
         egui::Grid::new("drawing header")
             .num_columns(2)
             .show(ui, |ui| {
-                ui.label("Обозначение");
-                ui.text_edit_singleline(&mut self.fields.number);
+                let field_label = ui.label("Обозначение");
+                ui.text_edit_singleline(&mut self.fields.number)
+                    .labelled_by(field_label.id);
                 ui.end_row();
-                ui.label("Наименование");
-                ui.text_edit_singleline(&mut self.fields.title);
+                let field_label = ui.label("Наименование");
+                ui.text_edit_singleline(&mut self.fields.title)
+                    .labelled_by(field_label.id);
                 ui.end_row();
             });
         if ui.button("Применить обозначение").clicked() {
@@ -184,9 +186,8 @@ impl DrawingEditor {
             report(self, r);
         }
         ui.horizontal(|ui| {
-            ui.label("Лист");
             let mut sheet = drawing.sheet;
-            egui::ComboBox::from_id_salt("sheet size")
+            egui::ComboBox::new("sheet size", "Лист")
                 .selected_text(sheet.label())
                 .show_ui(ui, |ui| {
                     for s in [
@@ -203,10 +204,9 @@ impl DrawingEditor {
                 let r = self.set_sheet(editor, sheet);
                 report(self, r);
             }
-            ui.label("Масштаб 1:");
             let mut scale = drawing.scale;
-            egui::ComboBox::from_id_salt("sheet scale")
-                .selected_text(format!("{scale}"))
+            egui::ComboBox::new("sheet scale", "Масштаб")
+                .selected_text(format!("1:{scale}"))
                 .show_ui(ui, |ui| {
                     for s in SCALES {
                         ui.selectable_value(&mut scale, s, format!("{s}"));
@@ -240,10 +240,14 @@ impl DrawingEditor {
         }
         if let Some(view) = self.selected_view {
             ui.horizontal(|ui| {
-                ui.label("Центр X");
-                ui.add(egui::TextEdit::singleline(&mut self.fields.view[0]).desired_width(60.));
-                ui.label("Y");
-                ui.add(egui::TextEdit::singleline(&mut self.fields.view[1]).desired_width(60.));
+                let l = ui.label("Центр X");
+                ui.add(egui::TextEdit::singleline(&mut self.fields.view[0]).desired_width(60.))
+                    .labelled_by(l.id)
+                    .on_hover_text("Центр вида X, мм");
+                let l = ui.label("Y");
+                ui.add(egui::TextEdit::singleline(&mut self.fields.view[1]).desired_width(60.))
+                    .labelled_by(l.id)
+                    .on_hover_text("Центр вида Y, мм");
                 if ui.button("Переместить вид").clicked() {
                     let r = number(&self.fields.view[0])
                         .and_then(|x| Ok([x, number(&self.fields.view[1])?]))
@@ -326,8 +330,10 @@ impl DrawingEditor {
                 }
             });
             ui.horizontal(|ui| {
-                ui.label("Отступ, мм");
-                ui.add(egui::TextEdit::singleline(&mut self.fields.offset).desired_width(60.));
+                let l = ui.label("Отступ, мм");
+                ui.add(egui::TextEdit::singleline(&mut self.fields.offset).desired_width(60.))
+                    .labelled_by(l.id)
+                    .on_hover_text("Отступ размерной линии");
                 if ui.button("Применить").clicked() {
                     let r = number(&self.fields.offset)
                         .and_then(|o| self.set_dimension_offset(editor, dim.id, o));
@@ -351,18 +357,23 @@ impl DrawingEditor {
                 self.fields.text_position = note.position.map(|x| format!("{x:.1}"));
             }
         }
-        ui.add(egui::TextEdit::singleline(&mut self.fields.text).hint_text("Текст примечания"));
+        let note = ui.label("Текст примечания");
+        ui.add(egui::TextEdit::singleline(&mut self.fields.text).hint_text("Текст примечания"))
+            .labelled_by(note.id);
         ui.horizontal(|ui| {
-            ui.label("X");
+            let x = ui.label("X");
             ui.add(
                 egui::TextEdit::singleline(&mut self.fields.text_position[0]).desired_width(50.),
-            );
-            ui.label("Y");
+            )
+            .labelled_by(x.id);
+            let y = ui.label("Y");
             ui.add(
                 egui::TextEdit::singleline(&mut self.fields.text_position[1]).desired_width(50.),
-            );
-            ui.label("h");
-            ui.add(egui::TextEdit::singleline(&mut self.fields.text_height).desired_width(36.));
+            )
+            .labelled_by(y.id);
+            let h = ui.label("Высота");
+            ui.add(egui::TextEdit::singleline(&mut self.fields.text_height).desired_width(36.))
+                .labelled_by(h.id);
         });
         ui.horizontal(|ui| {
             let position = number(&self.fields.text_position[0])
@@ -390,8 +401,9 @@ impl DrawingEditor {
         ui.separator();
         ui.strong("Экспорт");
         ui.horizontal(|ui| {
-            ui.label("Папка");
-            ui.text_edit_singleline(&mut self.export_dir);
+            let field_label = ui.label("Папка");
+            ui.text_edit_singleline(&mut self.export_dir)
+                .labelled_by(field_label.id);
         });
         ui.horizontal(|ui| {
             for format in [ExportFormat::Pdf, ExportFormat::Svg, ExportFormat::Dxf] {

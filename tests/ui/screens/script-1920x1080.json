@@ -1,0 +1,4 @@
+[{"wait":25},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/screens/model-1920x1080.png"},{"key":{"name":"F3"}},{"wait":5},{"key":{"name":"D","command":true}},{"wait":15},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/screens/drawings-1920x1080.png"},
+{"key":{"name":"F4"}},{"key":{"name":"R","command":true}},{"wait":10},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/screens/reports-1920x1080.png"},
+{"key":{"name":"P","command":true}},{"wait":3},{"text":"выпуск"},{"wait":3},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/screens/palette-1920x1080.png"},{"key":{"name":"Escape"}},
+{"key":{"name":"F1"}},{"wait":5},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/screens/help-1920x1080.png"},"quit"]

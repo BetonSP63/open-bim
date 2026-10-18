@@ -13,6 +13,8 @@ pub struct CoordinationUi {
     pub selected_row: Option<usize>,
     pub show_informative: bool,
     pub message: Option<String>,
+    /// Set by the panel button; the workbench starts the background check.
+    pub requested: bool,
 }
 
 pub fn kind_label(kind: ConflictKind) -> &'static str {
@@ -39,9 +41,20 @@ pub fn row_objects(project: &Project, conflict: &Conflict) -> BTreeSet<ObjectId>
 
 impl CoordinationUi {
     pub fn run(&mut self, project: &Project) -> Result<(), String> {
+        let (numbering, report) = Self::compute(project)?;
+        self.accept(numbering, report);
+        Ok(())
+    }
+
+    /// Pure computation, safe to run on a worker thread.
+    pub fn compute(project: &Project) -> Result<(Numbering, Report), String> {
         let numbering = open_bim_numbering::number(project).map_err(|e| e.to_string())?;
         let report =
             open_bim_coordination::check(project, &numbering).map_err(|e| e.to_string())?;
+        Ok((numbering, report))
+    }
+
+    pub fn accept(&mut self, numbering: Numbering, report: Report) {
         self.message = Some(format!(
             "Позиций деталей: {}, сборок: {}; кандидатов {}, пересечений {}",
             numbering.parts.values().collect::<BTreeSet<_>>().len(),
@@ -52,7 +65,6 @@ impl CoordinationUi {
         self.numbering = Some(numbering);
         self.report = Some(report);
         self.selected_row = None;
-        Ok(())
     }
 
     pub fn stale(&self, project: &Project) -> bool {
@@ -98,16 +110,11 @@ impl CoordinationUi {
             .show(ui, |ui| {
                 if ui
                     .button("Нумеровать и проверить · ⌘K")
-                    .on_hover_text("Пересчитать позиции и проверить пересечения")
+                    .on_hover_text("Пересчитать позиции и проверить пересечения в фоне")
                     .clicked()
-                    || ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::K))
                 {
-                    let result = self.run(editor.document.project());
-                    if let Err(error) = result {
-                        self.message = Some(error);
-                    } else {
-                        editor.record("Нумерация и проверка коллизий");
-                    }
+                    // Runs as a cancellable background job (see ui::Workbench).
+                    self.requested = true;
                 }
                 ui.checkbox(&mut self.show_informative, "Показывать касания и болты");
                 if self.stale(editor.document.project()) {

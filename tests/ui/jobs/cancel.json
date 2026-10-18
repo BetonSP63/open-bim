@@ -1,0 +1,2 @@
+[{"wait":20},{"note":"⌘O — открыть большой проект с задержкой 4 с"},{"key":{"name":"O","command":true}},{"wait":20},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/jobs/loading.png"},
+{"note":"Esc — отмена"},{"key":{"name":"Escape"}},{"wait":10},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/jobs/cancelled.png"},"quit"]

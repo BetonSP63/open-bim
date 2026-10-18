@@ -120,7 +120,7 @@ impl ConnectionUi {
         ui.collapsing("Параметрические соединения", |ui| {
             self.sync(p);
             let mut chosen = self.editing;
-            egui::ComboBox::from_id_salt("connection-instance")
+            egui::ComboBox::new("connection-instance", "Узел")
                 .selected_text(
                     self.editing
                         .and_then(|id| p.connections.get(&id))
@@ -165,7 +165,7 @@ impl ConnectionUi {
                 ("Основной элемент", &mut self.primary),
                 ("Опора", &mut self.secondary),
             ] {
-                egui::ComboBox::from_id_salt(label)
+                egui::ComboBox::new(label, label)
                     .selected_text(
                         value
                             .and_then(|id| p.elements.get(&id))
@@ -191,7 +191,7 @@ impl ConnectionUi {
                 TemplateKind::ClipAngle { .. } => 2,
             };
             let mut kind = old;
-            egui::ComboBox::from_id_salt("connection-kind")
+            egui::ComboBox::new("connection-kind", "Тип узла")
                 .selected_text(labels[kind])
                 .show_ui(ui, |ui| {
                     for (i, label) in labels.iter().enumerate() {
@@ -209,8 +209,9 @@ impl ConnectionUi {
                     },
                 };
             }
-            ui.label("Имя узла");
-            ui.text_edit_singleline(&mut self.template.name);
+            let field_label = ui.label("Имя узла");
+            ui.text_edit_singleline(&mut self.template.name)
+                .labelled_by(field_label.id);
             fn dimension(ui: &mut egui::Ui, label: &str, value: &mut f64) {
                 ui.horizontal(|ui| {
                     ui.label(label);
@@ -231,10 +232,12 @@ impl ConnectionUi {
             dimension(ui, "Отступ от края, мм", &mut self.template.edge_distance);
             dimension(ui, "Диаметр болта, мм", &mut self.template.bolt_diameter);
             dimension(ui, "Зазор отверстия, мм", &mut self.template.clearance);
-            ui.label("Стандарт болта");
-            ui.text_edit_singleline(&mut self.template.bolt_standard);
-            ui.label("Класс прочности");
-            ui.text_edit_singleline(&mut self.template.bolt_grade);
+            let field_label = ui.label("Стандарт болта");
+            ui.text_edit_singleline(&mut self.template.bolt_standard)
+                .labelled_by(field_label.id);
+            let field_label = ui.label("Класс прочности");
+            ui.text_edit_singleline(&mut self.template.bolt_grade)
+                .labelled_by(field_label.id);
             if !matches!(self.template.kind, TemplateKind::ClipAngle { .. }) {
                 dimension(ui, "Размер шва, мм", &mut self.template.weld_size);
             }
@@ -252,8 +255,9 @@ impl ConnectionUi {
                 }
                 result = Some(command);
             }
-            ui.label("Файл шаблона JSON");
-            ui.text_edit_singleline(&mut self.path);
+            let field_label = ui.label("Файл шаблона JSON");
+            ui.text_edit_singleline(&mut self.path)
+                .labelled_by(field_label.id);
             ui.horizontal(|ui| {
                 if ui.button("Экспорт шаблона").clicked() {
                     self.message = Some(match self.export_template() {

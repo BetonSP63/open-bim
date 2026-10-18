@@ -2,11 +2,12 @@ use eframe::egui;
 use egui_wgpu::wgpu;
 use open_bim_desktop::tools::{
     Editor, number,
-    ui::{Action, ToolsUi, select, snap_label},
+    ui::{Action, select, snap_label},
 };
+use open_bim_desktop::ui::{Request, Workbench};
 use open_bim_model::{ObjectId, Project, example_steel_frame};
 use open_bim_renderer::{
-    Camera, ClipPlane, DVec3, GpuRenderer, NamedView, Scene, ViewState, ViewportCallback,
+    Camera, ClipPlane, DVec3, GpuRenderer, Scene, ViewState, ViewportCallback,
 };
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -23,6 +24,11 @@ struct Options {
     capture_dir: Option<PathBuf>,
     project_path: Option<String>,
     script: Option<PathBuf>,
+    size: Option<[f32; 2]>,
+    zoom: Option<f32>,
+    load_delay_ms: u64,
+    bench: Option<PathBuf>,
+    bench_frames: usize,
 }
 impl Options {
     fn parse() -> Result<Self, String> {
@@ -43,6 +49,41 @@ impl Options {
                 }
                 "--script" => {
                     options.script = Some(args.next().ok_or("--script требует путь JSON")?.into())
+                }
+                "--size" => {
+                    let text = args.next().ok_or("--size требует ШxВ")?;
+                    let (w, h) = text.split_once('x').ok_or("--size: формат 1280x800")?;
+                    let parse = |v: &str| {
+                        v.parse::<f32>()
+                            .ok()
+                            .filter(|v| (400.0..=8000.0).contains(v))
+                    };
+                    options.size = Some([parse(w).ok_or("ширина")?, parse(h).ok_or("высота")?]);
+                }
+                "--bench" => {
+                    options.bench = Some(args.next().ok_or("--bench требует путь JSON")?.into())
+                }
+                "--bench-frames" => {
+                    options.bench_frames = args
+                        .next()
+                        .and_then(|v| v.parse().ok())
+                        .filter(|v| (10..=100_000).contains(v))
+                        .ok_or("--bench-frames требует число 10…100000")?
+                }
+                "--zoom" => {
+                    options.zoom = Some(
+                        args.next()
+                            .and_then(|v| v.parse::<f32>().ok())
+                            .filter(|v| (0.25..=4.0).contains(v))
+                            .ok_or("--zoom требует число 0.25–4")?,
+                    )
+                }
+                "--load-delay-ms" => {
+                    options.load_delay_ms = args
+                        .next()
+                        .and_then(|v| v.parse().ok())
+                        .filter(|v| *v <= 600_000)
+                        .ok_or("--load-delay-ms требует миллисекунды")?
                 }
                 "--gpu-error-test" => options.gpu_error_test = true,
                 "--open" => options.open = Some(args.next().ok_or("--open требует путь")?),
@@ -74,39 +115,27 @@ impl Options {
         Ok(options)
     }
 }
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Mode {
-    Model,
-    Drawings,
-    Reports,
-}
-
 struct Desktop {
-    mode: Mode,
-    drawings: open_bim_desktop::drawing_editor::DrawingEditor,
-    reports: open_bim_desktop::reports_ui::ReportsUi,
-    editor: Editor,
-    tools: ToolsUi,
+    bench: Workbench,
     capture_dir: Option<PathBuf>,
     manual_capture: Option<String>,
     capture_count: usize,
-    extend_selection: bool,
     scene: Arc<Scene>,
     camera: Camera,
     view: ViewState,
     error: Arc<Mutex<Option<String>>>,
-    gpu: String,
     capture: Option<String>,
     frames: u32,
-    section_enabled: bool,
-    section_height: f64,
     script: Option<open_bim_desktop::script::Runner>,
+    measure: Option<open_bim_desktop::bench::Bench>,
+    load_ms: f64,
 }
 impl Desktop {
     fn new(
         cc: &eframe::CreationContext<'_>,
         options: Options,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        let started = std::time::Instant::now();
         let project = if let Some(path) = options.open {
             open_bim_persistence::load(&path)?
         } else if options.example {
@@ -121,15 +150,20 @@ impl Desktop {
             None => None,
         };
         let scene = Arc::new(Scene::from_project(&project)?);
+        let load_ms = started.elapsed().as_secs_f64() * 1000.;
+        eprintln!("LOAD_MS: {load_ms:.1}");
         let mut editor = Editor::new(project.clone())?;
         editor.record_path = options.record;
         if let Some(id) = options.selected {
             editor.selected.insert(id);
         }
-        let mut tools = ToolsUi::default();
+        let mut bench = Workbench::new(editor);
         if let Some(path) = options.project_path {
-            tools.path = path;
+            bench.tools.path = path;
         }
+        bench.section_enabled = options.section.is_some();
+        bench.section_height = options.section.unwrap_or(1500.0);
+        bench.load_delay_ms = options.load_delay_ms;
         let mut camera = Camera::default();
         camera.fit(scene.bounds);
         let error = Arc::new(Mutex::new(None));
@@ -163,17 +197,18 @@ impl Desktop {
                 mapped_at_creation: false,
             });
         }
-        cc.egui_ctx.set_visuals(egui::Visuals::dark());
+        open_bim_desktop::ui::theme::apply(&cc.egui_ctx);
+        if let Some(zoom) = options.zoom {
+            // Layout verification at a logical size larger than the display.
+            cc.egui_ctx.set_zoom_factor(zoom);
+        }
+        bench.gpu = gpu;
+        bench.objects = scene.instances.len();
         Ok(Self {
-            mode: Mode::Model,
-            drawings: open_bim_desktop::drawing_editor::DrawingEditor::new(),
-            reports: Default::default(),
-            editor,
-            tools,
+            bench,
             capture_dir: options.capture_dir,
             manual_capture: None,
             capture_count: 0,
-            extend_selection: false,
             scene,
             camera,
             view: ViewState {
@@ -185,50 +220,63 @@ impl Desktop {
                 ..Default::default()
             },
             error,
-            gpu,
             capture: options.capture,
             frames: 0,
-            section_enabled: options.section.is_some(),
-            section_height: options.section.unwrap_or(1500.0),
             script,
+            measure: options.bench.map(|path| {
+                open_bim_desktop::bench::Bench::new(path, options.bench_frames.max(10))
+            }),
+            load_ms,
         })
     }
     fn action(&mut self, action: Action) {
         let fit = self.scene.instances.is_empty()
             || matches!(action, Action::New | Action::Example | Action::Open);
         let result = match action {
-            Action::Create => self.editor.create(),
-            Action::Detail(commands) => self.editor.commit("Деталировка", &commands),
-            Action::Connection(commands) => self.editor.commit("Соединение", &commands),
-            Action::Edit(edit) => self.editor.edit(&edit),
-            Action::Undo => self.editor.history(false),
-            Action::Redo => self.editor.history(true),
-            Action::New => self.editor.replace(Project::default(), "Новый проект"),
+            Action::Create => self.bench.editor.create(),
+            Action::Detail(commands) => self.bench.editor.commit("Деталировка", &commands),
+            Action::Connection(commands) => self.bench.editor.commit("Соединение", &commands),
+            Action::Edit(edit) => self.bench.editor.edit(&edit),
+            Action::Undo => self.bench.editor.history(false),
+            Action::Redo => self.bench.editor.history(true),
+            Action::New => self
+                .bench
+                .editor
+                .replace(Project::default(), "Новый проект"),
             Action::Example => example_steel_frame()
                 .map_err(|e| e.to_string())
-                .and_then(|p| self.editor.replace(p, "Контрольный каркас")),
-            Action::Open => self.editor.open(std::path::Path::new(&self.tools.path)),
+                .and_then(|p| self.bench.editor.replace(p, "Контрольный каркас")),
+            Action::Open => {
+                self.bench.start_open(PathBuf::from(&self.bench.tools.path));
+                return;
+            }
             Action::ExportIfc => {
-                let path = std::path::Path::new(&self.tools.path).with_extension("ifc");
-                self.tools.message = Some(self.editor.export_ifc(&path).unwrap_or_else(|e| e));
+                let path = std::path::Path::new(&self.bench.tools.path).with_extension("ifc");
+                self.bench.tools.message =
+                    Some(self.bench.editor.export_ifc(&path).unwrap_or_else(|e| e));
                 return;
             }
             Action::ImportIfc => {
-                let path = std::path::Path::new(&self.tools.path).with_extension("ifc");
-                match self.editor.import_ifc(&path) {
+                let path = std::path::Path::new(&self.bench.tools.path).with_extension("ifc");
+                match self.bench.editor.import_ifc(&path) {
                     Ok((scene, report)) => {
                         self.camera.fit(scene.bounds);
+                        self.bench.objects = scene.instances.len();
                         self.scene = scene;
-                        self.tools.message = Some(report);
+                        self.bench.tools.message = Some(report);
                     }
-                    Err(error) => self.tools.message = Some(error),
+                    Err(error) => self.bench.tools.message = Some(error),
                 }
                 return;
             }
             Action::Save => {
-                match self.editor.save(std::path::Path::new(&self.tools.path)) {
-                    Ok(()) => self.tools.message = Some("Проект сохранён".into()),
-                    Err(error) => self.tools.message = Some(error),
+                match self
+                    .bench
+                    .editor
+                    .save(std::path::Path::new(&self.bench.tools.path))
+                {
+                    Ok(()) => self.bench.tools.message = Some("Проект сохранён".into()),
+                    Err(error) => self.bench.tools.message = Some(error),
                 };
                 return;
             }
@@ -238,14 +286,71 @@ impl Desktop {
                 if fit {
                     self.camera.fit(scene.bounds);
                 }
+                self.bench.objects = scene.instances.len();
                 self.scene = scene;
-                self.tools.message = Some(format!(
+                self.bench.tools.message = Some(format!(
                     "Готово · ревизия {}",
-                    self.editor.document.project().revision
+                    self.bench.editor.document.project().revision
                 ));
             }
-            Err(error) => self.tools.message = Some(error),
+            Err(error) => self.bench.tools.message = Some(error),
         }
+    }
+    fn benchmark(&mut self, ctx: &egui::Context) {
+        use open_bim_desktop::bench::{Results, peak_rss_mb, percentile};
+        let Some(bench) = &mut self.measure else {
+            return;
+        };
+        ctx.request_repaint();
+        // Moving camera so every measured frame redraws the whole scene.
+        self.camera.orbit(0.6, 0.);
+        if !bench.tick() {
+            return;
+        }
+        let mut frames: Vec<f64> = bench
+            .intervals
+            .iter()
+            .map(|d| d.as_secs_f64() * 1000.)
+            .collect();
+        let mut picks = Vec::new();
+        let size = ctx.content_rect().size();
+        let aspect = (size.x / size.y.max(1.)) as f64;
+        for i in 0..200 {
+            let uv = [
+                0.05 + 0.9 * ((i * 37) % 200) as f64 / 200.,
+                0.05 + 0.9 * ((i * 61) % 200) as f64 / 200.,
+            ];
+            let started = std::time::Instant::now();
+            if let Some(ray) = self.camera.ray(self.scene.origin, uv, aspect) {
+                let _ = self.scene.pick(ray, &self.view);
+            }
+            picks.push(started.elapsed().as_secs_f64() * 1000.);
+        }
+        let results = Results {
+            objects: self.scene.instances.len(),
+            window_points: [size.x, size.y],
+            pixels_per_point: ctx.pixels_per_point(),
+            gpu: self.bench.gpu.clone(),
+            load_ms: self.load_ms,
+            warmup_frames: bench.warmup,
+            frames: frames.len(),
+            frame_ms_p50: percentile(&mut frames, 0.5),
+            frame_ms_p95: percentile(&mut frames, 0.95),
+            frame_ms_max: percentile(&mut frames, 1.0),
+            picks: picks.len(),
+            pick_ms_p95: percentile(&mut picks, 0.95),
+            pick_ms_max: percentile(&mut picks, 1.0),
+            peak_rss_mb: peak_rss_mb(),
+        };
+        match serde_json::to_string_pretty(&results)
+            .map_err(|e| e.to_string())
+            .and_then(|json| std::fs::write(&bench.path, json).map_err(|e| e.to_string()))
+        {
+            Ok(()) => eprintln!("BENCH_SAVED: {}", bench.path.display()),
+            Err(e) => eprintln!("BENCH_ERROR: {e}"),
+        }
+        self.measure = None;
+        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
     }
     fn screenshot(&mut self, ctx: &egui::Context) {
         self.frames += 1;
@@ -318,132 +423,28 @@ impl eframe::App for Desktop {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
         self.screenshot(&ctx);
-        let mut action = None;
-        if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
-            self.editor.cancel();
-            self.tools.message = Some("Инструмент отменён".into());
-        }
-        if ctx.input(|i| i.modifiers.command && i.key_pressed(egui::Key::Z)) {
-            action = Some(if ctx.input(|i| i.modifiers.shift) {
-                Action::Redo
-            } else {
-                Action::Undo
-            });
-        }
-        if ctx.input(|i| i.modifiers.command && i.key_pressed(egui::Key::S)) {
-            action = Some(Action::Save);
-        }
-        if ctx.input(|i| i.key_pressed(egui::Key::F2)) {
-            self.mode = Mode::Model;
-        }
-        if ctx.input(|i| i.key_pressed(egui::Key::F3)) {
-            self.mode = Mode::Drawings;
-        }
-        if ctx.input(|i| i.key_pressed(egui::Key::F4)) {
-            self.mode = Mode::Reports;
-        }
-        egui::Panel::top("tools").show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.strong("Open BIM");
-                ui.separator();
-                ui.selectable_value(&mut self.mode, Mode::Model, "3D модель · F2");
-                ui.selectable_value(&mut self.mode, Mode::Drawings, "Чертежи · F3");
-                ui.selectable_value(&mut self.mode, Mode::Reports, "Ведомости · F4");
-                ui.separator();
-                if ui.button("Новый проект").clicked() {
-                    action = Some(Action::New);
+        self.benchmark(&ctx);
+        for request in self.bench.panels(ui) {
+            match request {
+                Request::Action(action) => self.action(action),
+                Request::Fit => self.camera.fit(self.scene.bounds),
+                Request::View(view) => self.camera.set_view(view),
+                Request::Loaded(scene) => {
+                    self.camera.fit(scene.bounds);
+                    self.bench.objects = scene.instances.len();
+                    self.scene = scene;
                 }
-                if ui.button("Контрольный каркас").clicked() {
-                    action = Some(Action::Example);
-                }
-                ui.separator();
-                if ui.button("Вписать · F").clicked() {
-                    self.camera.fit(self.scene.bounds);
-                }
-                for (name, view) in [
-                    ("Изометрия · 1", NamedView::Isometric),
-                    ("Спереди · 2", NamedView::Front),
-                    ("Сверху · 3", NamedView::Top),
-                    ("Справа · 4", NamedView::Right),
-                ] {
-                    if ui.button(name).clicked() {
-                        self.camera.set_view(view);
-                    }
-                }
-            });
-        });
-        egui::Panel::top("history").show(ui, |ui| {
-            ui.horizontal(|ui| {
-                let (undo, redo) = self.editor.document.history_depth();
-                if ui
-                    .add_enabled(undo > 0, egui::Button::new("Отменить · ⌘Z"))
-                    .clicked()
-                {
-                    action = Some(Action::Undo);
-                }
-                if ui
-                    .add_enabled(redo > 0, egui::Button::new("Повторить · ⇧⌘Z"))
-                    .clicked()
-                {
-                    action = Some(Action::Redo);
-                }
-                ui.checkbox(&mut self.extend_selection, "Групповой выбор");
-                ui.label("Shift/⌘ + выбор — добавить объект");
-            });
-        });
-        egui::Panel::bottom("status").show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.label(format!(
-                    "{} · {} объектов · мм",
-                    self.editor.document.project().name,
-                    self.scene.instances.len()
-                ));
-                ui.separator();
-                ui.label(&self.gpu);
-            });
-        });
-        egui::Panel::right("model tools")
-            .default_size(320.0)
-            .show(ui, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    if self.mode == Mode::Drawings {
-                        self.drawings.show(ui, &mut self.editor);
-                    } else if self.mode == Mode::Reports {
-                        self.reports.show_panel(ui, &mut self.editor);
-                    } else if let Some(a) = self.tools.show(ui, &mut self.editor) {
-                        action = Some(a);
-                    }
-                });
-            });
-        egui::Panel::left("model").default_size(225.0).show(ui,|ui| {
-            ui.heading("Модель");ui.label("Стальные конструкции");ui.separator();
-            egui::ScrollArea::vertical().max_height(340.0).show(ui,|ui| {
-                let project=self.editor.document.project();
-                for (id,name) in project.elements.values().map(|e|(e.id,e.name.as_str())).chain(project.axes.values().map(|a|(a.id,a.name.as_str()))) {
-                    ui.push_id(id.0,|ui| {ui.horizontal(|ui| {
-                        let mut visible=!self.view.hidden.contains(&id);
-                        if ui.checkbox(&mut visible,"").changed() {if visible {self.view.hidden.remove(&id);} else {self.view.hidden.insert(id);}}
-                        if ui.selectable_label(self.editor.selected.contains(&id),format!("{name} · #{}",id.0)).clicked() {let extend=self.extend_selection || ui.input(|i|i.modifiers.shift || i.modifiers.command);select(&mut self.editor.selected,Some(id),extend);}
-                    });});
-                }
-            });
-            ui.separator();ui.checkbox(&mut self.section_enabled,"Сечение Z ≥ высота");
-            ui.add_enabled(self.section_enabled,egui::Slider::new(&mut self.section_height,0.0..=5000.0).suffix(" мм"));
-            self.view.section=self.section_enabled.then_some(ClipPlane {normal:DVec3::Z,offset:self.section_height});
-            ui.separator();ui.label("ЛКМ — выбор / точка инструмента\nПКМ — вращение\nСКМ / Shift+ПКМ — панорама\nКолесо / + − — масштаб\n1–4 — виды, F — вписать\nEsc — отменить инструмент");
-        });
-        if let Some(action) = action {
-            self.action(action);
-        }
-        self.view.selected_ids = self.editor.selected.clone();
-        self.view.selected = self.editor.selected.first().copied();
-        egui::CentralPanel::default().show(ui, |ui| {
-            if self.mode == Mode::Drawings {
-                self.drawings.show_sheet(ui, &mut self.editor);
-                return;
             }
-            if self.mode == Mode::Reports {
-                self.reports.show_table(ui);
+        }
+        self.view.hidden = self.bench.hidden.clone();
+        self.view.section = self.bench.section_enabled.then_some(ClipPlane {
+            normal: DVec3::Z,
+            offset: self.bench.section_height,
+        });
+        self.view.selected_ids = self.bench.editor.selected.clone();
+        self.view.selected = self.bench.editor.selected.first().copied();
+        egui::CentralPanel::default().show(ui, |ui| {
+            if self.bench.central(ui) {
                 return;
             }
             let fault = self.error.lock().unwrap_or_else(|e| e.into_inner()).clone();
@@ -463,19 +464,6 @@ impl eframe::App for Desktop {
             if viewport_hovered || response.has_focus() {
                 ctx.input(|input| {
                     if !input.modifiers.command && !input.modifiers.ctrl {
-                        for (key, view) in [
-                            (egui::Key::Num1, NamedView::Isometric),
-                            (egui::Key::Num2, NamedView::Front),
-                            (egui::Key::Num3, NamedView::Top),
-                            (egui::Key::Num4, NamedView::Right),
-                        ] {
-                            if input.key_pressed(key) {
-                                self.camera.set_view(view);
-                            }
-                        }
-                        if input.key_pressed(egui::Key::F) {
-                            self.camera.fit(self.scene.bounds);
-                        }
                         if input.key_pressed(egui::Key::Plus)
                             || input.key_pressed(egui::Key::Equals)
                         {
@@ -524,9 +512,9 @@ impl eframe::App for Desktop {
                 self.camera
                     .ray(self.scene.origin, uv, rect.aspect_ratio() as f64)
             });
-            let cursor = if self.editor.active {
+            let cursor = if self.bench.editor.active {
                 hover.and_then(|ray| {
-                    let z = number(&self.tools.workplane).ok()?;
+                    let z = number(&self.bench.tools.workplane).ok()?;
                     if ray.direction.z.abs() < 1e-10 {
                         return None;
                     }
@@ -536,11 +524,11 @@ impl eframe::App for Desktop {
                     }
                     let p =
                         open_bim_model::Point3((ray.origin + distance * ray.direction).to_array());
-                    let hit = if self.tools.snap_enabled {
-                        self.editor.snap.snap(
+                    let hit = if self.bench.tools.snap_enabled {
+                        self.bench.editor.snap.snap(
                             p,
-                            self.tools.snap_tolerance,
-                            self.tools.snap_mode,
+                            self.bench.tools.snap_tolerance,
+                            self.bench.tools.snap_mode,
                             &self.view.hidden,
                         )
                     } else {
@@ -553,18 +541,17 @@ impl eframe::App for Desktop {
             };
             if response.clicked() {
                 response.request_focus();
-                if self.editor.active {
+                if self.bench.editor.active {
                     if let Some((point, _)) = cursor {
-                        self.editor.accept_point(point);
+                        self.bench.editor.accept_point(point);
                     }
                 } else {
                     let id = hover.and_then(|ray| self.scene.pick(ray, &self.view));
-                    let extend = self.extend_selection
+                    let extend = self.bench.extend_selection
                         || ctx.input(|i| i.modifiers.shift || i.modifiers.command);
-                    select(&mut self.editor.selected, id, extend);
-                    self.view.selected_ids = self.editor.selected.clone();
-                    self.view.selected = self.editor.selected.first().copied();
-                    eprintln!("PICK: {:?}", self.view.selected);
+                    select(&mut self.bench.editor.selected, id, extend);
+                    self.view.selected_ids = self.bench.editor.selected.clone();
+                    self.view.selected = self.bench.editor.selected.first().copied();
                 }
             }
             ui.painter().add(egui_wgpu::Callback::new_paint_callback(
@@ -590,7 +577,7 @@ impl eframe::App for Desktop {
                         )
                     })
             };
-            for axis in self.editor.document.project().axes.values() {
+            for axis in self.bench.editor.document.project().axes.values() {
                 if self.view.hidden.contains(&axis.id) {
                     continue;
                 }
@@ -608,8 +595,8 @@ impl eframe::App for Desktop {
                     );
                 }
             }
-            if self.editor.active {
-                for points in self.editor.picked.windows(2) {
+            if self.bench.editor.active {
+                for points in self.bench.editor.picked.windows(2) {
                     if let (Some(a), Some(b)) = (screen(points[0]), screen(points[1])) {
                         ui.painter()
                             .line_segment([a, b], egui::Stroke::new(2.0, egui::Color32::YELLOW));
@@ -622,7 +609,9 @@ impl eframe::App for Desktop {
                             5.0,
                             egui::Stroke::new(2.0, egui::Color32::YELLOW),
                         );
-                        if let Some(previous) = self.editor.picked.last().and_then(|p| screen(*p)) {
+                        if let Some(previous) =
+                            self.bench.editor.picked.last().and_then(|p| screen(*p))
+                        {
                             ui.painter().line_segment(
                                 [previous, position],
                                 egui::Stroke::new(1.0, egui::Color32::YELLOW),
@@ -644,7 +633,9 @@ impl eframe::App for Desktop {
                     );
                 }
             }
-            if self.scene.instances.is_empty() && self.editor.document.project().axes.is_empty() {
+            if self.scene.instances.is_empty()
+                && self.bench.editor.document.project().axes.is_empty()
+            {
                 ui.painter().text(
                     rect.center(),
                     egui::Align2::CENTER_CENTER,
@@ -669,11 +660,12 @@ impl eframe::App for Desktop {
 }
 fn main() -> eframe::Result {
     let options = Options::parse().map_err(|e| eframe::Error::AppCreation(e.into()))?;
+    let size = options.size.unwrap_or([1280.0, 800.0]);
     eframe::run_native(
         "Open BIM",
         eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default()
-                .with_inner_size([1280.0, 800.0])
+                .with_inner_size(size)
                 .with_min_inner_size([1000.0, 600.0]),
             renderer: eframe::Renderer::Wgpu,
             ..Default::default()

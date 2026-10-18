@@ -1,0 +1,11 @@
+[{"wait":20},
+{"note":"⌘N — новый проект"},{"key":{"name":"N","command":true}},{"wait":5},
+{"note":"⌥B — инструмент балка, ⌘↩ — создать по полям"},{"key":{"name":"B","alt":true}},{"wait":5},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard/step-1.png"},
+{"key":{"name":"Enter","command":true}},{"wait":10},
+{"note":"⌘L — свойство выбранной балки"},{"key":{"name":"L","command":true}},{"wait":3},
+{"key":{"name":"A","command":true}},{"text":"Марка"},{"key":{"name":"Tab"}},{"key":{"name":"A","command":true}},{"text":"Б-1"},{"wait":2},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard/step-2.png"},
+{"key":{"name":"Enter"}},{"wait":10},
+{"note":"⌘P — поиск команд «чертёж детали»"},{"key":{"name":"P","command":true}},{"wait":3},{"text":"чертёж дет"},{"wait":3},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard/step-3.png"},{"key":{"name":"Enter"}},{"wait":15},
+{"note":"⇧⌘P — экспорт PDF, ⌘E — экспорт IFC, ⌘S — сохранить"},{"key":{"name":"P","command":true,"shift":true}},{"wait":5},
+{"key":{"name":"E","command":true}},{"wait":5},{"key":{"name":"S","command":true}},{"wait":5},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard/step-4.png"},
+{"note":"F1 — справка по клавишам"},{"key":{"name":"F1"}},{"wait":5},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard/step-5.png"},"quit"]

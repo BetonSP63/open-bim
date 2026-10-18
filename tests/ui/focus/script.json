@@ -1,0 +1,1 @@
+[{"wait":20},{"key":{"name":"Tab"}},{"key":{"name":"Tab"}},{"key":{"name":"Tab"}},{"wait":5},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/focus/focus-tab3.png"},{"key":{"name":"Tab"}},{"wait":5},{"capture":"/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/focus/focus-tab4.png"},"quit"]

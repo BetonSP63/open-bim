@@ -26,6 +26,8 @@ pub enum Step {
         command: bool,
         #[serde(default)]
         shift: bool,
+        #[serde(default)]
+        alt: bool,
     },
     Text(String),
     Capture(String),
@@ -191,14 +193,15 @@ impl Runner {
                 name,
                 command,
                 shift,
+                alt,
             } => {
                 let key = egui::Key::from_name(name)?;
                 let modifiers = egui::Modifiers {
+                    alt: *alt,
                     shift: *shift,
                     command: *command,
                     mac_cmd: *command && cfg!(target_os = "macos"),
                     ctrl: *command && !cfg!(target_os = "macos"),
-                    ..Default::default()
                 };
                 if self.phase == 0 {
                     input.events.push(egui::Event::ModifiersChanged(modifiers));

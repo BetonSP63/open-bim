@@ -26,3 +26,7 @@ open-bim-drawings.workspace = true
 open-bim-drawing-export.workspace = true
 open-bim-reports.workspace = true
 open-bim-ifc.workspace = true
+
+[dev-dependencies]
+skrifa = "=0.44.0"
+epaint_default_fonts = "=0.36.2"

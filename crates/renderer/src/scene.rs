@@ -133,6 +133,9 @@ pub struct ViewState {
 #[derive(Clone, Debug)]
 pub struct Scene {
     pub meshes: Vec<Arc<DisplayMesh>>,
+    /// Coarser display meshes for curved sections: full mesh index →
+    /// (feature diameter mm, [32-segment, 12-segment] mesh indices).
+    pub lods: BTreeMap<usize, (f64, [usize; 2])>,
     pub instances: Vec<Instance>,
     pub bounds: Bounds,
     pub origin: DVec3,
@@ -144,7 +147,13 @@ impl Scene {
         let mut meshes = Vec::new();
         let mut instances = Vec::new();
         let mut cache = BTreeMap::new();
+        let mut lods = BTreeMap::new();
         let mut total = Bounds::empty();
+        let featured: std::collections::BTreeSet<ObjectId> = project
+            .details
+            .values()
+            .filter_map(|d| d.kind.part())
+            .collect();
         for element in project.elements.values() {
             let (mut mesh_index, color) = match &element.shape {
                 ElementShape::Member {
@@ -157,10 +166,27 @@ impl Scene {
                     let index = if let Some(index) = cache.get(&key) {
                         *index
                     } else {
-                        let mesh = section_mesh(&project.profiles[profile].shape, length.value())?;
+                        let shape = &project.profiles[profile].shape;
+                        let mesh = section_mesh(shape, length.value())?;
                         let index = meshes.len();
                         meshes.push(Arc::new(mesh));
                         cache.insert(key, index);
+                        if let ProfileShape::CircularHollow {
+                            diameter,
+                            thickness,
+                        } = *shape
+                        {
+                            let coarse = [32, 12].map(|n| {
+                                meshes.push(Arc::new(tube_mesh(
+                                    diameter,
+                                    thickness,
+                                    length.value(),
+                                    n,
+                                )));
+                                meshes.len() - 1
+                            });
+                            lods.insert(index, (diameter, coarse));
+                        }
                         index
                     };
                     let color = match member_kind {
@@ -177,11 +203,7 @@ impl Scene {
                     (index, [0.86, 0.61, 0.26, 1.0])
                 }
             };
-            if project
-                .details
-                .values()
-                .any(|d| d.kind.part() == Some(element.id))
-            {
+            if featured.contains(&element.id) {
                 let body = project
                     .element_body(element.id)
                     .map_err(|e| RenderError(e.to_string()))?;
@@ -225,6 +247,7 @@ impl Scene {
         let bvh = Bvh::build(&instances, (0..instances.len()).collect());
         Ok(Self {
             meshes,
+            lods,
             instances,
             bounds: total,
             origin,
@@ -402,24 +425,7 @@ fn section_mesh(shape: &ProfileShape, length: f64) -> Result<DisplayMesh, Render
         ProfileShape::CircularHollow {
             diameter,
             thickness,
-        } => {
-            let outer: Vec<_> = (0..128)
-                .map(|i| {
-                    let angle = i as f64 * std::f64::consts::TAU / 128.0;
-                    [angle.cos() * diameter / 2.0, angle.sin() * diameter / 2.0]
-                })
-                .collect();
-            let inner: Vec<_> = (0..128)
-                .map(|i| {
-                    let angle = i as f64 * std::f64::consts::TAU / 128.0;
-                    [
-                        angle.cos() * (diameter / 2.0 - thickness),
-                        angle.sin() * (diameter / 2.0 - thickness),
-                    ]
-                })
-                .collect();
-            Ok(ring_mesh(&outer, &inner, length))
-        }
+        } => Ok(tube_mesh(diameter, thickness, length, 128)),
         ProfileShape::RectangularHollow {
             height: h,
             width: w,
@@ -439,6 +445,41 @@ fn section_mesh(shape: &ProfileShape, length: f64) -> Result<DisplayMesh, Render
             ],
             length,
         )),
+    }
+}
+
+fn tube_mesh(diameter: f64, thickness: f64, length: f64, segments: usize) -> DisplayMesh {
+    let circle = |r: f64| -> Vec<[f64; 2]> {
+        (0..segments)
+            .map(|i| {
+                let angle = i as f64 * std::f64::consts::TAU / segments as f64;
+                [angle.cos() * r, angle.sin() * r]
+            })
+            .collect()
+    };
+    ring_mesh(
+        &circle(diameter / 2.0),
+        &circle(diameter / 2.0 - thickness),
+        length,
+    )
+}
+
+impl Scene {
+    /// Display mesh for an instance: curved sections switch to 32 or 12
+    /// segments when their diameter covers fewer than 48 or 10 pixels.
+    pub fn lod_mesh(&self, instance: &Instance, pixels_per_mm_at: impl Fn(DVec3) -> f64) -> usize {
+        let Some((diameter, coarse)) = self.lods.get(&instance.mesh) else {
+            return instance.mesh;
+        };
+        let centre = (instance.bounds.min + instance.bounds.max) * 0.5;
+        let pixels = diameter * pixels_per_mm_at(centre);
+        if pixels < 10.0 {
+            coarse[1]
+        } else if pixels < 48.0 {
+            coarse[0]
+        } else {
+            instance.mesh
+        }
     }
 }
 

@@ -1,0 +1,26 @@
+{
+  "dxf": {
+    "accepted": 84,
+    "inputs": 1200,
+    "panics": 0,
+    "rejected": 1116
+  },
+  "ifc": {
+    "accepted": 61,
+    "inputs": 1200,
+    "panics": 0,
+    "rejected": 1139
+  },
+  "project": {
+    "accepted": 1,
+    "inputs": 1200,
+    "panics": 0,
+    "rejected": 1199
+  },
+  "project_v0_validation": {
+    "accepted": 8,
+    "inputs": 1200,
+    "panics": 0,
+    "rejected": 1192
+  }
+}

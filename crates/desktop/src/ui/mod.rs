@@ -1,0 +1,644 @@
+//! Application shell shared by the native app and headless UI tests: menus,
+//! panels, command registry, palette, help and background jobs. The 3D
+//! viewport (GPU) is drawn by the binary inside the central panel.
+pub mod commands;
+pub mod jobs;
+pub mod palette;
+pub mod theme;
+
+use crate::drawing_editor::{DrawingEditor, ExportFormat};
+use crate::reports_ui::ReportsUi;
+use crate::tools::{
+    Editor, ToolKind,
+    ui::{Action, ToolsUi, select},
+};
+use commands::{Cmd, caption};
+use eframe::egui;
+use jobs::{Job, Poll};
+use open_bim_model::{ObjectId, Project, SheetSize};
+use open_bim_renderer::{NamedView, Scene};
+use std::collections::BTreeSet;
+use std::path::PathBuf;
+use std::sync::Arc;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Mode {
+    Model,
+    Drawings,
+    Reports,
+}
+
+/// Work the binary performs (scene, camera, GPU-side state).
+pub enum Request {
+    Action(Action),
+    Fit,
+    View(NamedView),
+    /// A project finished loading in the background.
+    Loaded(Arc<Scene>),
+}
+
+pub enum ActiveJob {
+    Open(Job<(Project, Arc<Scene>)>, PathBuf),
+    Check(Job<(open_bim_numbering::Numbering, open_bim_coordination::Report)>),
+    Release(Job<open_bim_reports::release::ReleaseSummary>),
+}
+
+impl ActiveJob {
+    fn job_label(&self) -> (&str, &jobs::Progress, std::time::Instant) {
+        match self {
+            Self::Open(j, _) => (&j.label, &j.progress, j.started),
+            Self::Check(j) => (&j.label, &j.progress, j.started),
+            Self::Release(j) => (&j.label, &j.progress, j.started),
+        }
+    }
+    fn cancel(&self) {
+        match self {
+            Self::Open(j, _) => j.cancel(),
+            Self::Check(j) => j.cancel(),
+            Self::Release(j) => j.cancel(),
+        }
+    }
+}
+
+/// Cached model tree labels shared with the virtualised list.
+type TreeRows = Arc<Vec<(ObjectId, String)>>;
+
+pub struct Workbench {
+    pub mode: Mode,
+    pub editor: Editor,
+    pub tools: ToolsUi,
+    pub drawings: DrawingEditor,
+    pub reports: ReportsUi,
+    pub extend_selection: bool,
+    pub section_enabled: bool,
+    pub section_height: f64,
+    pub hidden: BTreeSet<ObjectId>,
+    pub palette: palette::Palette,
+    pub help: bool,
+    pub job: Option<ActiveJob>,
+    /// Scene object count and renderer label for the status bar.
+    pub objects: usize,
+    pub gpu: String,
+    /// Delay added to background project loading (verification of cancel).
+    pub load_delay_ms: u64,
+    /// Model tree rows keyed by (journal length, revision).
+    tree: ((usize, u64), TreeRows),
+}
+
+impl Workbench {
+    pub fn new(editor: Editor) -> Self {
+        Self {
+            mode: Mode::Model,
+            editor,
+            tools: ToolsUi::default(),
+            drawings: DrawingEditor::new(),
+            reports: ReportsUi::default(),
+            extend_selection: false,
+            section_enabled: false,
+            section_height: 1500.,
+            hidden: BTreeSet::new(),
+            palette: Default::default(),
+            help: false,
+            job: None,
+            objects: 0,
+            gpu: String::new(),
+            load_delay_ms: 0,
+            tree: ((usize::MAX, 0), Arc::new(Vec::new())),
+        }
+    }
+
+    fn message(&mut self, text: impl Into<String>) {
+        self.tools.message = Some(text.into());
+    }
+
+    pub fn busy(&self) -> bool {
+        self.job.is_some()
+    }
+
+    /// Start loading a project on a worker thread (scene meshes included).
+    pub fn start_open(&mut self, path: PathBuf) {
+        let delay = self.load_delay_ms;
+        let target = path.clone();
+        let job = Job::spawn(
+            format!("Открытие {}", path.display()),
+            move |progress| {
+                progress.set(0, 2);
+                for _ in 0..delay / 50 {
+                    if progress.cancelled() {
+                        return Err("Отменено".into());
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(50));
+                }
+                let project = open_bim_persistence::load(&target).map_err(|e| e.to_string())?;
+                progress.set(1, 2);
+                if progress.cancelled() {
+                    return Err("Отменено".into());
+                }
+                let scene = Scene::from_project(&project).map_err(|e| e.to_string())?;
+                progress.set(2, 2);
+                Ok((project, Arc::new(scene)))
+            },
+        );
+        self.job = Some(ActiveJob::Open(job, path));
+    }
+
+    pub fn start_check(&mut self) {
+        let project = self.editor.document.project().clone();
+        self.job = Some(ActiveJob::Check(Job::spawn(
+            "Нумерация и проверка коллизий",
+            move |_| crate::tools::coordination_ui::CoordinationUi::compute(&project),
+        )));
+    }
+
+    pub fn start_release(&mut self) {
+        let commands =
+            match open_bim_reports::release::drawing_commands(self.editor.document.project()) {
+                Ok(c) => c,
+                Err(e) => return self.message(e),
+            };
+        if !commands.is_empty()
+            && let Err(e) = self.editor.commit_data("Комплект чертежей", &commands)
+        {
+            return self.message(e);
+        }
+        let project = self.editor.document.project().clone();
+        let directory = PathBuf::from(&self.reports.directory);
+        self.job = Some(ActiveJob::Release(Job::spawn(
+            "Выпуск комплекта",
+            move |progress| {
+                open_bim_reports::release::export_with(&project, &directory, &|done, total| {
+                    progress.set(done, total);
+                    !progress.cancelled()
+                })
+            },
+        )));
+    }
+
+    pub fn cancel_job(&mut self) {
+        if let Some(job) = self.job.take() {
+            job.cancel();
+            let label = job.job_label().0.to_string();
+            self.editor.record(&format!("Отмена: {label}"));
+            self.message(format!("Операция отменена: {label}. Модель не изменена."));
+        } else {
+            self.message("Нет выполняемой операции");
+        }
+    }
+
+    /// Finish a completed job; returns a request for the binary if needed.
+    pub fn poll_job(&mut self) -> Option<Request> {
+        let job = self.job.as_ref()?;
+        let finished = match job {
+            ActiveJob::Open(j, _) => !matches!(j.poll(), Poll::Running),
+            ActiveJob::Check(j) => !matches!(j.poll(), Poll::Running),
+            ActiveJob::Release(j) => !matches!(j.poll(), Poll::Running),
+        };
+        if !finished {
+            return None;
+        }
+        match self.job.take()? {
+            ActiveJob::Open(j, path) => match j.wait() {
+                Ok((project, scene)) => {
+                    if let Err(e) = self
+                        .editor
+                        .adopt(project, &format!("Открыть {}", path.display()))
+                    {
+                        self.message(format!("Ошибка файла: {e}"));
+                        return None;
+                    }
+                    self.drawings = DrawingEditor::new();
+                    self.reports.reports = None;
+                    self.hidden.clear();
+                    self.message(format!("Открыт {}", path.display()));
+                    return Some(Request::Loaded(scene));
+                }
+                Err(e) => {
+                    self.editor
+                        .record(&format!("Ошибка файла {}: {e}", path.display()));
+                    self.message(format!("Ошибка файла: {e}. Текущая модель не изменена."));
+                }
+            },
+            ActiveJob::Check(j) => match j.wait() {
+                Ok((numbering, report)) => {
+                    self.tools.coordination.accept(numbering, report);
+                    self.editor.record("Нумерация и проверка коллизий");
+                }
+                Err(e) => self.tools.coordination.message = Some(e),
+            },
+            ActiveJob::Release(j) => match j.wait() {
+                Ok(summary) => {
+                    self.editor.record(&format!(
+                        "Выпуск комплекта: {} чертежей, {} файлов",
+                        summary.drawings.len(),
+                        summary.files.len()
+                    ));
+                    self.reports.message = Some(format!(
+                        "Выпущено чертежей: {}, файлов: {}",
+                        summary.drawings.len(),
+                        summary.files.len()
+                    ));
+                    let _ = self.reports.refresh(&mut self.editor);
+                }
+                Err(e) => self.reports.message = Some(e),
+            },
+        }
+        None
+    }
+
+    /// Run a command; model-changing commands are refused while a job runs.
+    pub fn execute(&mut self, cmd: Cmd) -> Option<Request> {
+        let neutral = matches!(
+            cmd,
+            Cmd::CancelJob
+                | Cmd::Palette
+                | Cmd::Help
+                | Cmd::ModeModel
+                | Cmd::ModeDrawings
+                | Cmd::ModeReports
+        );
+        if self.busy() && !neutral && cmd != Cmd::CancelTool {
+            self.message("Дождитесь завершения или отмените операцию (Esc)");
+            return None;
+        }
+        let tool = |kind| (Mode::Model, kind);
+        let report = |r: Result<(), String>, this: &mut Self| {
+            if let Err(e) = r {
+                this.message(e);
+            }
+        };
+        match cmd {
+            Cmd::NewProject => return Some(Request::Action(Action::New)),
+            Cmd::OpenProject => self.start_open(PathBuf::from(&self.tools.path)),
+            Cmd::SaveProject => return Some(Request::Action(Action::Save)),
+            Cmd::ExampleFrame => return Some(Request::Action(Action::Example)),
+            Cmd::Undo => return Some(Request::Action(Action::Undo)),
+            Cmd::Redo => return Some(Request::Action(Action::Redo)),
+            Cmd::ExportIfc => return Some(Request::Action(Action::ExportIfc)),
+            Cmd::ImportIfc => return Some(Request::Action(Action::ImportIfc)),
+            Cmd::ModeModel => self.mode = Mode::Model,
+            Cmd::ModeDrawings => self.mode = Mode::Drawings,
+            Cmd::ModeReports => self.mode = Mode::Reports,
+            Cmd::Palette => self.palette.toggle(),
+            Cmd::Help => self.help = !self.help,
+            Cmd::Fit => return Some(Request::Fit),
+            Cmd::ViewIso => return Some(Request::View(NamedView::Isometric)),
+            Cmd::ViewFront => return Some(Request::View(NamedView::Front)),
+            Cmd::ViewTop => return Some(Request::View(NamedView::Top)),
+            Cmd::ViewRight => return Some(Request::View(NamedView::Right)),
+            Cmd::ToolAxis
+            | Cmd::ToolBeam
+            | Cmd::ToolColumn
+            | Cmd::ToolPlate
+            | Cmd::ToolGusset
+            | Cmd::ToolStiffener => {
+                let (mode, kind) = tool(match cmd {
+                    Cmd::ToolAxis => ToolKind::Axis,
+                    Cmd::ToolBeam => ToolKind::Beam,
+                    Cmd::ToolColumn => ToolKind::Column,
+                    Cmd::ToolPlate => ToolKind::Plate,
+                    Cmd::ToolGusset => ToolKind::Gusset,
+                    _ => ToolKind::Stiffener,
+                });
+                self.mode = mode;
+                self.editor.begin(kind);
+                self.message(format!(
+                    "Инструмент: {} — поля справа, ⌘↩ создать",
+                    kind.label()
+                ));
+            }
+            Cmd::CreateElement => return Some(Request::Action(Action::Create)),
+            Cmd::CancelTool => {
+                if self.busy() {
+                    self.cancel_job();
+                } else if self.palette.open {
+                    self.palette.open = false;
+                } else {
+                    self.editor.cancel();
+                    self.message("Инструмент отменён");
+                }
+            }
+            Cmd::EditProperty => {
+                self.mode = Mode::Model;
+                self.tools.focus_property = true;
+            }
+            Cmd::ApplyProperty => match self.tools.property_action() {
+                Ok(action) => return Some(Request::Action(action)),
+                Err(e) => self.message(e),
+            },
+            Cmd::NumberAndCheck => {
+                self.mode = Mode::Model;
+                self.start_check();
+            }
+            Cmd::PartDrawing => {
+                self.mode = Mode::Drawings;
+                let r = self.drawings.create_part(&mut self.editor);
+                report(r, self);
+            }
+            Cmd::AssemblyDrawing => {
+                self.mode = Mode::Drawings;
+                let r = self.drawings.create_assembly(&mut self.editor);
+                report(r, self);
+            }
+            Cmd::GeneralDrawing => {
+                self.mode = Mode::Drawings;
+                let r = self
+                    .drawings
+                    .create_general(&mut self.editor, SheetSize::A1);
+                report(r, self);
+            }
+            Cmd::UpdateDrawing => {
+                let r = self.drawings.update(&mut self.editor);
+                report(r, self);
+            }
+            Cmd::ExportPdf | Cmd::ExportDxf => {
+                let format = if cmd == Cmd::ExportPdf {
+                    ExportFormat::Pdf
+                } else {
+                    ExportFormat::Dxf
+                };
+                let dir = PathBuf::from(&self.drawings.export_dir);
+                match self
+                    .drawings
+                    .export(self.editor.document.project(), format, &dir)
+                {
+                    Ok(path) => {
+                        self.editor.record(&format!("Экспорт {}", path.display()));
+                        self.message(format!("Сохранено: {}", path.display()));
+                    }
+                    Err(e) => self.message(e),
+                }
+            }
+            Cmd::RefreshReports => {
+                self.mode = Mode::Reports;
+                let r = self.reports.refresh(&mut self.editor);
+                report(r, self);
+            }
+            Cmd::AutoAssemblies => {
+                self.mode = Mode::Reports;
+                let r = self.reports.auto_assemblies(&mut self.editor).map(|_| ());
+                report(r, self);
+            }
+            Cmd::ExportCsv => {
+                let r = self.reports.export_csv(&mut self.editor).map(|_| ());
+                report(r, self);
+            }
+            Cmd::ReleaseSet => {
+                self.mode = Mode::Reports;
+                self.start_release();
+            }
+            Cmd::CancelJob => self.cancel_job(),
+        }
+        None
+    }
+
+    fn command_button(&mut self, ui: &mut egui::Ui, cmd: Cmd, requests: &mut Vec<Request>) {
+        let enabled = match cmd {
+            Cmd::Undo => self.editor.document.history_depth().0 > 0,
+            Cmd::Redo => self.editor.document.history_depth().1 > 0,
+            _ => true,
+        } && !self.busy();
+        if ui
+            .add_enabled(enabled, egui::Button::new(caption(cmd)))
+            .on_hover_text(commands::spec(cmd).category)
+            .clicked()
+            && let Some(r) = self.execute(cmd)
+        {
+            requests.push(r);
+        }
+    }
+
+    /// Top, bottom and side panels plus overlays. Call before the central panel.
+    pub fn panels(&mut self, ui: &mut egui::Ui) -> Vec<Request> {
+        let ctx = ui.ctx().clone();
+        let mut requests = Vec::new();
+        for cmd in commands::pressed(&ctx) {
+            if let Some(r) = self.execute(cmd) {
+                requests.push(r);
+            }
+        }
+        if let Some(cmd) = self.palette.show(&ctx)
+            && let Some(r) = self.execute(cmd)
+        {
+            requests.push(r);
+        }
+        palette::help(&ctx, &mut self.help);
+        if let Some(r) = self.poll_job() {
+            requests.push(r);
+        }
+        if self.tools.coordination.requested {
+            self.tools.coordination.requested = false;
+            if let Some(r) = self.execute(Cmd::NumberAndCheck) {
+                requests.push(r);
+            }
+        }
+        self.job_window(&ctx, &mut requests);
+        egui::Panel::top("tools").show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                ui.strong("Open BIM");
+                ui.separator();
+                for (mode, cmd) in [
+                    (Mode::Model, Cmd::ModeModel),
+                    (Mode::Drawings, Cmd::ModeDrawings),
+                    (Mode::Reports, Cmd::ModeReports),
+                ] {
+                    let label = format!(
+                        "{} · {}",
+                        match mode {
+                            Mode::Model => "3D модель",
+                            Mode::Drawings => "Чертежи",
+                            Mode::Reports => "Ведомости",
+                        },
+                        commands::shortcut_text(cmd)
+                    );
+                    if ui.selectable_label(self.mode == mode, label).clicked() {
+                        self.mode = mode;
+                    }
+                }
+                ui.separator();
+                for cmd in [Cmd::NewProject, Cmd::ExampleFrame, Cmd::Palette, Cmd::Help] {
+                    self.command_button(ui, cmd, &mut requests);
+                }
+                if self.mode == Mode::Model {
+                    ui.separator();
+                    for cmd in [
+                        Cmd::Fit,
+                        Cmd::ViewIso,
+                        Cmd::ViewFront,
+                        Cmd::ViewTop,
+                        Cmd::ViewRight,
+                    ] {
+                        self.command_button(ui, cmd, &mut requests);
+                    }
+                }
+            });
+        });
+        egui::Panel::top("history").show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                self.command_button(ui, Cmd::Undo, &mut requests);
+                self.command_button(ui, Cmd::Redo, &mut requests);
+                ui.checkbox(&mut self.extend_selection, "Групповой выбор");
+                ui.label("Shift/⌘ + выбор — добавить объект");
+            });
+        });
+        egui::Panel::bottom("status").show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                ui.label(format!(
+                    "{} · {} объектов · мм · ревизия {}",
+                    self.editor.document.project().name,
+                    self.objects,
+                    self.editor.document.project().revision
+                ));
+                ui.separator();
+                ui.label(&self.gpu);
+                if let Some(m) = &self.tools.message {
+                    ui.separator();
+                    ui.label(m);
+                }
+            });
+        });
+        egui::Panel::right("model tools")
+            .default_size(340.0)
+            .min_size(300.)
+            .show(ui, |ui| {
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.add_enabled_ui(!self.busy(), |ui| match self.mode {
+                        Mode::Drawings => self.drawings.show(ui, &mut self.editor),
+                        Mode::Reports => {
+                            if let Some(cmd) = self.reports.show_panel(ui, &mut self.editor)
+                                && let Some(r) = self.execute(cmd)
+                            {
+                                requests.push(r);
+                            }
+                        }
+                        Mode::Model => {
+                            if let Some(a) = self.tools.show(ui, &mut self.editor) {
+                                match a {
+                                    Action::Open => {
+                                        self.start_open(PathBuf::from(&self.tools.path))
+                                    }
+                                    other => requests.push(Request::Action(other)),
+                                }
+                            }
+                        }
+                    });
+                });
+            });
+        if self.mode != Mode::Model {
+            // Sheets and tables use the full width; the tree is a model tool.
+            return requests;
+        }
+        egui::Panel::left("model").default_size(240.0).min_size(200.).show(ui, |ui| {
+            ui.heading("Модель");
+            ui.label("Стальные конструкции");
+            ui.separator();
+            let project = self.editor.document.project();
+            if project.elements.is_empty() && project.axes.is_empty() {
+                ui.label("Модель пуста: Alt+B — балка, ⌘O — открыть, ⌘P — все команды");
+            }
+            let key = (self.editor.events.len(), project.revision);
+            if self.tree.0 != key {
+                let rows: Vec<(ObjectId, String)> = project
+                    .elements
+                    .values()
+                    .map(|e| (e.id, format!("{} · #{}", e.name, e.id.0)))
+                    .chain(project.axes.values().map(|a| (a.id, format!("{} · #{}", a.name, a.id.0))))
+                    .collect();
+                self.tree = (key, Arc::new(rows));
+            }
+            let rows = self.tree.1.clone();
+            let available = (ui.available_height() - 230.).max(120.);
+            let row_height = ui.spacing().interact_size.y + ui.spacing().item_spacing.y;
+            // Only visible rows are laid out, so 100 000 objects cost a few dozen widgets.
+            egui::ScrollArea::vertical()
+                .max_height(available)
+                .auto_shrink([false, true])
+                .show_rows(ui, row_height, rows.len(), |ui, range| {
+                    for (id, label) in &rows[range] {
+                        let id = *id;
+                        ui.push_id(id.0, |ui| {
+                            ui.horizontal(|ui| {
+                                let mut visible = !self.hidden.contains(&id);
+                                let toggle = ui.add(egui::Checkbox::without_text(&mut visible)).on_hover_text("Видимость");
+                                toggle.widget_info(|| {
+                                    egui::WidgetInfo::selected(egui::WidgetType::Checkbox, true, visible, format!("Видимость: {label}"))
+                                });
+                                if toggle.changed() {
+                                    if visible {
+                                        self.hidden.remove(&id);
+                                    } else {
+                                        self.hidden.insert(id);
+                                    }
+                                }
+                                let row = ui.add(egui::Button::selectable(self.editor.selected.contains(&id), label.as_str()));
+                                if row.clicked() {
+                                    let extend = self.extend_selection || ui.input(|i| i.modifiers.shift || i.modifiers.command);
+                                    select(&mut self.editor.selected, Some(id), extend);
+                                }
+                            });
+                        });
+                    }
+                });
+            ui.separator();
+            ui.checkbox(&mut self.section_enabled, "Сечение Z ≥ высота");
+            ui.add_enabled(
+                self.section_enabled,
+                egui::Slider::new(&mut self.section_height, 0.0..=5000.0)
+                    .suffix(" мм")
+                    .text("Высота сечения"),
+            );
+            ui.separator();
+            ui.label("ЛКМ — выбор / точка инструмента\nПКМ — вращение\nСКМ / Shift+ПКМ — панорама\nКолесо / + − — масштаб\n⌘P — поиск команд, F1 — клавиши");
+        });
+        requests
+    }
+
+    fn job_window(&mut self, ctx: &egui::Context, requests: &mut Vec<Request>) {
+        let Some(job) = &self.job else { return };
+        let (label, progress, started) = job.job_label();
+        let (label, fraction, counts, elapsed) = (
+            label.to_string(),
+            progress.fraction(),
+            progress.counts(),
+            started.elapsed(),
+        );
+        ctx.request_repaint_after(std::time::Duration::from_millis(100));
+        let mut cancel = false;
+        egui::Window::new("Выполняется операция")
+            .id(egui::Id::new("job window"))
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0., 0.))
+            .show(ctx, |ui| {
+                ui.label(&label);
+                let bar = match fraction {
+                    Some(f) => {
+                        egui::ProgressBar::new(f).text(format!("{} из {}", counts.0, counts.1))
+                    }
+                    None => egui::ProgressBar::new(0.).animate(true),
+                };
+                ui.add(bar.desired_width(360.));
+                ui.label(format!("Прошло {:.1} с", elapsed.as_secs_f32()));
+                cancel = ui.button(caption(Cmd::CancelJob) + " · Esc").clicked();
+            });
+        if cancel {
+            let _ = requests;
+            self.cancel_job();
+        }
+    }
+
+    /// Central panel content outside the 3D model mode; returns false in
+    /// model mode so the binary draws the GPU viewport.
+    pub fn central(&mut self, ui: &mut egui::Ui) -> bool {
+        match self.mode {
+            Mode::Drawings => {
+                self.drawings.show_sheet(ui, &mut self.editor);
+                true
+            }
+            Mode::Reports => {
+                self.reports.show_table(ui);
+                true
+            }
+            Mode::Model => false,
+        }
+    }
+}

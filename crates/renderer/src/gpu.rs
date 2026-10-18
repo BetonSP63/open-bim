@@ -281,11 +281,23 @@ impl GpuRenderer {
         }
         let mut batches = vec![Vec::new(); scene.meshes.len()];
         self.counts = vec![0; scene.meshes.len()];
+        // Pixels per millimetre at a world point (perspective) or constant (ortho).
+        let eye = camera.eye();
+        let viewport = size[1].max(1) as f64;
+        let focal = viewport / (2.0 * (45_f64.to_radians() / 2.0).tan());
+        let pixels_per_mm = |p: crate::DVec3| {
+            if camera.orthographic {
+                viewport / camera.ortho_height.max(1e-9)
+            } else {
+                focal / (p - eye).length().max(1e-9)
+            }
+        };
         for instance in &scene.instances {
             if state.hidden.contains(&instance.id) {
                 continue;
             }
-            let batch = &mut batches[instance.mesh];
+            let mesh = scene.lod_mesh(instance, pixels_per_mm);
+            let batch = &mut batches[mesh];
             let frame = instance.frame;
             for axis in frame.axes {
                 batch.extend(axis.map(|v| v as f32));
@@ -305,7 +317,7 @@ impl GpuRenderer {
                     instance.color
                 },
             );
-            self.counts[instance.mesh] += 1;
+            self.counts[mesh] += 1;
         }
         self.instances = batches
             .into_iter()

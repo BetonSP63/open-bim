@@ -35,6 +35,8 @@ pub struct ToolsUi {
     pub snap_mode: SnapMode,
     pub snap_tolerance: f64,
     pub message: Option<String>,
+    /// Keyboard command ⌘L: focus the property name field on the next frame.
+    pub focus_property: bool,
 }
 impl Default for ToolsUi {
     fn default() -> Self {
@@ -57,6 +59,7 @@ impl Default for ToolsUi {
             snap_mode: SnapMode::All,
             snap_tolerance: 40.0,
             message: None,
+            focus_property: false,
         }
     }
 }
@@ -64,13 +67,31 @@ pub(super) fn vector_fields(ui: &mut egui::Ui, id: &str, values: &mut [String; 3
     ui.push_id(id, |ui| {
         ui.horizontal(|ui| {
             for (i, value) in values.iter_mut().enumerate() {
-                ui.label(["X", "Y", "Z"][i]);
-                ui.add(egui::TextEdit::singleline(value).desired_width(58.0));
+                let label = ui.label(["X", "Y", "Z"][i]);
+                let response = ui
+                    .add(egui::TextEdit::singleline(value).desired_width(58.0))
+                    .labelled_by(label.id);
+                response.widget_info(|| {
+                    egui::WidgetInfo::labeled(
+                        egui::WidgetType::TextEdit,
+                        true,
+                        format!("{id} {}", ["X", "Y", "Z"][i]),
+                    )
+                });
             }
         });
     });
 }
 impl ToolsUi {
+    pub fn property_action(&self) -> Result<Action, String> {
+        if self.key.trim().is_empty() {
+            return Err("Введите имя свойства".into());
+        }
+        Ok(Action::Edit(Edit::Property {
+            key: self.key.trim().into(),
+            value: PropertyValue::Text(self.value.clone()),
+        }))
+    }
     pub fn show(&mut self, ui: &mut egui::Ui, editor: &mut Editor) -> Option<Action> {
         let mut action = None;
         ui.heading("Моделирование");
@@ -94,16 +115,19 @@ impl ToolsUi {
         if editor.active {
             ui.separator();
             ui.strong(format!("Создать: {}", editor.draft.kind.label()));
-            ui.label("Имя");
-            ui.text_edit_singleline(&mut editor.draft.name);
+            let name_label = ui.label("Имя");
+            ui.text_edit_singleline(&mut editor.draft.name)
+                .labelled_by(name_label.id);
             ui.label("Начало / начало плиты, мм");
             vector_fields(ui, "start", &mut editor.draft.start);
             if editor.draft.kind.is_plate() {
-                ui.label("Контур XY: X,Y; X,Y; …");
-                ui.add(egui::TextEdit::multiline(&mut editor.draft.contour).desired_rows(3));
+                let contour_label = ui.label("Контур XY: X,Y; X,Y; …");
+                ui.add(egui::TextEdit::multiline(&mut editor.draft.contour).desired_rows(3))
+                    .labelled_by(contour_label.id);
                 ui.horizontal(|ui| {
-                    ui.label("Толщина, мм");
-                    ui.text_edit_singleline(&mut editor.draft.thickness);
+                    let t = ui.label("Толщина, мм");
+                    ui.text_edit_singleline(&mut editor.draft.thickness)
+                        .labelled_by(t.id);
                 });
             } else {
                 ui.label("Конец, мм");
@@ -111,7 +135,7 @@ impl ToolsUi {
             }
             if matches!(editor.draft.kind, ToolKind::Beam | ToolKind::Column) {
                 let project = editor.document.project();
-                egui::ComboBox::from_id_salt("profile")
+                egui::ComboBox::new("profile", "Профиль")
                     .selected_text(
                         project
                             .profiles
@@ -130,7 +154,7 @@ impl ToolsUi {
             }
             if editor.draft.kind != ToolKind::Axis {
                 let project = editor.document.project();
-                egui::ComboBox::from_id_salt("material")
+                egui::ComboBox::new("material", "Материал")
                     .selected_text(
                         project
                             .materials
@@ -148,7 +172,7 @@ impl ToolsUi {
                     });
             }
             ui.horizontal(|ui| {
-                if ui.button("Создать").clicked() {
+                if ui.button("Создать · ⌘↩").clicked() {
                     action = Some(Action::Create);
                 }
                 if ui.button("Отмена · Esc").clicked() {
@@ -159,7 +183,7 @@ impl ToolsUi {
         }
         ui.separator();
         ui.checkbox(&mut self.snap_enabled, "Привязки");
-        egui::ComboBox::from_id_salt("snap mode")
+        egui::ComboBox::new("snap mode", "Режим привязки")
             .selected_text(snap_label(self.snap_mode))
             .show_ui(ui, |ui| {
                 for mode in [
@@ -174,8 +198,9 @@ impl ToolsUi {
             });
         ui.add(egui::Slider::new(&mut self.snap_tolerance, 1.0..=200.0).text("Допуск, мм"));
         ui.horizontal(|ui| {
-            ui.label("Рабочая Z, мм");
-            ui.text_edit_singleline(&mut self.workplane);
+            let z = ui.label("Рабочая Z, мм");
+            ui.text_edit_singleline(&mut self.workplane)
+                .labelled_by(z.id);
         });
         ui.separator();
         ui.strong(format!("Выбрано: {}", editor.selected.len()));
@@ -208,8 +233,9 @@ impl ToolsUi {
             for (i, name) in ["X", "Y", "Z"].into_iter().enumerate() {
                 ui.selectable_value(&mut self.axis, i, name);
             }
-            ui.label("Угол, °");
-            ui.add(egui::TextEdit::singleline(&mut self.angle).desired_width(50.0));
+            let a = ui.label("Угол, °");
+            ui.add(egui::TextEdit::singleline(&mut self.angle).desired_width(50.0))
+                .labelled_by(a.id);
         });
         if ui
             .add_enabled(!editor.selected.is_empty(), egui::Button::new("Повернуть"))
@@ -229,8 +255,9 @@ impl ToolsUi {
             }
         }
         ui.horizontal(|ui| {
-            ui.label("Плоскость зеркала, мм");
-            ui.add(egui::TextEdit::singleline(&mut self.offset).desired_width(50.0));
+            let m = ui.label("Плоскость зеркала, мм");
+            ui.add(egui::TextEdit::singleline(&mut self.offset).desired_width(50.0))
+                .labelled_by(m.id);
         });
         if ui
             .add_enabled(!editor.selected.is_empty(), egui::Button::new("Зеркало"))
@@ -263,10 +290,12 @@ impl ToolsUi {
                             .join("; ");
                         self.plate_thickness = thickness.value().to_string();
                     }
-                    ui.label("Контур XY, мм");
-                    ui.text_edit_multiline(&mut self.plate_contour);
-                    ui.label("Толщина, мм");
-                    ui.text_edit_singleline(&mut self.plate_thickness);
+                    let c = ui.label("Контур XY, мм");
+                    ui.text_edit_multiline(&mut self.plate_contour)
+                        .labelled_by(c.id);
+                    let t = ui.label("Толщина, мм");
+                    ui.text_edit_singleline(&mut self.plate_thickness)
+                        .labelled_by(t.id);
                     if ui.button("Применить размеры").clicked() {
                         match parse_contour(&self.plate_contour).and_then(|contour| {
                             number(&self.plate_thickness)
@@ -298,24 +327,36 @@ impl ToolsUi {
             }
         }
         self.coordination.show(ui, editor);
-        ui.label("Свойство / текстовое значение");
-        ui.text_edit_singleline(&mut self.key);
-        ui.text_edit_singleline(&mut self.value);
+        ui.label("Свойство выбранных · ⌘L");
+        let key_label = ui.label("Имя свойства");
+        let key = ui
+            .add(egui::TextEdit::singleline(&mut self.key).id(egui::Id::new("property key")))
+            .labelled_by(key_label.id);
+        if std::mem::take(&mut self.focus_property) {
+            key.request_focus();
+        }
+        let value_label = ui.label("Значение (Enter — применить)");
+        let value = ui
+            .add(egui::TextEdit::singleline(&mut self.value).id(egui::Id::new("property value")))
+            .labelled_by(value_label.id);
+        let enter = value.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
         if ui
             .add_enabled(
                 !editor.selected.is_empty(),
                 egui::Button::new("Применить к выбранным"),
             )
             .clicked()
+            || (enter && !editor.selected.is_empty())
         {
-            action = Some(Action::Edit(Edit::Property {
-                key: self.key.clone(),
-                value: PropertyValue::Text(self.value.clone()),
-            }));
+            match self.property_action() {
+                Ok(a) => action = Some(a),
+                Err(e) => self.message = Some(e),
+            }
         }
         ui.separator();
-        ui.label("Файл проекта .obim");
-        ui.text_edit_singleline(&mut self.path);
+        let path_label = ui.label("Файл проекта .obim");
+        ui.text_edit_singleline(&mut self.path)
+            .labelled_by(path_label.id);
         ui.horizontal(|ui| {
             if ui.button("Сохранить").clicked() {
                 action = Some(Action::Save);

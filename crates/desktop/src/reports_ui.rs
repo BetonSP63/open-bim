@@ -1,6 +1,7 @@
 //! Steel release lists in the GUI: assemblies by shop welds, part/assembly/
 //! fastener lists regenerated from the model, CSV export and release set.
 use crate::tools::Editor;
+use crate::ui::commands::{Cmd, caption};
 use eframe::egui;
 use open_bim_reports::{Reports, csv, release};
 use std::path::PathBuf;
@@ -96,55 +97,40 @@ impl ReportsUi {
         Ok(summary.drawings.len())
     }
 
-    pub fn show_panel(&mut self, ui: &mut egui::Ui, editor: &mut Editor) {
+    /// Panel controls; actions are returned as commands so long ones run as jobs.
+    pub fn show_panel(&mut self, ui: &mut egui::Ui, editor: &mut Editor) -> Option<Cmd> {
         ui.heading("Ведомости");
-        let mut result: Option<Result<String, String>> = None;
-        if ui.button("Сборки по заводским швам").clicked() {
-            result = Some(
-                self.auto_assemblies(editor)
-                    .map(|n| format!("Создано сборок: {n}")),
-            );
-        }
-        if ui.button("Сформировать ведомости · ⌘R").clicked()
-            || ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::R))
-        {
-            result = Some(self.refresh(editor).map(|_| "Ведомости обновлены".into()));
+        let mut cmd = None;
+        for c in [Cmd::AutoAssemblies, Cmd::RefreshReports] {
+            if ui.button(caption(c)).clicked() {
+                cmd = Some(c);
+            }
         }
         if self.stale(editor) {
             ui.colored_label(
-                egui::Color32::from_rgb(255, 196, 0),
+                crate::ui::theme::WARNING,
                 "Ведомости устарели: модель изменена",
             );
         }
         ui.separator();
         ui.horizontal(|ui| {
-            ui.label("Папка");
-            ui.text_edit_singleline(&mut self.directory);
+            let label = ui.label("Папка выпуска");
+            ui.text_edit_singleline(&mut self.directory)
+                .labelled_by(label.id);
         });
-        if ui.button("Экспорт CSV").clicked() {
-            result = Some(
-                self.export_csv(editor)
-                    .map(|f| format!("Сохранено файлов: {}", f.len())),
-            );
-        }
-        if ui
-            .button("Выпустить комплект")
-            .on_hover_text("Чертежи всех позиций, общий вид, PDF и ведомости")
-            .clicked()
-        {
-            result = Some(
-                self.release(editor)
-                    .map(|n| format!("Выпущено чертежей: {n}")),
-            );
-        }
-        match result {
-            Some(Ok(m)) => self.message = Some(m),
-            Some(Err(e)) => self.message = Some(e),
-            None => {}
+        for c in [Cmd::ExportCsv, Cmd::ReleaseSet] {
+            if ui
+                .button(caption(c))
+                .on_hover_text("Чертежи всех позиций, общий вид, PDF и ведомости")
+                .clicked()
+            {
+                cmd = Some(c);
+            }
         }
         if let Some(m) = &self.message {
             ui.label(m);
         }
+        cmd
     }
 
     pub fn show_table(&mut self, ui: &mut egui::Ui) {

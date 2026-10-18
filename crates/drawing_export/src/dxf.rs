@@ -189,3 +189,130 @@ pub fn render(sheet: &Sheet) -> String {
     pair(&mut out, 0, "EOF");
     out
 }
+
+/// Summary of an ASCII DXF file read back (sheet underlays, round-trip checks).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct DxfSummary {
+    pub version: Option<String>,
+    pub insunits: Option<i64>,
+    pub layers: Vec<String>,
+    /// Entity type → count in the ENTITIES section.
+    pub entities: std::collections::BTreeMap<String, usize>,
+    pub texts: Vec<String>,
+}
+
+pub const MAX_DXF_BYTES: usize = 256 << 20;
+pub const MAX_DXF_PAIRS: usize = 20_000_000;
+pub const MAX_DXF_VALUE: usize = 4096;
+
+/// Decode \U+XXXX escapes used for non-ASCII text.
+fn unescape(text: &str) -> String {
+    let mut out = String::new();
+    let mut rest = text;
+    while let Some(i) = rest.find("\\U+") {
+        out.push_str(&rest[..i]);
+        let hex = rest.get(i + 3..i + 7).unwrap_or("");
+        match u32::from_str_radix(hex, 16).ok().and_then(char::from_u32) {
+            Some(c) if hex.len() == 4 => {
+                out.push(c);
+                rest = &rest[i + 7..];
+            }
+            _ => {
+                out.push_str("\\U+");
+                rest = &rest[i + 3..];
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Bounded reader of group-code/value pairs; malformed input is an error.
+pub fn read(text: &str) -> Result<DxfSummary, String> {
+    if text.len() > MAX_DXF_BYTES {
+        return Err("DXF: файл больше 256 МиБ".into());
+    }
+    let mut lines = text.lines();
+    let mut pairs = Vec::new();
+    while let Some(code) = lines.next() {
+        let code = code.trim();
+        if code.is_empty() && pairs.is_empty() {
+            continue;
+        }
+        let code: i32 = code.parse().map_err(|_| {
+            format!(
+                "DXF: неверный групповой код «{}»",
+                code.chars().take(20).collect::<String>()
+            )
+        })?;
+        if !(0..=1071).contains(&code) {
+            return Err(format!("DXF: групповой код {code} вне диапазона"));
+        }
+        let value = lines.next().ok_or("DXF: нет значения после кода")?;
+        if value.len() > MAX_DXF_VALUE {
+            return Err("DXF: слишком длинное значение".into());
+        }
+        pairs.push((code, value.trim_end_matches('\r')));
+        if pairs.len() > MAX_DXF_PAIRS {
+            return Err("DXF: слишком много пар".into());
+        }
+    }
+    let mut summary = DxfSummary::default();
+    let mut section = "";
+    let mut i = 0;
+    let mut current: Option<&str> = None;
+    let mut saw_eof = false;
+    while i < pairs.len() {
+        let (code, value) = pairs[i];
+        match (code, value) {
+            (0, "SECTION") => {
+                let (c, name) = *pairs.get(i + 1).ok_or("DXF: секция без имени")?;
+                if c != 2 {
+                    return Err("DXF: после SECTION ожидается код 2".into());
+                }
+                section = name;
+                i += 2;
+                continue;
+            }
+            (0, "ENDSEC") => section = "",
+            (0, "EOF") => {
+                saw_eof = true;
+                break;
+            }
+            (9, "$ACADVER") => {
+                summary.version = pairs.get(i + 1).map(|p| p.1.to_string());
+            }
+            (9, "$INSUNITS") => {
+                let v = pairs.get(i + 1).ok_or("DXF: нет значения $INSUNITS")?;
+                summary.insunits = Some(v.1.trim().parse().map_err(|_| "DXF: неверный $INSUNITS")?);
+            }
+            (0, kind) => {
+                current = Some(kind);
+                if section == "ENTITIES" {
+                    *summary.entities.entry(kind.to_string()).or_default() += 1;
+                }
+            }
+            (2, name) if section == "TABLES" && current == Some("LAYER") => {
+                summary.layers.push(name.to_string());
+            }
+            (1, text) if section == "ENTITIES" && current == Some("TEXT") => {
+                summary.texts.push(unescape(text));
+            }
+            (10..=39, number) => {
+                let v: f64 = number
+                    .trim()
+                    .parse()
+                    .map_err(|_| format!("DXF: неверная координата «{number}»"))?;
+                if !v.is_finite() {
+                    return Err("DXF: бесконечная координата".into());
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    if !saw_eof {
+        return Err("DXF: нет EOF".into());
+    }
+    Ok(summary)
+}

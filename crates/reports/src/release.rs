@@ -109,6 +109,50 @@ fn safe(name: &str) -> String {
 /// Export every drawing (PDF per sheet, one combined PDF) and the CSV lists.
 /// Drawings with lost bindings stop the release; outdated ones must be refreshed first.
 pub fn export(project: &Project, directory: &Path) -> Result<ReleaseSummary, Error> {
+    export_with(project, directory, &|_, _| true)
+}
+
+/// As `export`, reporting progress per drawing; `progress` returning false
+/// cancels. Files are written to a temporary sibling folder and moved into
+/// `directory` only on success, so a cancelled release leaves no partial set.
+pub fn export_with(
+    project: &Project,
+    directory: &Path,
+    progress: &dyn Fn(usize, usize) -> bool,
+) -> Result<ReleaseSummary, Error> {
+    let name = directory
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "release".into());
+    let staging = directory.with_file_name(format!(".{name}.partial"));
+    let _ = std::fs::remove_dir_all(&staging);
+    let result = write_set(project, &staging, progress);
+    match result {
+        Ok(summary) => {
+            std::fs::create_dir_all(directory).map_err(|e| e.to_string())?;
+            for file in summary
+                .files
+                .iter()
+                .chain(std::iter::once(&"release.json".to_string()))
+            {
+                std::fs::rename(staging.join(file), directory.join(file))
+                    .map_err(|e| e.to_string())?;
+            }
+            let _ = std::fs::remove_dir_all(&staging);
+            Ok(summary)
+        }
+        Err(error) => {
+            let _ = std::fs::remove_dir_all(&staging);
+            Err(error)
+        }
+    }
+}
+
+fn write_set(
+    project: &Project,
+    directory: &Path,
+    progress: &dyn Fn(usize, usize) -> bool,
+) -> Result<ReleaseSummary, Error> {
     std::fs::create_dir_all(directory).map_err(|e| e.to_string())?;
     let reports: Reports = crate::generate(project)?;
     let mut sheets = Vec::new();
@@ -126,7 +170,11 @@ pub fn export(project: &Project, directory: &Path) -> Result<ReleaseSummary, Err
     };
     let mut drawings: Vec<_> = project.drawings.values().collect();
     drawings.sort_by(|a, b| a.number.cmp(&b.number));
-    for drawing in drawings {
+    let total = drawings.len() + 1;
+    for (index, drawing) in drawings.into_iter().enumerate() {
+        if !progress(index, total) {
+            return Err("Выпуск отменён пользователем".into());
+        }
         let status = open_bim_drawings::status(project, drawing);
         if status != Status::UpToDate {
             return Err(format!(
@@ -147,6 +195,9 @@ pub fn export(project: &Project, directory: &Path) -> Result<ReleaseSummary, Err
             .drawings
             .push((drawing.number.clone(), drawing.title.clone()));
         sheets.push(sheet);
+    }
+    if !progress(total - 1, total) {
+        return Err("Выпуск отменён пользователем".into());
     }
     if !sheets.is_empty() {
         let pdf = open_bim_drawing_export::pdf::render(&sheets, &project.name)?;

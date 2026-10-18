@@ -17,3 +17,6 @@ open-bim-drawing-export.workspace = true
 open-bim-persistence.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+
+[dev-dependencies]
+open-bim-ifc.workspace = true

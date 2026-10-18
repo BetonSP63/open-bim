@@ -736,6 +736,15 @@ impl Editor {
             ),
         ))
     }
+    /// Take a project whose scene was already built elsewhere (background open).
+    pub fn adopt(&mut self, project: Project, label: &str) -> Result<(), String> {
+        self.document = Document::new(project).map_err(|e| e.to_string())?;
+        self.selected.clear();
+        self.cancel();
+        self.snap = SnapIndex::new(self.document.project());
+        self.record(label);
+        Ok(())
+    }
     pub fn replace(&mut self, project: Project, label: &str) -> Result<Arc<Scene>, String> {
         let scene = Arc::new(Scene::from_project(&project).map_err(|e| e.to_string())?);
         self.document = Document::new(project).map_err(|e| e.to_string())?;

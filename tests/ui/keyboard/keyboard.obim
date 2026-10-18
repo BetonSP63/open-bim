@@ -1,0 +1,206 @@
+{
+  "magic": "open-bim-project",
+  "format_version": 1,
+  "payload_sha256": "bbc6f182409de5da6add2aa27a792f46fefcb92776cfaefe252ff21f60622744",
+  "project": {
+    "name": "Новый проект",
+    "units": "millimetres",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "revision": 3,
+    "next_id": 10,
+    "materials": {
+      "1": {
+        "id": 1,
+        "name": "S235 · тестовый материал",
+        "density_kg_m3": 7850.0
+      }
+    },
+    "profiles": {
+      "2": {
+        "id": 2,
+        "name": "I 300×150×8×12",
+        "shape": {
+          "kind": "i_section",
+          "height": 300.0,
+          "width": 150.0,
+          "web": 8.0,
+          "flange": 12.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "3": {
+        "id": 3,
+        "name": "L 100×75×8",
+        "shape": {
+          "kind": "angle",
+          "height": 100.0,
+          "width": 75.0,
+          "thickness": 8.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "4": {
+        "id": 4,
+        "name": "C 200×75×6×10",
+        "shape": {
+          "kind": "channel",
+          "height": 200.0,
+          "width": 75.0,
+          "web": 6.0,
+          "flange": 10.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "5": {
+        "id": 5,
+        "name": "CHS 114×6",
+        "shape": {
+          "kind": "circular_hollow",
+          "diameter": 114.0,
+          "thickness": 6.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "6": {
+        "id": 6,
+        "name": "RHS 150×100×6",
+        "shape": {
+          "kind": "rectangular_hollow",
+          "height": 150.0,
+          "width": 100.0,
+          "thickness": 6.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "7": {
+        "id": 7,
+        "name": "R 100×50",
+        "shape": {
+          "kind": "rectangle",
+          "height": 100.0,
+          "width": 50.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      }
+    },
+    "elements": {
+      "8": {
+        "id": 8,
+        "name": "Балка",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "beam",
+          "profile": 2,
+          "length": 6000.0,
+          "frame": {
+            "origin": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "axes": [
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        "properties": {
+          "Марка": {
+            "type": "text",
+            "value": "Б-1"
+          }
+        }
+      }
+    },
+    "assemblies": {},
+    "axes": {},
+    "levels": {},
+    "drawings": {
+      "9": {
+        "id": 9,
+        "kind": {
+          "kind": "part",
+          "part": 8
+        },
+        "number": "КМД-1",
+        "title": "Балка",
+        "sheet": "a3",
+        "scale": 20.0,
+        "views": [
+          {
+            "id": 1,
+            "name": "Вид спереди",
+            "direction": "front",
+            "position": [
+              185.0,
+              249.5
+            ]
+          },
+          {
+            "id": 2,
+            "name": "Вид сверху",
+            "direction": "top",
+            "position": [
+              185.0,
+              208.25
+            ]
+          },
+          {
+            "id": 3,
+            "name": "Вид слева",
+            "direction": "left",
+            "position": [
+              368.75,
+              249.5
+            ]
+          }
+        ],
+        "dimensions": [
+          {
+            "id": 1,
+            "view": 1,
+            "anchors": [
+              {
+                "object": 8,
+                "point": {
+                  "kind": "start"
+                }
+              },
+              {
+                "object": 8,
+                "point": {
+                  "kind": "end"
+                }
+              }
+            ],
+            "axis": "horizontal",
+            "offset": 18.0
+          }
+        ],
+        "texts": [],
+        "fingerprints": {
+          "8": "b460c753ad28de8c48bb7b76d13fe85413f4d6a9aea97553ec4823d8be07abcd"
+        },
+        "generated_revision": 2
+      }
+    }
+  }
+}

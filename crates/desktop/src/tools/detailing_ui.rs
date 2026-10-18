@@ -245,6 +245,6 @@ impl DetailingUi {
     }
 }
 fn field(ui: &mut egui::Ui, label: &str, value: &mut String) {
-    ui.label(label);
-    ui.text_edit_singleline(value);
+    let field_label = ui.label(label);
+    ui.text_edit_singleline(value).labelled_by(field_label.id);
 }
