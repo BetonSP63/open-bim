@@ -1,0 +1,157 @@
+LOAD_MS: 1.8
+GPU: Apple M5 · Metal; project=Новый проект objects=0
+SCRIPT: step 1 Wait(40)
+SCRIPT: step 2 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/01-new-model-grid.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/01-new-model-grid.png 2560x1600
+SCRIPT: step 3 Note("Колонны в узлах В4 В5 Г4 Г5")
+SCRIPT: step 4 Click([38.0, 78.0])
+SCRIPT: step 5 Wait(10)
+SCRIPT: world [18000.0, 12000.0, 0.0] → screen [480.51056, 404.10846]
+SCRIPT: step 6 Hover([480.51056, 404.10846])
+SCRIPT: step 7 Wait(6)
+SCRIPT: world [18000.0, 12000.0, 0.0] → screen [480.51056, 404.10846]
+SCRIPT: step 8 Click([480.51056, 404.10846])
+SCRIPT: step 9 Wait(10)
+SCRIPT: world [24000.0, 12000.0, 0.0] → screen [524.45306, 382.8738]
+SCRIPT: step 10 Hover([524.45306, 382.8738])
+SCRIPT: step 11 Wait(6)
+SCRIPT: world [24000.0, 12000.0, 0.0] → screen [524.45306, 382.8738]
+SCRIPT: step 12 Click([524.45306, 382.8738])
+SCRIPT: step 13 Wait(10)
+SCRIPT: world [18000.0, 18000.0, 0.0] → screen [434.4599, 382.6239]
+SCRIPT: step 14 Hover([434.4599, 382.6239])
+SCRIPT: step 15 Wait(6)
+SCRIPT: world [18000.0, 18000.0, 0.0] → screen [434.4599, 382.6239]
+SCRIPT: step 16 Click([434.4599, 382.6239])
+SCRIPT: step 17 Wait(10)
+SCRIPT: world [24000.0, 18000.0, 0.0] → screen [478.48407, 363.6382]
+SCRIPT: step 18 Hover([478.48407, 363.6382])
+SCRIPT: step 19 Wait(6)
+SCRIPT: world [24000.0, 18000.0, 0.0] → screen [478.48407, 363.6382]
+SCRIPT: step 20 Click([478.48407, 363.6382])
+SCRIPT: step 21 Wait(10)
+SCRIPT: step 22 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/02-columns.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/02-columns.png 2560x1600
+SCRIPT: step 23 Key { name: "Escape", command: false, shift: false, alt: false }
+SCRIPT: step 24 Wait(5)
+SCRIPT: step 25 Note("Балки по верхам колонн")
+SCRIPT: step 26 Click([97.0, 78.0])
+SCRIPT: step 27 Wait(10)
+SCRIPT: world [18000.0, 12000.0, 3600.0] → screen [481.22455, 367.4713]
+SCRIPT: step 28 Hover([481.22455, 367.4713])
+SCRIPT: step 29 Wait(6)
+SCRIPT: world [18000.0, 12000.0, 3600.0] → screen [481.22455, 367.4713]
+SCRIPT: step 30 Click([481.22455, 367.4713])
+SCRIPT: step 31 Wait(10)
+SCRIPT: world [24000.0, 12000.0, 3600.0] → screen [526.3464, 347.72754]
+SCRIPT: step 32 Hover([526.3464, 347.72754])
+SCRIPT: step 33 Wait(6)
+SCRIPT: world [24000.0, 12000.0, 3600.0] → screen [526.3464, 347.72754]
+SCRIPT: step 34 Click([526.3464, 347.72754])
+SCRIPT: step 35 Wait(10)
+SCRIPT: world [18000.0, 18000.0, 3600.0] → screen [433.85547, 347.49554]
+SCRIPT: step 36 Hover([433.85547, 347.49554])
+SCRIPT: step 37 Wait(6)
+SCRIPT: world [18000.0, 18000.0, 3600.0] → screen [433.85547, 347.49554]
+SCRIPT: step 38 Click([433.85547, 347.49554])
+SCRIPT: step 39 Wait(10)
+SCRIPT: world [24000.0, 18000.0, 3600.0] → screen [479.06775, 329.8977]
+SCRIPT: step 40 Hover([479.06775, 329.8977])
+SCRIPT: step 41 Wait(6)
+SCRIPT: world [24000.0, 18000.0, 3600.0] → screen [479.06775, 329.8977]
+SCRIPT: step 42 Click([479.06775, 329.8977])
+SCRIPT: step 43 Wait(10)
+SCRIPT: world [18000.0, 12000.0, 3600.0] → screen [481.22455, 367.4713]
+SCRIPT: step 44 Hover([481.22455, 367.4713])
+SCRIPT: step 45 Wait(6)
+SCRIPT: world [18000.0, 12000.0, 3600.0] → screen [481.22455, 367.4713]
+SCRIPT: step 46 Click([481.22455, 367.4713])
+SCRIPT: step 47 Wait(10)
+SCRIPT: world [18000.0, 18000.0, 3600.0] → screen [433.85547, 347.49554]
+SCRIPT: step 48 Hover([433.85547, 347.49554])
+SCRIPT: step 49 Wait(6)
+SCRIPT: world [18000.0, 18000.0, 3600.0] → screen [433.85547, 347.49554]
+SCRIPT: step 50 Click([433.85547, 347.49554])
+SCRIPT: step 51 Wait(10)
+SCRIPT: world [24000.0, 12000.0, 3600.0] → screen [526.3464, 347.72754]
+SCRIPT: step 52 Hover([526.3464, 347.72754])
+SCRIPT: step 53 Wait(6)
+SCRIPT: world [24000.0, 12000.0, 3600.0] → screen [526.3464, 347.72754]
+SCRIPT: step 54 Click([526.3464, 347.72754])
+SCRIPT: step 55 Wait(10)
+SCRIPT: world [24000.0, 18000.0, 3600.0] → screen [479.06775, 329.8977]
+SCRIPT: step 56 Hover([479.06775, 329.8977])
+SCRIPT: step 57 Wait(6)
+SCRIPT: world [24000.0, 18000.0, 3600.0] → screen [479.06775, 329.8977]
+SCRIPT: step 58 Click([479.06775, 329.8977])
+SCRIPT: step 59 Wait(10)
+SCRIPT: step 60 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/03-beams.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/03-beams.png 2560x1600
+SCRIPT: step 61 Key { name: "Escape", command: false, shift: false, alt: false }
+SCRIPT: step 62 Wait(5)
+SCRIPT: step 63 Note("Пластина по узлам А1 А3 В3 В1")
+SCRIPT: step 64 Click([160.0, 78.0])
+SCRIPT: step 65 Wait(10)
+SCRIPT: world [0.0, 0.0, 0.0] → screen [421.05814, 564.0498]
+SCRIPT: step 66 Hover([421.05814, 564.0498])
+SCRIPT: step 67 Wait(6)
+SCRIPT: world [0.0, 0.0, 0.0] → screen [421.05814, 564.0498]
+SCRIPT: step 68 Click([421.05814, 564.0498])
+SCRIPT: step 69 Wait(10)
+SCRIPT: world [12000.0, 0.0, 0.0] → screen [542.52216, 486.70975]
+SCRIPT: step 70 Hover([542.52216, 486.70975])
+SCRIPT: step 71 Wait(6)
+SCRIPT: world [12000.0, 0.0, 0.0] → screen [542.52216, 486.70975]
+SCRIPT: step 72 Click([542.52216, 486.70975])
+SCRIPT: step 73 Wait(10)
+SCRIPT: world [12000.0, 12000.0, 0.0] → screen [431.10944, 427.98093]
+SCRIPT: step 74 Hover([431.10944, 427.98093])
+SCRIPT: step 75 Wait(6)
+SCRIPT: world [12000.0, 12000.0, 0.0] → screen [431.10944, 427.98093]
+SCRIPT: step 76 Click([431.10944, 427.98093])
+SCRIPT: step 77 Wait(10)
+SCRIPT: world [0.0, 12000.0, 0.0] → screen [311.2859, 485.88406]
+SCRIPT: step 78 Hover([311.2859, 485.88406])
+SCRIPT: step 79 Wait(6)
+SCRIPT: world [0.0, 12000.0, 0.0] → screen [311.2859, 485.88406]
+SCRIPT: step 80 Click([311.2859, 485.88406])
+SCRIPT: step 81 Wait(10)
+SCRIPT: step 82 Key { name: "Enter", command: false, shift: false, alt: false }
+SCRIPT: step 83 Wait(10)
+SCRIPT: step 84 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/04-plate.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/04-plate.png 2560x1600
+SCRIPT: step 85 Key { name: "Escape", command: false, shift: false, alt: false }
+SCRIPT: step 86 Wait(5)
+SCRIPT: step 87 Note("Болт: деталь, Enter, начало Б2, направление Б3")
+SCRIPT: step 88 Click([355.0, 78.0])
+SCRIPT: step 89 Wait(10)
+SCRIPT: world [3000.0, 9000.0, 20.0] → screen [369.00143, 485.86606]
+SCRIPT: step 90 Hover([369.00143, 485.86606])
+SCRIPT: step 91 Wait(6)
+SCRIPT: world [3000.0, 9000.0, 20.0] → screen [369.00143, 485.86606]
+SCRIPT: step 92 Click([369.00143, 485.86606])
+SCRIPT: step 93 Wait(10)
+SCRIPT: step 94 Key { name: "Enter", command: false, shift: false, alt: false }
+SCRIPT: step 95 Wait(10)
+SCRIPT: world [6000.0, 6000.0, 0.0] → screen [426.80173, 486.29657]
+SCRIPT: step 96 Hover([426.80173, 486.29657])
+SCRIPT: step 97 Wait(6)
+SCRIPT: world [6000.0, 6000.0, 0.0] → screen [426.80173, 486.29657]
+SCRIPT: step 98 Click([426.80173, 486.29657])
+SCRIPT: step 99 Wait(10)
+SCRIPT: world [12000.0, 6000.0, 0.0] → screen [483.07764, 455.37485]
+SCRIPT: step 100 Hover([483.07764, 455.37485])
+SCRIPT: step 101 Wait(6)
+SCRIPT: world [12000.0, 6000.0, 0.0] → screen [483.07764, 455.37485]
+SCRIPT: step 102 Click([483.07764, 455.37485])
+SCRIPT: step 103 Wait(10)
+SCRIPT: step 104 Wait(10)
+SCRIPT: step 105 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/05-bolt.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/05-bolt.png 2560x1600
+SCRIPT: step 106 Key { name: "Escape", command: false, shift: false, alt: false }
+SCRIPT: step 107 Key { name: "S", command: true, shift: false, alt: false }
+SCRIPT: step 108 Wait(30)
+SCRIPT: step 109 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/06-saved.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/06-saved.png 2560x1600
+SCRIPT: step 110 Quit
+SCRIPT: finished

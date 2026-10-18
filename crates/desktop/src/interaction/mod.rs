@@ -3,6 +3,7 @@
 //! object is created after the last pick and the command re-arms until Esc.
 pub mod numeric;
 pub mod snap;
+pub mod tools;
 pub mod workplane;
 
 use crate::tools::ToolKind;
@@ -203,8 +204,15 @@ pub fn commands(
         }]),
         ToolKind::Beam | ToolKind::Column => {
             let (start, end) = if kind == ToolKind::Column {
-                let height = number(&draft.height)?;
-                (points[0], points[0] + workplane.axes[2] * height)
+                // Tekla: the pick gives X/Y; bottom and top are global Z values.
+                let (bottom, top) = (number(&draft.bottom)?, number(&draft.top)?);
+                if top <= bottom {
+                    return Err("Верх колонны должен быть выше низа".into());
+                }
+                (
+                    DVec3::new(points[0].x, points[0].y, bottom),
+                    DVec3::new(points[0].x, points[0].y, top),
+                )
             } else {
                 (points[0], points[1])
             };
@@ -244,8 +252,9 @@ pub fn commands(
                     a[0] * b[1] - b[0] * a[1]
                 })
                 .sum();
+            // Counter-clockwise, keeping the first pick as vertex 0 (start handle).
             if signed < 0. {
-                contour.reverse();
+                contour[1..].reverse();
             }
             open_bim_model::polygon_area(&contour).map_err(|e| e.to_string())?;
             let role = match kind {

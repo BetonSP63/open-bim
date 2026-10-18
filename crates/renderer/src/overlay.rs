@@ -16,7 +16,6 @@ pub const SNAP: Rgba = [230, 120, 0, 255];
 pub const RUBBER: Rgba = [200, 30, 160, 255];
 pub const START_HANDLE: Rgba = [240, 200, 0, 255];
 pub const END_HANDLE: Rgba = [210, 0, 200, 255];
-pub const VERTEX_HANDLE: Rgba = [240, 200, 0, 255];
 pub const AXIS_COLORS: [Rgba; 3] = [[210, 40, 40, 255], [20, 150, 50, 255], [30, 80, 220, 255]];
 /// Light theme background: grey-blue at the top fading to near white.
 pub const GRADIENT_LIGHT: [Rgba; 2] = [[150, 168, 196, 255], [236, 240, 245, 255]];
@@ -117,6 +116,30 @@ pub fn gizmo_directions(camera: &Camera) -> [[f64; 2]; 3] {
     let right = forward.cross(up_hint).normalize();
     let up = right.cross(forward);
     [DVec3::X, DVec3::Y, DVec3::Z].map(|a| [a.dot(right), -a.dot(up)])
+}
+
+/// Model extent like Tekla's work area: parts plus grid lines and levels.
+/// `None` for an empty model without a grid.
+pub fn model_bounds(scene: &crate::Scene, project: &Project) -> Option<Bounds> {
+    let mut points: Vec<DVec3> = project
+        .axes
+        .values()
+        .flat_map(|a| [v(a.start), v(a.end)])
+        .collect();
+    if !scene.instances.is_empty() {
+        points.extend([scene.bounds.min, scene.bounds.max]);
+    }
+    let first = *points.first()?;
+    let (mut min, mut max) = (first, first);
+    for p in &points {
+        min = min.min(*p);
+        max = max.max(*p);
+    }
+    for level in project.levels.values() {
+        min.z = min.z.min(level.elevation_mm);
+        max.z = max.z.max(level.elevation_mm);
+    }
+    Some(Bounds { min, max })
 }
 
 /// Work area: model bounds expanded by `margin` mm on every side.
@@ -354,7 +377,11 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
                 marks.push(line(a, b, grid, 1., Some([8., 6.])));
                 marks.push(text(
                     add(a, [-1., 0.], 30.),
-                    format!("{} {:+.0}", level.name, level.elevation_mm),
+                    if level.name.chars().any(|c| c.is_ascii_digit()) {
+                        level.name.clone()
+                    } else {
+                        format!("{} {:+.0}", level.name, level.elevation_mm)
+                    },
                     label,
                     [1, 0],
                     11.,
@@ -423,9 +450,9 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
             continue;
         }
         let color = match h.kind {
-            HandleKind::Start => START_HANDLE,
-            HandleKind::End => END_HANDLE,
-            HandleKind::Vertex(_) => VERTEX_HANDLE,
+            // Tekla: the start handle is yellow, all others magenta.
+            HandleKind::Start | HandleKind::Vertex(0) => START_HANDLE,
+            HandleKind::End | HandleKind::Vertex(_) => END_HANDLE,
         };
         marks.push(Mark::Square {
             center: h.screen,

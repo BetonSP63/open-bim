@@ -51,6 +51,9 @@ pub enum Command {
     ReplaceAxis {
         axis: GridAxis,
     },
+    CreateLevel {
+        level: open_bim_model::Level,
+    },
     Delete {
         id: ObjectId,
         policy: DeletePolicy,
@@ -369,6 +372,18 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
                     .ok_or_else(|| CommandError::InvalidTransaction("Недопустимый ID".into()))?,
             );
             project.axes.insert(axis.id, axis.clone());
+        }
+        Command::CreateLevel { level } => {
+            if project.contains_id(level.id) || level.id.0 == 0 {
+                return Err(ModelError::DuplicateId(level.id).into());
+            }
+            project.next_id =
+                project.next_id.max(
+                    level.id.0.checked_add(1).ok_or_else(|| {
+                        CommandError::InvalidTransaction("Недопустимый ID".into())
+                    })?,
+                );
+            project.levels.insert(level.id, level.clone());
         }
         Command::ReplaceAxis { axis } => {
             if !project.axes.contains_key(&axis.id) {

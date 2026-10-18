@@ -60,10 +60,11 @@ fn beam_needs_two_picks_creates_once_and_rearms() {
 }
 
 #[test]
-fn column_is_one_pick_with_property_height() {
+fn column_is_one_pick_with_bottom_and_top_from_properties() {
     let mut b = bench();
     b.execute(Cmd::ToolColumn);
-    b.editor.draft.height = "4200".into();
+    b.editor.draft.bottom = "-300".into();
+    b.editor.draft.top = "3900".into();
     assert_eq!(b.engine.prompt(), "Укажите положение колонны");
     assert!(pick(&mut b, DVec3::new(100., 200., 0.)));
     let c = b
@@ -79,7 +80,7 @@ fn column_is_one_pick_with_property_height() {
         panic!()
     };
     assert!((length.value() - 4200.).abs() < 1e-9);
-    assert_eq!(frame.origin.0, [100., 200., 0.]);
+    assert_eq!(frame.origin.0, [100., 200., -300.]);
     assert_eq!(frame.axes[2], [0., 0., 1.]);
 }
 
@@ -155,21 +156,41 @@ fn every_tool_has_russian_prompts_per_step() {
 fn numeric_location_forms_and_errors() {
     let wp = Workplane::default();
     let prev = Some(DVec3::new(100., 0., 0.));
+    // Tekla default mode is relative; without a previous pick it starts at the origin.
     assert_eq!(
         numeric::parse("1000,2000,300", &wp, None, None).unwrap(),
         DVec3::new(1000., 2000., 300.)
     );
     assert_eq!(
-        numeric::parse("1000, 2000", &wp, None, None).unwrap(),
-        DVec3::new(1000., 2000., 0.)
+        numeric::parse("1000, 2000", &wp, prev, None).unwrap(),
+        DVec3::new(1100., 2000., 0.)
     );
     assert_eq!(
         numeric::parse("@500,0,0", &wp, prev, None).unwrap(),
         DVec3::new(600., 0., 0.)
     );
+    assert_eq!(
+        numeric::parse("$0,0,1000", &wp, prev, None).unwrap(),
+        DVec3::new(0., 0., 1000.)
+    );
+    let shifted = Workplane::at_elevation(500.);
+    assert_eq!(
+        numeric::parse("!6000,12000,0", &shifted, prev, None).unwrap(),
+        DVec3::new(6000., 12000., 0.)
+    );
+    assert_eq!(
+        numeric::parse("$6000,12000", &shifted, prev, None).unwrap(),
+        DVec3::new(6000., 12000., 500.)
+    );
+    let polar = numeric::parse("1000<90", &wp, prev, None).unwrap();
+    assert!((polar - DVec3::new(100., 1000., 0.)).length() < 1e-9);
+    let up = numeric::parse("@1000<0<90", &wp, prev, None).unwrap();
+    assert!((up - DVec3::new(100., 0., 1000.)).length() < 1e-9);
     let along = numeric::parse("250", &wp, prev, Some(DVec3::new(0., 3., 4.))).unwrap();
     assert!((along - DVec3::new(100., 150., 200.)).length() < 1e-9);
     assert!(numeric::parse("@1,2", &wp, None, None).is_err());
+    assert!(numeric::parse("$5", &wp, prev, None).is_err());
+    assert!(numeric::parse("1<2<3<4", &wp, prev, None).is_err());
     assert!(numeric::parse("12a", &wp, None, None).is_err());
     assert!(numeric::parse("1,2,3,4", &wp, None, None).is_err());
     // Relative input follows the work plane axes.

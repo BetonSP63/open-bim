@@ -2,7 +2,7 @@ use eframe::egui;
 use egui_wgpu::wgpu;
 use open_bim_desktop::tools::{Editor, number, ui::Action};
 use open_bim_desktop::ui::{Request, Workbench};
-use open_bim_model::{ObjectId, Project, example_steel_frame};
+use open_bim_model::{ObjectId, example_steel_frame};
 /// Work area box margin around the model bounds, mm.
 const WORK_AREA_MARGIN_MM: f64 = 500.0;
 use open_bim_renderer::{
@@ -128,6 +128,8 @@ struct Desktop {
     capture: Option<String>,
     frames: u32,
     script: Option<open_bim_desktop::script::Runner>,
+    /// Last 3D view rectangle (for scripted world clicks).
+    viewport: Option<egui::Rect>,
     measure: Option<open_bim_desktop::bench::Bench>,
     /// Requests raised inside the central panel, handled next frame.
     pending: Vec<Request>,
@@ -144,7 +146,8 @@ impl Desktop {
         } else if options.example {
             example_steel_frame()?
         } else {
-            Project::default()
+            // Like a new Tekla model: default grid and levels.
+            open_bim_desktop::interaction::tools::default_project()?
         };
         let script = match &options.script {
             Some(path) => Some(open_bim_desktop::script::Runner::new(
@@ -171,7 +174,7 @@ impl Desktop {
         bench.section_height = options.section.unwrap_or(1500.0);
         bench.load_delay_ms = options.load_delay_ms;
         let mut camera = Camera::default();
-        camera.fit(scene.bounds);
+        camera.fit(overlay::model_bounds(&scene, &project).unwrap_or(scene.bounds));
         let error = Arc::new(Mutex::new(None));
         let state = cc.wgpu_render_state.as_ref().ok_or("GPU недоступен")?;
         let gpu = format!(
@@ -229,6 +232,7 @@ impl Desktop {
             capture: options.capture,
             frames: 0,
             script,
+            viewport: None,
             measure: options.bench.map(|path| {
                 open_bim_desktop::bench::Bench::new(path, options.bench_frames.max(10))
             }),
@@ -247,10 +251,8 @@ impl Desktop {
             Action::Edit(edit) => self.bench.editor.edit(&edit),
             Action::Undo => self.bench.editor.history(false),
             Action::Redo => self.bench.editor.history(true),
-            Action::New => self
-                .bench
-                .editor
-                .replace(Project::default(), "Новый проект"),
+            Action::New => open_bim_desktop::interaction::tools::default_project()
+                .and_then(|p| self.bench.editor.replace(p, "Новый проект")),
             Action::Example => example_steel_frame()
                 .map_err(|e| e.to_string())
                 .and_then(|p| self.bench.editor.replace(p, "Контрольный каркас")),
@@ -268,7 +270,10 @@ impl Desktop {
                 let path = std::path::Path::new(&self.bench.tools.path).with_extension("ifc");
                 match self.bench.editor.import_ifc(&path) {
                     Ok((scene, report)) => {
-                        self.camera.fit(scene.bounds);
+                        self.camera.fit(
+                            overlay::model_bounds(&scene, self.bench.editor.document.project())
+                                .unwrap_or(scene.bounds),
+                        );
                         self.bench.objects = scene.instances.len();
                         self.scene = scene;
                         self.bench.tools.message = Some(report);
@@ -292,7 +297,10 @@ impl Desktop {
         match result {
             Ok(scene) => {
                 if fit {
-                    self.camera.fit(scene.bounds);
+                    self.camera.fit(
+                        overlay::model_bounds(&scene, self.bench.editor.document.project())
+                            .unwrap_or(scene.bounds),
+                    );
                 }
                 self.bench.objects = scene.instances.len();
                 self.scene = scene;
@@ -304,17 +312,24 @@ impl Desktop {
             Err(error) => self.bench.tools.message = Some(error),
         }
     }
+    /// Zoom to the model extent including the grid (Tekla «Вписать»).
+    fn fit(&mut self) {
+        let bounds = overlay::model_bounds(&self.scene, self.bench.editor.document.project())
+            .unwrap_or(self.scene.bounds);
+        self.camera.fit(bounds);
+    }
+
     fn handle(&mut self, requests: Vec<Request>) {
         for request in requests {
             match request {
                 Request::Action(action) => self.action(action),
-                Request::Fit => self.camera.fit(self.scene.bounds),
+                Request::Fit => self.fit(),
                 Request::ToggleProjection => self.camera.orthographic = !self.camera.orthographic,
                 Request::View(view) => self.camera.set_view(view),
                 Request::Loaded(scene) => {
-                    self.camera.fit(scene.bounds);
                     self.bench.objects = scene.instances.len();
                     self.scene = scene;
+                    self.fit();
                 }
             }
         }
@@ -426,11 +441,20 @@ impl Desktop {
 impl eframe::App for Desktop {
     fn raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) {
         use open_bim_desktop::script::Effect;
+        let (camera, origin, viewport) = (&self.camera, self.scene.origin, self.viewport);
+        let project = |w: [f64; 3]| {
+            let rect = viewport?;
+            let uv = camera.project(origin, DVec3::from_array(w), rect.aspect_ratio() as f64)?;
+            Some([
+                rect.min.x + uv[0] as f32 * rect.width(),
+                rect.min.y + uv[1] as f32 * rect.height(),
+            ])
+        };
         let Some(runner) = &mut self.script else {
             return;
         };
         runner.set_busy(self.bench.busy());
-        match runner.frame(raw_input) {
+        match runner.frame(raw_input, &project) {
             Some(Effect::Capture(path)) => {
                 self.manual_capture = Some(path);
                 ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::default()));
@@ -473,9 +497,10 @@ impl eframe::App for Desktop {
             }
             let (rect, response) =
                 ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
+            self.viewport = Some(rect);
             let viewport_hovered = response.hovered();
+            let mut fit_home = false;
             let middle_drag = response.dragged_by(egui::PointerButton::Middle);
-            let secondary_drag = response.dragged_by(egui::PointerButton::Secondary);
             let hover = response.hover_pos().and_then(|point| {
                 let uv = [
                     ((point.x - rect.min.x) / rect.width()) as f64,
@@ -484,55 +509,58 @@ impl eframe::App for Desktop {
                 self.camera
                     .ray(self.scene.origin, uv, rect.aspect_ratio() as f64)
             });
-            if viewport_hovered || response.has_focus() {
+            if viewport_hovered {
                 ctx.input(|input| {
-                    if !input.modifiers.command && !input.modifiers.ctrl {
-                        if input.key_pressed(egui::Key::Plus)
-                            || input.key_pressed(egui::Key::Equals)
-                        {
-                            self.camera.zoom(100.0);
-                        }
-                        if input.key_pressed(egui::Key::Minus) {
-                            self.camera.zoom(-100.0);
-                        }
-                        let dx = if input.key_pressed(egui::Key::ArrowLeft) {
-                            -15.0
-                        } else if input.key_pressed(egui::Key::ArrowRight) {
-                            15.0
-                        } else {
-                            0.0
-                        };
-                        let dy = if input.key_pressed(egui::Key::ArrowUp) {
-                            -15.0
-                        } else if input.key_pressed(egui::Key::ArrowDown) {
-                            15.0
-                        } else {
-                            0.0
-                        };
-                        if input.modifiers.shift {
-                            self.camera.pan(dx, dy, rect.height() as f64);
-                        } else {
-                            self.camera.orbit(dx, dy);
+                    // Tekla keys: arrows move the view, Ctrl+arrows rotate 15°,
+                    // Shift+arrows 5°, Page Up/Down zoom, Home fits the model.
+                    let arrow = |k| input.key_pressed(k);
+                    let (dx, dy) = (
+                        arrow(egui::Key::ArrowRight) as i32 - arrow(egui::Key::ArrowLeft) as i32,
+                        arrow(egui::Key::ArrowDown) as i32 - arrow(egui::Key::ArrowUp) as i32,
+                    );
+                    if dx != 0 || dy != 0 {
+                        // `orbit` turns 0.008 rad per pixel.
+                        let step = |deg: f64| deg.to_radians() / 0.008;
+                        if input.modifiers.ctrl {
+                            self.camera
+                                .orbit(dx as f64 * step(15.), dy as f64 * step(15.));
+                        } else if input.modifiers.shift {
+                            self.camera
+                                .orbit(dx as f64 * step(5.), dy as f64 * step(5.));
+                        } else if !input.modifiers.command {
+                            self.camera.pan(
+                                -dx as f64 * 40.,
+                                -dy as f64 * 40.,
+                                rect.height() as f64,
+                            );
                         }
                     }
+                    if input.key_pressed(egui::Key::PageUp) {
+                        self.camera.zoom_at(100.0, None);
+                    }
+                    if input.key_pressed(egui::Key::PageDown) {
+                        self.camera.zoom_at(-100.0, None);
+                    }
+                    if input.key_pressed(egui::Key::Home) {
+                        fit_home = true;
+                    }
                     // Tekla mouse: wheel zooms about the cursor, middle drag pans,
-                    // Ctrl/Shift + middle drag rotates; right drag also rotates.
+                    // Ctrl + middle drag rotates; the right button opens the context menu.
                     if viewport_hovered && input.smooth_scroll_delta.y != 0.0 {
                         self.camera
                             .zoom_at(input.smooth_scroll_delta.y as f64, hover);
                     }
                     let delta = input.pointer.delta();
-                    let rotate_modifier =
-                        input.modifiers.ctrl || input.modifiers.shift || input.modifiers.command;
-                    if middle_drag && rotate_modifier {
+                    if middle_drag && (input.modifiers.ctrl || input.modifiers.command) {
                         self.camera.orbit(delta.x as f64, delta.y as f64);
                     } else if middle_drag {
                         self.camera
                             .pan(delta.x as f64, delta.y as f64, rect.height() as f64);
-                    } else if secondary_drag {
-                        self.camera.orbit(delta.x as f64, delta.y as f64);
                     }
                 });
+            }
+            if fit_home {
+                self.fit();
             }
             let cursor = if self.bench.picking() {
                 hover.and_then(|_| {
@@ -577,8 +605,31 @@ impl eframe::App for Desktop {
             };
             self.bench.cursor = cursor.map(|(p, _)| DVec3::from_array(p.0));
             self.bench.last_snap = cursor.map(|(_, hit)| hit.kind);
+            // Tekla right button: context menu (interrupt, repeat, properties).
+            let mut menu_cmd = None;
+            response.context_menu(|ui| {
+                use open_bim_desktop::ui::commands::{Cmd, caption};
+                for cmd in [
+                    Cmd::CancelTool,
+                    Cmd::FinishPicks,
+                    Cmd::PanelProperties,
+                    Cmd::Fit,
+                    Cmd::HideSelected,
+                    Cmd::ShowAll,
+                ] {
+                    if ui.button(caption(cmd)).clicked() {
+                        menu_cmd = Some(cmd);
+                        ui.close();
+                    }
+                }
+            });
+            if let Some(cmd) = menu_cmd
+                && let Some(r) = self.bench.execute(cmd)
+            {
+                self.pending.push(r);
+            }
             if response.middle_clicked()
-                && self.bench.engine.active()
+                && (self.bench.engine.active() || self.bench.detail.tool.is_some())
                 && let Some(r) = self
                     .bench
                     .execute(open_bim_desktop::ui::commands::Cmd::FinishPicks)
@@ -586,8 +637,13 @@ impl eframe::App for Desktop {
                 self.pending.push(r);
             }
             if response.clicked() {
-                response.request_focus();
-                if self.bench.picking() {
+                if self.bench.picks_objects() {
+                    let id = hover.and_then(|ray| self.scene.pick(ray, &self.view));
+                    if let Some(r) = self.bench.pick_object(id) {
+                        self.pending.push(r);
+                    }
+                    self.view.selected_ids = self.bench.editor.selected.clone();
+                } else if self.bench.picking() {
                     if let Some((point, _)) = cursor
                         && let Some(r) = self.bench.pick(DVec3::from_array(point.0))
                     {
@@ -645,8 +701,12 @@ impl eframe::App for Desktop {
                     hidden: &self.view.hidden,
                     selected: &self.bench.editor.selected,
                     workplane: (workplane.origin, workplane.axes),
-                    work_area: (self.bench.work_area && !self.scene.instances.is_empty())
-                        .then(|| overlay::work_area(self.scene.bounds, WORK_AREA_MARGIN_MM)),
+                    work_area: overlay::model_bounds(
+                        &self.scene,
+                        self.bench.editor.document.project(),
+                    )
+                    .filter(|_| self.bench.work_area)
+                    .map(|b| overlay::work_area(b, WORK_AREA_MARGIN_MM)),
                     picks: &picks,
                     polygon,
                     cursor: cursor.map(|(p, hit)| {

@@ -21,6 +21,19 @@ pub enum SnapKind {
 }
 
 impl SnapKind {
+    /// Snap priority class (lower wins; ties go to the nearer point). Like
+    /// Tekla, reference points and grid/reference-line intersections («Points»)
+    /// share the highest class, so the closer of the two is taken.
+    pub fn priority(self) -> u8 {
+        match self {
+            Self::Reference | Self::Intersection => 0,
+            Self::EndPoint => 1,
+            Self::MidPoint => 2,
+            Self::Perpendicular => 3,
+            Self::Nearest => 4,
+            Self::Free => 5,
+        }
+    }
     pub fn label(self) -> &'static str {
         match self {
             Self::Reference => "Опорная точка",
@@ -235,8 +248,9 @@ impl Snapper {
                 if px > tolerance {
                     return;
                 }
-                let better =
-                    best.is_none_or(|b| (kind, !reference, px) < (b.kind, !b.reference, b.pixels));
+                let better = best.is_none_or(|b| {
+                    (kind.priority(), !reference, px) < (b.kind.priority(), !b.reference, b.pixels)
+                });
                 if better {
                     best = Some(Hit {
                         kind,

@@ -112,8 +112,8 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
             (
                 "Крепёж",
                 vec![
-                    item(Cmd::PanelDetailing, Icon::Bolt, "Болт"),
-                    item(Cmd::PanelDetailing, Icon::Weld, "Сварной шов"),
+                    item(Cmd::ToolBolt, Icon::Bolt, "Болт"),
+                    item(Cmd::ToolWeld, Icon::Weld, "Сварной шов"),
                     item(
                         Cmd::PanelDetailing,
                         Icon::BoltDetail,
@@ -128,7 +128,13 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     item(Cmd::PanelConnections, Icon::Component, "Узлы"),
                 ],
             ),
-            ("Сетка", vec![item(Cmd::ToolAxis, Icon::Grid, "Ось")]),
+            (
+                "Сетка",
+                vec![
+                    item(Cmd::GridDialog, Icon::Grid, "Сетка"),
+                    item(Cmd::ToolAxis, Icon::Grid, "Ось"),
+                ],
+            ),
         ],
         RibbonTab::Concrete => vec![(
             "Бетон",
@@ -266,12 +272,14 @@ impl Workbench {
 
     /// Whether viewport clicks go to a pick command.
     pub fn picking(&self) -> bool {
-        self.engine.active() || self.workplane_picks.is_some()
+        self.engine.active() || self.workplane_picks.is_some() || self.detail.picks_points()
     }
 
     pub fn prompt(&self) -> String {
         if self.workplane_picks.is_some() {
             self.workplane_prompt()
+        } else if let Some(p) = self.detail.prompt() {
+            p
         } else {
             self.engine.prompt()
         }
@@ -538,6 +546,16 @@ impl Workbench {
                                                 && let Some(cmd) = it.cmd
                                             {
                                                 self.run(cmd, requests);
+                                                // Tekla: Shift+click a tool opens its properties.
+                                                if ui.input(|i| i.modifiers.shift) {
+                                                    self.mode = Mode::Model;
+                                                    self.side_panel = Some(match cmd {
+                                                        Cmd::ToolBolt | Cmd::ToolWeld => {
+                                                            SidePanel::Detailing
+                                                        }
+                                                        _ => SidePanel::Properties,
+                                                    });
+                                                }
                                             }
                                         }
                                     });
@@ -565,6 +583,10 @@ impl Workbench {
             || cmd == Cmd::ModeDrawings && self.mode == Mode::Drawings
             || cmd == Cmd::ModeReports && self.mode == Mode::Reports
             || cmd == Cmd::ToggleSection && self.section_enabled
+            || cmd == Cmd::ToolBolt
+                && self.detail.tool == Some(crate::interaction::tools::DetailTool::Bolt)
+            || cmd == Cmd::ToolWeld
+                && self.detail.tool == Some(crate::interaction::tools::DetailTool::Weld)
             || cmd == Cmd::ToggleWorkArea && self.work_area
     }
 

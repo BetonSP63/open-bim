@@ -51,8 +51,9 @@ pub struct Draft {
     pub material: ObjectId,
     pub thickness: String,
     pub contour: String,
-    /// Column height used when a column is placed by one pick, mm.
-    pub height: String,
+    /// Column bottom and top, global Z in mm (Tekla «Низ»/«Верх»).
+    pub bottom: String,
+    pub top: String,
 }
 impl Default for Draft {
     fn default() -> Self {
@@ -65,7 +66,8 @@ impl Default for Draft {
             material: ObjectId(1),
             thickness: "20".into(),
             contour: "0,0; 400,0; 400,300; 0,300".into(),
-            height: "3000".into(),
+            bottom: "0".into(),
+            top: "3600".into(),
         }
     }
 }

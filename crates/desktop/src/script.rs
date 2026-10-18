@@ -17,6 +17,11 @@ pub enum Step {
     RightClick([f32; 2]),
     /// Move the pointer without clicking.
     Hover([f32; 2]),
+    /// Click where a world point (mm) appears in the 3D view; the click then
+    /// goes through ordinary snapping like a person's click.
+    ClickWorld([f64; 3]),
+    /// Move the pointer to where a world point appears in the 3D view.
+    HoverWorld([f64; 3]),
     /// Primary-button drag in logical points: [x0, y0, x1, y1].
     Drag([f32; 4]),
     /// Scroll by the given logical delta at a point: [x, y, dy].
@@ -95,7 +100,12 @@ impl Runner {
         self.pending = None;
     }
     /// Feed one frame of events; returns an effect when the step needs one.
-    pub fn frame(&mut self, input: &mut egui::RawInput) -> Option<Effect> {
+    /// `project` maps a world point to logical screen points in the 3D view.
+    pub fn frame(
+        &mut self,
+        input: &mut egui::RawInput,
+        project: &dyn Fn([f64; 3]) -> Option<[f32; 2]>,
+    ) -> Option<Effect> {
         // The script owns the pointer: drop the physical mouse so a cursor
         // resting over the window cannot move or cancel scripted clicks.
         // A scripted window may not be the key window; keep egui keyboard
@@ -124,6 +134,23 @@ impl Runner {
         if self.wait > 0 {
             self.wait -= 1;
             return None;
+        }
+        // World steps become ordinary pointer steps at the projected position.
+        if let Some(Step::ClickWorld(w) | Step::HoverWorld(w)) = self.steps.get(self.index) {
+            let Some(at) = project(*w) else {
+                eprintln!(
+                    "SCRIPT: step {} world point {w:?} is off screen",
+                    self.index + 1
+                );
+                self.index += 1;
+                return None;
+            };
+            eprintln!("SCRIPT: world {w:?} → screen {at:?}");
+            self.steps[self.index] = if matches!(self.steps[self.index], Step::ClickWorld(_)) {
+                Step::Click(at)
+            } else {
+                Step::Hover(at)
+            };
         }
         let step = self.steps.get(self.index)?.clone();
         let modifiers = egui::Modifiers::default();
@@ -246,6 +273,7 @@ impl Runner {
                 advance(self, 2);
             }
             Step::Note(_) => advance(self, 0),
+            Step::ClickWorld(_) | Step::HoverWorld(_) => unreachable!("resolved above"),
             Step::Capture(path) => {
                 advance(self, 2);
                 self.pending = Some((path.clone(), 0));

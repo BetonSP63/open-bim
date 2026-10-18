@@ -1,0 +1,509 @@
+[
+{
+"wait": 40
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/01-new-model-grid.png"
+},
+{
+"note": "Колонны в узлах В4 В5 Г4 Г5"
+},
+{
+"click": [
+38,
+78
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+18000,
+12000,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+18000,
+12000,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+24000,
+12000,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+24000,
+12000,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+18000,
+18000,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+18000,
+18000,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+24000,
+18000,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+24000,
+18000,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/02-columns.png"
+},
+{
+"key": {
+"name": "Escape"
+}
+},
+{
+"wait": 5
+},
+{
+"note": "Балки по верхам колонн"
+},
+{
+"click": [
+97,
+78
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+18000,
+12000,
+3600
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+18000,
+12000,
+3600
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+24000,
+12000,
+3600
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+24000,
+12000,
+3600
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+18000,
+18000,
+3600
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+18000,
+18000,
+3600
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+24000,
+18000,
+3600
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+24000,
+18000,
+3600
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+18000,
+12000,
+3600
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+18000,
+12000,
+3600
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+18000,
+18000,
+3600
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+18000,
+18000,
+3600
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+24000,
+12000,
+3600
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+24000,
+12000,
+3600
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+24000,
+18000,
+3600
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+24000,
+18000,
+3600
+]
+},
+{
+"wait": 10
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/03-beams.png"
+},
+{
+"key": {
+"name": "Escape"
+}
+},
+{
+"wait": 5
+},
+{
+"note": "Пластина по узлам А1 А3 В3 В1"
+},
+{
+"click": [
+160,
+78
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+0,
+0,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+0,
+0,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+12000,
+0,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+12000,
+0,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+12000,
+12000,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+12000,
+12000,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+0,
+12000,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+0,
+12000,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"key": {
+"name": "Enter"
+}
+},
+{
+"wait": 10
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/04-plate.png"
+},
+{
+"key": {
+"name": "Escape"
+}
+},
+{
+"wait": 5
+},
+{
+"note": "Болт: деталь, Enter, начало Б2, направление Б3"
+},
+{
+"click": [
+355,
+78
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+3000,
+9000,
+20
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+3000,
+9000,
+20
+]
+},
+{
+"wait": 10
+},
+{
+"key": {
+"name": "Enter"
+}
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+6000,
+6000,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+6000,
+6000,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+12000,
+6000,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+12000,
+6000,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"wait": 10
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/05-bolt.png"
+},
+{
+"key": {
+"name": "Escape"
+}
+},
+{
+"key": {
+"name": "S",
+"command": true
+}
+},
+{
+"wait": 30
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/create-by-picks/06-saved.png"
+},
+"quit"
+]

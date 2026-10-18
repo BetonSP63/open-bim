@@ -155,6 +155,19 @@ impl ToolsUi {
                         ui.text_edit_singleline(&mut editor.draft.thickness)
                             .labelled_by(t.id);
                     });
+                } else if editor.draft.kind == ToolKind::Column {
+                    ui.horizontal(|ui| {
+                        let b = ui.label("Низ, мм");
+                        ui.add(
+                            egui::TextEdit::singleline(&mut editor.draft.bottom).desired_width(70.),
+                        )
+                        .labelled_by(b.id);
+                        let t = ui.label("Верх, мм");
+                        ui.add(
+                            egui::TextEdit::singleline(&mut editor.draft.top).desired_width(70.),
+                        )
+                        .labelled_by(t.id);
+                    });
                 } else {
                     ui.label("Конец, мм");
                     vector_fields(ui, "end", &mut editor.draft.end);

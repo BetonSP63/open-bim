@@ -92,6 +92,10 @@ pub struct Workbench {
     pub theme_applied: Option<bool>,
     pub quick_launch: String,
     pub search: String,
+    /// Bolt (two points) and weld (two parts) pick commands.
+    pub detail: crate::interaction::tools::DetailPicker,
+    /// Open grid dialog («Сетка осей…»).
+    pub grid: Option<crate::interaction::tools::GridSpec>,
     /// Green dashed work area box around the model (Вид tab).
     pub work_area: bool,
     /// Picks for «рабочая плоскость по трём точкам».
@@ -137,6 +141,8 @@ impl Workbench {
             side_panel: Some(chrome::SidePanel::Properties),
             light_theme: true,
             work_area: true,
+            detail: Default::default(),
+            grid: None,
             theme_applied: None,
             quick_launch: String::new(),
             search: String::new(),
@@ -344,9 +350,26 @@ impl Workbench {
                     _ => ToolKind::Stiffener,
                 });
                 self.mode = mode;
+                self.detail.cancel();
                 self.editor.begin(kind);
                 self.engine.start(kind);
                 self.message(self.engine.prompt());
+            }
+            Cmd::ToolBolt | Cmd::ToolWeld => {
+                self.engine.cancel();
+                self.editor.cancel();
+                self.mode = Mode::Model;
+                let tool = if cmd == Cmd::ToolBolt {
+                    crate::interaction::tools::DetailTool::Bolt
+                } else {
+                    crate::interaction::tools::DetailTool::Weld
+                };
+                self.detail = crate::interaction::tools::DetailPicker::start(tool);
+                self.message(self.prompt());
+            }
+            Cmd::GridDialog => {
+                self.grid = Some(Default::default());
+                self.message("Сетка: строки координат как в Tekla («0 4*6000»)");
             }
             Cmd::CreateElement => return Some(Request::Action(Action::Create)),
             Cmd::CancelTool => {
@@ -359,6 +382,8 @@ impl Workbench {
                     self.message("Задание рабочей плоскости прервано");
                 } else if self.engine.numeric.is_some() {
                     self.engine.numeric = None;
+                } else if self.detail.cancel() {
+                    self.message("Команда прервана");
                 } else {
                     self.engine.cancel();
                     self.editor.cancel();
@@ -462,6 +487,10 @@ impl Workbench {
                     "Ортогонально: выключено"
                 });
             }
+            Cmd::FinishPicks if self.detail.tool.is_some() => match self.detail.finish_parts() {
+                Ok(()) => self.message(self.prompt()),
+                Err(e) => self.message(e),
+            },
             Cmd::FinishPicks => {
                 let outcome = self.engine.finish();
                 if let Some(kind) = self.engine.tool
@@ -555,6 +584,36 @@ impl Workbench {
 
     /// A pick from the viewport (world point, already snapped).
     pub fn pick(&mut self, point: open_bim_renderer::DVec3) -> Option<Request> {
+        if self.detail.picks_points() {
+            self.detail.points.push(point);
+            if self.detail.points.len() < 2 {
+                self.message(self.prompt());
+                return None;
+            }
+            let (a, b) = (self.detail.points[0], self.detail.points[1]);
+            let parts = std::mem::take(&mut self.detail.parts);
+            self.detail.cancel();
+            return match crate::interaction::tools::bolt_by_picks(
+                self.editor.document.project(),
+                &parts,
+                a,
+                b,
+                self.engine.workplane.axes[2],
+                &self.tools.detailing,
+            ) {
+                Ok(commands) => {
+                    self.message("Болтовая группа создана");
+                    Some(Request::Action(Action::Commit(
+                        "Создать: болт".into(),
+                        commands,
+                    )))
+                }
+                Err(e) => {
+                    self.message(e);
+                    None
+                }
+            };
+        }
         if let Some(picks) = &mut self.workplane_picks {
             picks.push(point);
             if picks.len() == 3 {
@@ -574,6 +633,104 @@ impl Workbench {
         }
         let outcome = self.engine.pick(point);
         self.outcome(outcome)
+    }
+
+    /// Whether a viewport click picks a part (bolt parts, weld) instead of a point.
+    pub fn picks_objects(&self) -> bool {
+        self.detail.picks_objects()
+    }
+
+    /// Bolt: collect the main and secondary parts. Weld: first click the main
+    /// part, then the secondary part; the command re-arms.
+    pub fn pick_object(&mut self, id: Option<ObjectId>) -> Option<Request> {
+        let Some(id) = id.filter(|id| self.editor.document.project().elements.contains_key(id))
+        else {
+            self.message("Укажите деталь модели");
+            return None;
+        };
+        if self.detail.tool == Some(crate::interaction::tools::DetailTool::Bolt) {
+            self.detail.parts.insert(id);
+            self.editor.selected = self.detail.parts.clone();
+            self.message(self.prompt());
+            return None;
+        }
+        let Some(main) = self.detail.main else {
+            self.detail.main = Some(id);
+            self.message(self.prompt());
+            return None;
+        };
+        self.detail.main = None;
+        match crate::interaction::tools::weld_between(
+            self.editor.document.project(),
+            main,
+            id,
+            &self.tools.detailing,
+        ) {
+            Ok(commands) => {
+                self.message(self.prompt());
+                Some(Request::Action(Action::Commit(
+                    "Создать: сварной шов".into(),
+                    commands,
+                )))
+            }
+            Err(e) => {
+                self.message(e);
+                None
+            }
+        }
+    }
+
+    fn grid_window(&mut self, ctx: &egui::Context, requests: &mut Vec<Request>) {
+        let Some(spec) = &mut self.grid else { return };
+        let mut open = true;
+        let mut create = false;
+        egui::Window::new("Сетка осей")
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .show(ctx, |ui| {
+                egui::Grid::new("grid fields")
+                    .num_columns(3)
+                    .show(ui, |ui| {
+                        ui.label("");
+                        ui.label("Координаты, мм");
+                        ui.label("Метки");
+                        ui.end_row();
+                        for (axis, coords, names) in [
+                            ("X", &mut spec.x, &mut spec.labels_x),
+                            ("Y", &mut spec.y, &mut spec.labels_y),
+                            ("Z", &mut spec.z, &mut spec.labels_z),
+                        ] {
+                            let label = ui.label(axis);
+                            ui.add(egui::TextEdit::singleline(coords).desired_width(160.))
+                                .labelled_by(label.id);
+                            ui.add(egui::TextEdit::singleline(names).desired_width(140.))
+                                .labelled_by(label.id);
+                            ui.end_row();
+                        }
+                        let label = ui.label("Удлинение");
+                        ui.add(egui::TextEdit::singleline(&mut spec.extension).desired_width(80.))
+                            .labelled_by(label.id);
+                        ui.end_row();
+                    });
+                ui.small("«0 4*6000» — начало 0 и четыре шага по 6000 мм");
+                create = ui.button("Создать сетку").clicked();
+            });
+        if create {
+            match crate::interaction::tools::grid_commands(self.editor.document.project(), spec) {
+                Ok(commands) => {
+                    self.grid = None;
+                    requests.push(Request::Action(Action::Commit(
+                        "Создать: сетка".into(),
+                        commands,
+                    )));
+                    requests.push(Request::Fit);
+                }
+                Err(e) => self.message(e),
+            }
+        } else if !open {
+            self.grid = None;
+        }
     }
 
     /// Typed coordinates for the next pick.
@@ -632,7 +789,9 @@ impl Workbench {
             let start = ctx.input(|i| {
                 i.events.iter().find_map(|e| match e {
                     egui::Event::Text(t)
-                        if t.starts_with(|c: char| c.is_ascii_digit() || c == '@' || c == '-') =>
+                        if t.starts_with(|c: char| {
+                            c.is_ascii_digit() || matches!(c, '@' | '-' | '$' | '!')
+                        }) =>
                     {
                         Some(t.clone())
                     }
@@ -655,7 +814,7 @@ impl Workbench {
             .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0., -80.))
             .show(ctx, |ui| {
                 let label =
-                    ui.label("x,y,z — абсолютно · @dx,dy,dz — относительно · d — по направлению");
+                    ui.label("x,y,z — от предыдущей точки · $x,y,z — от начала плоскости · !x,y,z — глобально · d<угол — полярно · d — по курсору");
                 let edit = ui
                     .add(
                         egui::TextEdit::singleline(&mut text)
@@ -704,6 +863,7 @@ impl Workbench {
             }
         }
         self.job_window(&ctx, &mut requests);
+        self.grid_window(&ctx, &mut requests);
         self.chrome(ui, &mut requests);
         requests
     }
