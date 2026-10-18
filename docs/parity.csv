@@ -17,8 +17,8 @@ ifc43,Расширенное IFC4.3,exchange,https://support.tekla.com/tekla-202
 reference-models,Reference-модели и координация BCF,exchange,https://support.tekla.com/tekla-2025/tekla-structures,open,later,Обновить reference без потери связей и замечаний,
 dwg,Обмен DWG,exchange,https://support.tekla.com/tekla-2025/tekla-structures,open,later,Независимое чтение и масштаб чертежа,
 native-tekla,Собственные форматы Tekla,exchange,https://support.tekla.com/tekla-2025/tekla-structures,open,unresolved,Документировать разрешённый формат и корпус совместимости,
-concrete,Монолитные и сборные бетонные элементы,modeling,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,"Создать проём, литую единицу, чертёж и ведомость объёма",
-rebar,Стержни и арматурные группы,detailing,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,"Сверить защитный слой, формы, длины и обновление бетона",
+concrete,Монолитные и сборные бетонные элементы,modeling,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,"Создать проём, литую единицу, чертёж и ведомость объёма",Не реализовано: этапы 15–16 отложены решением пользователя 2026-10-18
+rebar,Стержни и арматурные группы,detailing,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,"Сверить защитный слой, формы, длины и обновление бетона",Не реализовано: этапы 15–16 отложены решением пользователя 2026-10-18
 advanced-rebar,Расширенное армирование и формы,detailing,https://support.tekla.com/tekla-2025/tekla-structures,open,later,Корпус гнутых форм и производственных ведомостей,
 pour-management,Захватки и управление бетонированием,fabrication,https://support.tekla.com/tekla-2025/tekla-structures,open,later,Обновить границы захватки и объём после правки,
 catalogs,Полные региональные каталоги,modeling,https://support.tekla.com/tekla-2025/tekla-structures,open,later,Сверить сортамент с открытым первоисточником,
@@ -29,3 +29,7 @@ viewport,"Трёхмерный вид, камера, выбор и сечени�
 modeling-tools,Creation and group editing,modeling,phase-7,verified,initial,"Numeric creation, four snaps, history, save/open",tests/modeling_flows/VERIFICATION.md; crates/desktop/tests/modeling.rs
 steel-detailing-basic,Steel detailing initial workflow,detailing,phase-8,verified,initial,Exact tested cut/hole masses; linked bolts and weld rows; native gusset/stiffener editing and save/open,tests/steel_flows/VERIFICATION.md; crates/steel/tests; tests/fixtures/steel
 connections-basic,Base plate end plate clip angle initial workflow,detailing,phase-9,verified,initial,"Stable generated IDs, atomic invalid rollback, JSON templates, native save/open/reapply and analytic masses",tests/connections_flows/VERIFICATION.md; crates/connections/tests
+ui-shell,"Русский интерфейс, горячие клавиши, поиск команд, доступность",platform,phase-17/18,verified,initial,"Русский интерфейс, горячие клавиши, поиск команд, доступность",docs/ui-verification.md; crates/desktop/tests/ui_shell.rs; tests/ui/
+performance-100k,"100 000 простых стальных объектов: кадр, выбор, память, открытие",platform,phase-17/18,verified,initial,"100 000 простых стальных объектов: кадр, выбор, память, открытие",docs/performance.md; tests/performance/
+input-hardening,Корпус испорченных проектов/IFC/DXF без паники,platform,phase-17/18,verified,initial,Корпус испорченных проектов/IFC/DXF без паники,crates/reports/tests/malformed.rs; tests/fixtures/malformed/summary.json
+macos-package,Локальный .app без подписи и нотаризации,platform,phase-17/18,verified,initial,Локальный .app без подписи и нотаризации,scripts/package-macos.sh; tests/final/VERIFICATION.md

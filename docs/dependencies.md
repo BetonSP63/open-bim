@@ -17,3 +17,13 @@ MIT/Apache-2.0/BSD/ISC/Zlib/Unlicense разрешают распростран�
 Этапы 3–5 используют serde/serde_json (MIT OR Apache-2.0) и sha2 0.11.0 (MIT OR Apache-2.0). Полный инвентарь обновлён до графа этапа 5; выбран Apache-2.0 там, где доступен.
 
 Этап 6: glam 0.34.1 (MIT OR Apache-2.0) для f64-камеры; egui/egui-wgpu 0.36.2 и wgpu 30.0.1 (MIT OR Apache-2.0) для GPU; image 0.25.10 (MIT OR Apache-2.0) для PNG framebuffer. Прямые версии закреплены; инвентарь обновлён из cargo metadata --locked.
+
+## Обновление этапа 18
+
+Инвентарь пересобран из `cargo metadata --locked --filter-platform aarch64-apple-darwin`
+(247 пакетов графа). Новые прямые зависимости этапов 10–18: parry3d-f64 0.31.1
+(Apache-2.0), skrifa 0.44.0 и epaint_default_fonts 0.36.2 (шрифт Ubuntu Light,
+Ubuntu Font Licence 1.0 — допускает встраивание в PDF), flate2 1.1.10, sha2 0.11.0.
+Лицензия «Apache-2.0 OR GPL-2.0-only» используется по Apache-2.0. Средства
+независимой проверки (ezdxf, pypdf, IfcOpenShell, matplotlib) установлены только в
+`work/verify-venv` и не входят в поставку.

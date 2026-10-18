@@ -406,6 +406,7 @@ impl eframe::App for Desktop {
         let Some(runner) = &mut self.script else {
             return;
         };
+        runner.set_busy(self.bench.busy());
         match runner.frame(raw_input) {
             Some(Effect::Capture(path)) => {
                 self.manual_capture = Some(path);

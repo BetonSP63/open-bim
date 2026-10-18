@@ -1,0 +1,21 @@
+LOAD_MS: 263.4
+GPU: Apple M5 · Metal; project=Синтетический корпус 100000 objects=100000
+BENCH_SAVED: tests/performance/synthetic-100k-run1.json
+       12.41 real         2.88 user         1.72 sys
+           360742912  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+              394729  page reclaims
+                   2  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                  22  voluntary context switches
+               24314  involuntary context switches
+         34481839140  instructions retired
+         11945399279  cycles elapsed
+           657065088  peak memory footprint

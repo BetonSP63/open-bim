@@ -1,0 +1,62 @@
+LOAD_MS: 645.7
+GPU: Apple M5 · Metal; project=Connection GUI fixture objects=16
+SCRIPT: step 1 Wait(25)
+SCRIPT: step 2 Note("⌘K — нумерация и коллизии (фоновая задача)")
+SCRIPT: step 3 Key { name: "K", command: true, shift: false, alt: false }
+SCRIPT: step 4 WaitIdle
+SCRIPT: step 5 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/final/run/01-clash.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/final/run/01-clash.png 2560x1600
+SCRIPT: step 6 Note("⌘P «сборки по» — сборки по заводским швам")
+SCRIPT: step 7 Key { name: "P", command: true, shift: false, alt: false }
+SCRIPT: step 8 Wait(3)
+SCRIPT: step 9 Text("сборки по")
+SCRIPT: step 10 Wait(3)
+SCRIPT: step 11 Key { name: "Enter", command: false, shift: false, alt: false }
+SCRIPT: step 12 Wait(10)
+SCRIPT: step 13 Note("⌘R — ведомости")
+SCRIPT: step 14 Key { name: "R", command: true, shift: false, alt: false }
+SCRIPT: step 15 Wait(10)
+SCRIPT: step 16 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/final/run/02-reports.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/final/run/02-reports.png 2560x1600
+SCRIPT: step 17 Note("⇧⌘R — выпуск комплекта в папку release")
+SCRIPT: step 18 Key { name: "R", command: true, shift: true, alt: false }
+SCRIPT: step 19 WaitIdle
+SCRIPT: step 20 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/final/run/03-release.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/final/run/03-release.png 2560x1600
+SCRIPT: step 21 Note("F3, ⌘P «общий» — общий вид A1, ⇧⌘P — PDF")
+SCRIPT: step 22 Key { name: "F3", command: false, shift: false, alt: false }
+SCRIPT: step 23 Key { name: "P", command: true, shift: false, alt: false }
+SCRIPT: step 24 Wait(3)
+SCRIPT: step 25 Text("общий вид")
+SCRIPT: step 26 Wait(3)
+SCRIPT: step 27 Key { name: "Enter", command: false, shift: false, alt: false }
+SCRIPT: step 28 Wait(20)
+SCRIPT: step 29 Key { name: "P", command: true, shift: true, alt: false }
+SCRIPT: step 30 Wait(10)
+SCRIPT: step 31 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/final/run/04-general.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/final/run/04-general.png 2560x1600
+SCRIPT: step 32 Note("⌘E — экспорт IFC, ⌘S — сохранить")
+SCRIPT: step 33 Key { name: "E", command: true, shift: false, alt: false }
+SCRIPT: step 34 Wait(5)
+SCRIPT: step 35 Key { name: "S", command: true, shift: false, alt: false }
+SCRIPT: step 36 Wait(5)
+SCRIPT: step 37 Note("⌘N — новый проект, ⌘I — импорт IFC")
+SCRIPT: step 38 Key { name: "N", command: true, shift: false, alt: false }
+SCRIPT: step 39 Wait(5)
+SCRIPT: step 40 Key { name: "I", command: true, shift: false, alt: false }
+SCRIPT: step 41 Wait(20)
+SCRIPT: step 42 Key { name: "F2", command: false, shift: false, alt: false }
+SCRIPT: step 43 Wait(5)
+SCRIPT: step 44 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/final/run/05-ifc-import.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/final/run/05-ifc-import.png 2560x1600
+SCRIPT: step 45 Note("⌘O — повторное открытие сохранённого проекта (фоновая загрузка)")
+SCRIPT: step 46 Key { name: "O", command: true, shift: false, alt: false }
+SCRIPT: step 47 WaitIdle
+SCRIPT: step 48 Wait(5)
+SCRIPT: step 49 Key { name: "F4", command: false, shift: false, alt: false }
+SCRIPT: step 50 Key { name: "R", command: true, shift: false, alt: false }
+SCRIPT: step 51 Wait(10)
+SCRIPT: step 52 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/final/run/06-reopened.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/final/run/06-reopened.png 2560x1600
+SCRIPT: step 53 Quit
+SCRIPT: finished

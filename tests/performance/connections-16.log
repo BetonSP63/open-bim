@@ -1,0 +1,21 @@
+LOAD_MS: 644.4
+GPU: Apple M5 · Metal; project=Connection GUI fixture objects=16
+BENCH_SAVED: tests/performance/connections-16.json
+       12.40 real         2.46 user         0.94 sys
+           143458304  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               21873  page reclaims
+                   1  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   3  voluntary context switches
+               26023  involuntary context switches
+         16966040233  instructions retired
+          6507402715  cycles elapsed
+           229688280  peak memory footprint

@@ -9,6 +9,8 @@ use serde::Deserialize;
 pub enum Step {
     /// Idle frames.
     Wait(u32),
+    /// Wait until no background job is running (at most ten minutes).
+    WaitIdle,
     /// Click at logical points.
     Click([f32; 2]),
     /// Secondary button click at logical points.
@@ -70,6 +72,8 @@ pub struct Runner {
     wait: u32,
     /// Capture requested but not yet saved, with frames waited.
     pending: Option<(String, u32)>,
+    busy: bool,
+    idle_since: Option<std::time::Instant>,
 }
 
 impl Runner {
@@ -81,6 +85,10 @@ impl Runner {
     }
     pub fn finished(&self) -> bool {
         self.index >= self.steps.len() && self.pending.is_none()
+    }
+    /// Whether the application is running a background job this frame.
+    pub fn set_busy(&mut self, busy: bool) {
+        self.busy = busy;
     }
     /// The application saved the requested capture.
     pub fn captured(&mut self) {
@@ -129,6 +137,13 @@ impl Runner {
         };
         match &step {
             Step::Wait(frames) => advance(self, *frames),
+            Step::WaitIdle => {
+                let started = *self.idle_since.get_or_insert_with(std::time::Instant::now);
+                if !self.busy || started.elapsed().as_secs() > 600 {
+                    self.idle_since = None;
+                    advance(self, 3);
+                }
+            }
             Step::Hover(p) => {
                 input
                     .events

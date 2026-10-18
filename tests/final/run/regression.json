@@ -1,0 +1,201 @@
+[
+ {
+  "wait": 25
+ },
+ {
+  "note": "⌘K — нумерация и коллизии (фоновая задача)"
+ },
+ {
+  "key": {
+   "name": "K",
+   "command": true
+  }
+ },
+ "wait_idle",
+ {
+  "capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/final/run/01-clash.png"
+ },
+ {
+  "note": "⌘P «сборки по» — сборки по заводским швам"
+ },
+ {
+  "key": {
+   "name": "P",
+   "command": true
+  }
+ },
+ {
+  "wait": 3
+ },
+ {
+  "text": "сборки по"
+ },
+ {
+  "wait": 3
+ },
+ {
+  "key": {
+   "name": "Enter"
+  }
+ },
+ {
+  "wait": 10
+ },
+ {
+  "note": "⌘R — ведомости"
+ },
+ {
+  "key": {
+   "name": "R",
+   "command": true
+  }
+ },
+ {
+  "wait": 10
+ },
+ {
+  "capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/final/run/02-reports.png"
+ },
+ {
+  "note": "⇧⌘R — выпуск комплекта в папку release"
+ },
+ {
+  "key": {
+   "name": "R",
+   "command": true,
+   "shift": true
+  }
+ },
+ "wait_idle",
+ {
+  "capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/final/run/03-release.png"
+ },
+ {
+  "note": "F3, ⌘P «общий» — общий вид A1, ⇧⌘P — PDF"
+ },
+ {
+  "key": {
+   "name": "F3"
+  }
+ },
+ {
+  "key": {
+   "name": "P",
+   "command": true
+  }
+ },
+ {
+  "wait": 3
+ },
+ {
+  "text": "общий вид"
+ },
+ {
+  "wait": 3
+ },
+ {
+  "key": {
+   "name": "Enter"
+  }
+ },
+ {
+  "wait": 20
+ },
+ {
+  "key": {
+   "name": "P",
+   "command": true,
+   "shift": true
+  }
+ },
+ {
+  "wait": 10
+ },
+ {
+  "capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/final/run/04-general.png"
+ },
+ {
+  "note": "⌘E — экспорт IFC, ⌘S — сохранить"
+ },
+ {
+  "key": {
+   "name": "E",
+   "command": true
+  }
+ },
+ {
+  "wait": 5
+ },
+ {
+  "key": {
+   "name": "S",
+   "command": true
+  }
+ },
+ {
+  "wait": 5
+ },
+ {
+  "note": "⌘N — новый проект, ⌘I — импорт IFC"
+ },
+ {
+  "key": {
+   "name": "N",
+   "command": true
+  }
+ },
+ {
+  "wait": 5
+ },
+ {
+  "key": {
+   "name": "I",
+   "command": true
+  }
+ },
+ {
+  "wait": 20
+ },
+ {
+  "key": {
+   "name": "F2"
+  }
+ },
+ {
+  "wait": 5
+ },
+ {
+  "capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/final/run/05-ifc-import.png"
+ },
+ {
+  "note": "⌘O — повторное открытие сохранённого проекта (фоновая загрузка)"
+ },
+ {
+  "key": {
+   "name": "O",
+   "command": true
+  }
+ },
+ "wait_idle",
+ {
+  "wait": 5
+ },
+ {
+  "key": {
+   "name": "F4"
+  }
+ },
+ {
+  "key": {
+   "name": "R",
+   "command": true
+  }
+ },
+ {
+  "wait": 10
+ },
+ {
+  "capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/final/run/06-reopened.png"
+ },
+ "quit"
+]
