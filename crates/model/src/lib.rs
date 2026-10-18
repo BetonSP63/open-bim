@@ -5,6 +5,7 @@ mod connection;
 mod detailing;
 mod drawing;
 mod frame;
+pub mod numbering_rules;
 mod project;
 mod validation;
 

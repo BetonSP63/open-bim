@@ -2,44 +2,16 @@
 //! selection switches): screen-space picking, axis name rules of ГОСТ Р
 //! 21.101-2026 5.3.2, reading the grid back into the dialog and rebuilding it
 //! in one transaction.
-use super::tools::{GridSpec, coordinates, elevations, labels};
+use super::tools::{GridSpec, coordinates, elevations, labels, level_labels};
 use crate::tools::number;
 use open_bim_commands::{Command, DeletePolicy};
 use open_bim_model::{GridAxis, Level, ObjectId, Point3, Project};
 use open_bim_renderer::DVec3;
 use open_bim_renderer::overlay::Projector;
 
-/// Letters never used for coordination axes (ГОСТ Р 21.101-2026, 5.3.2).
-pub const FORBIDDEN_CYRILLIC: &str = "ЕЗЙОХЦЧЩЪЫЬ";
-pub const FORBIDDEN_LATIN: &str = "IO";
-
-/// Axis name: digits («12»), one or doubled letters («Б», «ББ»), or an
-/// additional axis as a fraction of a main one («1/1», «Б/2»).
-pub fn validate_axis_name(name: &str) -> Result<(), String> {
-    let name = name.trim();
-    if name.is_empty() {
-        return Err("Имя оси не может быть пустым".into());
-    }
-    for part in name.split('/') {
-        if part.is_empty() {
-            return Err(format!("«{name}»: пустая часть дробного обозначения"));
-        }
-        if part.chars().all(|c| c.is_ascii_digit()) {
-            continue;
-        }
-        for c in part.chars() {
-            if FORBIDDEN_CYRILLIC.contains(c) || FORBIDDEN_LATIN.contains(c) {
-                return Err(format!(
-                    "Буква «{c}» не применяется для осей (ГОСТ Р 21.101, 5.3.2: исключены {FORBIDDEN_CYRILLIC}, латинские {FORBIDDEN_LATIN})"
-                ));
-            }
-            if !(c.is_alphabetic() && c.is_uppercase()) {
-                return Err(format!("«{name}»: допустимы цифры или прописные буквы"));
-            }
-        }
-    }
-    Ok(())
-}
+pub use open_bim_model::numbering_rules::{
+    FORBIDDEN_CYRILLIC, FORBIDDEN_LATIN, validate_axis_name,
+};
 
 fn v(p: Point3) -> DVec3 {
     DVec3::from_array(p.0)
@@ -183,7 +155,7 @@ pub fn update_commands(project: &Project, spec: &GridSpec) -> Result<Vec<Command
     let (lx, ly, lz) = (
         labels(&spec.labels_x, xs_new.len())?,
         labels(&spec.labels_y, ys_new.len())?,
-        labels(&spec.labels_z, zs.len())?,
+        level_labels(&spec.labels_z, &zs)?,
     );
     for name in lx.iter().chain(&ly) {
         validate_axis_name(name)?;

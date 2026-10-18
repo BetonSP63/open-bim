@@ -204,3 +204,61 @@ fn grid_line_end_handle_drags_like_a_part_handle() {
     assert_eq!(a.end.0, [0., 22_000., 0.]);
     assert_eq!(a.start.0, [0., -2000., 0.], "start unchanged");
 }
+
+#[test]
+fn default_grid_names_follow_gost() {
+    use open_bim_desktop::interaction::tools::{GridSpec, grid_commands};
+    use open_bim_model::numbering_rules::{FORBIDDEN_CYRILLIC, axis_letter};
+    let b = bench();
+    let p = b.editor.document.project();
+    let mut levels: Vec<_> = p.levels.values().collect();
+    levels.sort_by(|a, b| a.elevation_mm.total_cmp(&b.elevation_mm));
+    let names: Vec<&str> = levels.iter().map(|l| l.name.as_str()).collect();
+    assert_eq!(names, ["0,000", "+3,600"]);
+    // Origin at 1/А: X along digits, Y along letters (5.3.8).
+    let at = |n: &str| p.axes.values().find(|a| a.name == n).unwrap();
+    assert_eq!(at("1").start.0[0], 0.);
+    assert_eq!(at("А").start.0[1], 0.);
+    assert!(at("2").start.0[0] > 0. && at("Б").start.0[1] > 0.);
+    // 25 lettered lines: А…Я without forbidden letters, then АА…ДД.
+    let spec = GridSpec {
+        x: "0 6000".into(),
+        y: "0 24*3000".into(),
+        z: "-2800 0 3600".into(),
+        labels_x: String::new(),
+        labels_y: String::new(),
+        labels_z: String::new(),
+        extension: "1000".into(),
+    };
+    let commands = grid_commands(&open_bim_model::Project::default(), &spec).unwrap();
+    let mut doc = open_bim_commands::Document::new(open_bim_model::Project::default()).unwrap();
+    doc.transact("Сетка", &commands).unwrap();
+    let p = doc.project();
+    let along_x: Vec<&str> = p
+        .axes
+        .values()
+        .filter(|a| a.start.0[0] == a.end.0[0])
+        .map(|a| a.name.as_str())
+        .collect();
+    let along_y: Vec<&str> = p
+        .axes
+        .values()
+        .filter(|a| a.start.0[1] == a.end.0[1])
+        .map(|a| a.name.as_str())
+        .collect();
+    // More lines across Y, so those take the digits (5.3.2).
+    assert_eq!(along_y.len(), 25);
+    assert_eq!(along_y[..3], ["1", "2", "3"]);
+    assert_eq!(along_x, ["А", "Б"]);
+    let letters: Vec<String> = (0..25).map(axis_letter).collect();
+    assert_eq!(letters[21..], ["АА", "ББ", "ВВ", "ГГ"]);
+    assert!(
+        letters
+            .iter()
+            .all(|l| !l.chars().any(|c| FORBIDDEN_CYRILLIC.contains(c)))
+    );
+    let mut marks: Vec<_> = p.levels.values().collect();
+    marks.sort_by(|a, b| a.elevation_mm.total_cmp(&b.elevation_mm));
+    let marks: Vec<&str> = marks.iter().map(|l| l.name.as_str()).collect();
+    assert_eq!(marks, ["-2,800", "0,000", "+3,600"]);
+}

@@ -81,7 +81,8 @@ pub fn grid_views(project: &Project) -> Vec<ModelView> {
     for level in levels {
         let z = level.elevation_mm;
         views.push(ModelView {
-            name: format!("План {}", level.name),
+            // ГОСТ Р 21.101-2026, 5.5.12: «План на отм. +3,600».
+            name: open_bim_model::numbering_rules::plan_title(z),
             kind: ViewKind::Plan { elevation: z },
             yaw: 0.,
             pitch: std::f64::consts::FRAC_PI_2,

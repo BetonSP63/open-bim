@@ -1,0 +1,6 @@
+PDF clauses: 276; matrix rows: 276
+by applicability: не применяется 70, поле/процедура 21, применяется 130, справочно 55
+missing: 0 []
+extra rows: 0 []
+row problems: 0 []
+MATRIX_OK

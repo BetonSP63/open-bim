@@ -127,7 +127,10 @@ fn grid_views_have_plan_per_level_and_elevation_per_grid_line() {
     assert_eq!(views[0].name, "3D");
     assert_eq!(plans.len(), 2);
     assert_eq!(elevations.len(), 9, "4 × 5 grid lines");
-    let top = plans.iter().find(|v| v.name.contains("+3.600")).unwrap();
+    let top = plans
+        .iter()
+        .find(|v| v.name == "План на отм. +3,600")
+        .unwrap();
     assert!(
         (top.towards_viewer() - DVec3::Z).length() < 1e-9,
         "plan looks down"
@@ -169,7 +172,7 @@ fn switching_views_keeps_the_work_plane_per_view() {
     let plan = b
         .views
         .iter()
-        .position(|v| v.name.contains("+3.600"))
+        .position(|v| v.name == "План на отм. +3,600")
         .unwrap();
     assert!(matches!(b.apply_view(plan), Some(Request::ApplyView(_))));
     assert_eq!(b.engine.workplane, Workplane::at_elevation(3600.));

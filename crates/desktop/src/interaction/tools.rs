@@ -5,6 +5,7 @@ use super::selection::corners;
 use crate::tools::detailing_ui::DetailingUi;
 use crate::tools::number;
 use open_bim_commands::Command;
+use open_bim_model::numbering_rules::{digits_along_x, level_mark, next_axis_label};
 use open_bim_model::{
     Detail, DetailKind, Frame, GridAxis, Level, ObjectId, Point3, Project, WeldType,
 };
@@ -78,28 +79,6 @@ pub fn elevations(text: &str) -> Result<Vec<f64>, String> {
     Ok(values)
 }
 
-/// Grid letters per ГОСТ Р 21.101-2026 5.3.2 (no Е, Ё, З, Й, О, Х, Ц, Ч, Щ, Ъ, Ы, Ь).
-const CYRILLIC: &str = "АБВГДЖИКЛМНПРСТУФШЭЮЯ";
-const LATIN: &str = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-
-fn next_label(label: &str) -> Option<String> {
-    if let Ok(n) = label.parse::<i64>() {
-        return Some((n + 1).to_string());
-    }
-    let mut chars = label.chars();
-    let (c, rest) = (chars.next()?, chars.as_str());
-    if !rest.is_empty() {
-        return None;
-    }
-    for alphabet in [CYRILLIC, LATIN] {
-        let letters: Vec<char> = alphabet.chars().collect();
-        if let Some(i) = letters.iter().position(|l| *l == c) {
-            return letters.get(i + 1).map(|l| l.to_string());
-        }
-    }
-    None
-}
-
 /// Labels for `count` lines; missing labels continue the sequence
 /// («А» → Б, В…; «1» → 2, 3…).
 pub fn labels(text: &str, count: usize) -> Result<Vec<String>, String> {
@@ -110,12 +89,37 @@ pub fn labels(text: &str, count: usize) -> Result<Vec<String>, String> {
     while out.len() < count {
         let next = out
             .last()
-            .map_or(Some("1".to_string()), |l| next_label(l))
+            .map_or(Some("1".to_string()), |l| next_axis_label(l))
             .ok_or_else(|| format!("Не продолжить метки после «{}»", out.last().unwrap()))?;
         out.push(next);
     }
     if out.iter().collect::<BTreeSet<_>>().len() != out.len() {
         return Err("Метки повторяются".into());
+    }
+    Ok(out)
+}
+
+/// Level names: the given ones, then the marks of the remaining elevations.
+pub fn level_labels(text: &str, elevations: &[f64]) -> Result<Vec<String>, String> {
+    let given: Vec<String> = text.split_whitespace().map(str::to_string).collect();
+    if given.len() > elevations.len() {
+        return Err(format!(
+            "Меток {} больше, чем отметок {}",
+            given.len(),
+            elevations.len()
+        ));
+    }
+    let out: Vec<String> = given
+        .into_iter()
+        .chain(
+            elevations
+                .iter()
+                .skip(text.split_whitespace().count())
+                .map(|z| level_mark(*z)),
+        )
+        .collect();
+    if out.iter().collect::<BTreeSet<_>>().len() != out.len() {
+        return Err("Метки отметок повторяются".into());
     }
     Ok(out)
 }
@@ -142,7 +146,7 @@ impl Default for GridSpec {
             z: "0 3600".into(),
             labels_x: "1 2 3 4 5".into(),
             labels_y: "А Б В Г".into(),
-            labels_z: "0.000 +3.600".into(),
+            labels_z: "0,000 +3,600".into(),
             extension: "2000".into(),
         }
     }
@@ -156,10 +160,21 @@ pub fn grid_commands(project: &Project, spec: &GridSpec) -> Result<Vec<Command>,
         coordinates(&spec.y)?,
         elevations(&spec.z)?,
     );
+    // Without labels, digits go along the side with more axes (ГОСТ Р
+    // 21.101-2026, 5.3.2); missing level names are the marks («+3,600»).
+    let (auto_x, auto_y) = if spec.labels_x.trim().is_empty() && spec.labels_y.trim().is_empty() {
+        if digits_along_x(xs.len(), ys.len()) {
+            ("1", "А")
+        } else {
+            ("А", "1")
+        }
+    } else {
+        (spec.labels_x.as_str(), spec.labels_y.as_str())
+    };
     let (lx, ly, lz) = (
-        labels(&spec.labels_x, xs.len())?,
-        labels(&spec.labels_y, ys.len())?,
-        labels(&spec.labels_z, zs.len())?,
+        labels(auto_x, xs.len())?,
+        labels(auto_y, ys.len())?,
+        level_labels(&spec.labels_z, &zs)?,
     );
     let ext = number(&spec.extension)?;
     if !(0.0..=1e6).contains(&ext) {
