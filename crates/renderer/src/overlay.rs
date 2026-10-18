@@ -362,6 +362,16 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
         }
         first_axis.get_or_insert((wa, wb));
         marks.push(line(a, b, grid, 1., Some([2., 4.])));
+        // The same grid line at the other levels, fainter.
+        let faint = [grid[0], grid[1], grid[2], 110];
+        for level in input.project.levels.values() {
+            let dz = DVec3::Z * (level.elevation_mm - wa.z);
+            if dz.length() > 1e-6
+                && let (Some(la), Some(lb)) = (p.screen(wa + dz), p.screen(wb + dz))
+            {
+                marks.push(line(la, lb, faint, 1., Some([2., 6.])));
+            }
+        }
         let d = [b[0] - a[0], b[1] - a[1]];
         let len = (d[0] * d[0] + d[1] * d[1]).sqrt().max(1e-9);
         let d = [d[0] / len, d[1] / len];

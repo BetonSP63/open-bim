@@ -52,7 +52,10 @@ impl SnapKind {
 /// perpendicular off.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Switches {
+    /// Tekla main switch «Reference lines and points».
     pub reference: bool,
+    /// Tekla main switch «Geometry lines and points»: solid corners and edges.
+    pub geometry: bool,
     pub end: bool,
     pub mid: bool,
     pub intersection: bool,
@@ -65,6 +68,7 @@ impl Default for Switches {
     fn default() -> Self {
         Self {
             reference: true,
+            geometry: true,
             end: true,
             mid: true,
             intersection: true,
@@ -267,6 +271,11 @@ impl Snapper {
                 if !switches.enabled(kind) || !point.is_finite() {
                     return;
                 }
+                // Main switches: geometry points need «Геометрия», reference ones
+                // (member axes, grid lines, plate corners) need «Опорные».
+                if (reference && !switches.reference) || (!reference && !switches.geometry) {
+                    return;
+                }
                 let Some(px) = pixels(point) else { return };
                 if px > tolerance {
                     return;
@@ -281,14 +290,26 @@ impl Snapper {
             };
         // Reference lines (member axes, grid lines) and geometry edges.
         let mut lines: Vec<Segment> = Vec::new();
+        // Grid lines exist at every level (Tekla grids are drawn per elevation).
         for axis in project.axes.values() {
             let (a, b) = (
                 DVec3::from_array(axis.start.0),
                 DVec3::from_array(axis.end.0),
             );
-            offer(SnapKind::Reference, a, Some(axis.id), true);
-            offer(SnapKind::Reference, b, Some(axis.id), true);
-            lines.push((a, b, Some(axis.id), true));
+            let mut shifts = vec![0.];
+            shifts.extend(
+                project
+                    .levels
+                    .values()
+                    .map(|l| l.elevation_mm - a.z)
+                    .filter(|dz| dz.abs() > 1e-6),
+            );
+            for dz in shifts {
+                let (a, b) = (a + DVec3::Z * dz, b + DVec3::Z * dz);
+                offer(SnapKind::Reference, a, Some(axis.id), true);
+                offer(SnapKind::Reference, b, Some(axis.id), true);
+                lines.push((a, b, Some(axis.id), true));
+            }
         }
         for index in &near {
             let instance = &scene.instances[*index];
@@ -359,7 +380,7 @@ impl Snapper {
             }
         }
         if switches.intersection {
-            let references: Vec<&Segment> = lines.iter().filter(|l| l.3).take(64).collect();
+            let references: Vec<&Segment> = lines.iter().filter(|l| l.3).take(128).collect();
             for (i, x) in references.iter().enumerate() {
                 for y in references.iter().skip(i + 1) {
                     let scale = (x.1 - x.0).length().max((y.1 - y.0).length()).max(1.);

@@ -1,0 +1,23 @@
+LOAD_MS: 8.7
+GPU: Apple M5 · Metal; project=Контрольный стальной каркас objects=7
+SCRIPT: step 1 Wait(40)
+SCRIPT: step 2 Key { name: "I", command: false, shift: false, alt: false, ctrl: true }
+SCRIPT: step 3 Wait(10)
+SCRIPT: step 4 Click([1042.0, 157.0])
+SCRIPT: step 5 Wait(15)
+SCRIPT: step 6 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/property-views/03-views-list.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/property-views/03-views-list.png 2560x1600
+SCRIPT: step 7 Click([950.0, 229.0])
+SCRIPT: step 8 Wait(20)
+SCRIPT: step 9 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/property-views/04-plan-top-depth.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/property-views/04-plan-top-depth.png 2560x1600
+SCRIPT: step 10 Key { name: "P", command: false, shift: false, alt: false, ctrl: true }
+SCRIPT: step 11 Wait(20)
+SCRIPT: step 12 Click([416.0, 733.0])
+SCRIPT: step 13 Text("I 300")
+SCRIPT: step 14 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 15 Wait(15)
+SCRIPT: step 16 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/property-views/05-search-i300.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/property-views/05-search-i300.png 2560x1600
+SCRIPT: step 17 Quit
+SCRIPT: finished

@@ -57,6 +57,7 @@ pub enum SidePanel {
     Connections,
     Clash,
     Tree,
+    Views,
 }
 
 impl SidePanel {
@@ -68,6 +69,7 @@ impl SidePanel {
             Self::Connections => "Узлы",
             Self::Clash => "Нумерация и коллизии",
             Self::Tree => "Дерево модели",
+            Self::Views => "Виды модели",
         }
     }
 }
@@ -195,6 +197,8 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     item(Cmd::ViewRight, Icon::View3d, "Справа"),
                     item(Cmd::Fit, Icon::WorkArea, "Вписать"),
                     item(Cmd::ToggleProjection, Icon::View3d, "Перспектива"),
+                    item(Cmd::GridViews, Icon::Grid, "Виды по сетке"),
+                    item(Cmd::PlaneOr3d, Icon::View3d, "3D / план"),
                 ],
             ),
             (
@@ -278,6 +282,7 @@ impl Workbench {
             || self.workplane_picks.is_some()
             || self.detail.picks_points()
             || self.edit_pick.op.is_some()
+            || self.measure.is_some()
     }
 
     pub fn prompt(&self) -> String {
@@ -287,6 +292,12 @@ impl Workbench {
             p
         } else if let Some(p) = self.edit_pick.prompt() {
             p
+        } else if let Some(m) = &self.measure {
+            if m.is_empty() {
+                "Укажите первую точку измерения".into()
+            } else {
+                "Укажите вторую точку измерения".into()
+            }
         } else {
             self.engine.prompt()
         }
@@ -382,6 +393,7 @@ impl Workbench {
         self.selection_toolbar(ui, requests);
         self.snap_toolbar(ui, requests);
         self.side(ui, requests);
+        self.contextual_toolbar(ui.ctx(), requests);
     }
 
     fn title_row(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
@@ -794,6 +806,7 @@ impl Workbench {
                         SnapKind::Reference.label(),
                         &mut sw.reference,
                     ),
+                    (Icon::SnapNearest, "Геометрия", &mut sw.geometry),
                     (Icon::SnapEnd, SnapKind::EndPoint.label(), &mut sw.end),
                     (Icon::SnapMid, SnapKind::MidPoint.label(), &mut sw.mid),
                     (
@@ -877,6 +890,7 @@ impl Workbench {
                         ),
                         (SidePanel::Clash, Icon::Clash, Cmd::PanelClash),
                         (SidePanel::Tree, Icon::Grid, Cmd::PanelModelTree),
+                        (SidePanel::Views, Icon::View3d, Cmd::PanelViews),
                     ] {
                         let open = self.mode == Mode::Model && self.side_panel == Some(panel);
                         if icons::button(
@@ -937,7 +951,20 @@ impl Workbench {
                         }
                         Mode::Model => match self.side_panel {
                             Some(SidePanel::Tree) => self.tree_panel(ui),
+                            Some(SidePanel::Views) => self.views_panel(ui, requests),
+                            Some(SidePanel::Properties)
+                                if super::property_pane::common(
+                                    self.editor.document.project(),
+                                    &self.editor.selected,
+                                )
+                                .is_some() =>
+                            {
+                                self.selection_pane(ui, requests)
+                            }
                             Some(panel) => {
+                                if panel == SidePanel::Properties {
+                                    self.object_type(ui, requests);
+                                }
                                 self.tools.panel = match panel {
                                     SidePanel::Edit => ToolsPanel::Edit,
                                     SidePanel::Detailing => ToolsPanel::Detailing,
@@ -958,6 +985,259 @@ impl Workbench {
                     });
                 });
             });
+    }
+
+    /// Tekla contextual toolbar next to the pointer after a selecting click:
+    /// profile and material apply at once; «Свойства…» opens the pane.
+    fn contextual_toolbar(&mut self, ctx: &egui::Context, requests: &mut Vec<Request>) {
+        use super::property_pane::{Changes, VARIES, common, modify};
+        let Some(at) = self.context_at.filter(|_| {
+            self.contextual
+                && self.mode == Mode::Model
+                && !self.picking()
+                && self.delete_confirm.is_none()
+        }) else {
+            return;
+        };
+        let project = self.editor.document.project();
+        let Some(c) = common(project, &self.editor.selected) else {
+            return;
+        };
+        let mut change = Changes::default();
+        let mut open_pane = false;
+        egui::Area::new(egui::Id::new("contextual toolbar"))
+            .fixed_pos(at + egui::vec2(18., 18.))
+            .order(egui::Order::Foreground)
+            .show(ctx, |ui| {
+                egui::Frame::popup(ui.style()).show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.strong(format!(
+                            "{} ({})",
+                            c.kind.value().map(String::as_str).unwrap_or("Детали"),
+                            c.parts.len()
+                        ));
+                        if let Some(profile) = &c.profile {
+                            let shown = profile
+                                .value()
+                                .and_then(|id| project.profiles.get(id))
+                                .map_or(VARIES, |p| p.name.as_str());
+                            egui::ComboBox::new("ctx profile", "")
+                                .selected_text(shown)
+                                .show_ui(ui, |ui| {
+                                    for p in project.profiles.values() {
+                                        if ui.selectable_label(false, &p.name).clicked() {
+                                            change.profile = Some(p.id);
+                                        }
+                                    }
+                                })
+                                .response
+                                .widget_info(|| {
+                                    egui::WidgetInfo::labeled(
+                                        egui::WidgetType::ComboBox,
+                                        true,
+                                        "Профиль выбранных",
+                                    )
+                                });
+                        }
+                        let shown = c
+                            .material
+                            .value()
+                            .and_then(|id| project.materials.get(id))
+                            .map_or(VARIES, |m| m.name.as_str());
+                        egui::ComboBox::new("ctx material", "")
+                            .selected_text(shown)
+                            .show_ui(ui, |ui| {
+                                for m in project.materials.values() {
+                                    if ui.selectable_label(false, &m.name).clicked() {
+                                        change.material = Some(m.id);
+                                    }
+                                }
+                            })
+                            .response
+                            .widget_info(|| {
+                                egui::WidgetInfo::labeled(
+                                    egui::WidgetType::ComboBox,
+                                    true,
+                                    "Материал выбранных",
+                                )
+                            });
+                        open_pane = ui.button("Свойства…").clicked();
+                    });
+                });
+            });
+        if change != Changes::default() {
+            match modify(project, &c.parts, &change) {
+                Ok(commands) => requests.push(Request::Action(Action::Commit(
+                    "Изменить свойства".into(),
+                    commands,
+                ))),
+                Err(e) => self.tools.message = Some(e),
+            }
+            self.pane.source.clear();
+        }
+        if open_pane {
+            self.side_panel = Some(SidePanel::Properties);
+            self.context_at = None;
+        }
+    }
+
+    /// Tekla property pane with nothing selected: the object type list starts
+    /// a create command; the tool's default properties follow.
+    fn object_type(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
+        let tools = [
+            (Cmd::ToolBeam, "Балка"),
+            (Cmd::ToolColumn, "Колонна"),
+            (Cmd::ToolPlate, "Контурная пластина"),
+            (Cmd::ToolBolt, "Болт"),
+            (Cmd::ToolWeld, "Сварной шов"),
+            (Cmd::ToolAxis, "Ось"),
+            (Cmd::GridDialog, "Сетка"),
+        ];
+        let current = self
+            .engine
+            .tool
+            .map(|k| k.label())
+            .unwrap_or("Выберите тип объекта");
+        let mut chosen = None;
+        egui::ComboBox::new("object type", "Тип объекта")
+            .selected_text(current)
+            .show_ui(ui, |ui| {
+                for (cmd, label) in tools {
+                    if ui.selectable_label(false, label).clicked() {
+                        chosen = Some(cmd);
+                    }
+                }
+            })
+            .response
+            .widget_info(|| {
+                egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, "Тип объекта")
+            });
+        if let Some(cmd) = chosen {
+            self.run(cmd, requests);
+        }
+    }
+
+    /// Common properties of the selected parts; «Изменить» applies the edits.
+    fn selection_pane(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
+        use super::property_pane::{Shared, VARIES, common, modify};
+        let project = self.editor.document.project();
+        let Some(c) = common(project, &self.editor.selected) else {
+            return;
+        };
+        self.pane.sync(&c);
+        let kind = c.kind.value().cloned().unwrap_or_else(|| "Детали".into());
+        ui.heading(format!("Свойства: {kind} ({})", c.parts.len()));
+        egui::Grid::new("selection properties")
+            .num_columns(2)
+            .show(ui, |ui| {
+                let l = ui.label("Имя");
+                ui.text_edit_singleline(&mut self.pane.name)
+                    .labelled_by(l.id);
+                ui.end_row();
+                if let Some(profile) = &c.profile {
+                    ui.label("Профиль");
+                    let shown = self
+                        .pane
+                        .profile
+                        .and_then(|id| project.profiles.get(&id))
+                        .map_or(VARIES, |p| p.name.as_str());
+                    egui::ComboBox::new("pane profile", "")
+                        .selected_text(shown)
+                        .show_ui(ui, |ui| {
+                            for p in project.profiles.values() {
+                                ui.selectable_value(&mut self.pane.profile, Some(p.id), &p.name);
+                            }
+                        })
+                        .response
+                        .widget_info(|| {
+                            egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, "Профиль")
+                        });
+                    if matches!(profile, Shared::Varies) && self.pane.profile.is_none() {
+                        ui.small(VARIES);
+                    }
+                    ui.end_row();
+                }
+                ui.label("Материал");
+                let shown = self
+                    .pane
+                    .material
+                    .and_then(|id| project.materials.get(&id))
+                    .map_or(VARIES, |m| m.name.as_str());
+                egui::ComboBox::new("pane material", "")
+                    .selected_text(shown)
+                    .show_ui(ui, |ui| {
+                        for m in project.materials.values() {
+                            ui.selectable_value(&mut self.pane.material, Some(m.id), &m.name);
+                        }
+                    })
+                    .response
+                    .widget_info(|| {
+                        egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, "Материал")
+                    });
+                ui.end_row();
+                let l = ui.label("Класс");
+                ui.horizontal(|ui| {
+                    ui.add(egui::TextEdit::singleline(&mut self.pane.class).desired_width(60.))
+                        .labelled_by(l.id);
+                    if let Some(rgb) = open_bim_renderer::class_color(&self.pane.class) {
+                        let (r, _) =
+                            ui.allocate_exact_size(egui::vec2(14., 14.), egui::Sense::hover());
+                        let c = |v: f32| (v * 255.) as u8;
+                        ui.painter().rect_filled(
+                            r,
+                            2.,
+                            egui::Color32::from_rgb(c(rgb[0]), c(rgb[1]), c(rgb[2])),
+                        );
+                    }
+                });
+                ui.end_row();
+                ui.label("Размер");
+                ui.label(c.size.value().cloned().unwrap_or_else(|| VARIES.into()));
+                ui.end_row();
+            });
+        ui.horizontal(|ui| {
+            if ui.button("Изменить").clicked() {
+                match modify(project, &c.parts, &self.pane.changes(&c)) {
+                    Ok(commands) => requests.push(Request::Action(Action::Commit(
+                        format!("Изменить свойства ({})", c.parts.len()),
+                        commands,
+                    ))),
+                    Err(e) => self.tools.message = Some(e),
+                }
+                self.pane.source.clear();
+            }
+            if ui
+                .button("Получить")
+                .on_hover_text("Заново прочитать свойства выбранных")
+                .clicked()
+            {
+                self.pane.source.clear();
+            }
+        });
+    }
+
+    fn views_panel(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
+        ui.heading(SidePanel::Views.title());
+        if ui.button(commands::caption(Cmd::GridViews)).clicked() {
+            self.run(Cmd::GridViews, requests);
+        }
+        ui.separator();
+        let mut chosen = None;
+        for (i, view) in self.views.iter().enumerate() {
+            if ui
+                .selectable_label(self.active_view == i, &view.name)
+                .clicked()
+            {
+                chosen = Some(i);
+            }
+        }
+        if let Some(i) = chosen
+            && let Some(r) = self.apply_view(i)
+        {
+            requests.push(r);
+        }
+        ui.separator();
+        ui.small("Ctrl+P — 3D / плоский вид · глубина плана ±1000 мм, фасада ±500 мм");
     }
 
     fn tree_panel(&mut self, ui: &mut egui::Ui) {

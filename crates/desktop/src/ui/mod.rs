@@ -6,7 +6,9 @@ pub mod commands;
 pub mod icons;
 pub mod jobs;
 pub mod palette;
+pub mod property_pane;
 pub mod theme;
+pub mod views;
 
 use crate::drawing_editor::{DrawingEditor, ExportFormat};
 use crate::reports_ui::ReportsUi;
@@ -40,6 +42,8 @@ pub enum Request {
     ToggleProjection,
     /// Zoom to the selected objects (Tekla Shift+Space).
     FitSelected,
+    /// Switch the camera and view depth to a model view.
+    ApplyView(Box<views::ModelView>),
 }
 
 pub enum ActiveJob {
@@ -112,6 +116,19 @@ pub struct Workbench {
     pub delete_confirm: Option<(BTreeSet<ObjectId>, usize)>,
     /// Tab / Shift+Tab: index into the snap candidates under the cursor.
     pub snap_cycle: usize,
+    /// Property pane edit buffer.
+    pub pane: property_pane::PropertyPane,
+    /// Model views (3D, plans, elevations) and the active one.
+    pub views: Vec<views::ModelView>,
+    pub active_view: usize,
+    /// View depth of the active view (two clip planes).
+    pub clip: [Option<open_bim_renderer::ClipPlane>; 2],
+    /// Contextual toolbar (Ctrl+K) and where the last selecting click was.
+    pub contextual: bool,
+    pub context_at: Option<egui::Pos2>,
+    /// Measure command picks and the last measured segment.
+    pub measure: Option<Vec<open_bim_renderer::DVec3>>,
+    pub measured: Option<(open_bim_renderer::DVec3, open_bim_renderer::DVec3)>,
     /// Snap kind under the cursor (status bar).
     pub last_snap: Option<crate::interaction::snap::SnapKind>,
     /// Screen-space snapping and its switches (bottom toolbar).
@@ -161,6 +178,14 @@ impl Workbench {
             direct_modification: true,
             delete_confirm: None,
             snap_cycle: 0,
+            pane: Default::default(),
+            views: vec![views::ModelView::model_3d()],
+            active_view: 0,
+            clip: [None, None],
+            contextual: true,
+            context_at: None,
+            measure: None,
+            measured: None,
             last_snap: None,
             snapper: Default::default(),
             switches: Default::default(),
@@ -394,6 +419,9 @@ impl Workbench {
                     self.message("Задание рабочей плоскости прервано");
                 } else if self.engine.numeric.is_some() {
                     self.engine.numeric = None;
+                } else if self.measure.take().is_some() {
+                    self.measured = None;
+                    self.message("Измерение завершено");
                 } else if self.detail.cancel() || self.edit_pick.cancel() {
                     self.message("Команда прервана");
                 } else if self.delete_confirm.take().is_some() {
@@ -419,6 +447,7 @@ impl Workbench {
                     Cmd::PanelDetailing => chrome::SidePanel::Detailing,
                     Cmd::PanelConnections => chrome::SidePanel::Connections,
                     Cmd::PanelClash => chrome::SidePanel::Clash,
+                    Cmd::PanelModelTree => chrome::SidePanel::Tree,
                     _ => chrome::SidePanel::Tree,
                 };
                 self.mode = Mode::Model;
@@ -504,6 +533,56 @@ impl Workbench {
                 } else {
                     "Прямое изменение: выключено"
                 });
+            }
+            Cmd::GridViews => {
+                self.views = views::grid_views(self.editor.document.project());
+                self.active_view = 0;
+                self.mode = Mode::Model;
+                self.side_panel = Some(chrome::SidePanel::Views);
+                self.message(format!("Создано видов: {}", self.views.len()));
+            }
+            Cmd::PanelViews => {
+                self.mode = Mode::Model;
+                self.side_panel = if self.side_panel == Some(chrome::SidePanel::Views) {
+                    None
+                } else {
+                    Some(chrome::SidePanel::Views)
+                };
+                self.message(format!("Видов модели: {}", self.views.len()));
+            }
+            Cmd::PlaneOr3d => {
+                if self.views.len() == 1 {
+                    self.views = views::grid_views(self.editor.document.project());
+                }
+                // Plane view at the work plane level, or back to 3D.
+                let target = if self.active_view != 0 {
+                    0
+                } else {
+                    let z = self.engine.workplane.origin.z;
+                    self.views
+                        .iter()
+                        .position(|v| matches!(v.kind, views::ViewKind::Plan { elevation } if (elevation - z).abs() < 1.))
+                        .or_else(|| self.views.iter().position(|v| matches!(v.kind, views::ViewKind::Plan { .. })))
+                        .unwrap_or(0)
+                };
+                return self.apply_view(target);
+            }
+            Cmd::ToggleContextual => {
+                self.contextual = !self.contextual;
+                self.message(if self.contextual {
+                    "Контекстная панель включена"
+                } else {
+                    "Контекстная панель выключена"
+                });
+            }
+            Cmd::Measure => {
+                self.engine.cancel();
+                self.editor.cancel();
+                self.detail.cancel();
+                self.edit_pick.cancel();
+                self.measure = Some(Vec::new());
+                self.mode = Mode::Model;
+                self.message(self.prompt());
             }
             Cmd::SelectAll => {
                 let project = self.editor.document.project();
@@ -668,6 +747,25 @@ impl Workbench {
     /// A pick from the viewport (world point, already snapped).
     pub fn pick(&mut self, point: open_bim_renderer::DVec3) -> Option<Request> {
         self.engine.reference = None;
+        if let Some(picks) = &mut self.measure {
+            picks.push(point);
+            if let [a, b] = picks[..] {
+                let d = b - a;
+                self.measured = Some((a, b));
+                picks.clear();
+                self.message(format!(
+                    "Расстояние {:.1} мм · ΔX {:.1} · ΔY {:.1} · ΔZ {:.1}",
+                    d.length(),
+                    d.x,
+                    d.y,
+                    d.z
+                ));
+            } else {
+                self.measured = None;
+                self.message(self.prompt());
+            }
+            return None;
+        }
         if self.edit_pick.op.is_some() {
             return match self.edit_pick.pick(point, self.engine.workplane.axes[2]) {
                 Ok(Some(edit)) => {
@@ -779,6 +877,23 @@ impl Workbench {
                 None
             }
         }
+    }
+
+    /// Activate a model view: remember the work plane of the current one,
+    /// switch camera, view depth and work plane (Tekla keeps them per view).
+    pub fn apply_view(&mut self, index: usize) -> Option<Request> {
+        let view = self.views.get(index)?.clone();
+        if let Some(current) = self.views.get_mut(self.active_view) {
+            current.workplane = self.engine.workplane;
+        }
+        self.active_view = index;
+        self.engine.workplane = view.workplane;
+        if view.workplane.axes[2] == open_bim_renderer::DVec3::Z {
+            self.tools.workplane = format!("{:.0}", view.workplane.origin.z);
+        }
+        self.clip = view.clip;
+        self.message(format!("Вид: {}", view.name));
+        Some(Request::ApplyView(Box::new(view)))
     }
 
     fn delete_request(&mut self, ids: &BTreeSet<ObjectId>) -> Request {

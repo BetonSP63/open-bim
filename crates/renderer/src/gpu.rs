@@ -35,7 +35,7 @@ impl GpuRenderer {
     pub fn new(device: &wgpu::Device, target_format: wgpu::TextureFormat) -> Self {
         let uniform = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("camera + section"),
-            size: 80,
+            size: 96,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -337,14 +337,16 @@ impl GpuRenderer {
             .to_cols_array()
             .map(|v| v as f32)
             .to_vec();
-        values.extend(state.section.map_or([0.0, 0.0, 0.0, 1.0], |p| {
-            [
-                p.normal.x as f32,
-                p.normal.y as f32,
-                p.normal.z as f32,
-                (p.normal.dot(scene.origin) - p.offset) as f32,
-            ]
-        }));
+        for plane in [state.section, state.depth] {
+            values.extend(plane.map_or([0.0, 0.0, 0.0, 1.0], |p| {
+                [
+                    p.normal.x as f32,
+                    p.normal.y as f32,
+                    p.normal.z as f32,
+                    (p.normal.dot(scene.origin) - p.offset) as f32,
+                ]
+            }));
+        }
         queue.write_buffer(&self.uniform, 0, &bytes(values));
         let target = self.target.as_ref().expect("target resized");
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {

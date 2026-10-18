@@ -7,7 +7,7 @@ use open_bim_model::{ObjectId, example_steel_frame};
 /// Work area box margin around the model bounds, mm.
 const WORK_AREA_MARGIN_MM: f64 = 500.0;
 use open_bim_renderer::{
-    Camera, ClipPlane, DVec3, GpuRenderer, Scene, ViewState, ViewportCallback, overlay,
+    Camera, ClipPlane, DVec3, GpuRenderer, NamedView, Scene, ViewState, ViewportCallback, overlay,
 };
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -334,6 +334,12 @@ impl Desktop {
             match request {
                 Request::Action(action) => self.action(action),
                 Request::Fit => self.fit(),
+                Request::ApplyView(view) => {
+                    self.camera.yaw = view.yaw;
+                    self.camera.pitch = view.pitch;
+                    self.camera.orthographic = view.orthographic;
+                    self.fit();
+                }
                 Request::FitSelected => {
                     let project = self.bench.editor.document.project();
                     let points: Vec<DVec3> = self
@@ -502,10 +508,16 @@ impl eframe::App for Desktop {
         requests.append(&mut self.pending);
         self.handle(requests);
         self.view.hidden = self.bench.hidden.clone();
-        self.view.section = self.bench.section_enabled.then_some(ClipPlane {
-            normal: DVec3::Z,
-            offset: self.bench.section_height,
-        });
+        // The section tool overrides the lower plane of the view depth.
+        self.view.section = if self.bench.section_enabled {
+            Some(ClipPlane {
+                normal: DVec3::Z,
+                offset: self.bench.section_height,
+            })
+        } else {
+            self.bench.clip[0]
+        };
+        self.view.depth = self.bench.clip[1];
         self.view.selected_ids = self.bench.editor.selected.clone();
         self.view.selected = self.bench.editor.selected.first().copied();
         egui::CentralPanel::default().show(ui, |ui| {
@@ -626,6 +638,7 @@ impl eframe::App for Desktop {
                     if !self.bench.tools.snap_enabled {
                         switches = open_bim_desktop::interaction::snap::Switches {
                             reference: false,
+                            geometry: false,
                             end: false,
                             mid: false,
                             intersection: false,
@@ -727,14 +740,28 @@ impl eframe::App for Desktop {
                             self.pending.push(r);
                         }
                     }
+                } else if let Some(view) = response
+                    .interact_pointer_pos()
+                    .and_then(|p| gizmo_axis_at(&self.camera, rect, p))
+                {
+                    // Tekla navigation control: click an axis for that plane view.
+                    self.pending.push(Request::View(view));
+                    self.pending.push(Request::Fit);
                 } else {
                     let id = hover.and_then(|ray| self.scene.pick(ray, &self.view));
+                    self.bench.context_at = response.interact_pointer_pos();
                     // Alt+click selects the whole assembly once (Tekla).
                     let saved = self.bench.select;
                     self.bench.select.assemblies |= modifiers.alt;
                     self.bench.select_picked(id, click_mode);
                     self.bench.select = saved;
                 }
+            }
+            // Double click opens the properties of the clicked part (Tekla).
+            if response.double_clicked() && !self.bench.picking() {
+                self.bench.mode = open_bim_desktop::ui::Mode::Model;
+                self.bench.side_panel = Some(open_bim_desktop::ui::chrome::SidePanel::Properties);
+                self.bench.pane.source.clear();
             }
             // Primary drag: a selected handle (direct modification) or an area.
             if response.drag_started_by(egui::PointerButton::Primary)
@@ -809,7 +836,9 @@ impl eframe::App for Desktop {
             ));
             let workplane = &self.bench.engine.workplane;
             let project = self.bench.editor.document.project();
-            let picks: Vec<DVec3> = if let Some(h) = &self.handle_drag {
+            let picks: Vec<DVec3> = if let Some(m) = &self.bench.measure {
+                m.clone()
+            } else if let Some(h) = &self.handle_drag {
                 selection::anchor(project, h).into_iter().collect()
             } else if let Some(p) = &self.bench.workplane_picks {
                 p.clone()
@@ -876,6 +905,32 @@ impl eframe::App for Desktop {
                 },
             );
             open_bim_desktop::viewport::paint(ui.painter(), &marks);
+            // Last measurement: dimension line with the distance.
+            if let Some((a, b)) = self.bench.measured
+                && let (Some(pa), Some(pb)) = (projector.screen(a), projector.screen(b))
+            {
+                let (pa, pb) = (
+                    egui::pos2(pa[0] as f32, pa[1] as f32),
+                    egui::pos2(pb[0] as f32, pb[1] as f32),
+                );
+                let ink = if light {
+                    egui::Color32::BLACK
+                } else {
+                    egui::Color32::WHITE
+                };
+                ui.painter()
+                    .line_segment([pa, pb], egui::Stroke::new(1.5, ink));
+                for p in [pa, pb] {
+                    ui.painter().circle_filled(p, 3., ink);
+                }
+                ui.painter().text(
+                    pa.lerp(pb, 0.5) - egui::vec2(0., 10.),
+                    egui::Align2::CENTER_BOTTOM,
+                    format!("{:.1} мм", a.distance(b)),
+                    egui::FontId::proportional(13.),
+                    ink,
+                );
+            }
             // Area selection rectangle: solid = window (left→right), dashed = crossing.
             if let (Some(from), Some(to)) = (self.area_drag, response.interact_pointer_pos()) {
                 let from = egui::pos2(from[0] as f32, from[1] as f32);
@@ -953,6 +1008,20 @@ impl eframe::App for Desktop {
         });
     }
 }
+/// Named view for a click on the axis gizmo labels (bottom-right corner):
+/// X → right side, Y → front, Z → top.
+fn gizmo_axis_at(camera: &Camera, rect: egui::Rect, p: egui::Pos2) -> Option<NamedView> {
+    let centre = rect.max - egui::vec2(48., 48.);
+    overlay::gizmo_directions(camera)
+        .iter()
+        .zip([NamedView::Right, NamedView::Front, NamedView::Top])
+        .find(|(d, _)| {
+            let tip = centre + egui::vec2(d[0] as f32, d[1] as f32) * 36.;
+            tip.distance(p) <= 10.
+        })
+        .map(|(_, v)| v)
+}
+
 fn main() -> eframe::Result {
     let options = Options::parse().map_err(|e| eframe::Error::AppCreation(e.into()))?;
     let size = options.size.unwrap_or([1280.0, 800.0]);

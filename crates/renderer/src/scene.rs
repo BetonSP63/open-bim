@@ -111,7 +111,7 @@ impl Bvh {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ClipPlane {
     pub normal: DVec3,
     pub offset: f64,
@@ -128,6 +128,33 @@ pub struct ViewState {
     pub selected: Option<ObjectId>,
     pub selected_ids: BTreeSet<ObjectId>,
     pub section: Option<ClipPlane>,
+    /// Second clip plane: the depth of a plan or elevation view (Tekla view depth).
+    pub depth: Option<ClipPlane>,
+}
+
+/// Tekla-like class colour palette (class 1…14; approximate, not Tekla's
+/// exact values). Other classes keep the default colour by part type.
+pub fn class_color(class: &str) -> Option<[f32; 4]> {
+    const PALETTE: [[f32; 3]; 14] = [
+        [0.55, 0.55, 0.55],
+        [0.85, 0.15, 0.15],
+        [0.20, 0.70, 0.20],
+        [0.20, 0.35, 0.85],
+        [0.15, 0.75, 0.80],
+        [0.90, 0.80, 0.15],
+        [0.80, 0.25, 0.80],
+        [0.55, 0.45, 0.30],
+        [0.10, 0.45, 0.20],
+        [0.10, 0.20, 0.50],
+        [0.45, 0.65, 0.35],
+        [0.95, 0.55, 0.10],
+        [0.75, 0.75, 0.75],
+        [0.95, 0.60, 0.70],
+    ];
+    let n: usize = class.trim().parse().ok()?;
+    PALETTE
+        .get(n.checked_sub(1)?)
+        .map(|c| [c[0], c[1], c[2], 1.0])
 }
 
 #[derive(Clone, Debug)]
@@ -216,6 +243,12 @@ impl Scene {
                     triangles,
                 }));
             }
+            let class = match element.properties.get("class") {
+                Some(open_bim_model::PropertyValue::Text(t)) => class_color(t),
+                Some(open_bim_model::PropertyValue::Number(n)) => class_color(&format!("{n:.0}")),
+                _ => None,
+            };
+            let color = class.unwrap_or(color);
             let frame = *element.shape.frame();
             let mesh: &DisplayMesh = &meshes[mesh_index];
             let mut bounds = Bounds::empty();
@@ -336,7 +369,11 @@ impl Scene {
                                     continue;
                                 }
                                 let world = ray.origin + distance * ray.direction;
-                                if state.section.is_some_and(|plane| !plane.keeps(world)) {
+                                if [state.section, state.depth]
+                                    .iter()
+                                    .flatten()
+                                    .any(|plane| !plane.keeps(world))
+                                {
                                     continue;
                                 }
                                 nearest = distance;

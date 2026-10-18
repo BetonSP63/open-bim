@@ -9,7 +9,7 @@ are listed in `docs/tekla-docs-comparison.md`.
 
 | Tekla | Open BIM | Evidence |
 |---|---|---|
-| Wheel zooms about the pointer; Page Up/Down zoom; Home zooms to the original view | wheel zooms about the cursor (`Camera::zoom_at`); PgUp/PgDn; Home fits the model and the grid | `tests/interaction.rs` wheel_zoom_keeps_the_point_under_the_cursor |
+| Wheel zooms about the pointer; Page Up/Down zoom; Home zooms to the original view | wheel zooms about the cursor (`Camera::zoom_at`); PgUp/PgDn; Home fits the model and the grid (F is now measure, like Tekla) | `tests/interaction.rs` wheel_zoom_keeps_the_point_under_the_cursor |
 | Middle drag pans | same | native viewport |
 | Ctrl + middle drag rotates | Ctrl/⌘ + middle drag rotates | native viewport |
 | Arrows move the view; Ctrl+arrows rotate 15°, Shift+arrows rotate 5° | same | native viewport |
@@ -47,6 +47,20 @@ are listed in `docs/tekla-docs-comparison.md`.
 | Delete asks before removing dependants | confirmation dialog when holes/bolts/welds/nodes depend | delete_with_dependants_asks_first |
 | Right-click menu | Прервать, Завершить, Свойства, Переместить, Копировать, Удалить, Скрыть, Показать только выбранные, Показать все, Вписать выбранные (⇧Пробел), Чертёж детали | context_menu_commands_all_act |
 | Tab / Shift+Tab cycle snap points; Ctrl+pick sets a temporary reference point (black cross); snap tooltip; turquoise line of the snapped object | same | tab_cycles_snap_candidates_and_ctrl_pick_sets_a_reference |
+
+## Properties and views (GEF 5, MOD 1.1)
+
+| Tekla | Open BIM | Evidence |
+|---|---|---|
+| Property pane: common properties of the selection, «Varies», «Modify» applies the edited fields | «— разные —»; «Изменить» = one transaction for all selected; «Получить» rereads | mixed_profiles_show_varies_and_modify_is_one_undoable_transaction |
+| Nothing selected: object type list starts a create command | «Тип объекта» list (beam, column, plate, bolt, weld, axis, grid) | ribbon/pane |
+| Double click opens properties; contextual toolbar next to the pointer (Ctrl+K) | same; the contextual toolbar changes profile and material immediately | `tests/ui/property-views/01-…` |
+| Class colours | classes 1–14 with an approximate Tekla-like palette | same test |
+| Create views along grid lines: a plan per level, elevations per grid line, view depth | same (plan ±1000 mm, elevation ±500 mm); work plane kept per view; Ctrl+I views pane, Ctrl+P 3D/plane | grid_views_have_plan_per_level_and_elevation_per_grid_line, switching_views_keeps_the_work_plane_per_view |
+| Model search toolbar | name / profile / material / #ID | search_selects_exactly_the_beams_with_the_profile |
+| Measure (F); Home zooms to the original view | F = measure with ΔX/ΔY/ΔZ; Home = fit | measure_two_points_reports_distance_and_components |
+| Navigation axes clickable | click X/Y/Z on the gizmo → right / front / top view | native |
+| Main snap switches «Reference» and «Geometry»; grid at every level | both switches; grid nodes snap at every level | geometry_switch_and_grid_nodes_at_every_level |
 
 The native run `tests/ui/create-by-picks/` uses only mouse clicks on snapped grid
 nodes and column tops, plus Enter, Esc and ⌘S. It builds:

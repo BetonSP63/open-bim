@@ -6,7 +6,7 @@ mod scene;
 pub use camera::{Camera, NamedView, Ray};
 pub use glam::{DMat4, DVec3};
 pub use gpu::{GpuRenderer, ViewportCallback};
-pub use scene::{Bounds, ClipPlane, DisplayMesh, Instance, Scene, ViewState};
+pub use scene::{Bounds, ClipPlane, DisplayMesh, Instance, Scene, ViewState, class_color};
 
 #[derive(Debug)]
 pub struct RenderError(pub String);

@@ -1,0 +1,21 @@
+LOAD_MS: 2.0
+GPU: Apple M5 · Metal; project=Контрольный стальной каркас objects=7
+SCRIPT: step 1 Wait(40)
+SCRIPT: world [3000.0, 0.0, 3000.0] → screen [537.1672, 391.22516]
+SCRIPT: step 2 Click([537.1672, 391.22516])
+SCRIPT: step 3 Wait(15)
+SCRIPT: step 4 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/property-views/01-contextual-toolbar.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/property-views/01-contextual-toolbar.png 2560x1600
+SCRIPT: step 5 Key { name: "A", command: false, shift: false, alt: false, ctrl: true }
+SCRIPT: step 6 Wait(10)
+SCRIPT: step 7 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/property-views/02-property-pane-mixed.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/property-views/02-property-pane-mixed.png 2560x1600
+SCRIPT: step 8 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 9 Key { name: "I", command: false, shift: false, alt: false, ctrl: true }
+SCRIPT: step 10 Wait(10)
+SCRIPT: step 11 Click([300.0, 40.0])
+SCRIPT: step 12 Wait(10)
+SCRIPT: step 13 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/property-views/03-view-tab.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/property-views/03-view-tab.png 2560x1600
+SCRIPT: step 14 Quit
+SCRIPT: finished
