@@ -7,3 +7,4 @@ pub mod script;
 pub mod synthetic;
 pub mod tools;
 pub mod ui;
+pub mod viewport;

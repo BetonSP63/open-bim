@@ -41,6 +41,7 @@ pub enum Cmd {
     ShowAll,
     HideSelected,
     ToggleSection,
+    ToggleWorkArea,
     ToggleTheme,
     WorkPlaneThreePoints,
     WorkPlaneReset,
@@ -355,6 +356,13 @@ pub const ALL: &[Spec] = &[
         category: "Вид",
         shortcut: None,
         keywords: "сечение отсечение клип",
+    },
+    Spec {
+        cmd: Cmd::ToggleWorkArea,
+        label: "Рабочая область",
+        category: "Вид",
+        shortcut: None,
+        keywords: "рабочая область габарит рамка",
     },
     Spec {
         cmd: Cmd::ToggleTheme,

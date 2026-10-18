@@ -92,6 +92,8 @@ pub struct Workbench {
     pub theme_applied: Option<bool>,
     pub quick_launch: String,
     pub search: String,
+    /// Green dashed work area box around the model (Вид tab).
+    pub work_area: bool,
     /// Picks for «рабочая плоскость по трём точкам».
     pub workplane_picks: Option<Vec<open_bim_renderer::DVec3>>,
     /// Selection switches (bottom toolbar).
@@ -134,6 +136,7 @@ impl Workbench {
             ribbon_tab: Default::default(),
             side_panel: Some(chrome::SidePanel::Properties),
             light_theme: true,
+            work_area: true,
             theme_applied: None,
             quick_launch: String::new(),
             search: String::new(),
@@ -422,6 +425,14 @@ impl Workbench {
                     "Сечение включено"
                 } else {
                     "Сечение выключено"
+                });
+            }
+            Cmd::ToggleWorkArea => {
+                self.work_area = !self.work_area;
+                self.message(if self.work_area {
+                    "Рабочая область показана"
+                } else {
+                    "Рабочая область скрыта"
                 });
             }
             Cmd::ToggleTheme => {

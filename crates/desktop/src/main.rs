@@ -3,8 +3,10 @@ use egui_wgpu::wgpu;
 use open_bim_desktop::tools::{Editor, number, ui::Action};
 use open_bim_desktop::ui::{Request, Workbench};
 use open_bim_model::{ObjectId, Project, example_steel_frame};
+/// Work area box margin around the model bounds, mm.
+const WORK_AREA_MARGIN_MM: f64 = 500.0;
 use open_bim_renderer::{
-    Camera, ClipPlane, DVec3, GpuRenderer, Scene, ViewState, ViewportCallback,
+    Camera, ClipPlane, DVec3, GpuRenderer, Scene, ViewState, ViewportCallback, overlay,
 };
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -16,6 +18,7 @@ struct Options {
     capture: Option<String>,
     gpu_error_test: bool,
     selected: Option<ObjectId>,
+    select_all: bool,
     section: Option<f64>,
     record: Option<PathBuf>,
     capture_dir: Option<PathBuf>,
@@ -34,6 +37,7 @@ impl Options {
         while let Some(arg) = args.next() {
             match arg.as_str() {
                 "--example" => options.example = true,
+                "--select-all" => options.select_all = true,
                 "--record" => {
                     options.record = Some(args.next().ok_or("--record требует путь")?.into())
                 }
@@ -155,6 +159,9 @@ impl Desktop {
         editor.record_path = options.record;
         if let Some(id) = options.selected {
             editor.selected.insert(id);
+        }
+        if options.select_all {
+            editor.selected = project.elements.keys().copied().collect();
         }
         let mut bench = Workbench::new(editor);
         if let Some(path) = options.project_path {
@@ -595,6 +602,16 @@ impl eframe::App for Desktop {
                     self.view.selected = self.bench.editor.selected.first().copied();
                 }
             }
+            let light = self.bench.light_theme;
+            open_bim_desktop::viewport::gradient(
+                ui.painter(),
+                rect,
+                if light {
+                    overlay::GRADIENT_LIGHT
+                } else {
+                    overlay::GRADIENT_DARK
+                },
+            );
             ui.painter().add(egui_wgpu::Callback::new_paint_callback(
                 rect,
                 ViewportCallback {
@@ -604,75 +621,62 @@ impl eframe::App for Desktop {
                     size: [rect.width(), rect.height()],
                 },
             ));
-            let screen = |point: open_bim_model::Point3| {
-                self.camera
-                    .project(
-                        self.scene.origin,
-                        DVec3::from_array(point.0),
-                        rect.aspect_ratio() as f64,
-                    )
-                    .map(|uv| {
-                        egui::pos2(
-                            rect.min.x + uv[0] as f32 * rect.width(),
-                            rect.min.y + uv[1] as f32 * rect.height(),
-                        )
-                    })
+            let projector = overlay::Projector {
+                camera: &self.camera,
+                origin: self.scene.origin,
+                min: [rect.min.x as f64, rect.min.y as f64],
+                size: [rect.width() as f64, rect.height() as f64],
             };
-            for axis in self.bench.editor.document.project().axes.values() {
-                if self.view.hidden.contains(&axis.id) {
-                    continue;
-                }
-                if let (Some(a), Some(b)) = (screen(axis.start), screen(axis.end)) {
-                    ui.painter().line_segment(
-                        [a, b],
-                        egui::Stroke::new(1.0, egui::Color32::from_rgb(85, 130, 130)),
-                    );
-                    ui.painter().text(
-                        a,
-                        egui::Align2::CENTER_BOTTOM,
-                        &axis.name,
-                        egui::FontId::proportional(12.0),
-                        egui::Color32::LIGHT_BLUE,
-                    );
-                }
-            }
-            if self.bench.editor.active {
-                for points in self.bench.editor.picked.windows(2) {
-                    if let (Some(a), Some(b)) = (screen(points[0]), screen(points[1])) {
-                        ui.painter()
-                            .line_segment([a, b], egui::Stroke::new(2.0, egui::Color32::YELLOW));
-                    }
-                }
-                if let Some((point, hit)) = cursor {
-                    if let Some(position) = screen(point) {
-                        ui.painter().circle_stroke(
-                            position,
-                            5.0,
-                            egui::Stroke::new(2.0, egui::Color32::YELLOW),
-                        );
-                        if let Some(previous) =
-                            self.bench.editor.picked.last().and_then(|p| screen(*p))
-                        {
-                            ui.painter().line_segment(
-                                [previous, position],
-                                egui::Stroke::new(1.0, egui::Color32::YELLOW),
-                            );
-                        }
-                    }
-                    ui.painter().text(
-                        rect.left_bottom() - egui::vec2(-12.0, 12.0),
-                        egui::Align2::LEFT_BOTTOM,
-                        format!(
-                            "{}: {:.3}, {:.3}, {:.3} мм",
-                            hit.kind.label(),
-                            point.0[0],
-                            point.0[1],
-                            point.0[2]
-                        ),
-                        egui::FontId::monospace(13.0),
-                        egui::Color32::YELLOW,
-                    );
-                }
+            let workplane = &self.bench.engine.workplane;
+            let picks: Vec<DVec3> = match &self.bench.workplane_picks {
+                Some(p) => p.clone(),
+                None => self.bench.engine.picks.clone(),
+            };
+            let polygon = self.bench.engine.tool.is_some_and(|k| {
+                matches!(
+                    open_bim_desktop::interaction::picks(k),
+                    open_bim_desktop::interaction::Picks::AtLeast(_)
+                )
+            });
+            let marks = overlay::build(
+                &projector,
+                &overlay::Input {
+                    project: self.bench.editor.document.project(),
+                    hidden: &self.view.hidden,
+                    selected: &self.bench.editor.selected,
+                    workplane: (workplane.origin, workplane.axes),
+                    work_area: (self.bench.work_area && !self.scene.instances.is_empty())
+                        .then(|| overlay::work_area(self.scene.bounds, WORK_AREA_MARGIN_MM)),
+                    picks: &picks,
+                    polygon,
+                    cursor: cursor.map(|(p, hit)| {
+                        (
+                            DVec3::from_array(p.0),
+                            open_bim_desktop::viewport::glyph(hit.kind),
+                        )
+                    }),
+                    light,
+                },
+            );
+            open_bim_desktop::viewport::paint(ui.painter(), &marks);
+            if let Some((point, hit)) = cursor {
+                ui.painter().text(
+                    rect.left_bottom() - egui::vec2(-12.0, 12.0),
+                    egui::Align2::LEFT_BOTTOM,
+                    format!(
+                        "{}: {:.1}, {:.1}, {:.1} мм",
+                        hit.kind.label(),
+                        point.0[0],
+                        point.0[1],
+                        point.0[2]
+                    ),
+                    egui::FontId::monospace(13.0),
+                    if light {
+                        egui::Color32::from_rgb(20, 40, 70)
+                    } else {
+                        egui::Color32::YELLOW
+                    },
+                );
             }
             if self.scene.instances.is_empty()
                 && self.bench.editor.document.project().axes.is_empty()
@@ -682,7 +686,11 @@ impl eframe::App for Desktop {
                     egui::Align2::CENTER_CENTER,
                     "Проект пуст\nОткройте контрольный каркас",
                     egui::FontId::proportional(20.0),
-                    egui::Color32::LIGHT_GRAY,
+                    if light {
+                        egui::Color32::from_rgb(40, 55, 80)
+                    } else {
+                        egui::Color32::LIGHT_GRAY
+                    },
                 );
             }
             ui.painter().text(
@@ -694,7 +702,11 @@ impl eframe::App for Desktop {
                     "ПЕРСПЕКТИВА"
                 },
                 egui::FontId::monospace(12.0),
-                egui::Color32::GRAY,
+                if light {
+                    egui::Color32::from_rgb(40, 55, 80)
+                } else {
+                    egui::Color32::GRAY
+                },
             );
         });
     }

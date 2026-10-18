@@ -1,6 +1,7 @@
 //! GPU display geometry, double-precision camera and visibility-consistent selection.
 mod camera;
 mod gpu;
+pub mod overlay;
 mod scene;
 pub use camera::{Camera, NamedView, Ray};
 pub use glam::{DMat4, DVec3};

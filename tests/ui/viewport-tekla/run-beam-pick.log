@@ -1,0 +1,26 @@
+LOAD_MS: 1.1
+GPU: Apple M5 · Metal; project=Контрольный стальной каркас objects=7
+SCRIPT: step 1 Wait(40)
+SCRIPT: step 2 Click([98.0, 80.0])
+SCRIPT: step 3 Wait(20)
+SCRIPT: step 4 Hover([450.0, 600.0])
+SCRIPT: step 5 Wait(10)
+SCRIPT: step 6 Hover([452.0, 602.0])
+SCRIPT: step 7 Wait(20)
+SCRIPT: step 8 Click([452.0, 602.0])
+SCRIPT: step 9 Wait(20)
+SCRIPT: step 10 Hover([700.0, 560.0])
+SCRIPT: step 11 Wait(10)
+SCRIPT: step 12 Hover([702.0, 561.0])
+SCRIPT: step 13 Wait(30)
+SCRIPT: step 14 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/viewport-tekla/beam-pick-1280x800.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/viewport-tekla/beam-pick-1280x800.png 2560x1600
+SCRIPT: step 15 Hover([628.0, 343.0])
+SCRIPT: step 16 Wait(10)
+SCRIPT: step 17 Hover([629.0, 344.0])
+SCRIPT: step 18 Wait(30)
+SCRIPT: step 19 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/viewport-tekla/end-snap-1280x800.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/viewport-tekla/end-snap-1280x800.png 2560x1600
+SCRIPT: step 20 Key { name: "Escape", command: false, shift: false, alt: false }
+SCRIPT: step 21 Quit
+SCRIPT: finished

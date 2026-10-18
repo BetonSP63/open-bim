@@ -9,5 +9,5 @@ struct Output { @builtin(position) position: vec4<f32>, @location(0) world: vec3
 @fragment fn fs(o: Output) -> @location(0) vec4<f32> {
  if dot(camera.plane,vec4<f32>(o.world,1.0))<0.0 { discard; }
  let light=0.35+0.65*max(dot(normalize(o.normal),normalize(vec3<f32>(0.4,-0.6,0.8))),0.0);
- return vec4<f32>(o.color.rgb*light,o.color.a);
+ return vec4<f32>(o.color.rgb*light,1.0);
 }

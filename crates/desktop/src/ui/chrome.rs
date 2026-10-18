@@ -194,6 +194,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                 vec![
                     item(Cmd::ShowAll, Icon::Show, "Показать все"),
                     item(Cmd::HideSelected, Icon::Show, "Скрыть выбранные"),
+                    item(Cmd::ToggleWorkArea, Icon::WorkArea, "Рабочая область"),
                     item(Cmd::ToggleSection, Icon::WorkArea, "Сечение"),
                     item(Cmd::PanelModelTree, Icon::Grid, "Дерево модели"),
                 ],
@@ -564,6 +565,7 @@ impl Workbench {
             || cmd == Cmd::ModeDrawings && self.mode == Mode::Drawings
             || cmd == Cmd::ModeReports && self.mode == Mode::Reports
             || cmd == Cmd::ToggleSection && self.section_enabled
+            || cmd == Cmd::ToggleWorkArea && self.work_area
     }
 
     fn status_bar(&mut self, ui: &mut egui::Ui) {
