@@ -38,6 +38,8 @@ pub enum Request {
     /// A project finished loading in the background.
     Loaded(Arc<Scene>),
     ToggleProjection,
+    /// Zoom to the selected objects (Tekla Shift+Space).
+    FitSelected,
 }
 
 pub enum ActiveJob {
@@ -101,8 +103,15 @@ pub struct Workbench {
     /// Picks for «рабочая плоскость по трём точкам».
     pub workplane_picks: Option<Vec<open_bim_renderer::DVec3>>,
     /// Selection switches (bottom toolbar).
-    pub select_parts: bool,
-    pub select_assemblies: bool,
+    pub select: crate::interaction::selection::Filter,
+    /// Move/copy/mirror/rotate by picked points.
+    pub edit_pick: crate::interaction::selection::EditPicker,
+    /// Tekla direct modification (D): drag handles of selected parts.
+    pub direct_modification: bool,
+    /// Delete waiting for confirmation: ids and the total number removed.
+    pub delete_confirm: Option<(BTreeSet<ObjectId>, usize)>,
+    /// Tab / Shift+Tab: index into the snap candidates under the cursor.
+    pub snap_cycle: usize,
     /// Snap kind under the cursor (status bar).
     pub last_snap: Option<crate::interaction::snap::SnapKind>,
     /// Screen-space snapping and its switches (bottom toolbar).
@@ -147,8 +156,11 @@ impl Workbench {
             quick_launch: String::new(),
             search: String::new(),
             workplane_picks: None,
-            select_parts: true,
-            select_assemblies: false,
+            select: Default::default(),
+            edit_pick: Default::default(),
+            direct_modification: true,
+            delete_confirm: None,
+            snap_cycle: 0,
             last_snap: None,
             snapper: Default::default(),
             switches: Default::default(),
@@ -382,8 +394,13 @@ impl Workbench {
                     self.message("Задание рабочей плоскости прервано");
                 } else if self.engine.numeric.is_some() {
                     self.engine.numeric = None;
-                } else if self.detail.cancel() {
+                } else if self.detail.cancel() || self.edit_pick.cancel() {
                     self.message("Команда прервана");
+                } else if self.delete_confirm.take().is_some() {
+                    self.message("Удаление отменено");
+                } else if !self.engine.active() && !self.editor.selected.is_empty() {
+                    self.editor.selected.clear();
+                    self.message("Выбор снят");
                 } else {
                     self.engine.cancel();
                     self.editor.cancel();
@@ -414,26 +431,92 @@ impl Workbench {
             }
             Cmd::DeleteSelected => {
                 let project = self.editor.document.project();
-                let ids: Vec<ObjectId> = self
+                let ids: BTreeSet<ObjectId> = self
                     .editor
                     .selected
                     .iter()
                     .copied()
-                    .filter(|id| project.elements.contains_key(id) || project.axes.contains_key(id))
+                    .filter(|id| project.contains_id(*id))
                     .collect();
                 if ids.is_empty() {
                     self.message("Ничего не выбрано");
-                } else {
-                    let commands = ids
-                        .iter()
-                        .map(|id| open_bim_commands::Command::Delete {
-                            id: *id,
-                            policy: open_bim_commands::DeletePolicy::Cascade,
-                        })
-                        .collect();
-                    self.message(format!("Удалено объектов: {}", ids.len()));
-                    return Some(Request::Action(Action::Commit("Удалить".into(), commands)));
+                    return None;
                 }
+                match crate::interaction::selection::delete_count(project, &ids) {
+                    // Dependants (holes, bolts, welds, connections): ask first, like Tekla.
+                    Ok(total) if total > ids.len() => {
+                        self.message(format!(
+                            "Подтвердите удаление: связанных объектов {}",
+                            total - ids.len()
+                        ));
+                        self.delete_confirm = Some((ids, total));
+                    }
+                    Ok(_) => return Some(self.delete_request(&ids)),
+                    Err(e) => self.message(e),
+                }
+            }
+            Cmd::MoveByPicks | Cmd::CopyByPicks | Cmd::MirrorByPicks | Cmd::RotateByPicks => {
+                use crate::interaction::selection::EditOp;
+                if self.editor.selected.is_empty() {
+                    self.message("Сначала выберите объекты");
+                    return None;
+                }
+                self.engine.cancel();
+                self.editor.cancel();
+                self.detail.cancel();
+                self.edit_pick = crate::interaction::selection::EditPicker {
+                    op: Some(match cmd {
+                        Cmd::MoveByPicks => EditOp::Move,
+                        Cmd::CopyByPicks => EditOp::Copy,
+                        Cmd::MirrorByPicks => EditOp::Mirror,
+                        _ => EditOp::Rotate,
+                    }),
+                    points: Vec::new(),
+                };
+                self.mode = Mode::Model;
+                self.message(self.prompt());
+            }
+            Cmd::FitSelected => {
+                if self.editor.selected.is_empty() {
+                    self.message("Ничего не выбрано");
+                } else {
+                    return Some(Request::FitSelected);
+                }
+            }
+            Cmd::ShowOnlySelected => {
+                let project = self.editor.document.project();
+                self.hidden = project
+                    .elements
+                    .keys()
+                    .chain(project.axes.keys())
+                    .copied()
+                    .filter(|id| !self.editor.selected.contains(id))
+                    .collect();
+                self.message(format!(
+                    "Показаны только выбранные: {}",
+                    self.editor.selected.len()
+                ));
+            }
+            Cmd::ToggleDirectModification => {
+                self.direct_modification = !self.direct_modification;
+                self.message(if self.direct_modification {
+                    "Прямое изменение: включено"
+                } else {
+                    "Прямое изменение: выключено"
+                });
+            }
+            Cmd::SelectAll => {
+                let project = self.editor.document.project();
+                let mut all: BTreeSet<ObjectId> = BTreeSet::new();
+                if self.select.parts || self.select.assemblies {
+                    all.extend(project.elements.keys());
+                }
+                if self.select.grids {
+                    all.extend(project.axes.keys());
+                }
+                all.retain(|id| !self.hidden.contains(id));
+                self.message(format!("Выбрано объектов: {}", all.len()));
+                self.editor.selected = all;
             }
             Cmd::ToggleProjection => return Some(Request::ToggleProjection),
             Cmd::ShowAll => {
@@ -584,6 +667,24 @@ impl Workbench {
 
     /// A pick from the viewport (world point, already snapped).
     pub fn pick(&mut self, point: open_bim_renderer::DVec3) -> Option<Request> {
+        self.engine.reference = None;
+        if self.edit_pick.op.is_some() {
+            return match self.edit_pick.pick(point, self.engine.workplane.axes[2]) {
+                Ok(Some(edit)) => {
+                    self.message(self.edit_pick.prompt().unwrap_or_else(|| "Готово".into()));
+                    Some(Request::Action(Action::Edit(edit)))
+                }
+                Ok(None) => {
+                    self.message(self.prompt());
+                    None
+                }
+                Err(e) => {
+                    self.edit_pick.points.pop();
+                    self.message(e);
+                    None
+                }
+            };
+        }
         if self.detail.picks_points() {
             self.detail.points.push(point);
             if self.detail.points.len() < 2 {
@@ -677,6 +778,55 @@ impl Workbench {
                 self.message(e);
                 None
             }
+        }
+    }
+
+    fn delete_request(&mut self, ids: &BTreeSet<ObjectId>) -> Request {
+        let commands = ids
+            .iter()
+            .map(|id| open_bim_commands::Command::Delete {
+                id: *id,
+                policy: open_bim_commands::DeletePolicy::Cascade,
+            })
+            .collect();
+        self.message(format!("Удалено объектов: {}", ids.len()));
+        Request::Action(Action::Commit("Удалить".into(), commands))
+    }
+
+    fn delete_window(&mut self, ctx: &egui::Context, requests: &mut Vec<Request>) {
+        let Some((ids, total)) = self.delete_confirm.clone() else {
+            return;
+        };
+        let mut answer = None;
+        egui::Window::new("Удаление")
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+            .show(ctx, |ui| {
+                ui.label(format!(
+                    "Удалить выбранные объекты ({}) вместе со связанными ({}): отверстия, болты, швы, узлы?",
+                    ids.len(),
+                    total - ids.len()
+                ));
+                ui.horizontal(|ui| {
+                    if ui.button("Удалить").clicked() {
+                        answer = Some(true);
+                    }
+                    if ui.button("Отмена").clicked() {
+                        answer = Some(false);
+                    }
+                });
+            });
+        match answer {
+            Some(true) => {
+                self.delete_confirm = None;
+                requests.push(self.delete_request(&ids));
+            }
+            Some(false) => {
+                self.delete_confirm = None;
+                self.message("Удаление отменено");
+            }
+            None => {}
         }
     }
 
@@ -864,6 +1014,7 @@ impl Workbench {
         }
         self.job_window(&ctx, &mut requests);
         self.grid_window(&ctx, &mut requests);
+        self.delete_window(&ctx, &mut requests);
         self.chrome(ui, &mut requests);
         requests
     }

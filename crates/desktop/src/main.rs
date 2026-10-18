@@ -1,5 +1,6 @@
 use eframe::egui;
 use egui_wgpu::wgpu;
+use open_bim_desktop::interaction::selection;
 use open_bim_desktop::tools::{Editor, number, ui::Action};
 use open_bim_desktop::ui::{Request, Workbench};
 use open_bim_model::{ObjectId, example_steel_frame};
@@ -130,6 +131,12 @@ struct Desktop {
     script: Option<open_bim_desktop::script::Runner>,
     /// Last 3D view rectangle (for scripted world clicks).
     viewport: Option<egui::Rect>,
+    /// Area selection drag start (screen points).
+    area_drag: Option<[f64; 2]>,
+    /// Handle being dragged (direct modification).
+    handle_drag: Option<overlay::Handle>,
+    /// Pointer position the snap cycle belongs to.
+    last_hover: Option<egui::Pos2>,
     measure: Option<open_bim_desktop::bench::Bench>,
     /// Requests raised inside the central panel, handled next frame.
     pending: Vec<Request>,
@@ -233,6 +240,9 @@ impl Desktop {
             frames: 0,
             script,
             viewport: None,
+            area_drag: None,
+            handle_drag: None,
+            last_hover: None,
             measure: options.bench.map(|path| {
                 open_bim_desktop::bench::Bench::new(path, options.bench_frames.max(10))
             }),
@@ -324,6 +334,22 @@ impl Desktop {
             match request {
                 Request::Action(action) => self.action(action),
                 Request::Fit => self.fit(),
+                Request::FitSelected => {
+                    let project = self.bench.editor.document.project();
+                    let points: Vec<DVec3> = self
+                        .bench
+                        .editor
+                        .selected
+                        .iter()
+                        .flat_map(|id| selection::corners(project, *id).unwrap_or_default())
+                        .collect();
+                    if let Some(first) = points.first() {
+                        let (min, max) = points
+                            .iter()
+                            .fold((*first, *first), |(a, b), p| (a.min(*p), b.max(*p)));
+                        self.camera.fit(open_bim_renderer::Bounds { min, max });
+                    }
+                }
                 Request::ToggleProjection => self.camera.orthographic = !self.camera.orthographic,
                 Request::View(view) => self.camera.set_view(view),
                 Request::Loaded(scene) => {
@@ -562,15 +588,35 @@ impl eframe::App for Desktop {
             if fit_home {
                 self.fit();
             }
-            let cursor = if self.bench.picking() {
-                hover.and_then(|_| {
+            let projector = overlay::Projector {
+                camera: &self.camera,
+                origin: self.scene.origin,
+                min: [rect.min.x as f64, rect.min.y as f64],
+                size: [rect.width() as f64, rect.height() as f64],
+            };
+            let modifiers = ctx.input(|i| i.modifiers);
+            let project = self.bench.editor.document.project();
+            // Snapping runs while a command picks points or a handle is dragged.
+            let previous = match &self.handle_drag {
+                Some(h) => selection::anchor(project, h),
+                None => self
+                    .bench
+                    .engine
+                    .reference
+                    .or(self.bench.engine.picks.last().copied())
+                    .or(self.bench.edit_pick.points.last().copied())
+                    .or(self.bench.detail.points.last().copied()),
+            };
+            let snapping = self.bench.picking() || self.handle_drag.is_some();
+            let candidates = match (snapping, response.hover_pos()) {
+                (true, Some(pos)) => {
                     // The elevation field moves a horizontal work plane.
                     if let Ok(z) = number(&self.bench.tools.workplane)
                         && self.bench.engine.workplane.axes[2] == DVec3::Z
                     {
                         self.bench.engine.workplane.origin.z = z;
                     }
-                    let px = response.hover_pos()? - rect.min;
+                    let px = pos - rect.min;
                     let view = open_bim_desktop::interaction::snap::View {
                         camera: &self.camera,
                         origin: self.scene.origin,
@@ -588,24 +634,39 @@ impl eframe::App for Desktop {
                             ..switches
                         };
                     }
-                    let hit = self.bench.snapper.snap(
-                        self.bench.editor.document.project(),
+                    // Tab / Shift+Tab cycle the snap points under a resting pointer.
+                    if self.last_hover.is_none_or(|l| l.distance(pos) > 3.) {
+                        self.bench.snap_cycle = 0;
+                        self.last_hover = Some(pos);
+                    }
+                    if ctx.input_mut(|i| i.consume_key(egui::Modifiers::SHIFT, egui::Key::Tab)) {
+                        self.bench.snap_cycle = self.bench.snap_cycle.wrapping_sub(1);
+                    } else if ctx
+                        .input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Tab))
+                    {
+                        self.bench.snap_cycle = self.bench.snap_cycle.wrapping_add(1);
+                    }
+                    self.bench.snapper.candidates(
+                        project,
                         &self.scene,
                         view,
                         [px.x as f64, px.y as f64],
                         switches,
                         self.bench.snap_tolerance_px,
-                        self.bench.engine.picks.last().copied(),
+                        previous,
                         &self.bench.engine.workplane,
-                    )?;
-                    Some((open_bim_model::Point3(hit.point.to_array()), hit))
-                })
-            } else {
-                None
+                    )
+                }
+                _ => Vec::new(),
             };
-            self.bench.cursor = cursor.map(|(p, _)| DVec3::from_array(p.0));
-            self.bench.last_snap = cursor.map(|(_, hit)| hit.kind);
-            // Tekla right button: context menu (interrupt, repeat, properties).
+            let hit = (!candidates.is_empty()).then(|| {
+                let n = candidates.len();
+                candidates[(self.bench.snap_cycle % n + n) % n]
+            });
+            let cursor = hit.map(|h| (open_bim_model::Point3(h.point.to_array()), h));
+            self.bench.cursor = hit.map(|h| h.point);
+            self.bench.last_snap = hit.map(|h| h.kind);
+            // Tekla right button: context menu.
             let mut menu_cmd = None;
             response.context_menu(|ui| {
                 use open_bim_desktop::ui::commands::{Cmd, caption};
@@ -613,9 +674,14 @@ impl eframe::App for Desktop {
                     Cmd::CancelTool,
                     Cmd::FinishPicks,
                     Cmd::PanelProperties,
-                    Cmd::Fit,
+                    Cmd::MoveByPicks,
+                    Cmd::CopyByPicks,
+                    Cmd::DeleteSelected,
                     Cmd::HideSelected,
+                    Cmd::ShowOnlySelected,
                     Cmd::ShowAll,
+                    Cmd::FitSelected,
+                    Cmd::PartDrawing,
                 ] {
                     if ui.button(caption(cmd)).clicked() {
                         menu_cmd = Some(cmd);
@@ -636,28 +702,92 @@ impl eframe::App for Desktop {
             {
                 self.pending.push(r);
             }
+            let click_mode = if modifiers.ctrl && !modifiers.mac_cmd {
+                selection::Click::Toggle
+            } else if modifiers.shift || modifiers.command || self.bench.extend_selection {
+                selection::Click::Add
+            } else {
+                selection::Click::Replace
+            };
             if response.clicked() {
                 if self.bench.picks_objects() {
                     let id = hover.and_then(|ray| self.scene.pick(ray, &self.view));
                     if let Some(r) = self.bench.pick_object(id) {
                         self.pending.push(r);
                     }
-                    self.view.selected_ids = self.bench.editor.selected.clone();
                 } else if self.bench.picking() {
-                    if let Some((point, _)) = cursor
-                        && let Some(r) = self.bench.pick(DVec3::from_array(point.0))
-                    {
-                        self.pending.push(r);
+                    if let Some((point, _)) = cursor {
+                        let point = DVec3::from_array(point.0);
+                        if modifiers.ctrl && !modifiers.mac_cmd {
+                            // Tekla Ctrl+pick: temporary reference point, not a pick.
+                            self.bench.engine.reference = Some(point);
+                            self.bench.tools.message =
+                                Some("Временная опорная точка задана".into());
+                        } else if let Some(r) = self.bench.pick(point) {
+                            self.pending.push(r);
+                        }
                     }
                 } else {
                     let id = hover.and_then(|ray| self.scene.pick(ray, &self.view));
-                    let extend = self.bench.extend_selection
-                        || ctx.input(|i| i.modifiers.shift || i.modifiers.command);
-                    self.bench.select_picked(id, extend);
-                    self.view.selected_ids = self.bench.editor.selected.clone();
-                    self.view.selected = self.bench.editor.selected.first().copied();
+                    // Alt+click selects the whole assembly once (Tekla).
+                    let saved = self.bench.select;
+                    self.bench.select.assemblies |= modifiers.alt;
+                    self.bench.select_picked(id, click_mode);
+                    self.bench.select = saved;
                 }
             }
+            // Primary drag: a selected handle (direct modification) or an area.
+            if response.drag_started_by(egui::PointerButton::Primary)
+                && !self.bench.picking()
+                && let Some(start) = ctx.input(|i| i.pointer.press_origin())
+            {
+                let start = [start.x as f64, start.y as f64];
+                let handles = if self.bench.direct_modification {
+                    overlay::handles(
+                        self.bench.editor.document.project(),
+                        &self.bench.editor.selected,
+                        &projector,
+                    )
+                } else {
+                    Vec::new()
+                };
+                match selection::handle_at(&handles, start, 8.) {
+                    Some(h) => self.handle_drag = Some(h),
+                    None => self.area_drag = Some(start),
+                }
+            }
+            if response.drag_stopped() {
+                if let Some(h) = self.handle_drag.take() {
+                    match cursor.map(|(p, _)| {
+                        selection::move_handle(
+                            self.bench.editor.document.project(),
+                            &h,
+                            DVec3::from_array(p.0),
+                        )
+                    }) {
+                        Some(Ok(commands)) => self.pending.push(Request::Action(
+                            open_bim_desktop::tools::ui::Action::Commit(
+                                "Переместить ручку".into(),
+                                commands,
+                            ),
+                        )),
+                        Some(Err(e)) => self.bench.tools.message = Some(e),
+                        None => {}
+                    }
+                }
+                if let (Some(from), Some(to)) =
+                    (self.area_drag.take(), response.interact_pointer_pos())
+                {
+                    self.bench.select_area(
+                        &projector,
+                        from,
+                        [to.x as f64, to.y as f64],
+                        click_mode,
+                    );
+                }
+            }
+            self.view.selected_ids = self.bench.editor.selected.clone();
+            self.view.selected = self.bench.editor.selected.first().copied();
             let light = self.bench.light_theme;
             open_bim_desktop::viewport::gradient(
                 ui.painter(),
@@ -677,17 +807,40 @@ impl eframe::App for Desktop {
                     size: [rect.width(), rect.height()],
                 },
             ));
-            let projector = overlay::Projector {
-                camera: &self.camera,
-                origin: self.scene.origin,
-                min: [rect.min.x as f64, rect.min.y as f64],
-                size: [rect.width() as f64, rect.height() as f64],
-            };
             let workplane = &self.bench.engine.workplane;
-            let picks: Vec<DVec3> = match &self.bench.workplane_picks {
-                Some(p) => p.clone(),
-                None => self.bench.engine.picks.clone(),
+            let project = self.bench.editor.document.project();
+            let picks: Vec<DVec3> = if let Some(h) = &self.handle_drag {
+                selection::anchor(project, h).into_iter().collect()
+            } else if let Some(p) = &self.bench.workplane_picks {
+                p.clone()
+            } else if self.bench.edit_pick.op.is_some() {
+                self.bench.edit_pick.points.clone()
+            } else if !self.bench.detail.points.is_empty() {
+                self.bench.detail.points.clone()
+            } else {
+                self.bench.engine.picks.clone()
             };
+            // The reference line of the snapped object (member axis or grid line).
+            let highlight = hit.and_then(|h| {
+                let id = h.object?;
+                if let Some(axis) = project.axes.get(&id) {
+                    return Some((
+                        DVec3::from_array(axis.start.0),
+                        DVec3::from_array(axis.end.0),
+                    ));
+                }
+                match &project.elements.get(&id)?.shape {
+                    open_bim_model::ElementShape::Member { length, frame, .. } => Some((
+                        DVec3::from_array(frame.origin.0),
+                        DVec3::from_array(
+                            frame
+                                .world(open_bim_model::Point3([0., 0., length.value()]))
+                                .0,
+                        ),
+                    )),
+                    _ => None,
+                }
+            });
             let polygon = self.bench.engine.tool.is_some_and(|k| {
                 matches!(
                     open_bim_desktop::interaction::picks(k),
@@ -715,10 +868,39 @@ impl eframe::App for Desktop {
                             open_bim_desktop::viewport::glyph(hit.kind),
                         )
                     }),
+                    snap_label: hit.map(|h| h.kind.label().to_string()),
+                    highlight,
+                    reference: self.bench.engine.reference,
+                    direct: self.bench.direct_modification,
                     light,
                 },
             );
             open_bim_desktop::viewport::paint(ui.painter(), &marks);
+            // Area selection rectangle: solid = window (left→right), dashed = crossing.
+            if let (Some(from), Some(to)) = (self.area_drag, response.interact_pointer_pos()) {
+                let from = egui::pos2(from[0] as f32, from[1] as f32);
+                let r = egui::Rect::from_two_pos(from, to);
+                let stroke = egui::Stroke::new(1.5, egui::Color32::from_rgb(30, 90, 168));
+                if to.x >= from.x {
+                    ui.painter().rect_filled(
+                        r,
+                        0.,
+                        egui::Color32::from_rgba_unmultiplied(30, 90, 168, 30),
+                    );
+                    ui.painter()
+                        .rect_stroke(r, 0., stroke, egui::StrokeKind::Middle);
+                } else {
+                    let c = [
+                        r.left_top(),
+                        r.right_top(),
+                        r.right_bottom(),
+                        r.left_bottom(),
+                        r.left_top(),
+                    ];
+                    ui.painter()
+                        .extend(egui::Shape::dashed_line(&c, stroke, 6., 4.));
+                }
+            }
             if let Some((point, hit)) = cursor {
                 ui.painter().text(
                     rect.left_bottom() - egui::vec2(-12.0, 12.0),

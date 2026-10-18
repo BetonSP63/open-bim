@@ -35,6 +35,19 @@ are listed in `docs/tekla-docs-comparison.md`.
 | Weld between parts: the part to weld to, then the part to be welded | same; the weld path is the nearest edge of the secondary part | weld_between_main_and_secondary_part |
 | Snap priority: highest class wins, then the nearest point | reference points and grid intersections share the highest class | nearer_grid_intersection_beats_a_reference_point_a_few_pixels_away |
 
+## Selection and editing (MOD 1.6–1.8)
+
+| Tekla | Open BIM | Evidence |
+|---|---|---|
+| Click selects; Shift adds; Ctrl toggles; Alt+click selects the assembly; Esc clears | same (⌘ also adds) | window_selects_inside_crossing_selects_touching_and_switches_filter |
+| Area: left→right = objects fully inside, right→left = touching (dashed box) | same | same test, `tests/ui/selection-editing/02-window-select.png` |
+| Selection switches: parts, assemblies, bolt groups, welds, grid lines | toolbar toggles; Ctrl+A selects all allowed | same test |
+| Direct modification (D): blue handles; drag a handle with snapping | member ends and plate vertices; one undo step | dragging_a_beam_end_handle_to_a_snapped_node_moves_only_that_end, plate_vertex_handle_moves_the_vertex |
+| Move Ctrl+M / Copy Ctrl+C by origin + destination; copy repeats | same; mirror by 2 points, rotate by centre + 2 directions | move_copy_mirror_and_rotate_by_picks |
+| Delete asks before removing dependants | confirmation dialog when holes/bolts/welds/nodes depend | delete_with_dependants_asks_first |
+| Right-click menu | Прервать, Завершить, Свойства, Переместить, Копировать, Удалить, Скрыть, Показать только выбранные, Показать все, Вписать выбранные (⇧Пробел), Чертёж детали | context_menu_commands_all_act |
+| Tab / Shift+Tab cycle snap points; Ctrl+pick sets a temporary reference point (black cross); snap tooltip; turquoise line of the snapped object | same | tab_cycles_snap_candidates_and_ctrl_pick_sets_a_reference |
+
 The native run `tests/ui/create-by-picks/` uses only mouse clicks on snapped grid
 nodes and column tops, plus Enter, Esc and ⌘S. It builds:
 - 4 columns at the nodes В4, В5, Г4, Г5;

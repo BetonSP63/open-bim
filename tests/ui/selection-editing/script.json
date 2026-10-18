@@ -1,0 +1,356 @@
+[
+{
+"wait": 40
+},
+{
+"note": "Три балки: А1–А2, А2–А3, Б1–Б2"
+},
+{
+"click": [
+97,
+78
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+0,
+0,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+0,
+0,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+6000,
+0,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+6000,
+0,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+6000,
+0,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+6000,
+0,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+12000,
+0,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+12000,
+0,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+0,
+6000,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+0,
+6000,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+6000,
+6000,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+6000,
+6000,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"key": {
+"name": "Escape"
+}
+},
+{
+"wait": 5
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/selection-editing/01-beams.png"
+},
+{
+"note": "Окно слева направо вокруг А1–А2 (А2–А3 задета частично)"
+},
+{
+"drag_world": [
+-1500,
+-1500,
+0,
+8000,
+1500,
+0
+]
+},
+{
+"wait": 15
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/selection-editing/02-window-select.png"
+},
+{
+"note": "Ручка конца А2 → узел Б2"
+},
+{
+"drag_world": [
+6000,
+0,
+0,
+6000,
+6000,
+0
+]
+},
+{
+"wait": 15
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/selection-editing/03-handle-drag.png"
+},
+{
+"note": "Выбор Б1–Б2 щелчком и перемещение Ctrl+M на 6000 по Y"
+},
+{
+"click_world": [
+2500,
+6000,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"key": {
+"name": "M",
+"ctrl": true
+}
+},
+{
+"wait": 5
+},
+{
+"hover_world": [
+0,
+6000,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+0,
+6000,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+0,
+12000,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+0,
+12000,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"wait": 10
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/selection-editing/04-moved.png"
+},
+{
+"note": "Копирование Ctrl+C на В→Г"
+},
+{
+"key": {
+"name": "C",
+"ctrl": true
+}
+},
+{
+"wait": 5
+},
+{
+"hover_world": [
+0,
+12000,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+0,
+12000,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+0,
+18000,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+0,
+18000,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"key": {
+"name": "Escape"
+}
+},
+{
+"wait": 10
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/selection-editing/05-copied.png"
+},
+{
+"note": "Удалить копию: щелчок и Delete"
+},
+{
+"click_world": [
+2500,
+18000,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"key": {
+"name": "Delete"
+}
+},
+{
+"wait": 15
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/selection-editing/06-deleted.png"
+},
+{
+"key": {
+"name": "Escape"
+}
+},
+{
+"key": {
+"name": "S",
+"command": true
+}
+},
+{
+"wait": 30
+},
+"quit"
+]

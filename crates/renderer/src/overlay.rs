@@ -16,6 +16,10 @@ pub const SNAP: Rgba = [230, 120, 0, 255];
 pub const RUBBER: Rgba = [200, 30, 160, 255];
 pub const START_HANDLE: Rgba = [240, 200, 0, 255];
 pub const END_HANDLE: Rgba = [210, 0, 200, 255];
+/// Direct modification handles (Tekla: blue).
+pub const DIRECT_HANDLE: Rgba = [30, 110, 230, 255];
+/// Line the snapped point belongs to (Tekla: turquoise).
+pub const SNAP_LINE: Rgba = [0, 185, 195, 255];
 pub const AXIS_COLORS: [Rgba; 3] = [[210, 40, 40, 255], [20, 150, 50, 255], [30, 80, 220, 255]];
 /// Light theme background: grey-blue at the top fading to near white.
 pub const GRADIENT_LIGHT: [Rgba; 2] = [[150, 168, 196, 255], [236, 240, 245, 255]];
@@ -248,6 +252,14 @@ pub struct Input<'a> {
     pub picks: &'a [DVec3],
     pub polygon: bool,
     pub cursor: Option<(DVec3, Glyph)>,
+    /// Snap kind name shown next to the cursor (Tekla snap tooltip).
+    pub snap_label: Option<String>,
+    /// Reference line or edge of the snapped point, highlighted.
+    pub highlight: Option<(DVec3, DVec3)>,
+    /// Temporary reference point (Ctrl+pick), drawn as a black cross.
+    pub reference: Option<DVec3>,
+    /// Direct modification on: handles are blue and draggable.
+    pub direct: bool,
     pub light: bool,
 }
 
@@ -449,10 +461,14 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
         if !p.inside(h.screen, 10.) {
             continue;
         }
-        let color = match h.kind {
-            // Tekla: the start handle is yellow, all others magenta.
-            HandleKind::Start | HandleKind::Vertex(0) => START_HANDLE,
-            HandleKind::End | HandleKind::Vertex(_) => END_HANDLE,
+        let color = if input.direct {
+            DIRECT_HANDLE
+        } else {
+            match h.kind {
+                // Tekla: the start handle is yellow, all others magenta.
+                HandleKind::Start | HandleKind::Vertex(0) => START_HANDLE,
+                HandleKind::End | HandleKind::Vertex(_) => END_HANDLE,
+            }
         };
         marks.push(Mark::Square {
             center: h.screen,
@@ -460,6 +476,29 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
             color,
             fill: true,
         });
+    }
+    if let Some((a, b)) = input.highlight
+        && let (Some(a), Some(b)) = (p.screen(a), p.screen(b))
+    {
+        marks.push(line(a, b, SNAP_LINE, 2.5, None));
+    }
+    if let Some(c) = input.reference.and_then(|r| p.screen(r)) {
+        let k = 6.;
+        let black = [0, 0, 0, 255];
+        marks.push(line(
+            [c[0] - k, c[1] - k],
+            [c[0] + k, c[1] + k],
+            black,
+            2.,
+            None,
+        ));
+        marks.push(line(
+            [c[0] - k, c[1] + k],
+            [c[0] + k, c[1] - k],
+            black,
+            2.,
+            None,
+        ));
     }
     // Rubber band with live length, then the snap symbol on top.
     let picked: Vec<[f64; 2]> = input.picks.iter().filter_map(|w| p.screen(*w)).collect();
@@ -484,6 +523,15 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
             }
         }
         marks.extend(glyph(c, g));
+        if let Some(name) = &input.snap_label {
+            marks.push(text(
+                add(c, [1., 1.], 14.),
+                name.clone(),
+                SNAP,
+                [-1, -1],
+                12.,
+            ));
+        }
     }
     marks
 }
@@ -655,6 +703,10 @@ mod tests {
             picks: &picks,
             polygon: false,
             cursor: Some((DVec3::new(3000., 4000., 0.), Glyph::End)),
+            snap_label: Some("Конечная точка".into()),
+            highlight: None,
+            reference: None,
+            direct: false,
             light: true,
         };
         let marks = build(&p, &input);

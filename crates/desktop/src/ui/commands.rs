@@ -29,6 +29,14 @@ pub enum Cmd {
     ToolBolt,
     ToolWeld,
     GridDialog,
+    MoveByPicks,
+    CopyByPicks,
+    MirrorByPicks,
+    RotateByPicks,
+    FitSelected,
+    ShowOnlySelected,
+    ToggleDirectModification,
+    SelectAll,
     CreateElement,
     CancelTool,
     FinishPicks,
@@ -72,6 +80,10 @@ const SHIFT_CMD: Modifiers = Modifiers {
     ..Modifiers::COMMAND
 };
 const ALT: Modifiers = Modifiers::ALT;
+/// Tekla uses Ctrl for its own commands; on macOS this is the Control key,
+/// distinct from ⌘ (system clipboard, window commands).
+const CTRL: Modifiers = Modifiers::CTRL;
+const SHIFT: Modifiers = Modifiers::SHIFT;
 const NONE: Modifiers = Modifiers::NONE;
 
 pub struct Spec {
@@ -282,6 +294,62 @@ pub const ALL: &[Spec] = &[
         category: "Моделирование",
         shortcut: None,
         keywords: "шов сварка weld",
+    },
+    Spec {
+        cmd: Cmd::MoveByPicks,
+        label: "Переместить по точкам",
+        category: "Правка",
+        shortcut: s(CTRL, Key::M),
+        keywords: "переместить сдвинуть move",
+    },
+    Spec {
+        cmd: Cmd::CopyByPicks,
+        label: "Копировать по точкам",
+        category: "Правка",
+        shortcut: s(CTRL, Key::C),
+        keywords: "копировать копия copy",
+    },
+    Spec {
+        cmd: Cmd::MirrorByPicks,
+        label: "Зеркально по двум точкам",
+        category: "Правка",
+        shortcut: None,
+        keywords: "зеркало отразить mirror",
+    },
+    Spec {
+        cmd: Cmd::RotateByPicks,
+        label: "Повернуть по точкам",
+        category: "Правка",
+        shortcut: None,
+        keywords: "повернуть поворот rotate",
+    },
+    Spec {
+        cmd: Cmd::FitSelected,
+        label: "Вписать выбранные",
+        category: "Вид",
+        shortcut: s(SHIFT, Key::Space),
+        keywords: "масштаб выбранные zoom selected",
+    },
+    Spec {
+        cmd: Cmd::ShowOnlySelected,
+        label: "Показать только выбранные",
+        category: "Вид",
+        shortcut: None,
+        keywords: "показать только выбранные изолировать",
+    },
+    Spec {
+        cmd: Cmd::ToggleDirectModification,
+        label: "Прямое изменение (ручки)",
+        category: "Правка",
+        shortcut: s(NONE, Key::D),
+        keywords: "прямое изменение ручки direct modification",
+    },
+    Spec {
+        cmd: Cmd::SelectAll,
+        label: "Выбрать все",
+        category: "Правка",
+        shortcut: s(CTRL, Key::A),
+        keywords: "выбрать все select all",
     },
     Spec {
         cmd: Cmd::GridDialog,
@@ -523,6 +591,9 @@ pub fn shortcut_text(cmd: Cmd) -> String {
         // The bundled fonts have no ⌥ glyph; Option is labelled «Alt».
         text.push_str("Alt+");
     }
+    if sc.modifiers.ctrl && !sc.modifiers.command {
+        text.push_str("Ctrl+");
+    }
     if sc.modifiers.shift {
         text.push('⇧');
     }
@@ -536,6 +607,7 @@ pub fn shortcut_text(cmd: Cmd) -> String {
         Key::Num2 => "2".into(),
         Key::Num3 => "3".into(),
         Key::Num4 => "4".into(),
+        Key::Space => "Пробел".into(),
         other => other.name().to_string(),
     };
     text + &key
@@ -581,7 +653,7 @@ pub fn pressed(ctx: &eframe::egui::Context) -> Vec<Cmd> {
     let mut specs: Vec<&Spec> = ALL.iter().filter(|s| s.shortcut.is_some()).collect();
     specs.sort_by_key(|s| {
         let m = s.shortcut.map(|k| k.modifiers).unwrap_or_default();
-        std::cmp::Reverse(m.shift as u8 + m.command as u8 + m.alt as u8)
+        std::cmp::Reverse(m.shift as u8 + m.command as u8 + m.alt as u8 + m.ctrl as u8)
     });
     for spec in specs {
         let Some(sc) = spec.shortcut else { continue };

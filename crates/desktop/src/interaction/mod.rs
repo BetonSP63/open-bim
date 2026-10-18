@@ -2,6 +2,7 @@
 //! Russian prompt per step; picks are projected onto the work plane; the
 //! object is created after the last pick and the command re-arms until Esc.
 pub mod numeric;
+pub mod selection;
 pub mod snap;
 pub mod tools;
 pub mod workplane;
@@ -76,6 +77,9 @@ pub struct Engine {
     /// Text being typed as a numeric location, if the input box is open.
     pub numeric: Option<String>,
     pub error: Option<String>,
+    /// Temporary snap reference point (Tekla Ctrl+pick): numeric input,
+    /// ortho and perpendicular snapping work from it until the next pick.
+    pub reference: Option<DVec3>,
 }
 
 impl Engine {
@@ -146,6 +150,7 @@ impl Engine {
             return Outcome::Ignored("Точка совпадает с предыдущей".into());
         }
         self.picks.push(point);
+        self.reference = None;
         match picks(kind) {
             Picks::Exactly(n) if self.picks.len() >= n => self.complete(kind),
             _ => Outcome::Continue,
@@ -162,7 +167,7 @@ impl Engine {
 
     /// Typed coordinates (see `numeric::parse`); errors keep the command alive.
     pub fn pick_numeric(&mut self, text: &str, cursor: Option<DVec3>) -> Outcome {
-        let previous = self.picks.last().copied();
+        let previous = self.reference.or(self.picks.last().copied());
         let direction = match (previous, cursor) {
             (Some(p), Some(c)) => Some(c - p),
             _ => None,

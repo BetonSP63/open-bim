@@ -214,6 +214,7 @@ pub fn ortho(previous: DVec3, point: DVec3, workplane: &Workplane) -> DVec3 {
 }
 
 impl Snapper {
+    /// The best snap under the cursor.
     #[allow(clippy::too_many_arguments)]
     pub fn snap(
         &mut self,
@@ -226,7 +227,30 @@ impl Snapper {
         previous: Option<DVec3>,
         workplane: &Workplane,
     ) -> Option<Hit> {
-        let ray = view.ray(cursor)?;
+        self.candidates(
+            project, scene, view, cursor, switches, tolerance, previous, workplane,
+        )
+        .into_iter()
+        .next()
+    }
+
+    /// All distinct snap points under the cursor, best first (Tekla Tab /
+    /// Shift+Tab cycles through them); a free work plane point when none.
+    #[allow(clippy::too_many_arguments)]
+    pub fn candidates(
+        &mut self,
+        project: &Project,
+        scene: &Arc<Scene>,
+        view: View,
+        cursor: [f64; 2],
+        switches: Switches,
+        tolerance: f64,
+        previous: Option<DVec3>,
+        workplane: &Workplane,
+    ) -> Vec<Hit> {
+        let Some(ray) = view.ray(cursor) else {
+            return Vec::new();
+        };
         let key = Arc::as_ptr(scene) as usize;
         if self.scene != Some(key) {
             self.edges.clear();
@@ -237,8 +261,7 @@ impl Snapper {
             view.screen(p)
                 .map(|s| ((s[0] - cursor[0]).powi(2) + (s[1] - cursor[1]).powi(2)).sqrt())
         };
-        let mut best: Option<Hit> = None;
-        // Ranking: snap kind, then reference before solid geometry, then pixels.
+        let mut found: Vec<Hit> = Vec::new();
         let mut offer =
             |kind: SnapKind, point: DVec3, object: Option<ObjectId>, reference: bool| {
                 if !switches.enabled(kind) || !point.is_finite() {
@@ -248,18 +271,13 @@ impl Snapper {
                 if px > tolerance {
                     return;
                 }
-                let better = best.is_none_or(|b| {
-                    (kind.priority(), !reference, px) < (b.kind.priority(), !b.reference, b.pixels)
+                found.push(Hit {
+                    kind,
+                    reference,
+                    point,
+                    object,
+                    pixels: px,
                 });
-                if better {
-                    best = Some(Hit {
-                        kind,
-                        reference,
-                        point,
-                        object,
-                        pixels: px,
-                    });
-                }
             };
         // Reference lines (member axes, grid lines) and geometry edges.
         let mut lines: Vec<Segment> = Vec::new();
@@ -351,20 +369,34 @@ impl Snapper {
                 }
             }
         }
-        if best.is_some() {
-            return best;
+        // Ranking: priority class, then reference before solid geometry, then pixels.
+        found.sort_by(|a, b| {
+            (a.kind.priority(), !a.reference, a.pixels)
+                .partial_cmp(&(b.kind.priority(), !b.reference, b.pixels))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        let mut distinct: Vec<Hit> = Vec::new();
+        for hit in found {
+            if distinct.iter().all(|d| d.point.distance(hit.point) > 1e-6) {
+                distinct.push(hit);
+            }
         }
-        let free = workplane.intersect(ray.origin, ray.direction)?;
+        if !distinct.is_empty() {
+            return distinct;
+        }
+        let Some(free) = workplane.intersect(ray.origin, ray.direction) else {
+            return Vec::new();
+        };
         let point = match (switches.ortho, previous) {
             (true, Some(p)) => ortho(p, free, workplane),
             _ => free,
         };
-        Some(Hit {
+        vec![Hit {
             kind: SnapKind::Free,
             reference: false,
             point,
             object: None,
             pixels: 0.,
-        })
+        }]
     }
 }

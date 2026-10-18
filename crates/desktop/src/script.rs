@@ -22,6 +22,8 @@ pub enum Step {
     ClickWorld([f64; 3]),
     /// Move the pointer to where a world point appears in the 3D view.
     HoverWorld([f64; 3]),
+    /// Primary drag between two world points (mm) as seen in the 3D view.
+    DragWorld([f64; 6]),
     /// Primary-button drag in logical points: [x0, y0, x1, y1].
     Drag([f32; 4]),
     /// Scroll by the given logical delta at a point: [x, y, dy].
@@ -35,6 +37,9 @@ pub enum Step {
         shift: bool,
         #[serde(default)]
         alt: bool,
+        /// The Control key (Tekla's Ctrl shortcuts; distinct from ⌘ on macOS).
+        #[serde(default)]
+        ctrl: bool,
     },
     Text(String),
     Capture(String),
@@ -136,6 +141,15 @@ impl Runner {
             return None;
         }
         // World steps become ordinary pointer steps at the projected position.
+        if let Some(Step::DragWorld(w)) = self.steps.get(self.index) {
+            let (a, b) = (project([w[0], w[1], w[2]]), project([w[3], w[4], w[5]]));
+            let (Some(a), Some(b)) = (a, b) else {
+                eprintln!("SCRIPT: step {} drag {w:?} is off screen", self.index + 1);
+                self.index += 1;
+                return None;
+            };
+            self.steps[self.index] = Step::Drag([a[0], a[1], b[0], b[1]]);
+        }
         if let Some(Step::ClickWorld(w) | Step::HoverWorld(w)) = self.steps.get(self.index) {
             let Some(at) = project(*w) else {
                 eprintln!(
@@ -240,6 +254,7 @@ impl Runner {
                 command,
                 shift,
                 alt,
+                ctrl,
             } => {
                 let key = egui::Key::from_name(name)?;
                 let modifiers = egui::Modifiers {
@@ -247,7 +262,7 @@ impl Runner {
                     shift: *shift,
                     command: *command,
                     mac_cmd: *command && cfg!(target_os = "macos"),
-                    ctrl: *command && !cfg!(target_os = "macos"),
+                    ctrl: *ctrl || (*command && !cfg!(target_os = "macos")),
                 };
                 if self.phase == 0 {
                     input.events.push(egui::Event::ModifiersChanged(modifiers));
@@ -273,7 +288,9 @@ impl Runner {
                 advance(self, 2);
             }
             Step::Note(_) => advance(self, 0),
-            Step::ClickWorld(_) | Step::HoverWorld(_) => unreachable!("resolved above"),
+            Step::ClickWorld(_) | Step::HoverWorld(_) | Step::DragWorld(_) => {
+                unreachable!("resolved above")
+            }
             Step::Capture(path) => {
                 advance(self, 2);
                 self.pending = Some((path.clone(), 0));

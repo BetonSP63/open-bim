@@ -1,0 +1,1 @@
+OK: handle dragged to Б2, А2–А3 unchanged, Б1–Б2 moved to В, copy on Г deleted

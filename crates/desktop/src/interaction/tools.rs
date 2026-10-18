@@ -1,11 +1,12 @@
 //! Tekla-style creation tools beyond parts: grid from coordinate strings,
 //! the default grid of a new model, bolts by two picks through the selected
 //! parts and welds by picking the main and the secondary part.
+use super::selection::corners;
 use crate::tools::detailing_ui::DetailingUi;
 use crate::tools::number;
 use open_bim_commands::Command;
 use open_bim_model::{
-    Detail, DetailKind, ElementShape, Frame, GridAxis, Level, ObjectId, Point3, Project, WeldType,
+    Detail, DetailKind, Frame, GridAxis, Level, ObjectId, Point3, Project, WeldType,
 };
 use open_bim_renderer::DVec3;
 use std::collections::BTreeSet;
@@ -218,40 +219,6 @@ pub fn default_project() -> Result<Project, String> {
     let mut project = document.project().clone();
     project.revision = 0;
     Ok(project)
-}
-
-fn v(p: Point3) -> DVec3 {
-    DVec3::from_array(p.0)
-}
-
-/// World corners of a part's solid (contour × length along local z).
-fn corners(project: &Project, id: ObjectId) -> Result<Vec<DVec3>, String> {
-    let e = project
-        .elements
-        .get(&id)
-        .ok_or_else(|| format!("Нет детали #{}", id.0))?;
-    let (contour, length) = match &e.shape {
-        ElementShape::Plate {
-            contour, thickness, ..
-        } => (contour.clone(), thickness.value()),
-        ElementShape::Member {
-            profile, length, ..
-        } => (
-            project
-                .profiles
-                .get(profile)
-                .ok_or("Нет профиля")?
-                .shape
-                .solid_contour()
-                .map_err(|_| "Болты и швы по полым профилям не поддерживаются".to_string())?,
-            length.value(),
-        ),
-    };
-    let frame = e.shape.frame();
-    Ok(contour
-        .iter()
-        .flat_map(|c| [0., length].map(|z| v(frame.world(Point3([c[0], c[1], z])))))
-        .collect())
 }
 
 /// Bolt group through `parts`: rows start at `a` and run towards `b`; the bolt

@@ -3,6 +3,7 @@
 //! and rebar tools explain themselves, quick launch runs commands and the
 //! light theme keeps WCAG contrast.
 use eframe::egui::{self, accesskit::Role};
+use open_bim_desktop::interaction::selection::Click;
 use open_bim_desktop::tools::Editor;
 use open_bim_desktop::ui::chrome::{self, RibbonTab};
 use open_bim_desktop::ui::{Request, Workbench, theme};
@@ -318,15 +319,15 @@ fn selection_switches_pick_parts_assemblies_or_nothing() {
         .clone();
     let part = *assembly.members.iter().next().unwrap();
     b.editor.selected.clear();
-    b.select_picked(Some(part), false);
+    b.select_picked(Some(part), Click::Replace);
     assert_eq!(b.editor.selected, [part].into());
-    b.select_assemblies = true;
-    b.select_picked(Some(part), false);
+    b.select.assemblies = true;
+    b.select_picked(Some(part), Click::Replace);
     assert_eq!(b.editor.selected, assembly.members);
-    b.select_parts = false;
-    b.select_assemblies = false;
+    b.select.parts = false;
+    b.select.assemblies = false;
     b.editor.selected.clear();
-    b.select_picked(Some(part), false);
+    b.select_picked(Some(part), Click::Replace);
     assert!(b.editor.selected.is_empty());
 }
 

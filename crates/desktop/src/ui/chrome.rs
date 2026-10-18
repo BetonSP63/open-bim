@@ -8,6 +8,7 @@ use crate::interaction::snap::SnapKind;
 use crate::tools::ui::{Action, ToolsPanel, select};
 use eframe::egui;
 use open_bim_model::ObjectId;
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -157,11 +158,12 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
             (
                 "Изменить",
                 vec![
-                    item(Cmd::PanelEdit, Icon::Move, "Переместить"),
-                    item(Cmd::PanelEdit, Icon::Copy, "Копировать"),
-                    item(Cmd::PanelEdit, Icon::Mirror, "Зеркало"),
-                    item(Cmd::PanelEdit, Icon::Rotate, "Повернуть"),
+                    item(Cmd::MoveByPicks, Icon::Move, "Переместить"),
+                    item(Cmd::CopyByPicks, Icon::Copy, "Копировать"),
+                    item(Cmd::MirrorByPicks, Icon::Mirror, "Зеркало"),
+                    item(Cmd::RotateByPicks, Icon::Rotate, "Повернуть"),
                     item(Cmd::DeleteSelected, Icon::Delete, "Удалить"),
+                    item(Cmd::PanelEdit, Icon::Properties, "Числами"),
                 ],
             ),
             (
@@ -272,7 +274,10 @@ impl Workbench {
 
     /// Whether viewport clicks go to a pick command.
     pub fn picking(&self) -> bool {
-        self.engine.active() || self.workplane_picks.is_some() || self.detail.picks_points()
+        self.engine.active()
+            || self.workplane_picks.is_some()
+            || self.detail.picks_points()
+            || self.edit_pick.op.is_some()
     }
 
     pub fn prompt(&self) -> String {
@@ -280,35 +285,54 @@ impl Workbench {
             self.workplane_prompt()
         } else if let Some(p) = self.detail.prompt() {
             p
+        } else if let Some(p) = self.edit_pick.prompt() {
+            p
         } else {
             self.engine.prompt()
         }
     }
 
-    /// Viewport click selection honouring the selection switches: parts,
-    /// whole assemblies (all members of the picked part's assembly) or nothing.
-    pub fn select_picked(&mut self, id: Option<ObjectId>, extend: bool) {
-        if !self.select_parts && !self.select_assemblies {
+    /// Viewport click selection honouring the selection switches: the part,
+    /// its whole assembly, or nothing; `mode` is replace / Shift add / Ctrl toggle.
+    pub fn select_picked(
+        &mut self,
+        id: Option<ObjectId>,
+        mode: crate::interaction::selection::Click,
+    ) {
+        use crate::interaction::selection::{Click, apply, expand_assemblies};
+        let project = self.editor.document.project();
+        let mut ids: BTreeSet<ObjectId> = id
+            .filter(|id| project.elements.contains_key(id))
+            .filter(|_| self.select.parts || self.select.assemblies)
+            .into_iter()
+            .collect();
+        if self.select.assemblies {
+            expand_assemblies(project, &mut ids);
+        }
+        if ids.is_empty() && mode != Click::Replace {
             return;
         }
-        let assembly = id.filter(|_| self.select_assemblies).and_then(|id| {
-            self.editor
-                .document
-                .project()
-                .assemblies
-                .values()
-                .find(|a| a.members.contains(&id))
-                .map(|a| a.members.clone())
-        });
-        match assembly {
-            Some(members) => {
-                if !extend {
-                    self.editor.selected.clear();
-                }
-                self.editor.selected.extend(members);
-            }
-            None => select(&mut self.editor.selected, id, extend),
-        }
+        apply(&mut self.editor.selected, &ids, mode);
+    }
+
+    /// Area selection (left→right window, right→left crossing).
+    pub fn select_area(
+        &mut self,
+        projector: &open_bim_renderer::overlay::Projector,
+        from: [f64; 2],
+        to: [f64; 2],
+        mode: crate::interaction::selection::Click,
+    ) {
+        let ids = crate::interaction::selection::area(
+            self.editor.document.project(),
+            projector,
+            &self.hidden,
+            from,
+            to,
+            self.select,
+        );
+        crate::interaction::selection::apply(&mut self.editor.selected, &ids, mode);
+        self.message(format!("Выбрано объектов: {}", self.editor.selected.len()));
     }
 
     /// Select parts whose name, profile, material or ID contains the text.
@@ -624,31 +648,57 @@ impl Workbench {
         egui::Panel::bottom("selection toolbar").show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.label("Выбор:");
-                let parts = icons::button(
-                    ui,
-                    Icon::SelectParts,
-                    18.,
-                    None,
-                    "Выбор деталей",
-                    "Выбирать детали",
-                    true,
-                    self.select_parts,
-                );
-                if parts.clicked() {
-                    self.select_parts = !self.select_parts;
+                let f = &mut self.select;
+                for (icon, name, tip, flag) in [
+                    (
+                        Icon::SelectParts,
+                        "Выбор деталей",
+                        "Выбирать детали",
+                        &mut f.parts,
+                    ),
+                    (
+                        Icon::SelectAssemblies,
+                        "Выбор сборок",
+                        "Выбирать сборку целиком (Alt+щелчок — сборка один раз)",
+                        &mut f.assemblies,
+                    ),
+                    (
+                        Icon::SelectBolts,
+                        "Выбор болтов",
+                        "Выбирать болтовые группы",
+                        &mut f.bolts,
+                    ),
+                    (
+                        Icon::SelectWelds,
+                        "Выбор швов",
+                        "Выбирать сварные швы",
+                        &mut f.welds,
+                    ),
+                    (
+                        Icon::SelectGrid,
+                        "Выбор осей",
+                        "Выбирать линии сетки",
+                        &mut f.grids,
+                    ),
+                ] {
+                    if icons::button(ui, icon, 18., None, name, tip, true, *flag).clicked() {
+                        *flag = !*flag;
+                    }
                 }
-                let assemblies = icons::button(
+                let dm = self.direct_modification;
+                if icons::button(
                     ui,
-                    Icon::SelectAssemblies,
+                    Icon::Move,
                     18.,
                     None,
-                    "Выбор сборок",
-                    "Выбирать сборку целиком",
+                    "Прямое изменение",
+                    &tooltip(Cmd::ToggleDirectModification),
                     true,
-                    self.select_assemblies,
-                );
-                if assemblies.clicked() {
-                    self.select_assemblies = !self.select_assemblies;
+                    dm,
+                )
+                .clicked()
+                {
+                    self.run(Cmd::ToggleDirectModification, requests);
                 }
                 ui.checkbox(&mut self.extend_selection, "Добавлять к выбору");
                 ui.separator();
