@@ -1,0 +1,1068 @@
+{
+  "magic": "open-bim-project",
+  "format_version": 1,
+  "payload_sha256": "39bb73cee2283c723b7522393465b574df1e8aa77357c52dd8897d9e5f8c4cef",
+  "project": {
+    "name": "Новый проект",
+    "units": "millimetres",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "revision": 9,
+    "next_id": 35,
+    "materials": {
+      "1": {
+        "id": 1,
+        "name": "S235 · тестовый материал",
+        "density_kg_m3": 7850.0
+      }
+    },
+    "profiles": {
+      "2": {
+        "id": 2,
+        "name": "I 300×150×8×12",
+        "shape": {
+          "kind": "i_section",
+          "height": 300.0,
+          "width": 150.0,
+          "web": 8.0,
+          "flange": 12.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "3": {
+        "id": 3,
+        "name": "L 100×75×8",
+        "shape": {
+          "kind": "angle",
+          "height": 100.0,
+          "width": 75.0,
+          "thickness": 8.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "4": {
+        "id": 4,
+        "name": "C 200×75×6×10",
+        "shape": {
+          "kind": "channel",
+          "height": 200.0,
+          "width": 75.0,
+          "web": 6.0,
+          "flange": 10.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "5": {
+        "id": 5,
+        "name": "CHS 114×6",
+        "shape": {
+          "kind": "circular_hollow",
+          "diameter": 114.0,
+          "thickness": 6.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "6": {
+        "id": 6,
+        "name": "RHS 150×100×6",
+        "shape": {
+          "kind": "rectangular_hollow",
+          "height": 150.0,
+          "width": 100.0,
+          "thickness": 6.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "7": {
+        "id": 7,
+        "name": "R 100×50",
+        "shape": {
+          "kind": "rectangle",
+          "height": 100.0,
+          "width": 50.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      }
+    },
+    "elements": {
+      "19": {
+        "id": 19,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              18000.0,
+              12000.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "20": {
+        "id": 20,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              24000.0,
+              12000.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "21": {
+        "id": 21,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              18000.0,
+              18000.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "22": {
+        "id": 22,
+        "name": "Балка",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "beam",
+          "profile": 2,
+          "length": 6000.0,
+          "frame": {
+            "origin": [
+              18000.0,
+              12000.0,
+              3600.0
+            ],
+            "axes": [
+              [
+                -1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                -0.0,
+                1.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        "properties": {
+          "class": {
+            "type": "text",
+            "value": "2"
+          }
+        }
+      },
+      "24": {
+        "id": 24,
+        "name": "Соединение — плита",
+        "material": 1,
+        "shape": {
+          "kind": "plate",
+          "contour": [
+            [
+              0.0,
+              0.0
+            ],
+            [
+              290.0,
+              0.0
+            ],
+            [
+              290.0,
+              440.0
+            ],
+            [
+              0.0,
+              440.0
+            ]
+          ],
+          "thickness": 20.0,
+          "frame": {
+            "origin": [
+              17855.0,
+              11780.0,
+              -20.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      }
+    },
+    "assemblies": {},
+    "axes": {
+      "8": {
+        "id": 8,
+        "name": "1",
+        "start": [
+          0.0,
+          -2000.0,
+          0.0
+        ],
+        "end": [
+          0.0,
+          20000.0,
+          0.0
+        ]
+      },
+      "9": {
+        "id": 9,
+        "name": "2",
+        "start": [
+          6000.0,
+          -2000.0,
+          0.0
+        ],
+        "end": [
+          6000.0,
+          20000.0,
+          0.0
+        ]
+      },
+      "10": {
+        "id": 10,
+        "name": "3",
+        "start": [
+          12000.0,
+          -2000.0,
+          0.0
+        ],
+        "end": [
+          12000.0,
+          20000.0,
+          0.0
+        ]
+      },
+      "11": {
+        "id": 11,
+        "name": "4",
+        "start": [
+          18000.0,
+          -2000.0,
+          0.0
+        ],
+        "end": [
+          18000.0,
+          20000.0,
+          0.0
+        ]
+      },
+      "12": {
+        "id": 12,
+        "name": "5",
+        "start": [
+          24000.0,
+          -2000.0,
+          0.0
+        ],
+        "end": [
+          24000.0,
+          20000.0,
+          0.0
+        ]
+      },
+      "13": {
+        "id": 13,
+        "name": "А",
+        "start": [
+          -2000.0,
+          0.0,
+          0.0
+        ],
+        "end": [
+          26000.0,
+          0.0,
+          0.0
+        ]
+      },
+      "14": {
+        "id": 14,
+        "name": "Б",
+        "start": [
+          -2000.0,
+          6000.0,
+          0.0
+        ],
+        "end": [
+          26000.0,
+          6000.0,
+          0.0
+        ]
+      },
+      "15": {
+        "id": 15,
+        "name": "В",
+        "start": [
+          -2000.0,
+          12000.0,
+          0.0
+        ],
+        "end": [
+          26000.0,
+          12000.0,
+          0.0
+        ]
+      },
+      "16": {
+        "id": 16,
+        "name": "Г",
+        "start": [
+          -2000.0,
+          18000.0,
+          0.0
+        ],
+        "end": [
+          26000.0,
+          18000.0,
+          0.0
+        ]
+      }
+    },
+    "levels": {
+      "17": {
+        "id": 17,
+        "name": "0.000",
+        "elevation_mm": 0.0
+      },
+      "18": {
+        "id": 18,
+        "name": "+3.600",
+        "elevation_mm": 3600.0
+      }
+    },
+    "details": {
+      "25": {
+        "id": 25,
+        "kind": {
+          "kind": "hole",
+          "part": 24,
+          "frame": {
+            "origin": [
+              35.0,
+              35.0,
+              -1.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          },
+          "diameter": 22.0,
+          "depth": 22.0
+        }
+      },
+      "26": {
+        "id": 26,
+        "kind": {
+          "kind": "hole",
+          "part": 24,
+          "frame": {
+            "origin": [
+              255.0,
+              35.0,
+              -1.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          },
+          "diameter": 22.0,
+          "depth": 22.0
+        }
+      },
+      "27": {
+        "id": 27,
+        "kind": {
+          "kind": "hole",
+          "part": 24,
+          "frame": {
+            "origin": [
+              35.0,
+              405.0,
+              -1.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          },
+          "diameter": 22.0,
+          "depth": 22.0
+        }
+      },
+      "28": {
+        "id": 28,
+        "kind": {
+          "kind": "hole",
+          "part": 24,
+          "frame": {
+            "origin": [
+              255.0,
+              405.0,
+              -1.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          },
+          "diameter": 22.0,
+          "depth": 22.0
+        }
+      },
+      "29": {
+        "id": 29,
+        "kind": {
+          "kind": "bolt_group",
+          "parts": [
+            24
+          ],
+          "holes": [
+            25,
+            26,
+            27,
+            28
+          ],
+          "frame": {
+            "origin": [
+              17890.0,
+              11815.0,
+              -21.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          },
+          "diameter": 20.0,
+          "clearance": 2.0,
+          "steps_x": [
+            220.0
+          ],
+          "steps_y": [
+            370.0
+          ],
+          "standard": "ISO 4014",
+          "grade": "8.8"
+        }
+      },
+      "30": {
+        "id": 30,
+        "kind": {
+          "kind": "weld",
+          "parts": [
+            19,
+            24
+          ],
+          "weld_type": "fillet",
+          "size": 6.0,
+          "path": [
+            [
+              17925.0,
+              11850.0,
+              0.0
+            ],
+            [
+              18075.0,
+              11850.0,
+              0.0
+            ],
+            [
+              18075.0,
+              11862.0,
+              0.0
+            ],
+            [
+              18004.0,
+              11862.0,
+              0.0
+            ],
+            [
+              18004.0,
+              12138.0,
+              0.0
+            ],
+            [
+              18075.0,
+              12138.0,
+              0.0
+            ],
+            [
+              18075.0,
+              12150.0,
+              0.0
+            ],
+            [
+              17925.0,
+              12150.0,
+              0.0
+            ],
+            [
+              17925.0,
+              12138.0,
+              0.0
+            ],
+            [
+              17996.0,
+              12138.0,
+              0.0
+            ],
+            [
+              17996.0,
+              11862.0,
+              0.0
+            ],
+            [
+              17925.0,
+              11862.0,
+              0.0
+            ],
+            [
+              17925.0,
+              11850.0,
+              0.0
+            ]
+          ],
+          "shop": true
+        }
+      }
+    },
+    "connections": {
+      "23": {
+        "id": 23,
+        "primary": 19,
+        "secondary": null,
+        "at_end": false,
+        "template": {
+          "version": 1,
+          "name": "Соединение",
+          "kind": {
+            "type": "base_plate",
+            "overhang": 70.0
+          },
+          "thickness": 20.0,
+          "edge_distance": 35.0,
+          "bolt_diameter": 20.0,
+          "clearance": 2.0,
+          "bolt_standard": "ISO 4014",
+          "bolt_grade": "8.8",
+          "weld_size": 6.0
+        },
+        "children": {
+          "bolts": 29,
+          "hole-0": 25,
+          "hole-1": 26,
+          "hole-2": 27,
+          "hole-3": 28,
+          "plate": 24,
+          "weld": 30
+        }
+      }
+    },
+    "drawings": {
+      "31": {
+        "id": 31,
+        "kind": {
+          "kind": "part",
+          "part": 22
+        },
+        "number": "КМД-1",
+        "title": "Балка",
+        "sheet": "a3",
+        "scale": 20.0,
+        "views": [
+          {
+            "id": 1,
+            "name": "Вид спереди",
+            "direction": "front",
+            "position": [
+              185.0,
+              249.5
+            ]
+          },
+          {
+            "id": 2,
+            "name": "Вид сверху",
+            "direction": "top",
+            "position": [
+              185.0,
+              208.25
+            ]
+          },
+          {
+            "id": 3,
+            "name": "Вид слева",
+            "direction": "left",
+            "position": [
+              368.75,
+              249.5
+            ]
+          }
+        ],
+        "dimensions": [
+          {
+            "id": 1,
+            "view": 1,
+            "anchors": [
+              {
+                "object": 22,
+                "point": {
+                  "kind": "start"
+                }
+              },
+              {
+                "object": 22,
+                "point": {
+                  "kind": "end"
+                }
+              }
+            ],
+            "axis": "horizontal",
+            "offset": 18.0
+          }
+        ],
+        "texts": [],
+        "fingerprints": {
+          "22": "bdbed6cef0d79a993f11ccecaf5a6f6b51501b0a07b486bc27e46bd40021e3cf"
+        },
+        "generated_revision": 7
+      },
+      "32": {
+        "id": 32,
+        "kind": {
+          "kind": "general",
+          "objects": []
+        },
+        "number": "КМ-1",
+        "title": "Общий вид · Новый проект",
+        "sheet": "a1",
+        "scale": 25.0,
+        "views": [
+          {
+            "id": 1,
+            "name": "Фасад",
+            "direction": "front",
+            "position": [
+              159.4,
+              478.6
+            ]
+          },
+          {
+            "id": 2,
+            "name": "План",
+            "direction": "top",
+            "position": [
+              159.4,
+              245.80000000000004
+            ]
+          }
+        ],
+        "dimensions": [],
+        "texts": [],
+        "fingerprints": {
+          "19": "3af40e4c4553e6824675b28bb1afaab3223c8406544428ebfad6c03c2b7dc9d6",
+          "20": "232587d7a435d912a4b0d92fd67712cd511034d48683cbc6e5dde210fbf7a618",
+          "21": "6a635ae85e63580c20116a9727cdaad9b41d20baf356a32a1c18587c18878cbe",
+          "22": "bdbed6cef0d79a993f11ccecaf5a6f6b51501b0a07b486bc27e46bd40021e3cf",
+          "24": "9688cc474f17c7bf1e8a17706bade12cdf80324cb53cfff13efd438b718e5081"
+        },
+        "generated_revision": 8
+      },
+      "33": {
+        "id": 33,
+        "kind": {
+          "kind": "part",
+          "part": 19
+        },
+        "number": "КМД-P0001",
+        "title": "Колонна",
+        "sheet": "a3",
+        "scale": 15.0,
+        "views": [
+          {
+            "id": 1,
+            "name": "Вид спереди",
+            "direction": "front",
+            "position": [
+              155.0,
+              247.0
+            ]
+          },
+          {
+            "id": 2,
+            "name": "Вид сверху",
+            "direction": "top",
+            "position": [
+              155.0,
+              202.0
+            ]
+          },
+          {
+            "id": 3,
+            "name": "Вид слева",
+            "direction": "left",
+            "position": [
+              310.0,
+              247.0
+            ]
+          }
+        ],
+        "dimensions": [
+          {
+            "id": 1,
+            "view": 1,
+            "anchors": [
+              {
+                "object": 19,
+                "point": {
+                  "kind": "start"
+                }
+              },
+              {
+                "object": 19,
+                "point": {
+                  "kind": "end"
+                }
+              }
+            ],
+            "axis": "horizontal",
+            "offset": 18.0
+          }
+        ],
+        "texts": [],
+        "fingerprints": {
+          "19": "3af40e4c4553e6824675b28bb1afaab3223c8406544428ebfad6c03c2b7dc9d6"
+        },
+        "generated_revision": 8
+      },
+      "34": {
+        "id": 34,
+        "kind": {
+          "kind": "part",
+          "part": 24
+        },
+        "number": "КМД-P0003",
+        "title": "Соединение — плита",
+        "sheet": "a3",
+        "scale": 2.5,
+        "views": [
+          {
+            "id": 1,
+            "name": "Вид на плиту",
+            "direction": "front",
+            "position": [
+              93.0,
+              169.0
+            ]
+          }
+        ],
+        "dimensions": [
+          {
+            "id": 1,
+            "view": 1,
+            "anchors": [
+              {
+                "object": 24,
+                "point": {
+                  "kind": "vertex",
+                  "index": 0
+                }
+              },
+              {
+                "object": 24,
+                "point": {
+                  "kind": "vertex",
+                  "index": 1
+                }
+              },
+              {
+                "object": 24,
+                "point": {
+                  "kind": "vertex",
+                  "index": 2
+                }
+              },
+              {
+                "object": 24,
+                "point": {
+                  "kind": "vertex",
+                  "index": 3
+                }
+              },
+              {
+                "object": 24,
+                "point": {
+                  "kind": "hole",
+                  "hole": 25
+                }
+              },
+              {
+                "object": 24,
+                "point": {
+                  "kind": "hole",
+                  "hole": 26
+                }
+              },
+              {
+                "object": 24,
+                "point": {
+                  "kind": "hole",
+                  "hole": 27
+                }
+              },
+              {
+                "object": 24,
+                "point": {
+                  "kind": "hole",
+                  "hole": 28
+                }
+              }
+            ],
+            "axis": "horizontal",
+            "offset": -12.0
+          },
+          {
+            "id": 2,
+            "view": 1,
+            "anchors": [
+              {
+                "object": 24,
+                "point": {
+                  "kind": "vertex",
+                  "index": 0
+                }
+              },
+              {
+                "object": 24,
+                "point": {
+                  "kind": "vertex",
+                  "index": 1
+                }
+              },
+              {
+                "object": 24,
+                "point": {
+                  "kind": "vertex",
+                  "index": 2
+                }
+              },
+              {
+                "object": 24,
+                "point": {
+                  "kind": "vertex",
+                  "index": 3
+                }
+              },
+              {
+                "object": 24,
+                "point": {
+                  "kind": "hole",
+                  "hole": 25
+                }
+              },
+              {
+                "object": 24,
+                "point": {
+                  "kind": "hole",
+                  "hole": 26
+                }
+              },
+              {
+                "object": 24,
+                "point": {
+                  "kind": "hole",
+                  "hole": 27
+                }
+              },
+              {
+                "object": 24,
+                "point": {
+                  "kind": "hole",
+                  "hole": 28
+                }
+              }
+            ],
+            "axis": "vertical",
+            "offset": -12.0
+          }
+        ],
+        "texts": [],
+        "fingerprints": {
+          "24": "9688cc474f17c7bf1e8a17706bade12cdf80324cb53cfff13efd438b718e5081",
+          "25": "4d0a8e0cd7583155e22f3394a5474a895181d585d1ea480826be9bccffa74038",
+          "26": "bfaff27f0e193551fdbda7e0be471ef02d69312397422cbf9761eb23793f098e",
+          "27": "72f7119b66187aea76187d268451ef6bb7e4c0925b258c6f9d6e55e8393a140f",
+          "28": "bf74e0c5f7a8b947b735621cd86a442342f7ab755619267e71959e328a8217ce"
+        },
+        "generated_revision": 8
+      }
+    }
+  }
+}

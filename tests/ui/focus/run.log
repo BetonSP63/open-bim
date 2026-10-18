@@ -1,12 +1,13 @@
-GPU: Apple M5 · Metal; project=Новый проект objects=2
+LOAD_MS: 0.9
+GPU: Apple M5 · Metal; project=Новый проект objects=0
 SCRIPT: step 1 Wait(20)
-SCRIPT: step 2 Key { name: "Tab", command: false, shift: false, alt: false }
-SCRIPT: step 3 Key { name: "Tab", command: false, shift: false, alt: false }
-SCRIPT: step 4 Key { name: "Tab", command: false, shift: false, alt: false }
+SCRIPT: step 2 Key { name: "Tab", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 3 Key { name: "Tab", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 4 Key { name: "Tab", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 5 Wait(5)
 SCRIPT: step 6 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/focus/focus-tab3.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/focus/focus-tab3.png 2560x1600
-SCRIPT: step 7 Key { name: "Tab", command: false, shift: false, alt: false }
+SCRIPT: step 7 Key { name: "Tab", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 8 Wait(5)
 SCRIPT: step 9 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/focus/focus-tab4.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/focus/focus-tab4.png 2560x1600

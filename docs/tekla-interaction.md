@@ -71,3 +71,52 @@ nodes and column tops, plus Enter, Esc and ⌘S. It builds:
 
 `check_model.py` checks the saved `.obim` against the grid values independently
 (`check.txt`). Separate coordinates with commas; use a dot for decimals.
+
+## Tekla mechanics not implemented (open)
+
+These come from the Tekla 2026 manuals and are not in Open BIM yet. None of them
+is claimed. See `docs/tekla-docs-comparison.md` for each row's status.
+
+- **Snapping:**
+  - snap switches centres, parallel, line extensions and lines;
+  - snap depth Plane/Auto/3D and the plane type list;
+  - right-click snap override;
+  - Shift direction lock;
+  - X/Y/Z coordinate lock;
+  - R/A/G keys for the numeric input mode.
+- **Navigation:** view rotation point (V), rotate continuously (Shift+T), fly (Shift+F), Ctrl+R mouse rotate, F8.
+- **Rendering:** wireframe/shaded/grayscale/rendered modes (Ctrl+1…4, Shift+1…4), «show only selected» rendering modes.
+- **Part position:** On plane, Rotation and At depth settings with end offsets. The profile is always centred on the reference line.
+- **Columns:** binding to levels.
+- **Grids:** radial grids, picking the grid origin, editing a single grid line, grid lines drawn at every level as objects. Today they are drawn and snapped but stored once.
+- **Bolts:** «by face» and «by parts and face»; circle/list shapes; slotted, oversized, tapped and blind holes; Auto bolt.
+- **Welds:** polygon welds, weld to a part, weld preparation, weld marks in drawings.
+- **Selection:**
+  - selection filters (Ctrl+G);
+  - Alt+P select previous;
+  - rollover highlight (H);
+  - component and component-object switches;
+  - single-bolt, cuts, points and planes switches.
+- **Editing:**
+  - clipboard copy/paste between models;
+  - Smart select;
+  - drag & drop;
+  - copy special (linear, rotate, mirror, to another plane);
+  - swap handles.
+- **Property pane:** saving and loading property files, UDA dialogs, copying properties from another object.
+- **Other Tekla features:**
+  - Applications & components catalog;
+  - custom components;
+  - Organizer;
+  - phase manager;
+  - Document manager;
+  - Master drawing catalog;
+  - multi-user mode;
+  - Trimble Connect.
+- **Not part of this release:** concrete and rebar (their ribbon tabs are visible but disabled).
+
+Shortcut deviations (macOS):
+- ⌘ replaces Ctrl for the application commands: ⌘S, ⌘Z, ⌘N, ⌘O, ⌘P palette.
+- Tekla's own Ctrl commands use the Control key: Ctrl+M, Ctrl+C, Ctrl+A, Ctrl+P, Ctrl+I, Ctrl+K.
+- F2/F3/F4 switch the model, drawings and lists modes here. In Tekla they are selection and snap switches; here those are toolbar buttons.
+- Redo is ⇧⌘Z instead of Ctrl+Y.

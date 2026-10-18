@@ -150,9 +150,26 @@ pub fn modify(
     Ok(commands)
 }
 
+/// Cache key of `common`: project revision plus a fingerprint of the
+/// selection (count, sum and xor of IDs), cheap compared with rebuilding the
+/// common properties of a large selection every frame.
+pub type CacheKey = (u64, usize, u64, u64);
+
+pub fn cache_key(project: &Project, selected: &BTreeSet<ObjectId>) -> CacheKey {
+    let (sum, xor) = selected.iter().fold((0u64, 0u64), |(s, x), id| {
+        (
+            s.wrapping_add(id.0),
+            x ^ id.0.wrapping_mul(0x9e37_79b9_7f4a_7c15),
+        )
+    });
+    (project.revision, selected.len(), sum, xor)
+}
+
 /// Pane state: the edit buffer for the current selection.
 #[derive(Clone, Debug, Default)]
 pub struct PropertyPane {
+    /// Last computed common properties (None = no parts selected).
+    pub cache: Option<(CacheKey, Option<std::sync::Arc<Common>>)>,
     /// Selection the buffer was filled from.
     pub source: Vec<ObjectId>,
     pub name: String,

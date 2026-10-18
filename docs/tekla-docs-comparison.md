@@ -7,40 +7,43 @@ Status: ✅ same logic · ⚠ partly / differs · ❌ missing.
 ## Interface (GEF 4)
 | Tekla | Open BIM | |
 |---|---|---|
-| 15 UI areas: model, global origin cube, work area, local coordinate symbol with clickable navigation axes, File menu, ribbon, Quick Access, user/help, Quick Launch, side pane, work plane handler, model search, snap switches, selection switches, status bar | all present (phases 3–4); gizmo is not clickable yet | ⚠ |
+| 15 UI areas: model, global origin cube, work area, local coordinate symbol with clickable navigation axes, File menu, ribbon, Quick Access, user/help, Quick Launch, side pane, work plane handler, model search, snap switches, selection switches, status bar | all present; gizmo axes are clickable (plane views) | ✅ |
 | Command runs until Esc / another command; Enter repeats last command; middle button/Enter/space completes | same | ✅ |
 | Tooltip with hints, Ctrl+F1 for help | tooltips with label + shortcut | ⚠ |
 | Quick Launch Ctrl+Q, arrows + Enter, Esc clears | field, Enter runs first; no Ctrl+Q, no arrows | ⚠ |
 | Side pane: one window by default, active button blue | same | ✅ |
-| Contextual toolbar next to the pointer on click (Ctrl+K) | — | ❌ |
-| Property pane: Object type list starts a create command; double-click opens properties; Modify button | properties panel; no object-type start, no double-click | ⚠ |
+| Contextual toolbar next to the pointer on click (Ctrl+K) | contextual toolbar after a selecting click: profile, material, «Свойства…»; Ctrl+K toggles | ✅ |
+| Property pane: Object type list starts a create command; double-click opens properties; Modify button | «Тип объекта» list starts the command; double click opens the pane; «Изменить» applies the edited fields in one transaction; «— разные —» | ✅ |
+
+Final status after phases 5–8: the rows above reflect the implemented state;
+everything still ⚠/❌ is listed in `docs/tekla-interaction.md` → «not implemented».
 
 ## Selecting (GEF 4.6, MOD 1.7)
 | Tekla | Open BIM | |
 |---|---|---|
 | Main switches: components / component objects / assemblies / objects in assemblies; type switches (parts, grids, grid lines, welds, bolt groups, single bolts, cuts…) | parts / whole assemblies only | ⚠ |
-| Shift adds, Ctrl toggles, Alt+click selects assembly, area selection, Ctrl+A, F2/F3 switches | Shift/⌘ add; no toggle, no area selection, no Alt | ⚠ |
+| Shift adds, Ctrl toggles, Alt+click selects assembly, area selection, Ctrl+A, F2/F3 switches | Shift adds, Ctrl toggles, Alt+click selects the assembly, window/crossing area selection, Ctrl+A; F2/F3 are mode keys here (deviation) | ⚠ |
 | Handles: start yellow, others magenta (plates too) | same | ✅ |
-| Direct modification (D) with blue handles | — (phase 6) | ❌ |
+| Direct modification (D) with blue handles | D switches it; blue handles for member ends and plate vertices, dragged with snapping | ✅ |
 
 ## Snapping (GEF 4.7, MOD 1.3)
 | Tekla | Open BIM | |
 |---|---|---|
-| Main switches Reference lines/points and Geometry lines/points (highest priority; both off = no snap) | reference only, geometry edges always on | ⚠ |
+| Main switches Reference lines/points and Geometry lines/points (highest priority; both off = no snap) | both main switches («Опорные», «Геометрия») | ✅ |
 | Points (incl. grid intersections), End, Centers, Mid, Intersections, Perpendicular, Parallel, Line extensions, Any position, Nearest, Lines | end, mid, intersection, perpendicular, nearest, free | ⚠ (no centers, parallel, extensions, lines) |
 | Snap zone in pixels, priority by switches, depth Plane/Auto/3D | pixel tolerance, priority; no depth setting | ⚠ |
-| Orange snap symbol, snap tooltip, turquoise highlight of the snapped line | orange glyph, kind in status bar; no tooltip, no line highlight | ⚠ |
-| Tab / Shift+Tab cycles snap candidates; right-click snap override; Shift locks direction; Ctrl+pick sets a temporary reference point; X/Y/Z lock | — | ❌ |
+| Orange snap symbol, snap tooltip, turquoise highlight of the snapped line | orange glyph, snap tooltip next to the cursor, turquoise highlight of the member axis or grid line | ✅ |
+| Tab / Shift+Tab cycles snap candidates; right-click snap override; Shift locks direction; Ctrl+pick sets a temporary reference point; X/Y/Z lock | Tab/Shift+Tab cycle, Ctrl+pick temporary reference point (black cross); no snap override, Shift lock, X/Y/Z lock | ⚠ |
 | Ortho (O); rubber band coloured by work plane axis | ortho; rubber band one colour | ⚠ |
 | Numeric input on typing: **default relative**, `@` relative, `$` absolute (work plane), `!` global, polar `d<a<b`, one value = distance along the pointer direction, R/A/G keys | same modes and prefixes (fixed in phase 5); no R/A/G keys | ✅ |
 
 ## Navigation (MOD 1.2, shortcuts)
 | Tekla | Open BIM | |
 |---|---|---|
-| Wheel zoom about the pointer, PgUp/PgDn, Home zoom original, Shift+Space zoom selected | wheel about pointer, +/− | ⚠ |
+| Wheel zoom about the pointer, PgUp/PgDn, Home zoom original, Shift+Space zoom selected | wheel about the pointer, PgUp/PgDn, Home, Shift+Space zoom selected | ✅ |
 | Middle drag pans; Ctrl+middle rotates about the view point (V sets it); right button = context menu | same, plus a context menu; no V view point | ⚠ |
 | Arrows move the view; Ctrl+arrows rotate 15°, Shift+arrows 5°; PgUp/PgDn; Home | same (fixed in phase 5) | ✅ |
-| Ctrl+P plane/3D, Ctrl+1…4 rendering, Shift+X clip plane, F measure | P projection; section height; no measure | ⚠ |
+| Ctrl+P plane/3D, Ctrl+1…4 rendering, Shift+X clip plane, F measure | Ctrl+P plane/3D, views by grid lines with depth, F measure; no Ctrl+1…4 rendering modes, no clip planes by pick | ⚠ |
 
 ## Modelling (MOD 1.1, 2.1, 2.2)
 | Tekla | Open BIM | |

@@ -942,6 +942,7 @@ impl Workbench {
             .min_size(280.)
             .show(ui, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
+                    let has_selection = self.selection_common().is_some();
                     ui.add_enabled_ui(!self.busy(), |ui| match self.mode {
                         Mode::Drawings => self.drawings.show(ui, &mut self.editor),
                         Mode::Reports => {
@@ -952,13 +953,7 @@ impl Workbench {
                         Mode::Model => match self.side_panel {
                             Some(SidePanel::Tree) => self.tree_panel(ui),
                             Some(SidePanel::Views) => self.views_panel(ui, requests),
-                            Some(SidePanel::Properties)
-                                if super::property_pane::common(
-                                    self.editor.document.project(),
-                                    &self.editor.selected,
-                                )
-                                .is_some() =>
-                            {
+                            Some(SidePanel::Properties) if has_selection => {
                                 self.selection_pane(ui, requests)
                             }
                             Some(panel) => {
@@ -990,7 +985,7 @@ impl Workbench {
     /// Tekla contextual toolbar next to the pointer after a selecting click:
     /// profile and material apply at once; «Свойства…» opens the pane.
     fn contextual_toolbar(&mut self, ctx: &egui::Context, requests: &mut Vec<Request>) {
-        use super::property_pane::{Changes, VARIES, common, modify};
+        use super::property_pane::{Changes, VARIES, modify};
         let Some(at) = self.context_at.filter(|_| {
             self.contextual
                 && self.mode == Mode::Model
@@ -999,10 +994,10 @@ impl Workbench {
         }) else {
             return;
         };
-        let project = self.editor.document.project();
-        let Some(c) = common(project, &self.editor.selected) else {
+        let Some(c) = self.selection_common() else {
             return;
         };
+        let project = self.editor.document.project();
         let mut change = Changes::default();
         let mut open_pane = false;
         egui::Area::new(egui::Id::new("contextual toolbar"))
@@ -1117,13 +1112,29 @@ impl Workbench {
         }
     }
 
+    /// Common properties of the selection, recomputed only when the model
+    /// revision or the selection changes.
+    pub fn selection_common(&mut self) -> Option<Arc<super::property_pane::Common>> {
+        use super::property_pane::{cache_key, common};
+        let project = self.editor.document.project();
+        let key = cache_key(project, &self.editor.selected);
+        match &self.pane.cache {
+            Some((k, c)) if *k == key => c.clone(),
+            _ => {
+                let c = common(project, &self.editor.selected).map(Arc::new);
+                self.pane.cache = Some((key, c.clone()));
+                c
+            }
+        }
+    }
+
     /// Common properties of the selected parts; «Изменить» applies the edits.
     fn selection_pane(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
-        use super::property_pane::{Shared, VARIES, common, modify};
-        let project = self.editor.document.project();
-        let Some(c) = common(project, &self.editor.selected) else {
+        use super::property_pane::{Shared, VARIES, modify};
+        let Some(c) = self.selection_common() else {
             return;
         };
+        let project = self.editor.document.project();
         self.pane.sync(&c);
         let kind = c.kind.value().cloned().unwrap_or_else(|| "Детали".into());
         ui.heading(format!("Свойства: {kind} ({})", c.parts.len()));
@@ -1195,6 +1206,12 @@ impl Workbench {
                 ui.label(c.size.value().cloned().unwrap_or_else(|| VARIES.into()));
                 ui.end_row();
             });
+        ui.separator();
+        if let Some(a) = self.tools.user_property(ui, &mut self.editor) {
+            requests.push(Request::Action(a));
+        }
+        ui.separator();
+        let project = self.editor.document.project();
         ui.horizontal(|ui| {
             if ui.button("Изменить").clicked() {
                 match modify(project, &c.parts, &self.pane.changes(&c)) {

@@ -117,6 +117,38 @@ impl ToolsUi {
             value: PropertyValue::Text(self.value.clone()),
         }))
     }
+    /// User-defined property of the selected objects (Tekla UDA), ⌘L focuses it.
+    pub fn user_property(&mut self, ui: &mut egui::Ui, editor: &mut Editor) -> Option<Action> {
+        let mut action = None;
+        ui.label("Свойство выбранных · ⌘L");
+        let key_label = ui.label("Имя свойства");
+        let key = ui
+            .add(egui::TextEdit::singleline(&mut self.key).id(egui::Id::new("property key")))
+            .labelled_by(key_label.id);
+        if std::mem::take(&mut self.focus_property) {
+            key.request_focus();
+        }
+        let value_label = ui.label("Значение (Enter — применить)");
+        let value = ui
+            .add(egui::TextEdit::singleline(&mut self.value).id(egui::Id::new("property value")))
+            .labelled_by(value_label.id);
+        let enter = value.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+        if ui
+            .add_enabled(
+                !editor.selected.is_empty(),
+                egui::Button::new("Применить к выбранным"),
+            )
+            .clicked()
+            || (enter && !editor.selected.is_empty())
+        {
+            match self.property_action() {
+                Ok(a) => action = Some(a),
+                Err(e) => self.message = Some(e),
+            }
+        }
+        action
+    }
+
     pub fn show(&mut self, ui: &mut egui::Ui, editor: &mut Editor) -> Option<Action> {
         let mut action = None;
         ui.heading(self.panel.title());
@@ -364,33 +396,8 @@ impl ToolsUi {
             self.coordination.show(ui, editor);
         }
         if self.panel == ToolsPanel::Properties {
-            ui.label("Свойство выбранных · ⌘L");
-            let key_label = ui.label("Имя свойства");
-            let key = ui
-                .add(egui::TextEdit::singleline(&mut self.key).id(egui::Id::new("property key")))
-                .labelled_by(key_label.id);
-            if std::mem::take(&mut self.focus_property) {
-                key.request_focus();
-            }
-            let value_label = ui.label("Значение (Enter — применить)");
-            let value = ui
-                .add(
-                    egui::TextEdit::singleline(&mut self.value).id(egui::Id::new("property value")),
-                )
-                .labelled_by(value_label.id);
-            let enter = value.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-            if ui
-                .add_enabled(
-                    !editor.selected.is_empty(),
-                    egui::Button::new("Применить к выбранным"),
-                )
-                .clicked()
-                || (enter && !editor.selected.is_empty())
-            {
-                match self.property_action() {
-                    Ok(a) => action = Some(a),
-                    Err(e) => self.message = Some(e),
-                }
+            if let Some(a) = self.user_property(ui, editor) {
+                action = Some(a);
             }
             ui.separator();
             let path_label = ui.label("Файл проекта .obim");

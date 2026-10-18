@@ -1,48 +1,49 @@
+LOAD_MS: 0.8
 GPU: Apple M5 · Metal; project=Новый проект objects=0
 SCRIPT: step 1 Wait(20)
 SCRIPT: step 2 Note("⌘N — новый проект")
-SCRIPT: step 3 Key { name: "N", command: true, shift: false, alt: false }
+SCRIPT: step 3 Key { name: "N", command: true, shift: false, alt: false, ctrl: false }
 SCRIPT: step 4 Wait(5)
 SCRIPT: step 5 Note("⌥B — инструмент балка, ⌘↩ — создать по полям")
-SCRIPT: step 6 Key { name: "B", command: false, shift: false, alt: true }
+SCRIPT: step 6 Key { name: "B", command: false, shift: false, alt: true, ctrl: false }
 SCRIPT: step 7 Wait(5)
 SCRIPT: step 8 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard/step-1.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard/step-1.png 2560x1600
-SCRIPT: step 9 Key { name: "Enter", command: true, shift: false, alt: false }
+SCRIPT: step 9 Key { name: "Enter", command: true, shift: false, alt: false, ctrl: false }
 SCRIPT: step 10 Wait(10)
 SCRIPT: step 11 Note("⌘L — свойство выбранной балки")
-SCRIPT: step 12 Key { name: "L", command: true, shift: false, alt: false }
+SCRIPT: step 12 Key { name: "L", command: true, shift: false, alt: false, ctrl: false }
 SCRIPT: step 13 Wait(3)
-SCRIPT: step 14 Key { name: "A", command: true, shift: false, alt: false }
+SCRIPT: step 14 Key { name: "A", command: true, shift: false, alt: false, ctrl: false }
 SCRIPT: step 15 Text("Марка")
-SCRIPT: step 16 Key { name: "Tab", command: false, shift: false, alt: false }
-SCRIPT: step 17 Key { name: "A", command: true, shift: false, alt: false }
+SCRIPT: step 16 Key { name: "Tab", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 17 Key { name: "A", command: true, shift: false, alt: false, ctrl: false }
 SCRIPT: step 18 Text("Б-1")
 SCRIPT: step 19 Wait(2)
 SCRIPT: step 20 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard/step-2.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard/step-2.png 2560x1600
-SCRIPT: step 21 Key { name: "Enter", command: false, shift: false, alt: false }
+SCRIPT: step 21 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 22 Wait(10)
 SCRIPT: step 23 Note("⌘P — поиск команд «чертёж детали»")
-SCRIPT: step 24 Key { name: "P", command: true, shift: false, alt: false }
+SCRIPT: step 24 Key { name: "P", command: true, shift: false, alt: false, ctrl: false }
 SCRIPT: step 25 Wait(3)
 SCRIPT: step 26 Text("чертёж дет")
 SCRIPT: step 27 Wait(3)
 SCRIPT: step 28 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard/step-3.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard/step-3.png 2560x1600
-SCRIPT: step 29 Key { name: "Enter", command: false, shift: false, alt: false }
+SCRIPT: step 29 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 30 Wait(15)
 SCRIPT: step 31 Note("⇧⌘P — экспорт PDF, ⌘E — экспорт IFC, ⌘S — сохранить")
-SCRIPT: step 32 Key { name: "P", command: true, shift: true, alt: false }
+SCRIPT: step 32 Key { name: "P", command: true, shift: true, alt: false, ctrl: false }
 SCRIPT: step 33 Wait(5)
-SCRIPT: step 34 Key { name: "E", command: true, shift: false, alt: false }
+SCRIPT: step 34 Key { name: "E", command: true, shift: false, alt: false, ctrl: false }
 SCRIPT: step 35 Wait(5)
-SCRIPT: step 36 Key { name: "S", command: true, shift: false, alt: false }
+SCRIPT: step 36 Key { name: "S", command: true, shift: false, alt: false, ctrl: false }
 SCRIPT: step 37 Wait(5)
 SCRIPT: step 38 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard/step-4.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard/step-4.png 2560x1600
 SCRIPT: step 39 Note("F1 — справка по клавишам")
-SCRIPT: step 40 Key { name: "F1", command: false, shift: false, alt: false }
+SCRIPT: step 40 Key { name: "F1", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 41 Wait(5)
 SCRIPT: step 42 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard/step-5.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/keyboard/step-5.png 2560x1600

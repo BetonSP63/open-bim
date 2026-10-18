@@ -518,7 +518,10 @@ impl eframe::App for Desktop {
             self.bench.clip[0]
         };
         self.view.depth = self.bench.clip[1];
-        self.view.selected_ids = self.bench.editor.selected.clone();
+        // Copy the selection into the view only when it changed.
+        if *self.view.selected_ids != self.bench.editor.selected {
+            self.view.selected_ids = Arc::new(self.bench.editor.selected.clone());
+        }
         self.view.selected = self.bench.editor.selected.first().copied();
         egui::CentralPanel::default().show(ui, |ui| {
             if self.bench.central(ui) {
@@ -749,7 +752,13 @@ impl eframe::App for Desktop {
                     self.pending.push(Request::Fit);
                 } else {
                     let id = hover.and_then(|ray| self.scene.pick(ray, &self.view));
-                    self.bench.context_at = response.interact_pointer_pos();
+                    // Keep the contextual toolbar inside the 3D view.
+                    self.bench.context_at = response.interact_pointer_pos().map(|p| {
+                        egui::pos2(
+                            p.x.min(rect.max.x - 520.).max(rect.min.x),
+                            p.y.min(rect.max.y - 60.).max(rect.min.y),
+                        )
+                    });
                     // Alt+click selects the whole assembly once (Tekla).
                     let saved = self.bench.select;
                     self.bench.select.assemblies |= modifiers.alt;
@@ -813,8 +822,6 @@ impl eframe::App for Desktop {
                     );
                 }
             }
-            self.view.selected_ids = self.bench.editor.selected.clone();
-            self.view.selected = self.bench.editor.selected.first().copied();
             let light = self.bench.light_theme;
             open_bim_desktop::viewport::gradient(
                 ui.painter(),

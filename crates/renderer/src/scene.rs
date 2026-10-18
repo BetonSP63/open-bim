@@ -126,7 +126,9 @@ impl ClipPlane {
 pub struct ViewState {
     pub hidden: BTreeSet<ObjectId>,
     pub selected: Option<ObjectId>,
-    pub selected_ids: BTreeSet<ObjectId>,
+    /// Shared, so the per-frame copy of the view state stays cheap with a
+    /// large selection.
+    pub selected_ids: Arc<BTreeSet<ObjectId>>,
     pub section: Option<ClipPlane>,
     /// Second clip plane: the depth of a plan or elevation view (Tekla view depth).
     pub depth: Option<ClipPlane>,

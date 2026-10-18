@@ -1,0 +1,410 @@
+[
+{
+"wait": 40
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/01-new-model.png"
+},
+{
+"note": "Колонны В4 В5 Г4"
+},
+{
+"click": [
+38,
+78
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+18000,
+12000,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+18000,
+12000,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+24000,
+12000,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+24000,
+12000,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+18000,
+18000,
+0
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+18000,
+18000,
+0
+]
+},
+{
+"wait": 10
+},
+{
+"key": {
+"name": "Escape"
+}
+},
+{
+"note": "Балка по верхам В4→В5"
+},
+{
+"click": [
+97,
+78
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+18000,
+12000,
+3600
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+18000,
+12000,
+3600
+]
+},
+{
+"wait": 10
+},
+{
+"hover_world": [
+24000,
+12000,
+3600
+]
+},
+{
+"wait": 6
+},
+{
+"click_world": [
+24000,
+12000,
+3600
+]
+},
+{
+"wait": 10
+},
+{
+"key": {
+"name": "Escape"
+}
+},
+{
+"wait": 5
+},
+{
+"note": "Выбрать балку, перетащить конечную ручку на верх Г4"
+},
+{
+"click_world": [
+21000,
+12000,
+3600
+]
+},
+{
+"wait": 10
+},
+{
+"drag_world": [
+24000,
+12000,
+3600,
+18000,
+18000,
+3600
+]
+},
+{
+"wait": 15
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/02-columns-beam-handle.png"
+},
+{
+"note": "Выбрать колонну В4, панель Узлы"
+},
+{
+"key": {
+"name": "Escape"
+}
+},
+{
+"click_world": [
+18000,
+12000,
+1800
+]
+},
+{
+"wait": 10
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/03-column-selected.png"
+},
+{
+"click": [
+1261,
+224
+]
+},
+{
+"wait": 10
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/04-connections-panel.png"
+},
+{
+"click": [
+1030,
+157
+]
+},
+{
+"wait": 10
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/05-connection-form.png"
+},
+{
+"note": "Узел: опорная плита колонны В4"
+},
+{
+"click": [
+1005,
+200
+]
+},
+{
+"wait": 5
+},
+{
+"click": [
+982,
+550
+]
+},
+{
+"wait": 20
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/06-base-plate.png"
+},
+{
+"note": "⌘K нумерация и проверка коллизий"
+},
+{
+"key": {
+"name": "Escape"
+}
+},
+{
+"key": {
+"name": "K",
+"command": true
+}
+},
+{
+"wait_idle": null
+},
+{
+"wait": 10
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/07-numbering-clash.png"
+},
+{
+"note": "Балка: класс 2 в панели свойств"
+},
+{
+"click_world": [
+18000,
+15000,
+3600
+]
+},
+{
+"wait": 10
+},
+{
+"click": [
+1261,
+137
+]
+},
+{
+"wait": 10
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/08-beam-properties.png"
+},
+{
+"click": [
+1018,
+221
+]
+},
+{
+"text": "2"
+},
+{
+"wait": 3
+},
+{
+"click": [
+955,
+400
+]
+},
+{
+"wait": 15
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/09-class-changed.png"
+},
+{
+"note": "⌘D чертёж детали, ⇧⌘P PDF"
+},
+{
+"key": {
+"name": "D",
+"command": true
+}
+},
+{
+"wait": 15
+},
+{
+"key": {
+"name": "P",
+"command": true,
+"shift": true
+}
+},
+{
+"wait": 15
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/10-drawing.png"
+},
+{
+"note": "⌘R ведомости, ⇧⌘R комплект выпуска"
+},
+{
+"key": {
+"name": "R",
+"command": true
+}
+},
+{
+"wait": 10
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/11-lists.png"
+},
+{
+"key": {
+"name": "R",
+"command": true,
+"shift": true
+}
+},
+{
+"wait_idle": null
+},
+{
+"wait": 10
+},
+{
+"note": "⌘E IFC, ⌘S сохранить, ⌘O открыть заново"
+},
+{
+"key": {
+"name": "F2"
+}
+},
+{
+"key": {
+"name": "E",
+"command": true
+}
+},
+{
+"wait": 10
+},
+{
+"key": {
+"name": "S",
+"command": true
+}
+},
+{
+"wait": 10
+},
+{
+"key": {
+"name": "O",
+"command": true
+}
+},
+{
+"wait_idle": null
+},
+{
+"wait": 20
+},
+{
+"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/12-reopened.png"
+},
+"quit"
+]

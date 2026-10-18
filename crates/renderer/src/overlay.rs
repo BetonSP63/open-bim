@@ -25,7 +25,7 @@ pub const AXIS_COLORS: [Rgba; 3] = [[210, 40, 40, 255], [20, 150, 50, 255], [30,
 pub const GRADIENT_LIGHT: [Rgba; 2] = [[150, 168, 196, 255], [236, 240, 245, 255]];
 pub const GRADIENT_DARK: [Rgba; 2] = [[20, 28, 40, 255], [6, 9, 13, 255]];
 /// At most this many selected objects get handles (bounded overlay cost).
-pub const MAX_HANDLES: usize = 2000;
+pub const MAX_HANDLES: usize = 500;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Glyph {

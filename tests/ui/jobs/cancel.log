@@ -1,12 +1,13 @@
-GPU: Apple M5 · Metal; project=Новый проект objects=2
+LOAD_MS: 0.3
+GPU: Apple M5 · Metal; project=Новый проект objects=0
 SCRIPT: step 1 Wait(20)
 SCRIPT: step 2 Note("⌘O — открыть большой проект с задержкой 4 с")
-SCRIPT: step 3 Key { name: "O", command: true, shift: false, alt: false }
+SCRIPT: step 3 Key { name: "O", command: true, shift: false, alt: false, ctrl: false }
 SCRIPT: step 4 Wait(20)
 SCRIPT: step 5 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/jobs/loading.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/jobs/loading.png 2560x1600
 SCRIPT: step 6 Note("Esc — отмена")
-SCRIPT: step 7 Key { name: "Escape", command: false, shift: false, alt: false }
+SCRIPT: step 7 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 8 Wait(10)
 SCRIPT: step 9 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/jobs/cancelled.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/jobs/cancelled.png 2560x1600

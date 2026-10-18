@@ -126,8 +126,14 @@ impl DrawingEditor {
             .show(ui, |ui| {
                 for (id, text, status) in &rows {
                     ui.horizontal(|ui| {
-                        let text =
-                            egui::RichText::new(text).color(status_color(status, ui.visuals()));
+                        // On the selection fill the status colour is unreadable: use
+                        // the selection text colour there.
+                        let color = if self.current == Some(*id) {
+                            ui.visuals().selection.stroke.color
+                        } else {
+                            status_color(status, ui.visuals())
+                        };
+                        let text = egui::RichText::new(text).color(color);
                         if ui
                             .selectable_label(self.current == Some(*id), text)
                             .clicked()

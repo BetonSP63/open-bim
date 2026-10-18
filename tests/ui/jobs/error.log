@@ -1,7 +1,8 @@
-GPU: Apple M5 · Metal; project=Новый проект objects=2
+LOAD_MS: 0.4
+GPU: Apple M5 · Metal; project=Новый проект objects=0
 SCRIPT: step 1 Wait(20)
 SCRIPT: step 2 Note("⌘O — открыть повреждённый файл")
-SCRIPT: step 3 Key { name: "O", command: true, shift: false, alt: false }
+SCRIPT: step 3 Key { name: "O", command: true, shift: false, alt: false, ctrl: false }
 SCRIPT: step 4 Wait(40)
 SCRIPT: step 5 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/jobs/file-error.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/jobs/file-error.png 2560x1600
