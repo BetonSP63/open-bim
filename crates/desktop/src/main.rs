@@ -1,9 +1,6 @@
 use eframe::egui;
 use egui_wgpu::wgpu;
-use open_bim_desktop::tools::{
-    Editor, number,
-    ui::{Action, select},
-};
+use open_bim_desktop::tools::{Editor, number, ui::Action};
 use open_bim_desktop::ui::{Request, Workbench};
 use open_bim_model::{ObjectId, Project, example_steel_frame};
 use open_bim_renderer::{
@@ -305,6 +302,7 @@ impl Desktop {
             match request {
                 Request::Action(action) => self.action(action),
                 Request::Fit => self.camera.fit(self.scene.bounds),
+                Request::ToggleProjection => self.camera.orthographic = !self.camera.orthographic,
                 Request::View(view) => self.camera.set_view(view),
                 Request::Loaded(scene) => {
                     self.camera.fit(scene.bounds);
@@ -529,7 +527,7 @@ impl eframe::App for Desktop {
                     }
                 });
             }
-            let cursor = if self.bench.editor.active {
+            let cursor = if self.bench.picking() {
                 hover.and_then(|_| {
                     // The elevation field moves a horizontal work plane.
                     if let Ok(z) = number(&self.bench.tools.workplane)
@@ -571,6 +569,7 @@ impl eframe::App for Desktop {
                 None
             };
             self.bench.cursor = cursor.map(|(p, _)| DVec3::from_array(p.0));
+            self.bench.last_snap = cursor.map(|(_, hit)| hit.kind);
             if response.middle_clicked()
                 && self.bench.engine.active()
                 && let Some(r) = self
@@ -581,7 +580,7 @@ impl eframe::App for Desktop {
             }
             if response.clicked() {
                 response.request_focus();
-                if self.bench.engine.active() {
+                if self.bench.picking() {
                     if let Some((point, _)) = cursor
                         && let Some(r) = self.bench.pick(DVec3::from_array(point.0))
                     {
@@ -591,7 +590,7 @@ impl eframe::App for Desktop {
                     let id = hover.and_then(|ray| self.scene.pick(ray, &self.view));
                     let extend = self.bench.extend_selection
                         || ctx.input(|i| i.modifiers.shift || i.modifiers.command);
-                    select(&mut self.bench.editor.selected, id, extend);
+                    self.bench.select_picked(id, extend);
                     self.view.selected_ids = self.bench.editor.selected.clone();
                     self.view.selected = self.bench.editor.selected.first().copied();
                 }

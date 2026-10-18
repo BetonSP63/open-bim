@@ -58,11 +58,11 @@ fn anchor_label(point: AnchorPoint) -> String {
     }
 }
 
-pub fn status_color(status: &Status) -> egui::Color32 {
+pub fn status_color(status: &Status, visuals: &egui::Visuals) -> egui::Color32 {
     match status {
-        Status::UpToDate => egui::Color32::from_rgb(90, 200, 120),
-        Status::Outdated { .. } => egui::Color32::from_rgb(255, 196, 0),
-        Status::LostReferences { .. } => egui::Color32::from_rgb(255, 90, 90),
+        Status::UpToDate => crate::ui::theme::ok(visuals),
+        Status::Outdated { .. } => visuals.warn_fg_color,
+        Status::LostReferences { .. } => visuals.error_fg_color,
     }
 }
 
@@ -126,7 +126,8 @@ impl DrawingEditor {
             .show(ui, |ui| {
                 for (id, text, status) in &rows {
                     ui.horizontal(|ui| {
-                        let text = egui::RichText::new(text).color(status_color(status));
+                        let text =
+                            egui::RichText::new(text).color(status_color(status, ui.visuals()));
                         if ui
                             .selectable_label(self.current == Some(*id), text)
                             .clicked()
@@ -144,7 +145,7 @@ impl DrawingEditor {
         };
         let status = open_bim_drawings::status(editor.document.project(), &drawing);
         ui.separator();
-        ui.colored_label(status_color(&status), status.label());
+        ui.colored_label(status_color(&status, ui.visuals()), status.label());
         ui.horizontal(|ui| {
             if ui.button("Обновить по модели · ⌘U").clicked()
                 || ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::U))

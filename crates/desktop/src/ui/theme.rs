@@ -25,6 +25,59 @@ pub const WARNING: Color32 = Color32::from_rgb(255, 196, 0);
 pub const ERROR: Color32 = Color32::from_rgb(255, 120, 120);
 pub const OK: Color32 = Color32::from_rgb(90, 200, 120);
 
+/// Tekla-like light palette: light grey chrome, white panels, blue accents.
+pub const LIGHT_FOCUS: Color32 = Color32::from_rgb(31, 95, 173);
+/// Status bar (blue band at the bottom of the window).
+pub const STATUS_BG: Color32 = Color32::from_rgb(30, 90, 168);
+pub const STATUS_TEXT: Color32 = Color32::WHITE;
+/// Ribbon background in the light theme.
+pub const RIBBON_BG: Color32 = Color32::from_rgb(247, 248, 250);
+
+/// Ribbon background: Tekla-like light band, or the faint panel colour in dark theme.
+pub fn ribbon_bg(v: &egui::Visuals) -> Color32 {
+    if v.dark_mode {
+        v.faint_bg_color
+    } else {
+        RIBBON_BG
+    }
+}
+
+pub fn ok(visuals: &egui::Visuals) -> Color32 {
+    if visuals.dark_mode {
+        OK
+    } else {
+        Color32::from_rgb(25, 115, 50)
+    }
+}
+
+pub fn light_visuals() -> egui::Visuals {
+    let mut v = egui::Visuals::light();
+    let text = Color32::from_rgb(29, 31, 35);
+    v.panel_fill = Color32::from_rgb(238, 240, 243);
+    v.window_fill = Color32::WHITE;
+    v.extreme_bg_color = Color32::WHITE;
+    v.faint_bg_color = Color32::from_rgb(245, 246, 248);
+    v.widgets.noninteractive.fg_stroke = Stroke::new(1., text);
+    v.widgets.noninteractive.bg_stroke = Stroke::new(1., Color32::from_rgb(205, 209, 216));
+    v.widgets.inactive.fg_stroke = Stroke::new(1., text);
+    v.widgets.inactive.bg_fill = Color32::from_rgb(226, 229, 234);
+    v.widgets.inactive.weak_bg_fill = Color32::from_rgb(226, 229, 234);
+    v.widgets.hovered.fg_stroke = Stroke::new(1.5, Color32::BLACK);
+    v.widgets.hovered.weak_bg_fill = Color32::from_rgb(214, 228, 245);
+    v.widgets.hovered.bg_fill = Color32::from_rgb(214, 228, 245);
+    v.widgets.active.bg_stroke = Stroke::new(2., LIGHT_FOCUS);
+    v.widgets.active.fg_stroke = Stroke::new(2., Color32::BLACK);
+    v.widgets.active.weak_bg_fill = Color32::from_rgb(196, 218, 243);
+    v.widgets.active.bg_fill = Color32::from_rgb(196, 218, 243);
+    v.selection.bg_fill = Color32::from_rgb(31, 111, 197);
+    v.selection.stroke = Stroke::new(1., Color32::WHITE);
+    v.hyperlink_color = LIGHT_FOCUS;
+    v.warn_fg_color = Color32::from_rgb(138, 90, 0);
+    v.error_fg_color = Color32::from_rgb(180, 35, 24);
+    v.weak_text_color = Some(Color32::from_rgb(90, 96, 105));
+    v
+}
+
 pub fn visuals() -> egui::Visuals {
     let mut v = egui::Visuals::dark();
     let text = Color32::from_gray(225);
@@ -92,9 +145,11 @@ pub fn text_pairs(v: &egui::Visuals) -> Vec<(&'static str, Color32, Color32)> {
             v.weak_text_color.unwrap_or(Color32::GRAY),
             v.panel_fill,
         ),
-        ("предупреждение", WARNING, v.panel_fill),
-        ("ошибка", ERROR, v.panel_fill),
-        ("готово", OK, v.panel_fill),
+        ("предупреждение", v.warn_fg_color, v.panel_fill),
+        ("ошибка", v.error_fg_color, v.panel_fill),
+        ("готово", ok(v), v.panel_fill),
+        ("строка состояния", STATUS_TEXT, STATUS_BG),
+        ("лента", v.widgets.inactive.fg_stroke.color, ribbon_bg(v)),
         ("ссылка", v.hyperlink_color, v.panel_fill),
     ]
 }
@@ -111,7 +166,20 @@ pub fn fonts() -> egui::FontDefinitions {
     fonts
 }
 
+/// Fonts plus the chosen theme (light Tekla-like by default).
 pub fn apply(ctx: &egui::Context) {
     ctx.set_fonts(fonts());
-    ctx.set_visuals(visuals());
+    set_theme(ctx, true);
+}
+
+/// Both theme slots get our visuals and the theme is pinned, so popups and
+/// menus never fall back to the system (dark/light) style.
+pub fn set_theme(ctx: &egui::Context, light: bool) {
+    ctx.set_visuals_of(egui::Theme::Light, light_visuals());
+    ctx.set_visuals_of(egui::Theme::Dark, visuals());
+    ctx.set_theme(if light {
+        egui::Theme::Light
+    } else {
+        egui::Theme::Dark
+    });
 }

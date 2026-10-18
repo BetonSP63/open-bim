@@ -1,7 +1,9 @@
 //! Application shell shared by the native app and headless UI tests: menus,
 //! panels, command registry, palette, help and background jobs. The 3D
 //! viewport (GPU) is drawn by the binary inside the central panel.
+pub mod chrome;
 pub mod commands;
+pub mod icons;
 pub mod jobs;
 pub mod palette;
 pub mod theme;
@@ -10,7 +12,7 @@ use crate::drawing_editor::{DrawingEditor, ExportFormat};
 use crate::reports_ui::ReportsUi;
 use crate::tools::{
     Editor, ToolKind,
-    ui::{Action, ToolsUi, select},
+    ui::{Action, ToolsUi},
 };
 use commands::{Cmd, caption};
 use eframe::egui;
@@ -35,6 +37,7 @@ pub enum Request {
     View(NamedView),
     /// A project finished loading in the background.
     Loaded(Arc<Scene>),
+    ToggleProjection,
 }
 
 pub enum ActiveJob {
@@ -81,6 +84,21 @@ pub struct Workbench {
     pub gpu: String,
     /// Delay added to background project loading (verification of cancel).
     pub load_delay_ms: u64,
+    /// Ribbon tab and the side panel opened from the side pane strip.
+    pub ribbon_tab: chrome::RibbonTab,
+    pub side_panel: Option<chrome::SidePanel>,
+    /// Light (Tekla-like) or dark theme; applied on the next frame.
+    pub light_theme: bool,
+    pub theme_applied: Option<bool>,
+    pub quick_launch: String,
+    pub search: String,
+    /// Picks for «рабочая плоскость по трём точкам».
+    pub workplane_picks: Option<Vec<open_bim_renderer::DVec3>>,
+    /// Selection switches (bottom toolbar).
+    pub select_parts: bool,
+    pub select_assemblies: bool,
+    /// Snap kind under the cursor (status bar).
+    pub last_snap: Option<crate::interaction::snap::SnapKind>,
     /// Screen-space snapping and its switches (bottom toolbar).
     pub snapper: crate::interaction::snap::Snapper,
     pub switches: crate::interaction::snap::Switches,
@@ -113,6 +131,16 @@ impl Workbench {
             load_delay_ms: 0,
             tree: ((usize::MAX, 0), Arc::new(Vec::new())),
             engine: Default::default(),
+            ribbon_tab: Default::default(),
+            side_panel: Some(chrome::SidePanel::Properties),
+            light_theme: true,
+            theme_applied: None,
+            quick_launch: String::new(),
+            search: String::new(),
+            workplane_picks: None,
+            select_parts: true,
+            select_assemblies: false,
+            last_snap: None,
             snapper: Default::default(),
             switches: Default::default(),
             snap_tolerance_px: 12.,
@@ -323,6 +351,9 @@ impl Workbench {
                     self.cancel_job();
                 } else if self.palette.open {
                     self.palette.open = false;
+                } else if self.workplane_picks.is_some() {
+                    self.workplane_picks = None;
+                    self.message("Задание рабочей плоскости прервано");
                 } else if self.engine.numeric.is_some() {
                     self.engine.numeric = None;
                 } else {
@@ -330,6 +361,87 @@ impl Workbench {
                     self.editor.cancel();
                     self.message("Команда прервана");
                 }
+            }
+            Cmd::PanelProperties
+            | Cmd::PanelEdit
+            | Cmd::PanelDetailing
+            | Cmd::PanelConnections
+            | Cmd::PanelClash
+            | Cmd::PanelModelTree => {
+                let panel = match cmd {
+                    Cmd::PanelProperties => chrome::SidePanel::Properties,
+                    Cmd::PanelEdit => chrome::SidePanel::Edit,
+                    Cmd::PanelDetailing => chrome::SidePanel::Detailing,
+                    Cmd::PanelConnections => chrome::SidePanel::Connections,
+                    Cmd::PanelClash => chrome::SidePanel::Clash,
+                    _ => chrome::SidePanel::Tree,
+                };
+                self.mode = Mode::Model;
+                self.side_panel = if self.side_panel == Some(panel) {
+                    None
+                } else {
+                    Some(panel)
+                };
+                self.message(format!("Панель: {}", panel.title()));
+            }
+            Cmd::DeleteSelected => {
+                let project = self.editor.document.project();
+                let ids: Vec<ObjectId> = self
+                    .editor
+                    .selected
+                    .iter()
+                    .copied()
+                    .filter(|id| project.elements.contains_key(id) || project.axes.contains_key(id))
+                    .collect();
+                if ids.is_empty() {
+                    self.message("Ничего не выбрано");
+                } else {
+                    let commands = ids
+                        .iter()
+                        .map(|id| open_bim_commands::Command::Delete {
+                            id: *id,
+                            policy: open_bim_commands::DeletePolicy::Cascade,
+                        })
+                        .collect();
+                    self.message(format!("Удалено объектов: {}", ids.len()));
+                    return Some(Request::Action(Action::Commit("Удалить".into(), commands)));
+                }
+            }
+            Cmd::ToggleProjection => return Some(Request::ToggleProjection),
+            Cmd::ShowAll => {
+                self.hidden.clear();
+                self.message("Все объекты показаны");
+            }
+            Cmd::HideSelected => {
+                self.hidden.extend(self.editor.selected.iter().copied());
+                self.message(format!("Скрыто объектов: {}", self.editor.selected.len()));
+            }
+            Cmd::ToggleSection => {
+                self.section_enabled = !self.section_enabled;
+                self.message(if self.section_enabled {
+                    "Сечение включено"
+                } else {
+                    "Сечение выключено"
+                });
+            }
+            Cmd::ToggleTheme => {
+                self.light_theme = !self.light_theme;
+                self.message(if self.light_theme {
+                    "Светлая тема"
+                } else {
+                    "Тёмная тема"
+                });
+            }
+            Cmd::WorkPlaneThreePoints => {
+                self.mode = Mode::Model;
+                self.engine.cancel();
+                self.workplane_picks = Some(Vec::new());
+                self.message(self.workplane_prompt());
+            }
+            Cmd::WorkPlaneReset => {
+                self.engine.workplane = crate::interaction::Workplane::default();
+                self.tools.workplane = "0".into();
+                self.message("Рабочая плоскость: глобальная XY");
             }
             Cmd::ToggleOrtho => {
                 self.switches.ortho = !self.switches.ortho;
@@ -422,8 +534,33 @@ impl Workbench {
         None
     }
 
+    pub fn workplane_prompt(&self) -> String {
+        match self.workplane_picks.as_ref().map_or(0, Vec::len) {
+            0 => "Укажите начало рабочей плоскости".into(),
+            1 => "Укажите точку на оси X рабочей плоскости".into(),
+            _ => "Укажите точку в плоскости XY (сторона оси Y)".into(),
+        }
+    }
+
     /// A pick from the viewport (world point, already snapped).
     pub fn pick(&mut self, point: open_bim_renderer::DVec3) -> Option<Request> {
+        if let Some(picks) = &mut self.workplane_picks {
+            picks.push(point);
+            if picks.len() == 3 {
+                let (a, b, c) = (picks[0], picks[1], picks[2]);
+                self.workplane_picks = None;
+                match crate::interaction::Workplane::from_points(a, b, c) {
+                    Ok(wp) => {
+                        self.engine.workplane = wp;
+                        self.message("Рабочая плоскость задана по трём точкам");
+                    }
+                    Err(e) => self.message(e),
+                }
+            } else {
+                self.message(self.workplane_prompt());
+            }
+            return None;
+        }
         let outcome = self.engine.pick(point);
         self.outcome(outcome)
     }
@@ -519,29 +656,13 @@ impl Workbench {
                     submit = true;
                 }
                 if let Some(e) = &self.engine.error {
-                    ui.colored_label(theme::ERROR, e);
+                    ui.colored_label(ui.visuals().error_fg_color, e);
                 }
             });
         if self.engine.numeric.is_some() {
             self.engine.numeric = Some(text.clone());
         }
         if submit && let Some(r) = self.pick_numeric(&text) {
-            requests.push(r);
-        }
-    }
-
-    fn command_button(&mut self, ui: &mut egui::Ui, cmd: Cmd, requests: &mut Vec<Request>) {
-        let enabled = match cmd {
-            Cmd::Undo => self.editor.document.history_depth().0 > 0,
-            Cmd::Redo => self.editor.document.history_depth().1 > 0,
-            _ => true,
-        } && !self.busy();
-        if ui
-            .add_enabled(enabled, egui::Button::new(caption(cmd)))
-            .on_hover_text(commands::spec(cmd).category)
-            .clicked()
-            && let Some(r) = self.execute(cmd)
-        {
             requests.push(r);
         }
     }
@@ -572,163 +693,7 @@ impl Workbench {
             }
         }
         self.job_window(&ctx, &mut requests);
-        egui::Panel::top("tools").show(ui, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.strong("Open BIM");
-                ui.separator();
-                for (mode, cmd) in [
-                    (Mode::Model, Cmd::ModeModel),
-                    (Mode::Drawings, Cmd::ModeDrawings),
-                    (Mode::Reports, Cmd::ModeReports),
-                ] {
-                    let label = format!(
-                        "{} · {}",
-                        match mode {
-                            Mode::Model => "3D модель",
-                            Mode::Drawings => "Чертежи",
-                            Mode::Reports => "Ведомости",
-                        },
-                        commands::shortcut_text(cmd)
-                    );
-                    if ui.selectable_label(self.mode == mode, label).clicked() {
-                        self.mode = mode;
-                    }
-                }
-                ui.separator();
-                for cmd in [Cmd::NewProject, Cmd::ExampleFrame, Cmd::Palette, Cmd::Help] {
-                    self.command_button(ui, cmd, &mut requests);
-                }
-                if self.mode == Mode::Model {
-                    ui.separator();
-                    for cmd in [
-                        Cmd::Fit,
-                        Cmd::ViewIso,
-                        Cmd::ViewFront,
-                        Cmd::ViewTop,
-                        Cmd::ViewRight,
-                    ] {
-                        self.command_button(ui, cmd, &mut requests);
-                    }
-                }
-            });
-        });
-        egui::Panel::top("history").show(ui, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                self.command_button(ui, Cmd::Undo, &mut requests);
-                self.command_button(ui, Cmd::Redo, &mut requests);
-                ui.checkbox(&mut self.extend_selection, "Групповой выбор");
-                ui.label("Shift/⌘ + выбор — добавить объект");
-            });
-        });
-        egui::Panel::bottom("status").show(ui, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.label(format!(
-                    "{} · {} объектов · мм · ревизия {}",
-                    self.editor.document.project().name,
-                    self.objects,
-                    self.editor.document.project().revision
-                ));
-                ui.separator();
-                ui.label(&self.gpu);
-                if let Some(m) = &self.tools.message {
-                    ui.separator();
-                    ui.label(m);
-                }
-            });
-        });
-        egui::Panel::right("model tools")
-            .default_size(340.0)
-            .min_size(300.)
-            .show(ui, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.add_enabled_ui(!self.busy(), |ui| match self.mode {
-                        Mode::Drawings => self.drawings.show(ui, &mut self.editor),
-                        Mode::Reports => {
-                            if let Some(cmd) = self.reports.show_panel(ui, &mut self.editor)
-                                && let Some(r) = self.execute(cmd)
-                            {
-                                requests.push(r);
-                            }
-                        }
-                        Mode::Model => {
-                            if let Some(a) = self.tools.show(ui, &mut self.editor) {
-                                match a {
-                                    Action::Open => {
-                                        self.start_open(PathBuf::from(&self.tools.path))
-                                    }
-                                    other => requests.push(Request::Action(other)),
-                                }
-                            }
-                        }
-                    });
-                });
-            });
-        if self.mode != Mode::Model {
-            // Sheets and tables use the full width; the tree is a model tool.
-            return requests;
-        }
-        egui::Panel::left("model").default_size(240.0).min_size(200.).show(ui, |ui| {
-            ui.heading("Модель");
-            ui.label("Стальные конструкции");
-            ui.separator();
-            let project = self.editor.document.project();
-            if project.elements.is_empty() && project.axes.is_empty() {
-                ui.label("Модель пуста: Alt+B — балка, ⌘O — открыть, ⌘P — все команды");
-            }
-            let key = (self.editor.events.len(), project.revision);
-            if self.tree.0 != key {
-                let rows: Vec<(ObjectId, String)> = project
-                    .elements
-                    .values()
-                    .map(|e| (e.id, format!("{} · #{}", e.name, e.id.0)))
-                    .chain(project.axes.values().map(|a| (a.id, format!("{} · #{}", a.name, a.id.0))))
-                    .collect();
-                self.tree = (key, Arc::new(rows));
-            }
-            let rows = self.tree.1.clone();
-            let available = (ui.available_height() - 230.).max(120.);
-            let row_height = ui.spacing().interact_size.y + ui.spacing().item_spacing.y;
-            // Only visible rows are laid out, so 100 000 objects cost a few dozen widgets.
-            egui::ScrollArea::vertical()
-                .max_height(available)
-                .auto_shrink([false, true])
-                .show_rows(ui, row_height, rows.len(), |ui, range| {
-                    for (id, label) in &rows[range] {
-                        let id = *id;
-                        ui.push_id(id.0, |ui| {
-                            ui.horizontal(|ui| {
-                                let mut visible = !self.hidden.contains(&id);
-                                let toggle = ui.add(egui::Checkbox::without_text(&mut visible)).on_hover_text("Видимость");
-                                toggle.widget_info(|| {
-                                    egui::WidgetInfo::selected(egui::WidgetType::Checkbox, true, visible, format!("Видимость: {label}"))
-                                });
-                                if toggle.changed() {
-                                    if visible {
-                                        self.hidden.remove(&id);
-                                    } else {
-                                        self.hidden.insert(id);
-                                    }
-                                }
-                                let row = ui.add(egui::Button::selectable(self.editor.selected.contains(&id), label.as_str()));
-                                if row.clicked() {
-                                    let extend = self.extend_selection || ui.input(|i| i.modifiers.shift || i.modifiers.command);
-                                    select(&mut self.editor.selected, Some(id), extend);
-                                }
-                            });
-                        });
-                    }
-                });
-            ui.separator();
-            ui.checkbox(&mut self.section_enabled, "Сечение Z ≥ высота");
-            ui.add_enabled(
-                self.section_enabled,
-                egui::Slider::new(&mut self.section_height, 0.0..=5000.0)
-                    .suffix(" мм")
-                    .text("Высота сечения"),
-            );
-            ui.separator();
-            ui.label("ЛКМ — выбор / точка инструмента\nПКМ — вращение\nСКМ / Shift+ПКМ — панорама\nКолесо / + − — масштаб\n⌘P — поиск команд, F1 — клавиши");
-        });
+        self.chrome(ui, &mut requests);
         requests
     }
 

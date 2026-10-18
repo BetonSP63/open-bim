@@ -118,10 +118,7 @@ impl CoordinationUi {
                 }
                 ui.checkbox(&mut self.show_informative, "Показывать касания и болты");
                 if self.stale(editor.document.project()) {
-                    ui.colored_label(
-                        egui::Color32::from_rgb(255, 196, 0),
-                        "Отчёт устарел: модель изменена",
-                    );
+                    ui.colored_label(ui.visuals().warn_fg_color, "Отчёт устарел: модель изменена");
                 }
                 if let Some(message) = &self.message {
                     ui.label(message);

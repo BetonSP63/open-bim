@@ -108,7 +108,7 @@ impl ReportsUi {
         }
         if self.stale(editor) {
             ui.colored_label(
-                crate::ui::theme::WARNING,
+                ui.visuals().warn_fg_color,
                 "Ведомости устарели: модель изменена",
             );
         }
@@ -258,7 +258,7 @@ impl ReportsUi {
                 });
             if !r.unassembled.is_empty() {
                 ui.colored_label(
-                    egui::Color32::from_rgb(255, 196, 0),
+                    ui.visuals().warn_fg_color,
                     format!("Детали вне сборок: {}", r.unassembled.len()),
                 );
             }

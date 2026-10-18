@@ -98,6 +98,9 @@ impl Runner {
     pub fn frame(&mut self, input: &mut egui::RawInput) -> Option<Effect> {
         // The script owns the pointer: drop the physical mouse so a cursor
         // resting over the window cannot move or cancel scripted clicks.
+        // A scripted window may not be the key window; keep egui keyboard
+        // focus alive as it would be for a user typing into it.
+        input.focused = true;
         input.events.retain(|e| {
             !matches!(
                 e,
@@ -106,6 +109,7 @@ impl Runner {
                     | egui::Event::PointerGone
                     | egui::Event::MouseWheel { .. }
                     | egui::Event::MouseMoved(_)
+                    | egui::Event::WindowFocused(_)
             )
         });
         // Hold the script until the screenshot is written; re-request it if

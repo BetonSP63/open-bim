@@ -1,0 +1,11 @@
+LOAD_MS: 1.2
+GPU: Apple M5 · Metal; project=Контрольный стальной каркас objects=7
+SCRIPT: step 1 Wait(30)
+SCRIPT: step 2 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-chrome/chrome-1920x1080.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-chrome/chrome-1920x1080.png 2880x1620
+SCRIPT: step 3 Click([300.0, 40.0])
+SCRIPT: step 4 Wait(10)
+SCRIPT: step 5 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-chrome/edit-tab-1920x1080.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-chrome/edit-tab-1920x1080.png 2880x1620
+SCRIPT: step 6 Quit
+SCRIPT: finished
