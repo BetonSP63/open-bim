@@ -2,6 +2,7 @@
 //! redo, saving and the revision journal work exactly as for model edits.
 mod panel;
 mod preview;
+pub mod tools;
 
 use crate::tools::Editor;
 use open_bim_commands::Command;
@@ -36,6 +37,12 @@ pub struct DrawingEditor {
     pub selected_view: Option<u32>,
     pub selected_dimension: Option<u32>,
     pub selected_text: Option<u32>,
+    /// Selected user sheet object (line, hatch, mask…).
+    pub selected_object: Option<u32>,
+    /// Running drawing tool and its picks.
+    pub tool: tools::ToolState,
+    /// Line type, hatch and dimension settings for new objects.
+    pub style: tools::DrawStyle,
     pub message: Option<String>,
     pub export_dir: String,
     pub fields: panel::Fields,

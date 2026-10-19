@@ -77,6 +77,7 @@ fn blank(
         labels: tb.labels,
         fills: tb.fills,
         title_area: tb.reserved,
+        objects: Vec::new(),
     }
 }
 

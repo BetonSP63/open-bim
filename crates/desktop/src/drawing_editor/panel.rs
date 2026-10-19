@@ -431,6 +431,106 @@ impl DrawingEditor {
         }
     }
 
+    /// Drawing tools and the style of new objects, above the sheet.
+    fn toolbar(&mut self, ui: &mut egui::Ui, editor: &mut Editor) {
+        use super::tools::DrawTool;
+        use open_bim_model::{DimensionAxis, HatchPattern, LineType};
+        ui.horizontal(|ui| {
+            let select = ui.selectable_label(self.tool.tool.is_none(), "Выбор");
+            if select.clicked() {
+                self.cancel_tool();
+            }
+            for tool in [
+                DrawTool::Dimension,
+                DrawTool::Line,
+                DrawTool::Polyline,
+                DrawTool::Rectangle,
+                DrawTool::Circle,
+                DrawTool::Hatch,
+                DrawTool::Wipeout,
+                DrawTool::Text,
+            ] {
+                if ui
+                    .selectable_label(self.tool.tool == Some(tool), tool.label())
+                    .clicked()
+                {
+                    self.start_tool(tool);
+                }
+            }
+        });
+        // Second row always present, so the sheet does not jump when a tool
+        // with options is chosen.
+        ui.horizontal(|ui| {
+            let style = &mut self.style;
+            egui::ComboBox::from_id_salt("sheet line type")
+                .selected_text(style.line_type.label())
+                .show_ui(ui, |ui| {
+                    for t in LineType::ALL {
+                        ui.selectable_value(&mut style.line_type, t, t.label());
+                    }
+                })
+                .response
+                .on_hover_text("Тип линии новых объектов")
+                .widget_info(|| {
+                    egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, "Тип линии")
+                });
+            ui.checkbox(&mut style.thick, "Толстая (S)");
+            match self.tool.tool {
+                Some(DrawTool::Hatch) => {
+                    egui::ComboBox::from_id_salt("hatch pattern")
+                        .selected_text(style.pattern.label())
+                        .show_ui(ui, |ui| {
+                            for p in HatchPattern::ALL {
+                                ui.selectable_value(&mut style.pattern, p, p.label());
+                            }
+                        })
+                        .response
+                        .widget_info(|| {
+                            egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, "Штриховка")
+                        });
+                    ui.add(
+                        egui::DragValue::new(&mut style.angle)
+                            .suffix("°")
+                            .range(-180.0..=180.0),
+                    );
+                    ui.add(
+                        egui::DragValue::new(&mut style.spacing)
+                            .suffix(" мм шаг")
+                            .range(0.5..=50.0)
+                            .speed(0.1),
+                    );
+                }
+                Some(DrawTool::Dimension) => {
+                    for (axis, label) in [
+                        (DimensionAxis::Horizontal, "Горизонтальный"),
+                        (DimensionAxis::Vertical, "Вертикальный"),
+                        (DimensionAxis::Aligned, "Параллельный"),
+                    ] {
+                        ui.selectable_value(&mut style.axis, axis, label);
+                    }
+                    ui.add(
+                        egui::DragValue::new(&mut style.offset)
+                            .suffix(" мм отступ")
+                            .range(-200.0..=200.0),
+                    );
+                }
+                _ => {}
+            }
+            if self.tool.tool.is_some() {
+                ui.label("Enter — закончить, Esc — выход");
+            } else if self.selected_object.is_some()
+                || self.selected_dimension.is_some()
+                || self.selected_text.is_some()
+            {
+                if ui.button("Удалить выбранное").clicked() {
+                    let r = self.delete_selected(editor);
+                    report(self, r);
+                }
+                ui.label("Стрелки — сдвиг на 1 мм, ⇧ — на 10 мм");
+            }
+        });
+    }
+
     /// Central sheet area; drag moves views, click selects them.
     pub fn show_sheet(&mut self, ui: &mut egui::Ui, editor: &mut Editor) {
         let project = editor.document.project().clone();
@@ -440,10 +540,18 @@ impl DrawingEditor {
             });
             return;
         }
-        let selected = self.selected_view;
+        self.toolbar(ui, editor);
+        let picks = self.tool.points.clone();
+        let overlay = super::preview::Overlay {
+            selected_view: self.selected_view,
+            selected_object: self.selected_object,
+            selected_dimension: self.selected_dimension,
+            tool: self.tool.tool.is_some(),
+            picks: &picks,
+        };
         let mut state = std::mem::take(&mut self.preview);
         let event = match self.sheet(&project) {
-            Ok(sheet) => super::preview::show(ui, sheet, &mut state, selected),
+            Ok(sheet) => super::preview::show(ui, sheet, &mut state, &overlay),
             Err(error) => {
                 ui.label(error);
                 None
@@ -451,13 +559,22 @@ impl DrawingEditor {
         };
         self.preview = state;
         match event {
-            Some(super::preview::PreviewEvent::SelectView(id)) => {
-                self.selected_view = Some(id);
-                if let Some(v) = self
-                    .drawing(&project)
-                    .and_then(|d| d.views.iter().find(|v| v.id == id))
-                {
-                    self.fields.view = v.position.map(|x| format!("{x:.1}"));
+            Some(super::preview::PreviewEvent::Click(at, view)) => {
+                self.fields.text_position = at.map(|x| format!("{x:.1}"));
+                self.selected_view = None;
+                // Objects and dimensions drawn over a view win over the view.
+                let picked = match self.sheet(&project).cloned() {
+                    Ok(sheet) => self.pick_at(&sheet, at),
+                    Err(_) => false,
+                };
+                if !picked && let Some(id) = view {
+                    self.selected_view = Some(id);
+                    if let Some(v) = self
+                        .drawing(&project)
+                        .and_then(|d| d.views.iter().find(|v| v.id == id))
+                    {
+                        self.fields.view = v.position.map(|x| format!("{x:.1}"));
+                    }
                 }
             }
             Some(super::preview::PreviewEvent::MoveView(id, offset)) => {
@@ -474,6 +591,12 @@ impl DrawingEditor {
             }
             Some(super::preview::PreviewEvent::Paper(at)) => {
                 self.fields.text_position = at.map(|x| format!("{x:.1}"));
+                let r = self.tool_click(editor, at);
+                report(self, r);
+            }
+            Some(super::preview::PreviewEvent::Finish) => {
+                let r = self.tool_finish(editor);
+                report(self, r);
             }
             None => {}
         }

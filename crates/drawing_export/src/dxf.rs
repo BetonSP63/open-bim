@@ -14,9 +14,12 @@ pub fn layer(style: LineStyle) -> (&'static str, i32, &'static str) {
         LineStyle::Thin => ("OB_THIN", 3, "CONTINUOUS"),
         LineStyle::Frame => ("OB_FRAME", 7, "CONTINUOUS"),
         LineStyle::Lost => ("OB_LOST", 1, "CONTINUOUS"),
+        LineStyle::DashDot => ("OB_DASHDOT", 7, "DASHDOT"),
+        LineStyle::ThickDashed => ("OB_THICK_DASHED", 7, "DASHED"),
+        LineStyle::ThickDashDot => ("OB_THICK_DASHDOT", 7, "DASHDOT"),
     }
 }
-const STYLES: [LineStyle; 7] = [
+const STYLES: [LineStyle; 10] = [
     LineStyle::Visible,
     LineStyle::Hidden,
     LineStyle::Section,
@@ -24,8 +27,13 @@ const STYLES: [LineStyle; 7] = [
     LineStyle::Thin,
     LineStyle::Frame,
     LineStyle::Lost,
+    LineStyle::DashDot,
+    LineStyle::ThickDashed,
+    LineStyle::ThickDashDot,
 ];
 pub const TEXT_LAYER: &str = "OB_TEXT";
+/// Masking (wipeout) areas.
+pub const MASK_LAYER: &str = "OB_MASK";
 
 fn escape(text: &str) -> String {
     text.chars()
@@ -130,10 +138,11 @@ pub fn render(sheet: &Sheet) -> String {
     pair(&mut out, 2, "TABLES");
     pair(&mut out, 0, "TABLE");
     pair(&mut out, 2, "LTYPE");
-    pair(&mut out, 70, 2);
+    pair(&mut out, 70, 3);
     for (name, description, pattern) in [
         ("CONTINUOUS", "Solid line", vec![]),
         ("DASHED", "Dashed __ __ __", vec![3.0, -1.5]),
+        ("DASHDOT", "Dash dot __ . __ .", vec![12.0, -3.0, 0.0, -3.0]),
     ] {
         pair(&mut out, 0, "LTYPE");
         pair(&mut out, 2, name);
@@ -149,9 +158,10 @@ pub fn render(sheet: &Sheet) -> String {
     pair(&mut out, 0, "ENDTAB");
     pair(&mut out, 0, "TABLE");
     pair(&mut out, 2, "LAYER");
-    pair(&mut out, 70, STYLES.len() + 1);
+    pair(&mut out, 70, STYLES.len() + 2);
     let mut layers: Vec<(&str, i32, &str)> = STYLES.iter().map(|s| layer(*s)).collect();
     layers.push((TEXT_LAYER, 7, "CONTINUOUS"));
+    layers.push((MASK_LAYER, 255, "CONTINUOUS"));
     for (name, color, ltype) in layers {
         pair(&mut out, 0, "LAYER");
         pair(&mut out, 2, name);
@@ -194,6 +204,25 @@ pub fn render(sheet: &Sheet) -> String {
         }
         for label in &dim.labels {
             text(&mut out, label);
+        }
+    }
+    // Masking areas as white SOLID triangles on their own layer, then lines.
+    for o in &sheet.objects {
+        if let Some(mask) = &o.mask {
+            for [a, b, c] in open_bim_drawings::sheet_objects::triangulate(mask) {
+                pair(&mut out, 0, "SOLID");
+                pair(&mut out, 8, MASK_LAYER);
+                pair(&mut out, 62, 255);
+                // SOLID corners 1-2-4-3; a triangle repeats its last corner.
+                for (i, p) in [mask[a], mask[b], mask[c], mask[c]].iter().enumerate() {
+                    pair(&mut out, 10 + i as i32, n(p[0]));
+                    pair(&mut out, 20 + i as i32, n(p[1]));
+                    pair(&mut out, 30 + i as i32, 0);
+                }
+            }
+        }
+        for line in &o.lines {
+            polyline(&mut out, line);
         }
     }
     for label in &sheet.labels {

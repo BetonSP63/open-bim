@@ -1,0 +1,6 @@
+ok   user line 50,40 → 130,40 on OB_THIN (after a 10 mm move)
+ok   hatch: 17 lines inside 60…100 × 60…90, angles {45.0}
+ok   mask: 2 SOLID on OB_MASK covering 150…200 × 150…190
+ok   dimension values present
+ok   PDF: white mask fill drawn after the first view lines
+DRAWING_EDITING_OK

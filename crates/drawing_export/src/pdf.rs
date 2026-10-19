@@ -26,6 +26,8 @@ fn style(style: LineStyle) -> (f64, &'static str, &'static str) {
     match style {
         LineStyle::Hidden => (width, "[3 1.5] 0 d", "0 0 0 RG"),
         LineStyle::Lost => (width, "[1 1] 0 d", "0.85 0 0 RG"),
+        LineStyle::DashDot | LineStyle::ThickDashDot => (width, "[12 3 1 3] 0 d", "0 0 0 RG"),
+        LineStyle::ThickDashed => (width, "[3 1.5] 0 d", "0 0 0 RG"),
         _ => (width, "[] 0 d", "0 0 0 RG"),
     }
 }
@@ -141,6 +143,19 @@ pub fn render(sheets: &[Sheet], title: &str) -> Result<Vec<u8>, String> {
             }
             for label in &dim.labels {
                 page.text(label);
+            }
+        }
+        for o in &sheet.objects {
+            if let Some(mask) = &o.mask {
+                page.content.push_str("1 1 1 rg\n");
+                for (i, p) in mask.iter().enumerate() {
+                    let op = if i == 0 { "m" } else { "l" };
+                    let _ = writeln!(page.content, "{} {} {op}", n(p[0]), n(p[1]));
+                }
+                page.content.push_str("h f\n0 0 0 rg\n");
+            }
+            for line in &o.lines {
+                page.line(line);
             }
         }
         for label in &sheet.labels {

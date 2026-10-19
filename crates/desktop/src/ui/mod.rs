@@ -572,6 +572,55 @@ impl Workbench {
                 self.message("Сетка: X/Y — шаги («0 4*6000»), Z — отметки");
             }
             Cmd::CreateElement => return Some(Request::Action(Action::Create)),
+            Cmd::DrawDimension
+            | Cmd::DrawLine
+            | Cmd::DrawPolyline
+            | Cmd::DrawRectangle
+            | Cmd::DrawCircle
+            | Cmd::DrawHatch
+            | Cmd::DrawWipeout
+            | Cmd::DrawText => {
+                use crate::drawing_editor::tools::DrawTool;
+                self.mode = Mode::Drawings;
+                if self.drawings.current.is_none() {
+                    self.message("Сначала выберите или создайте чертёж");
+                    return None;
+                }
+                self.drawings.start_tool(match cmd {
+                    Cmd::DrawDimension => DrawTool::Dimension,
+                    Cmd::DrawLine => DrawTool::Line,
+                    Cmd::DrawPolyline => DrawTool::Polyline,
+                    Cmd::DrawRectangle => DrawTool::Rectangle,
+                    Cmd::DrawCircle => DrawTool::Circle,
+                    Cmd::DrawHatch => DrawTool::Hatch,
+                    Cmd::DrawWipeout => DrawTool::Wipeout,
+                    Cmd::DrawText => DrawTool::Text,
+                    _ => unreachable!("matched above"),
+                });
+                self.message(self.drawings.message.clone().unwrap_or_default());
+            }
+            // In the drawing editor Enter, Esc and Delete act on the sheet.
+            Cmd::FinishPicks
+                if self.mode == Mode::Drawings && self.drawings.tool.tool.is_some() =>
+            {
+                if let Err(e) = self.drawings.tool_finish(&mut self.editor) {
+                    self.drawings.message = Some(e);
+                }
+            }
+            Cmd::CancelTool if self.mode == Mode::Drawings && self.drawings.tool.tool.is_some() => {
+                self.drawings.cancel_tool();
+                self.message("Инструмент чертежа выключен");
+            }
+            Cmd::DeleteSelected | Cmd::UndoPick
+                if self.mode == Mode::Drawings
+                    && (self.drawings.selected_object.is_some()
+                        || self.drawings.selected_dimension.is_some()
+                        || self.drawings.selected_text.is_some()) =>
+            {
+                if let Err(e) = self.drawings.delete_selected(&mut self.editor) {
+                    self.drawings.message = Some(e);
+                }
+            }
             Cmd::CancelTool => {
                 if self.busy() {
                     self.cancel_job();
@@ -1592,6 +1641,27 @@ impl Workbench {
         let mut requests = Vec::new();
         self.engine.plate_mode = self.editor.draft.plate_mode;
         self.keytips_input(&ctx, &mut requests);
+        // Drawing editor: arrows move the selection 1 mm (Shift: 10 mm).
+        if self.mode == Mode::Drawings && !ctx.egui_wants_keyboard_input() {
+            let mut by = [0., 0.];
+            for (key, d) in [
+                (egui::Key::ArrowLeft, [-1., 0.]),
+                (egui::Key::ArrowRight, [1., 0.]),
+                (egui::Key::ArrowUp, [0., 1.]),
+                (egui::Key::ArrowDown, [0., -1.]),
+            ] {
+                for (mods, step) in [(egui::Modifiers::NONE, 1.), (egui::Modifiers::SHIFT, 10.)] {
+                    if ctx.input_mut(|i| i.consume_key(mods, key)) {
+                        by = [by[0] + d[0] * step, by[1] + d[1] * step];
+                    }
+                }
+            }
+            if by != [0., 0.]
+                && let Err(e) = self.drawings.nudge_selected(&mut self.editor, by)
+            {
+                self.drawings.message = Some(e);
+            }
+        }
         for cmd in commands::pressed(&ctx) {
             if let Some(r) = self.execute(cmd) {
                 requests.push(r);

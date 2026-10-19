@@ -26,6 +26,9 @@ pub fn stroke(style: LineStyle) -> (&'static str, f64, &'static str) {
         LineStyle::Thin => ("#000", 0.25, ""),
         LineStyle::Frame => ("#000", 0.7, ""),
         LineStyle::Lost => ("#d00", 0.35, " stroke-dasharray=\"1 1\""),
+        LineStyle::DashDot => ("#000", 0.25, " stroke-dasharray=\"12 3 1 3\""),
+        LineStyle::ThickDashed => ("#000", 0.5, " stroke-dasharray=\"3 1.5\""),
+        LineStyle::ThickDashDot => ("#000", 0.5, " stroke-dasharray=\"12 3 1 3\""),
     }
 }
 
@@ -136,6 +139,25 @@ pub fn render(sheet: &Sheet) -> String {
         }
         for l in &dim.labels {
             label(&mut out, l, h);
+        }
+        let _ = writeln!(out, "</g>");
+    }
+    // User objects: masks hide what is under them, then their lines.
+    for o in &sheet.objects {
+        let _ = writeln!(out, "<g class=\"object\" data-object-id=\"{}\">", o.id);
+        if let Some(mask) = &o.mask {
+            let points: Vec<String> = mask
+                .iter()
+                .map(|p| format!("{},{}", n(p[0]), n(h - p[1])))
+                .collect();
+            let _ = writeln!(
+                out,
+                "<polygon class=\"wipeout\" points=\"{}\" fill=\"#fff\" stroke=\"none\"/>",
+                points.join(" ")
+            );
+        }
+        for line in &o.lines {
+            polyline(&mut out, line, h);
         }
         let _ = writeln!(out, "</g>");
     }

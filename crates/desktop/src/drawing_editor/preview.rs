@@ -11,10 +11,24 @@ pub struct PreviewState {
 }
 
 pub enum PreviewEvent {
-    SelectView(u32),
+    /// Click without a tool: sheet point and the view under it.
+    Click([f64; 2], Option<u32>),
     MoveView(u32, [f64; 2]),
     /// Click on empty paper at sheet coordinates.
     Paper([f64; 2]),
+    /// Double click: finish the running polyline, area or dimension.
+    Finish,
+}
+
+/// What the preview highlights and how clicks are read.
+pub struct Overlay<'a> {
+    pub selected_view: Option<u32>,
+    pub selected_object: Option<u32>,
+    pub selected_dimension: Option<u32>,
+    /// A drawing tool runs: clicks are sheet points, views do not move.
+    pub tool: bool,
+    /// Points picked by the running tool (rubber band to the pointer).
+    pub picks: &'a [[f64; 2]],
 }
 
 struct Mapping {
@@ -97,8 +111,9 @@ pub fn show(
     ui: &mut egui::Ui,
     sheet: &Sheet,
     state: &mut PreviewState,
-    selected_view: Option<u32>,
+    overlay: &Overlay,
 ) -> Option<PreviewEvent> {
+    let selected_view = overlay.selected_view;
     let (rect, response) =
         ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
     if state.zoom <= 0. {
@@ -135,6 +150,7 @@ pub fn show(
     let pointer = response.interact_pointer_pos();
     // Primary drag moves the view under the pointer.
     if response.drag_started_by(egui::PointerButton::Primary)
+        && !overlay.tool
         && let Some(p) = ui.input(|i| i.pointer.press_origin()).or(pointer)
     {
         let at = map.paper(p);
@@ -166,22 +182,28 @@ pub fn show(
     {
         event = Some(PreviewEvent::MoveView(view, offset));
     }
-    if response.clicked()
+    if response.double_clicked() && overlay.tool {
+        event = Some(PreviewEvent::Finish);
+    } else if response.clicked()
+        && let Some(p) = pointer
+        && overlay.tool
+    {
+        event = Some(PreviewEvent::Paper(map.paper(p)));
+    } else if response.clicked()
         && let Some(p) = pointer
     {
         let at = map.paper(p);
-        event = Some(
-            sheet
-                .views
-                .iter()
-                .find(|v| {
-                    at[0] >= v.bounds[0][0]
-                        && at[0] <= v.bounds[1][0]
-                        && at[1] >= v.bounds[0][1]
-                        && at[1] <= v.bounds[1][1]
-                })
-                .map_or(PreviewEvent::Paper(at), |v| PreviewEvent::SelectView(v.id)),
-        );
+        let view = sheet
+            .views
+            .iter()
+            .find(|v| {
+                at[0] >= v.bounds[0][0]
+                    && at[0] <= v.bounds[1][0]
+                    && at[1] >= v.bounds[0][1]
+                    && at[1] <= v.bounds[1][1]
+            })
+            .map(|v| v.id);
+        event = Some(PreviewEvent::Click(at, view));
     }
     let dragging = state.drag;
     let shift = |view: u32| match dragging {
@@ -224,13 +246,60 @@ pub fn show(
         let offset = shift(dim.view);
         for line in &dim.lines {
             polyline(&painter, &map, line, offset);
+            if overlay.selected_dimension == Some(dim.id) {
+                highlight(&painter, &map, &line.points);
+            }
         }
         for l in &dim.labels {
             label(&painter, &map, l, offset);
         }
     }
+    // User objects: masks hide what is under them, then their lines.
+    for o in &sheet.objects {
+        if let Some(mask) = &o.mask {
+            let points: Vec<egui::Pos2> = mask.iter().map(|p| map.screen(*p)).collect();
+            for [a, b, c] in open_bim_drawings::sheet_objects::triangulate(mask) {
+                painter.add(egui::Shape::convex_polygon(
+                    vec![points[a], points[b], points[c]],
+                    egui::Color32::WHITE,
+                    egui::Stroke::NONE,
+                ));
+            }
+            if overlay.selected_object == Some(o.id) {
+                let mut ring = mask.clone();
+                ring.push(mask[0]);
+                highlight(&painter, &map, &ring);
+            }
+        }
+        for line in &o.lines {
+            polyline(&painter, &map, line, [0., 0.]);
+            if overlay.selected_object == Some(o.id) {
+                highlight(&painter, &map, &line.points);
+            }
+        }
+    }
     for l in &sheet.labels {
         label(&painter, &map, l, [0., 0.]);
     }
+    // Rubber band of the running tool.
+    if !overlay.picks.is_empty() {
+        let mut points: Vec<egui::Pos2> = overlay.picks.iter().map(|p| map.screen(*p)).collect();
+        if let Some(h) = response.hover_pos() {
+            points.push(h);
+        }
+        let ink = egui::Stroke::new(1.5, egui::Color32::from_rgb(30, 110, 230));
+        painter.add(egui::Shape::line(points.clone(), ink));
+        for p in &points[..overlay.picks.len()] {
+            painter.circle_filled(*p, 3., ink.color);
+        }
+    }
     event
+}
+
+fn highlight(painter: &egui::Painter, map: &Mapping, points: &[[f64; 2]]) {
+    let pts: Vec<egui::Pos2> = points.iter().map(|p| map.screen(*p)).collect();
+    painter.add(egui::Shape::line(
+        pts,
+        egui::Stroke::new(3., egui::Color32::from_rgba_unmultiplied(30, 110, 230, 140)),
+    ));
 }

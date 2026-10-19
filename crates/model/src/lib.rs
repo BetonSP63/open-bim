@@ -6,6 +6,7 @@ mod construction;
 mod detailing;
 mod document_info;
 mod drawing;
+mod drawing_objects;
 mod frame;
 pub mod numbering_rules;
 mod project;
@@ -23,6 +24,7 @@ pub use drawing::{
     Anchor, AnchorPoint, DimensionAxis, DimensionDef, Drawing, DrawingKind, DrawingView,
     MAX_DRAWING_ITEMS, STANDARD_SCALES, SheetSize, TextNote, ViewDirection, standard_scale,
 };
+pub use drawing_objects::{HatchPattern, LineType, SheetObject, SheetObjectKind};
 pub use frame::{Frame, GridAxis, Level};
 pub use open_bim_geometry::{GeometryError, LengthMm, Point3};
 pub use project::{

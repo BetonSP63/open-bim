@@ -5,6 +5,7 @@ pub mod font;
 pub mod projection;
 pub mod qr;
 pub mod sample;
+pub mod sheet_objects;
 pub mod svg;
 pub mod title_block;
 
@@ -37,6 +38,11 @@ pub enum LineStyle {
     Thin,
     Frame,
     Lost,
+    /// Thin dash-dot (axes, user lines).
+    DashDot,
+    /// Thick dashed / dash-dot user lines.
+    ThickDashed,
+    ThickDashDot,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -131,6 +137,17 @@ pub struct Sheet {
     pub fills: Vec<[f64; 4]>,
     /// Area kept free of drawing content: inscription, graph 27, QR code.
     pub title_area: [f64; 4],
+    /// User sheet objects: their lines and, for masking, the hidden area.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub objects: Vec<ObjectGraphic>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct ObjectGraphic {
+    pub id: u32,
+    pub lines: Vec<Polyline>,
+    /// Masking polygon drawn opaque white over the views.
+    pub mask: Option<Vec<[f64; 2]>>,
 }
 
 pub type Error = String;
@@ -817,6 +834,66 @@ fn title_block(
     Ok(tb)
 }
 
+/// Points a sheet dimension can be tied to: member ends, plate vertices and
+/// hole centres of the drawing's parts, as (view, anchor, sheet position).
+pub fn anchor_candidates(
+    project: &Project,
+    drawing: &Drawing,
+) -> Result<Vec<(u32, Anchor, [f64; 2])>, Error> {
+    let parts = drawing_parts(project, &drawing.kind);
+    let basis = drawing_basis(project, &drawing.kind)?;
+    let meshes = parts
+        .iter()
+        .map(|id| PartMesh::new(project, *id))
+        .collect::<Result<Vec<_>, _>>()?;
+    let marks = BTreeMap::new();
+    let mut anchors = Vec::new();
+    for id in &parts {
+        let Some(e) = project.elements.get(id) else {
+            continue;
+        };
+        match &e.shape {
+            open_bim_model::ElementShape::Member { .. } => {
+                anchors.push(Anchor {
+                    object: *id,
+                    point: AnchorPoint::Start,
+                });
+                anchors.push(Anchor {
+                    object: *id,
+                    point: AnchorPoint::End,
+                });
+            }
+            open_bim_model::ElementShape::Plate { contour, .. } => {
+                anchors.extend((0..contour.len()).map(|index| Anchor {
+                    object: *id,
+                    point: AnchorPoint::Vertex { index },
+                }));
+            }
+        }
+        for d in project.details.values() {
+            if let DetailKind::Hole { part, .. } = d.kind
+                && part == *id
+            {
+                anchors.push(Anchor {
+                    object: *id,
+                    point: AnchorPoint::Hole { hole: d.id },
+                });
+            }
+        }
+    }
+    let mut out = Vec::new();
+    for view in &drawing.views {
+        let (_, context) = view_graphic(drawing, view, &basis, &meshes, &marks);
+        for a in &anchors {
+            if let Some(w) = anchor_point(project, a) {
+                let q = context.basis.project(w);
+                out.push((view.id, *a, context.paper([q[0], q[1]])));
+            }
+        }
+    }
+    Ok(out)
+}
+
 /// Regenerate the full sheet from the model.
 pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
     drawing.validate().map_err(|e| e.to_string())?;
@@ -947,6 +1024,7 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
         labels,
         fills,
         title_area,
+        objects: drawing.objects.iter().map(sheet_objects::graphic).collect(),
     })
 }
 
@@ -1143,6 +1221,7 @@ pub fn part_drawing(
         views: views(&directions, &positions),
         dimensions,
         texts: Vec::new(),
+        objects: Vec::new(),
         fingerprints: BTreeMap::new(),
         generated_revision: 0,
         issued_revision: None,
@@ -1204,6 +1283,7 @@ pub fn assembly_drawing(
             views: views(&directions, &positions),
             dimensions,
             texts: Vec::new(),
+            objects: Vec::new(),
             fingerprints: BTreeMap::new(),
             generated_revision: 0,
             issued_revision: None,
@@ -1240,6 +1320,7 @@ pub fn general_drawing(
             views: views(&directions, &positions),
             dimensions: Vec::new(),
             texts: Vec::new(),
+            objects: Vec::new(),
             fingerprints: BTreeMap::new(),
             generated_revision: 0,
             issued_revision: None,

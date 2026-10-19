@@ -155,6 +155,9 @@ pub struct Drawing {
     pub dimensions: Vec<DimensionDef>,
     #[serde(default)]
     pub texts: Vec<TextNote>,
+    /// User lines, rectangles, circles, hatching and masking on the sheet.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub objects: Vec<crate::SheetObject>,
     /// Object fingerprints captured at the last regeneration.
     #[serde(default)]
     pub fingerprints: BTreeMap<ObjectId, String>,
@@ -248,6 +251,16 @@ impl Drawing {
                 && (0. ..=paper[0]).contains(&p[0])
                 && (0. ..=paper[1]).contains(&p[1])
         };
+        if self.objects.len() > MAX_DRAWING_ITEMS {
+            return invalid("количество объектов");
+        }
+        let mut object_ids = std::collections::BTreeSet::new();
+        for object in &self.objects {
+            if !object_ids.insert(object.id) {
+                return invalid("повтор ID объекта");
+            }
+            object.validate(paper)?;
+        }
         let mut ids = std::collections::BTreeSet::new();
         for view in &self.views {
             if !ids.insert(view.id) || !text(&view.name) || !on_sheet(view.position) {
