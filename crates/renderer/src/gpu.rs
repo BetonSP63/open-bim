@@ -6,6 +6,9 @@ use wgpu::util::DeviceExt;
 struct MeshBuffers {
     vertices: wgpu::Buffer,
     count: u32,
+    /// Feature edges as a line list (same vertex layout, zero normals).
+    edges: wgpu::Buffer,
+    edge_count: u32,
 }
 struct Target {
     color: wgpu::TextureView,
@@ -15,6 +18,9 @@ struct Target {
 }
 pub struct GpuRenderer {
     pipeline: wgpu::RenderPipeline,
+    /// See-through parts: blended, depth tested but not written.
+    transparent: wgpu::RenderPipeline,
+    edges: wgpu::RenderPipeline,
     composite: wgpu::RenderPipeline,
     uniform: wgpu::Buffer,
     uniform_group: wgpu::BindGroup,
@@ -23,8 +29,9 @@ pub struct GpuRenderer {
     target: Option<Target>,
     scene: Option<Arc<Scene>>,
     meshes: Vec<MeshBuffers>,
-    instances: Vec<wgpu::Buffer>,
-    counts: Vec<u32>,
+    /// Per mesh: opaque and see-through instance buffers with their counts.
+    instances: Vec<[wgpu::Buffer; 2]>,
+    counts: Vec<[u32; 2]>,
 }
 fn bytes(values: impl IntoIterator<Item = f32>) -> Vec<u8> {
     values.into_iter().flat_map(f32::to_le_bytes).collect()
@@ -90,48 +97,74 @@ impl GpuRenderer {
             bind_group_layouts: &[Some(&uniform_layout)],
             immediate_size: 0,
         });
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("BIM geometry"),
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: Some("vs"),
-                compilation_options: Default::default(),
-                buffers: &[
-                    Some(wgpu::VertexBufferLayout {
-                        array_stride: 24,
-                        step_mode: wgpu::VertexStepMode::Vertex,
-                        attributes: &VERTEX,
-                    }),
-                    Some(wgpu::VertexBufferLayout {
-                        array_stride: 80,
-                        step_mode: wgpu::VertexStepMode::Instance,
-                        attributes: &INSTANCE,
-                    }),
-                ],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fs"),
-                compilation_options: Default::default(),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                    blend: None,
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: Default::default(),
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: wgpu::TextureFormat::Depth32Float,
-                depth_write_enabled: Some(true),
-                depth_compare: Some(wgpu::CompareFunction::GreaterEqual),
-                stencil: Default::default(),
-                bias: Default::default(),
-            }),
-            multisample: Default::default(),
-            multiview_mask: None,
-            cache: None,
-        });
+        let geometry = |label, fragment, topology, blend, depth_write, cull_mode| {
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some(label),
+                layout: Some(&pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: Some("vs"),
+                    compilation_options: Default::default(),
+                    buffers: &[
+                        Some(wgpu::VertexBufferLayout {
+                            array_stride: 24,
+                            step_mode: wgpu::VertexStepMode::Vertex,
+                            attributes: &VERTEX,
+                        }),
+                        Some(wgpu::VertexBufferLayout {
+                            array_stride: 80,
+                            step_mode: wgpu::VertexStepMode::Instance,
+                            attributes: &INSTANCE,
+                        }),
+                    ],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: Some(fragment),
+                    compilation_options: Default::default(),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                        blend,
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology,
+                    cull_mode,
+                    ..Default::default()
+                },
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: wgpu::TextureFormat::Depth32Float,
+                    depth_write_enabled: Some(depth_write),
+                    depth_compare: Some(wgpu::CompareFunction::GreaterEqual),
+                    stencil: Default::default(),
+                    bias: Default::default(),
+                }),
+                multisample: Default::default(),
+                multiview_mask: None,
+                cache: None,
+            })
+        };
+        let triangles = wgpu::PrimitiveTopology::TriangleList;
+        let pipeline = geometry("BIM geometry", "fs", triangles, None, true, None);
+        let transparent = geometry(
+            "BIM see-through geometry",
+            "fs",
+            triangles,
+            Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),
+            false,
+            // Closed, consistently wound solids: the far side of a see-through
+            // part is its own back faces, which would only darken it twice.
+            Some(wgpu::Face::Back),
+        );
+        let edges = geometry(
+            "BIM feature edges",
+            "fs_edge",
+            wgpu::PrimitiveTopology::LineList,
+            None,
+            false,
+            None,
+        );
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("viewport composite"),
             source: wgpu::ShaderSource::Wgsl(include_str!("composite.wgsl").into()),
@@ -174,6 +207,8 @@ impl GpuRenderer {
         });
         Self {
             pipeline,
+            transparent,
+            edges,
             composite,
             uniform,
             uniform_group,
@@ -267,6 +302,16 @@ impl GpuRenderer {
                             vertices.extend(n.to_array().map(|v| v as f32));
                         }
                     }
+                    let mut lines = Vec::new();
+                    for edge in crate::scene::feature_edges(mesh, 25.0) {
+                        for p in edge {
+                            lines.extend(p.to_array().map(|v| v as f32));
+                            lines.extend([0.0f32; 3]);
+                        }
+                    }
+                    if lines.is_empty() {
+                        lines.resize(12, 0.0);
+                    }
                     MeshBuffers {
                         count: (vertices.len() / 6) as u32,
                         vertices: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -274,13 +319,20 @@ impl GpuRenderer {
                             contents: &bytes(vertices),
                             usage: wgpu::BufferUsages::VERTEX,
                         }),
+                        edge_count: (lines.len() / 6) as u32,
+                        edges: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("shared profile edges"),
+                            contents: &bytes(lines),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        }),
                     }
                 })
                 .collect();
             self.scene = Some(scene.clone());
         }
-        let mut batches = vec![Vec::new(); scene.meshes.len()];
-        self.counts = vec![0; scene.meshes.len()];
+        let mut batches = vec![[Vec::new(), Vec::new()]; scene.meshes.len()];
+        self.counts = vec![[0, 0]; scene.meshes.len()];
+        let display = state.display;
         // Pixels per millimetre at a world point (perspective) or constant (ortho).
         let eye = camera.eye();
         let viewport = size[1].max(1) as f64;
@@ -297,7 +349,11 @@ impl GpuRenderer {
                 continue;
             }
             let mesh = scene.lod_mesh(instance, pixels_per_mm);
-            let batch = &mut batches[mesh];
+            let selected =
+                state.selected == Some(instance.id) || state.selected_ids.contains(&instance.id);
+            let alpha = display.alpha(selected);
+            let layer = usize::from(alpha < 1.0);
+            let batch = &mut batches[mesh][layer];
             let frame = instance.frame;
             for axis in frame.axes {
                 batch.extend(axis.map(|v| v as f32));
@@ -309,28 +365,27 @@ impl GpuRenderer {
                     .map(|v| v as f32),
             );
             batch.push(1.0);
-            batch.extend(
-                if state.selected == Some(instance.id) || state.selected_ids.contains(&instance.id)
-                {
-                    [1.0, 0.42, 0.08, 1.0]
-                } else {
-                    instance.color
-                },
-            );
-            self.counts[mesh] += 1;
+            let [r, g, b, _] = if selected {
+                [1.0, 0.42, 0.08, 1.0]
+            } else {
+                instance.color
+            };
+            batch.extend([r, g, b, alpha]);
+            self.counts[mesh][layer] += 1;
         }
+        let upload = |mut batch: Vec<f32>| {
+            if batch.is_empty() {
+                batch.resize(20, 0.0);
+            }
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("visible BIM instances"),
+                contents: &bytes(batch),
+                usage: wgpu::BufferUsages::VERTEX,
+            })
+        };
         self.instances = batches
             .into_iter()
-            .map(|mut batch| {
-                if batch.is_empty() {
-                    batch.resize(20, 0.0);
-                }
-                device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("visible BIM instances"),
-                    contents: &bytes(batch),
-                    usage: wgpu::BufferUsages::VERTEX,
-                })
-            })
+            .map(|[opaque, clear]| [upload(opaque), upload(clear)])
             .collect();
         let mut values = camera
             .matrix(scene.origin, size[0] as f64 / size[1] as f64)
@@ -372,15 +427,35 @@ impl GpuRenderer {
             }),
             ..Default::default()
         });
-        pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, &self.uniform_group, &[]);
-        for (i, mesh) in self.meshes.iter().enumerate() {
-            if self.counts[i] == 0 {
-                continue;
+        // Opaque faces, then see-through faces over them, then edges.
+        let wireframe = display.mode == crate::scene::RenderMode::Wireframe;
+        for (layer, pipeline) in [(0, &self.pipeline), (1, &self.transparent)] {
+            if wireframe {
+                break;
             }
-            pass.set_vertex_buffer(0, mesh.vertices.slice(..));
-            pass.set_vertex_buffer(1, self.instances[i].slice(..));
-            pass.draw(0..mesh.count, 0..self.counts[i]);
+            pass.set_pipeline(pipeline);
+            for (i, mesh) in self.meshes.iter().enumerate() {
+                if self.counts[i][layer] == 0 {
+                    continue;
+                }
+                pass.set_vertex_buffer(0, mesh.vertices.slice(..));
+                pass.set_vertex_buffer(1, self.instances[i][layer].slice(..));
+                pass.draw(0..mesh.count, 0..self.counts[i][layer]);
+            }
+        }
+        if display.mode != crate::scene::RenderMode::Shaded {
+            pass.set_pipeline(&self.edges);
+            for layer in 0..2 {
+                for (i, mesh) in self.meshes.iter().enumerate() {
+                    if self.counts[i][layer] == 0 {
+                        continue;
+                    }
+                    pass.set_vertex_buffer(0, mesh.edges.slice(..));
+                    pass.set_vertex_buffer(1, self.instances[i][layer].slice(..));
+                    pass.draw(0..mesh.edge_count, 0..self.counts[i][layer]);
+                }
+            }
         }
     }
 }

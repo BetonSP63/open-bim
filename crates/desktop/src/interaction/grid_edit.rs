@@ -56,6 +56,36 @@ pub fn pick_axis(
         .map(|(id, _)| id)
 }
 
+/// Level under the cursor: its label (drawn left of the level line's start)
+/// or the level line itself, except a level at the grid's own elevation,
+/// where the line is the grid axis.
+pub fn pick_level(
+    project: &Project,
+    p: &Projector,
+    cursor: [f64; 2],
+    tolerance: f64,
+) -> Option<ObjectId> {
+    let grid_z = project.axes.values().next().map(|a| a.start.0[2])?;
+    project
+        .levels
+        .values()
+        .filter_map(|level| {
+            let (a, b) = open_bim_renderer::overlay::level_line(project, level)?;
+            let start = p.screen(a)?;
+            let label_w = 8. * level.name.chars().count() as f64 + 8.;
+            let on_label = cursor[0] >= start[0] - 30. - label_w
+                && cursor[0] <= start[0] - 26.
+                && (cursor[1] - start[1]).abs() <= 9.;
+            if on_label {
+                return Some((level.id, 0.));
+            }
+            let px = pixels_to_segment(p, a, b, cursor)?;
+            ((level.elevation_mm - grid_z).abs() > 1. && px <= tolerance).then_some((level.id, px))
+        })
+        .min_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(id, _)| id)
+}
+
 /// Relative coordinate string of sorted positions: «0 4*6000», «1500 3000 2*6000».
 fn spacing_string(mut xs: Vec<f64>) -> String {
     xs.sort_by(f64::total_cmp);

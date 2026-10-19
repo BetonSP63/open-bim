@@ -132,6 +132,127 @@ pub struct ViewState {
     pub section: Option<ClipPlane>,
     /// Second clip plane: the depth of a plan or elevation view (Tekla view depth).
     pub depth: Option<ClipPlane>,
+    pub display: Display,
+}
+
+/// How parts are drawn (Tekla «Отображение»).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum RenderMode {
+    /// Feature edges only.
+    Wireframe,
+    /// Shaded faces with edges, see-through by `Display::transparency`.
+    Transparent,
+    /// Opaque shaded faces.
+    #[default]
+    Shaded,
+}
+
+impl RenderMode {
+    pub const ALL: [RenderMode; 3] = [Self::Wireframe, Self::Transparent, Self::Shaded];
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Wireframe => "Каркас",
+            Self::Transparent => "Полупрозрачный",
+            Self::Shaded => "Тонированный",
+        }
+    }
+}
+
+/// Which parts become see-through in the transparent mode.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum TransparencyScope {
+    #[default]
+    All,
+    /// Everything except the selection (the selection stays opaque).
+    Unselected,
+    Selected,
+}
+
+impl TransparencyScope {
+    pub const ALL: [TransparencyScope; 3] = [Self::All, Self::Unselected, Self::Selected];
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::All => "Все детали",
+            Self::Unselected => "Невыбранные",
+            Self::Selected => "Выбранные",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Display {
+    pub mode: RenderMode,
+    /// 0 = opaque … 0.9 = almost invisible (transparent mode).
+    pub transparency: f32,
+    pub scope: TransparencyScope,
+}
+
+impl Default for Display {
+    fn default() -> Self {
+        Self {
+            mode: RenderMode::Shaded,
+            transparency: 0.5,
+            scope: TransparencyScope::All,
+        }
+    }
+}
+
+impl Display {
+    /// Opacity of a part (1 = opaque) in the current mode.
+    pub fn alpha(&self, selected: bool) -> f32 {
+        let applies = match self.scope {
+            TransparencyScope::All => true,
+            TransparencyScope::Unselected => !selected,
+            TransparencyScope::Selected => selected,
+        };
+        match self.mode {
+            RenderMode::Transparent if applies => 1.0 - self.transparency.clamp(0.0, 0.9),
+            _ => 1.0,
+        }
+    }
+}
+
+/// Feature edges of a mesh: segments where the faces meet at more than
+/// `angle_deg`, plus open boundaries. Coincident positions are merged.
+pub fn feature_edges(mesh: &DisplayMesh, angle_deg: f64) -> Vec<[DVec3; 2]> {
+    use std::collections::HashMap;
+    let key = |p: DVec3| (p * 1000.0).round().to_array().map(|v| v as i64);
+    // Edge key (rounded end points) → its ends and the normals of its faces.
+    type Edges = HashMap<([i64; 3], [i64; 3]), (DVec3, DVec3, Vec<DVec3>)>;
+    let mut faces: Edges = HashMap::new();
+    for t in &mesh.triangles {
+        let p = t.map(|i| mesh.positions[i as usize]);
+        let n = (p[1] - p[0]).cross(p[2] - p[0]).normalize_or_zero();
+        if n == DVec3::ZERO {
+            continue;
+        }
+        for (a, b) in [(p[0], p[1]), (p[1], p[2]), (p[2], p[0])] {
+            let (ka, kb) = (key(a), key(b));
+            let k = if ka <= kb { (ka, kb) } else { (kb, ka) };
+            faces
+                .entry(k)
+                .or_insert_with(|| (a, b, Vec::new()))
+                .2
+                .push(n);
+        }
+    }
+    let cos = angle_deg.to_radians().cos();
+    let mut out: Vec<[DVec3; 2]> = faces
+        .into_values()
+        .filter(|(_, _, normals)| {
+            normals.len() < 2
+                || normals
+                    .iter()
+                    .any(|n| normals.iter().any(|m| n.dot(*m) < cos))
+        })
+        .map(|(a, b, _)| [a, b])
+        .collect();
+    out.sort_by(|x, y| {
+        x[0].to_array()
+            .partial_cmp(&y[0].to_array())
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    out
 }
 
 /// Tekla-like class colour palette (class 1…14; approximate, not Tekla's

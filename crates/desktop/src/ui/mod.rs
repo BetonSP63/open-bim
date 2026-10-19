@@ -137,6 +137,8 @@ pub struct Workbench {
     pub detail: crate::interaction::tools::DetailPicker,
     /// Open grid dialog («Сетка осей…»).
     pub grid: Option<crate::interaction::tools::GridSpec>,
+    /// Part display mode and transparency (Tekla «Отображение»).
+    pub display: open_bim_renderer::Display,
     /// «Сведения о документе» being edited (main inscription attributes).
     pub document_info: Option<open_bim_model::DocumentInfo>,
     /// The dialog edits the existing grid (otherwise it creates a new one).
@@ -154,6 +156,8 @@ pub struct Workbench {
     pub focus_area: FocusArea,
     /// Edit buffer of the selected grid line in the property pane.
     pub axis_buffer: Option<open_bim_model::GridAxis>,
+    /// Level being edited in the pane: (id, name, mark text).
+    pub level_buffer: Option<(ObjectId, String, String)>,
     /// Green dashed work area box around the model (Вид tab).
     pub work_area: bool,
     /// Picks for «рабочая плоскость по трём точкам».
@@ -221,9 +225,11 @@ impl Workbench {
             work_area: true,
             detail: Default::default(),
             grid: None,
+            display: Default::default(),
             document_info: None,
             grid_editing: false,
             axis_buffer: None,
+            level_buffer: None,
             kb_cursor: None,
             kb_object: None,
             keytips: Default::default(),
@@ -434,6 +440,19 @@ impl Workbench {
             Cmd::ViewFront => return Some(Request::View(NamedView::Front)),
             Cmd::ViewTop => return Some(Request::View(NamedView::Top)),
             Cmd::ViewRight => return Some(Request::View(NamedView::Right)),
+            Cmd::DisplayWireframe | Cmd::DisplayTransparent | Cmd::DisplayShaded => {
+                use open_bim_renderer::RenderMode;
+                self.display.mode = match cmd {
+                    Cmd::DisplayWireframe => RenderMode::Wireframe,
+                    Cmd::DisplayTransparent => RenderMode::Transparent,
+                    _ => RenderMode::Shaded,
+                };
+                self.message(format!(
+                    "Отображение: {} (прозрачность {:.0} %)",
+                    self.display.mode.label(),
+                    self.display.transparency * 100.
+                ));
+            }
             Cmd::ToolAxis
             | Cmd::ToolBeam
             | Cmd::ToolColumn
@@ -676,6 +695,9 @@ impl Workbench {
                 }
                 if self.select.grids {
                     all.extend(project.axes.keys());
+                }
+                if self.select.levels {
+                    all.extend(project.levels.keys());
                 }
                 all.retain(|id| !self.hidden.contains(id));
                 self.message(format!("Выбрано объектов: {}", all.len()));

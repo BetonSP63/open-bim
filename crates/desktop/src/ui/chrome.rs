@@ -237,15 +237,24 @@ impl Workbench {
         axis: Option<ObjectId>,
         mode: crate::interaction::selection::Click,
     ) {
-        match (part, axis.filter(|_| self.select.grids)) {
+        let project = self.editor.document.project();
+        let allowed = |id: &ObjectId| {
+            (self.select.grids && project.axes.contains_key(id))
+                || (self.select.levels && project.levels.contains_key(id))
+        };
+        match (part, axis.filter(allowed)) {
             (None, Some(axis)) => {
+                let name = match (project.axes.get(&axis), project.levels.get(&axis)) {
+                    (Some(a), _) => format!("Выбрана ось {}", a.name),
+                    (_, Some(l)) => format!("Выбран уровень {}", l.name),
+                    _ => String::new(),
+                };
                 crate::interaction::selection::apply(
                     &mut self.editor.selected,
                     &BTreeSet::from([axis]),
                     mode,
                 );
-                let name = &self.editor.document.project().axes[&axis].name;
-                self.message(format!("Выбрана ось {name}"));
+                self.message(name);
             }
             _ => self.select_picked(part, mode),
         }
@@ -505,6 +514,12 @@ impl Workbench {
                         "Выбор осей",
                         "Выбирать линии сетки",
                         &mut f.grids,
+                    ),
+                    (
+                        Icon::SelectLevels,
+                        "Выбор уровней",
+                        "Выбирать уровни (отметки)",
+                        &mut f.levels,
                     ),
                 ] {
                     if icons::button(ui, icon, 18., None, name, tip, true, *flag).clicked() {
@@ -779,6 +794,13 @@ impl Workbench {
                             .iter()
                             .any(|id| project.axes.contains_key(id))
                     };
+                    let has_levels = {
+                        let project = self.editor.document.project();
+                        self.editor
+                            .selected
+                            .iter()
+                            .any(|id| project.levels.contains_key(id))
+                    };
                     ui.add_enabled_ui(!self.busy(), |ui| match self.mode {
                         Mode::Drawings => self.drawings.show(ui, &mut self.editor),
                         Mode::Reports => {
@@ -793,6 +815,9 @@ impl Workbench {
                                 self.selection_pane(ui, requests)
                             }
                             Some(SidePanel::Properties) if has_axes => self.axis_pane(ui, requests),
+                            Some(SidePanel::Properties) if has_levels => {
+                                self.level_pane(ui, requests)
+                            }
                             Some(panel) => {
                                 if panel == SidePanel::Properties {
                                     self.object_type(ui, requests);
@@ -888,6 +913,84 @@ impl Workbench {
             ui.label(
                 axes.iter()
                     .map(|a| a.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            );
+        }
+        ui.horizontal(|ui| {
+            if ui.button(commands::caption(Cmd::GridDialog)).clicked() {
+                self.run(Cmd::GridDialog, requests);
+            }
+            if ui.button(commands::caption(Cmd::DeleteSelected)).clicked() {
+                self.run(Cmd::DeleteSelected, requests);
+            }
+        });
+        if let Some(m) = &self.tools.message {
+            ui.label(m.clone());
+        }
+    }
+
+    /// Property pane of a selected level: name and elevation mark; a new mark
+    /// renames a level that was named by its mark (ГОСТ Р 21.101, 5.4.3).
+    fn level_pane(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
+        use open_bim_model::numbering_rules::{level_mark, parse_level_mark};
+        let project = self.editor.document.project();
+        let levels: Vec<&open_bim_model::Level> = self
+            .editor
+            .selected
+            .iter()
+            .filter_map(|id| project.levels.get(id))
+            .collect();
+        ui.heading(format!("Свойства: уровень ({})", levels.len()));
+        if levels.len() == 1 {
+            let level = levels[0].clone();
+            if self.level_buffer.as_ref().is_none_or(|b| b.0 != level.id) {
+                self.level_buffer =
+                    Some((level.id, level.name.clone(), level_mark(level.elevation_mm)));
+            }
+            let (_, name, mark) = self.level_buffer.as_mut().expect("filled above");
+            egui::Grid::new("level fields")
+                .num_columns(2)
+                .show(ui, |ui| {
+                    let l = ui.label("Имя");
+                    ui.text_edit_singleline(name).labelled_by(l.id);
+                    ui.end_row();
+                    let l = ui.label("Отметка, м");
+                    ui.add(egui::TextEdit::singleline(mark).id(egui::Id::new("level mark")))
+                        .labelled_by(l.id)
+                        .on_hover_text("Например «+4,200» или «-2,800»");
+                    ui.end_row();
+                });
+            if ui.button("Изменить").clicked() {
+                match parse_level_mark(mark) {
+                    Some(z) => {
+                        let mut edited = level.clone();
+                        edited.elevation_mm = z;
+                        edited.name = if name.trim() == level_mark(level.elevation_mm) {
+                            level_mark(z)
+                        } else {
+                            name.trim().to_string()
+                        };
+                        if edited.name.is_empty() {
+                            self.tools.message = Some("Имя уровня не может быть пустым".into());
+                        } else if edited == level {
+                            self.tools.message = Some("Нет изменений".into());
+                        } else {
+                            requests.push(Request::Action(Action::Commit(
+                                format!("Изменить уровень {}", edited.name),
+                                vec![open_bim_commands::Command::ReplaceLevel { level: edited }],
+                            )));
+                            self.level_buffer = None;
+                        }
+                    }
+                    None => self.tools.message = Some(format!("Отметка «{mark}»: число в метрах")),
+                }
+            }
+        } else {
+            ui.label(
+                levels
+                    .iter()
+                    .map(|l| l.name.as_str())
                     .collect::<Vec<_>>()
                     .join(", "),
             );
@@ -1061,6 +1164,7 @@ impl Workbench {
         self.pane.sync(&c);
         let kind = c.kind.value().cloned().unwrap_or_else(|| "Детали".into());
         ui.heading(format!("Свойства: {kind} ({})", c.parts.len()));
+        let mut apply_length = false;
         egui::Grid::new("selection properties")
             .num_columns(2)
             .show(ui, |ui| {
@@ -1125,9 +1229,38 @@ impl Workbench {
                     }
                 });
                 ui.end_row();
-                ui.label("Размер");
-                ui.label(c.size.value().cloned().unwrap_or_else(|| VARIES.into()));
-                ui.end_row();
+                if c.length.is_some() {
+                    let l = ui.label("Длина, мм");
+                    let field = ui
+                        .add(
+                            egui::TextEdit::singleline(&mut self.pane.length)
+                                .id(egui::Id::new("pane length"))
+                                .desired_width(90.),
+                        )
+                        .labelled_by(l.id);
+                    // Enter in the field applies at once, like Tekla's «Изменить».
+                    apply_length =
+                        field.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                    ui.end_row();
+                    let l = ui.label("Изменять");
+                    egui::ComboBox::new("pane length mode", "")
+                        .selected_text(self.pane.length_mode.label())
+                        .show_ui(ui, |ui| {
+                            for mode in crate::interaction::member_edit::LengthMode::ALL {
+                                ui.selectable_value(&mut self.pane.length_mode, mode, mode.label());
+                            }
+                        })
+                        .response
+                        .on_hover_text(
+                            "Какой конец переносится при новой длине и при перетаскивании ручки",
+                        )
+                        .labelled_by(l.id);
+                    ui.end_row();
+                } else {
+                    ui.label("Размер");
+                    ui.label(c.size.value().cloned().unwrap_or_else(|| VARIES.into()));
+                    ui.end_row();
+                }
             });
         ui.separator();
         if let Some(a) = self.tools.user_property(ui, &mut self.editor) {
@@ -1136,7 +1269,7 @@ impl Workbench {
         ui.separator();
         let project = self.editor.document.project();
         ui.horizontal(|ui| {
-            if ui.button("Изменить").clicked() {
+            if ui.button("Изменить").clicked() || apply_length {
                 match modify(project, &c.parts, &self.pane.changes(&c)) {
                     Ok(commands) => requests.push(Request::Action(Action::Commit(
                         format!("Изменить свойства ({})", c.parts.len()),
@@ -1158,6 +1291,33 @@ impl Workbench {
 
     fn views_panel(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
         ui.heading(SidePanel::Views.title());
+        // Display mode and transparency (Ctrl+1 / Ctrl+2 / Ctrl+4).
+        ui.horizontal(|ui| {
+            for mode in open_bim_renderer::RenderMode::ALL {
+                ui.selectable_value(&mut self.display.mode, mode, mode.label());
+            }
+        });
+        let mut percent = self.display.transparency * 100.;
+        let l = ui.label("Прозрачность, %");
+        if ui
+            .add(egui::Slider::new(&mut percent, 0.0..=90.0).step_by(5.))
+            .labelled_by(l.id)
+            .changed()
+        {
+            self.display.transparency = percent / 100.;
+            self.display.mode = open_bim_renderer::RenderMode::Transparent;
+        }
+        let l = ui.label("Прозрачными делать");
+        egui::ComboBox::from_id_salt("transparency scope")
+            .selected_text(self.display.scope.label())
+            .show_ui(ui, |ui| {
+                for scope in open_bim_renderer::TransparencyScope::ALL {
+                    ui.selectable_value(&mut self.display.scope, scope, scope.label());
+                }
+            })
+            .response
+            .labelled_by(l.id);
+        ui.separator();
         if ui.button(commands::caption(Cmd::GridViews)).clicked() {
             self.run(Cmd::GridViews, requests);
         }

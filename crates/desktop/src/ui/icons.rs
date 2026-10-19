@@ -53,6 +53,7 @@ pub enum Icon {
     SelectBolts,
     SelectWelds,
     SelectGrid,
+    SelectLevels,
 }
 
 /// Map a unit-square point (0..1) into the icon rect.
@@ -692,6 +693,25 @@ pub fn paint(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32, en
             line(p, r, (0.3, 0.05), (0.3, 0.95), Stroke::new(thin.width, ink));
             line(p, r, (0.05, 0.6), (0.95, 0.6), thin);
             p.circle_stroke(at(r, 0.3, 0.12), r.width() * 0.1, thin);
+        }
+        Icon::SelectLevels => {
+            // Two level lines with the level mark triangle.
+            line(p, r, (0.05, 0.35), (0.95, 0.35), thin);
+            line(p, r, (0.05, 0.8), (0.95, 0.8), thin);
+            poly(
+                p,
+                r,
+                &[(0.2, 0.15), (0.4, 0.15), (0.3, 0.35)],
+                Color32::TRANSPARENT,
+                thin,
+            );
+            poly(
+                p,
+                r,
+                &[(0.2, 0.6), (0.4, 0.6), (0.3, 0.8)],
+                Color32::TRANSPARENT,
+                thin,
+            );
         }
     }
 }

@@ -88,6 +88,7 @@ fn window_selects_inside_crossing_selects_touching_and_switches_filter() {
     let none = BTreeSet::new();
     let parts = Filter {
         grids: false,
+        levels: false,
         ..Filter::default()
     };
     // Left → right: window, fully inside only.

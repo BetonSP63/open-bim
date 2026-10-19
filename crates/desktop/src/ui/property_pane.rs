@@ -1,6 +1,7 @@
 //! Property pane like Tekla: the common properties of the selected parts,
 //! «— разные —» where they differ, and «Изменить» that applies the edited
 //! fields to every selected part in one transaction.
+use crate::interaction::member_edit::{LengthMode, length_text, resize};
 use open_bim_commands::Command;
 use open_bim_model::{ElementShape, ObjectId, Project, PropertyValue};
 use std::collections::BTreeSet;
@@ -44,6 +45,8 @@ pub struct Common {
     pub class: Shared<String>,
     /// Read-only: member length (mm) or plate thickness.
     pub size: Shared<String>,
+    /// Members only: length in mm as shown («6000»).
+    pub length: Option<Shared<String>>,
 }
 
 fn class_of(e: &open_bim_model::Element) -> String {
@@ -82,6 +85,10 @@ pub fn common(project: &Project, selected: &BTreeSet<ObjectId>) -> Option<Common
         profile: Shared::of(members),
         material: Shared::of(parts.iter().map(|e| e.material))?,
         class: Shared::of(parts.iter().map(|e| class_of(e)))?,
+        length: Shared::of(parts.iter().filter_map(|e| match &e.shape {
+            ElementShape::Member { length, .. } => Some(length_text(length.value())),
+            ElementShape::Plate { .. } => None,
+        })),
         size: Shared::of(parts.iter().map(|e| match &e.shape {
             ElementShape::Member { length, .. } => format!("L = {:.0} мм", length.value()),
             ElementShape::Plate { thickness, .. } => format!("t = {:.0} мм", thickness.value()),
@@ -97,6 +104,8 @@ pub struct Changes {
     pub profile: Option<ObjectId>,
     pub material: Option<ObjectId>,
     pub class: Option<String>,
+    /// New member length (mm) and which end moves.
+    pub length: Option<(f64, LengthMode)>,
 }
 
 /// One transaction changing every selected part.
@@ -140,6 +149,11 @@ pub fn modify(
                     .insert("class".into(), PropertyValue::Text(class.trim().into()));
             }
         }
+        if let Some((length, mode)) = changes.length
+            && matches!(e.shape, ElementShape::Member { .. })
+        {
+            e.shape = resize(&e.shape, length, mode)?;
+        }
         if &e != project.elements.get(id).unwrap() {
             commands.push(Command::ReplaceElement { element: e });
         }
@@ -176,6 +190,9 @@ pub struct PropertyPane {
     pub profile: Option<ObjectId>,
     pub material: Option<ObjectId>,
     pub class: String,
+    pub length: String,
+    /// Which end the length field moves; kept between selections.
+    pub length_mode: LengthMode,
 }
 
 impl PropertyPane {
@@ -189,6 +206,11 @@ impl PropertyPane {
         self.profile = c.profile.as_ref().and_then(|p| p.value().copied());
         self.material = c.material.value().copied();
         self.class = c.class.value().cloned().unwrap_or_else(|| VARIES.into());
+        self.length = c
+            .length
+            .as_ref()
+            .map(|l| l.value().cloned().unwrap_or_else(|| VARIES.into()))
+            .unwrap_or_default();
     }
 
     /// Fields edited relative to what the selection shows.
@@ -204,6 +226,13 @@ impl PropertyPane {
                 .profile
                 .filter(|p| c.profile.as_ref().and_then(|s| s.value()) != Some(p)),
             material: self.material.filter(|m| c.material.value() != Some(m)),
+            length: c.length.as_ref().and_then(|shown| {
+                let shown = shown.value().map(String::as_str).unwrap_or(VARIES);
+                (self.length != shown && self.length != VARIES)
+                    .then(|| crate::tools::number(&self.length).ok())
+                    .flatten()
+                    .map(|l| (l, self.length_mode))
+            }),
         }
     }
 }

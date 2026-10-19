@@ -150,6 +150,25 @@ impl Camera {
             self.pitch = (self.pitch + dy * 0.008).clamp(-1.55, 1.55);
         }
     }
+    /// Orbit about a world point (Tekla: the rotation centre under the
+    /// cursor): yaw about the vertical through `pivot`, pitch about the
+    /// horizontal axis across the view; the pivot keeps its place on screen.
+    pub fn orbit_about(&mut self, pivot: DVec3, dx: f64, dy: f64) {
+        if !(dx.is_finite() && dy.is_finite() && pivot.is_finite()) {
+            return;
+        }
+        let yaw = -dx * 0.008;
+        let pitch = (self.pitch + dy * 0.008).clamp(-1.55, 1.55) - self.pitch;
+        let dir = (self.eye() - self.target).normalize_or_zero();
+        let q_yaw = glam::DQuat::from_rotation_z(yaw);
+        let turned = q_yaw * dir;
+        let across = DVec3::Z.cross(turned).normalize_or_zero();
+        // Rotating about Z × dir by a negative angle raises the eye.
+        let q = glam::DQuat::from_axis_angle(across, -pitch) * q_yaw;
+        self.target = pivot + q * (self.target - pivot);
+        self.yaw -= dx * 0.008;
+        self.pitch += pitch;
+    }
     pub fn zoom(&mut self, delta: f64) {
         if !delta.is_finite() {
             return;

@@ -24,6 +24,7 @@ struct Options {
     record: Option<PathBuf>,
     capture_dir: Option<PathBuf>,
     project_path: Option<String>,
+    display: Option<open_bim_renderer::RenderMode>,
     script: Option<PathBuf>,
     size: Option<[f32; 2]>,
     zoom: Option<f32>,
@@ -88,6 +89,15 @@ impl Options {
                         .ok_or("--load-delay-ms требует миллисекунды")?
                 }
                 "--gpu-error-test" => options.gpu_error_test = true,
+                "--display" => {
+                    use open_bim_renderer::RenderMode;
+                    options.display = Some(match args.next().as_deref() {
+                        Some("wireframe") => RenderMode::Wireframe,
+                        Some("transparent") => RenderMode::Transparent,
+                        Some("shaded") => RenderMode::Shaded,
+                        _ => return Err("--display: wireframe | transparent | shaded".into()),
+                    })
+                }
                 "--open" => options.open = Some(args.next().ok_or("--open требует путь")?),
                 "--capture" => {
                     options.capture = Some(args.next().ok_or("--capture требует путь PNG")?)
@@ -135,6 +145,8 @@ struct Desktop {
     area_drag: Option<[f64; 2]>,
     /// Handle being dragged (direct modification).
     handle_drag: Option<overlay::Handle>,
+    /// Rotation centre of the running orbit gesture.
+    orbit: open_bim_desktop::interaction::orbit::Orbit,
     /// Pointer position the snap cycle belongs to.
     last_hover: Option<egui::Pos2>,
     measure: Option<open_bim_desktop::bench::Bench>,
@@ -176,6 +188,9 @@ impl Desktop {
         let mut bench = Workbench::new(editor);
         if let Some(path) = options.project_path {
             bench.tools.path = path;
+        }
+        if let Some(mode) = options.display {
+            bench.display.mode = mode;
         }
         bench.section_enabled = options.section.is_some();
         bench.section_height = options.section.unwrap_or(1500.0);
@@ -242,6 +257,7 @@ impl Desktop {
             viewport: None,
             area_drag: None,
             handle_drag: None,
+            orbit: Default::default(),
             last_hover: None,
             measure: options.bench.map(|path| {
                 open_bim_desktop::bench::Bench::new(path, options.bench_frames.max(10))
@@ -522,6 +538,7 @@ impl eframe::App for Desktop {
             self.bench.clip[0]
         };
         self.view.depth = self.bench.clip[1];
+        self.view.display = self.bench.display;
         // Copy the selection into the view only when it changed.
         if *self.view.selected_ids != self.bench.editor.selected {
             self.view.selected_ids = Arc::new(self.bench.editor.selected.clone());
@@ -616,19 +633,47 @@ impl eframe::App for Desktop {
                     }
                     // Tekla mouse: wheel zooms about the cursor, middle drag pans,
                     // Ctrl + middle drag rotates; the right button opens the context menu.
-                    if viewport_hovered && input.smooth_scroll_delta.y != 0.0 {
-                        // Zoom towards the model surface under the cursor (Tekla).
-                        let hit = hover.and_then(|ray| {
+                    // Trackpad: pinch zooms about the cursor, two-finger scroll
+                    // rotates (Shift: pans), the rotate gesture turns about the
+                    // vertical; the mouse wheel zooms.
+                    let surface = || {
+                        hover.and_then(|ray| {
                             self.scene
                                 .pick_hit(ray, &self.view)
                                 .map(|(_, t)| ray.origin + ray.direction * t)
-                        });
-                        self.camera
-                            .zoom_to(input.smooth_scroll_delta.y as f64, hover, hit);
+                        })
+                    };
+                    let scroll =
+                        open_bim_desktop::interaction::orbit::split_scroll(&input.raw.events);
+                    let pinch = input.zoom_delta() as f64;
+                    let now = input.time;
+                    if scroll.wheel != 0.0 {
+                        // Zoom towards the model surface under the cursor (Tekla).
+                        self.camera.zoom_to(scroll.wheel, hover, surface());
+                    }
+                    if (pinch - 1.0).abs() > 1e-6 && pinch > 0.0 {
+                        self.camera.zoom_to(pinch.ln() / 0.002, hover, surface());
+                    }
+                    if scroll.trackpad != [0.0, 0.0] {
+                        let [dx, dy] = scroll.trackpad;
+                        if scroll.shift {
+                            self.camera.pan(dx, dy, rect.height() as f64);
+                        } else {
+                            let pivot = self.orbit.pivot(now, surface(), self.camera.target);
+                            self.camera.orbit_about(pivot, -dx, -dy);
+                        }
+                    }
+                    let turn = input.rotation_delta() as f64;
+                    if turn != 0.0 {
+                        let pivot = self.orbit.pivot(now, surface(), self.camera.target);
+                        self.camera.orbit_about(pivot, turn / 0.008, 0.0);
                     }
                     let delta = input.pointer.delta();
                     if middle_drag && (input.modifiers.ctrl || input.modifiers.command) {
-                        self.camera.orbit(delta.x as f64, delta.y as f64);
+                        // Rotation centre: the surface under the cursor at the start.
+                        let pivot = self.orbit.pivot(now, surface(), self.camera.target);
+                        self.camera
+                            .orbit_about(pivot, delta.x as f64, delta.y as f64);
                     } else if middle_drag {
                         self.camera
                             .pan(delta.x as f64, delta.y as f64, rect.height() as f64);
@@ -747,6 +792,7 @@ impl eframe::App for Desktop {
                     Cmd::ShowAll,
                     Cmd::FitSelected,
                     Cmd::PartDrawing,
+                    Cmd::GridDialog,
                 ] {
                     if ui.button(caption(cmd)).clicked() {
                         menu_cmd = Some(cmd);
@@ -811,23 +857,45 @@ impl eframe::App for Desktop {
                     // Alt+click selects the whole assembly once (Tekla).
                     let saved = self.bench.select;
                     self.bench.select.assemblies |= modifiers.alt;
+                    // Level labels and level lines win over the grid line copies.
                     let axis = response.interact_pointer_pos().and_then(|p| {
-                        open_bim_desktop::interaction::grid_edit::pick_axis(
-                            self.bench.editor.document.project(),
-                            &projector,
-                            [p.x as f64, p.y as f64],
-                            6.,
-                        )
+                        use open_bim_desktop::interaction::grid_edit::{pick_axis, pick_level};
+                        let project = self.bench.editor.document.project();
+                        let at = [p.x as f64, p.y as f64];
+                        pick_level(project, &projector, at, 6.)
+                            .filter(|_| self.bench.select.levels)
+                            .or_else(|| pick_axis(project, &projector, at, 6.))
                     });
                     self.bench.select_clicked(id, axis, click_mode);
                     self.bench.select = saved;
                 }
             }
             // Double click opens the properties of the clicked part (Tekla).
+            // On a grid line (no part under the cursor) it opens the grid dialog.
             if response.double_clicked() && !self.bench.picking() {
-                self.bench.mode = open_bim_desktop::ui::Mode::Model;
-                self.bench.side_panel = Some(open_bim_desktop::ui::chrome::SidePanel::Properties);
-                self.bench.pane.source.clear();
+                let on_grid = hover
+                    .and_then(|ray| self.scene.pick(ray, &self.view))
+                    .is_none()
+                    && response.interact_pointer_pos().is_some_and(|p| {
+                        open_bim_desktop::interaction::grid_edit::pick_axis(
+                            self.bench.editor.document.project(),
+                            &projector,
+                            [p.x as f64, p.y as f64],
+                            6.,
+                        )
+                        .is_some()
+                    });
+                if on_grid {
+                    self.pending.extend(
+                        self.bench
+                            .execute(open_bim_desktop::ui::commands::Cmd::GridDialog),
+                    );
+                } else {
+                    self.bench.mode = open_bim_desktop::ui::Mode::Model;
+                    self.bench.side_panel =
+                        Some(open_bim_desktop::ui::chrome::SidePanel::Properties);
+                    self.bench.pane.source.clear();
+                }
             }
             // Primary drag: a selected handle (direct modification) or an area.
             if response.drag_started_by(egui::PointerButton::Primary)
@@ -852,10 +920,11 @@ impl eframe::App for Desktop {
             if response.drag_stopped() {
                 if let Some(h) = self.handle_drag.take() {
                     match cursor.map(|(p, _)| {
-                        selection::move_handle(
+                        open_bim_desktop::interaction::member_edit::drag_handle(
                             self.bench.editor.document.project(),
                             &h,
                             DVec3::from_array(p.0),
+                            self.bench.pane.length_mode,
                         )
                     }) {
                         Some(Ok(commands)) => self.pending.push(Request::Action(
@@ -997,6 +1066,56 @@ impl eframe::App for Desktop {
                     egui::FontId::proportional(13.),
                     ink,
                 );
+            }
+            // Rotation centre while an orbit gesture runs.
+            if let Some(pivot) = self.orbit.active(ctx.input(|i| i.time))
+                && let Some(c) = projector.screen(pivot)
+            {
+                let c = egui::pos2(c[0] as f32, c[1] as f32);
+                let ink = egui::Stroke::new(2., egui::Color32::from_rgb(230, 120, 0));
+                ui.painter().circle_stroke(c, 7., ink);
+                ui.painter()
+                    .line_segment([c - egui::vec2(11., 0.), c + egui::vec2(11., 0.)], ink);
+                ui.painter()
+                    .line_segment([c - egui::vec2(0., 11.), c + egui::vec2(0., 11.)], ink);
+                ctx.request_repaint();
+            }
+            // Length of selected beams and columns at their midpoints (up to 20).
+            {
+                let project = self.bench.editor.document.project();
+                for id in self.bench.editor.selected.iter().take(20) {
+                    let Some(e) = project.elements.get(id) else {
+                        continue;
+                    };
+                    let Some((a, b)) = open_bim_desktop::interaction::member_edit::ends(&e.shape)
+                    else {
+                        continue;
+                    };
+                    let Some(m) = projector.screen((a + b) * 0.5) else {
+                        continue;
+                    };
+                    let text = format!(
+                        "L = {}",
+                        open_bim_desktop::interaction::member_edit::length_text(a.distance(b))
+                    );
+                    let at = egui::pos2(m[0] as f32, m[1] as f32 - 12.);
+                    let font = egui::FontId::proportional(13.);
+                    let galley = ui.painter().layout_no_wrap(
+                        text,
+                        font,
+                        egui::Color32::from_rgb(20, 60, 130),
+                    );
+                    let rect = egui::Align2::CENTER_BOTTOM
+                        .anchor_size(at, galley.size())
+                        .expand(3.);
+                    ui.painter()
+                        .rect_filled(rect, 3., egui::Color32::from_white_alpha(225));
+                    ui.painter().galley(
+                        rect.min + egui::vec2(3., 3.),
+                        galley,
+                        egui::Color32::BLACK,
+                    );
+                }
             }
             // Area selection rectangle: solid = window (left→right), dashed = crossing.
             if let (Some(from), Some(to)) = (self.area_drag, response.interact_pointer_pos()) {

@@ -1,0 +1,4 @@
+04-transparent-50.png: 2.67 % of view pixels differ from shaded
+03-wireframe.png: 2.80 % of view pixels differ from shaded
+selected beam pixels: 12872, mean RGB shaded [196.  83.  19.], transparent [170. 108.  79.]
+TRANSPARENCY_OK

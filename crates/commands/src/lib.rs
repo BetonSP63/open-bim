@@ -48,6 +48,9 @@ pub enum Command {
     CreateAxis {
         axis: GridAxis,
     },
+    ReplaceLevel {
+        level: open_bim_model::Level,
+    },
     ReplaceAxis {
         axis: GridAxis,
     },
@@ -387,6 +390,15 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
                         CommandError::InvalidTransaction("Недопустимый ID".into())
                     })?,
                 );
+            project.levels.insert(level.id, level.clone());
+        }
+        Command::ReplaceLevel { level } => {
+            if !project.levels.contains_key(&level.id) {
+                return Err(ModelError::MissingReference(level.id).into());
+            }
+            if !level.elevation_mm.is_finite() || level.elevation_mm.abs() > 1e8 {
+                return Err(ModelError::InvalidValue("Отметка уровня вне диапазона".into()).into());
+            }
             project.levels.insert(level.id, level.clone());
         }
         Command::ReplaceAxis { axis } => {

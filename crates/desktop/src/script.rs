@@ -32,6 +32,12 @@ pub enum Step {
     MiddleDrag([f32; 4]),
     /// Scroll by the given logical delta at a point: [x, y, dy].
     Scroll([f32; 3]),
+    /// Trackpad two-finger scroll in points at a point: [x, y, dx, dy].
+    Trackpad([f32; 4]),
+    /// Trackpad pinch at a point: [x, y, zoom factor].
+    Pinch([f32; 3]),
+    /// Trackpad rotate gesture at a point: [x, y, radians].
+    Rotate([f32; 3]),
     /// Key by egui name, e.g. "K", "Enter", "Tab", with optional modifiers.
     Key {
         name: String,
@@ -255,12 +261,39 @@ impl Runner {
                     .events
                     .push(egui::Event::PointerMoved(egui::pos2(p[0], p[1])));
                 input.events.push(egui::Event::MouseWheel {
-                    unit: egui::MouseWheelUnit::Point,
-                    delta: egui::vec2(0., p[2]),
+                    // A mouse wheel: whole lines (40 points each).
+                    unit: egui::MouseWheelUnit::Line,
+                    delta: egui::vec2(0., p[2] / 40.),
                     phase: egui::TouchPhase::Move,
                     modifiers,
                 });
                 advance(self, 3);
+            }
+            Step::Trackpad(p) => {
+                input
+                    .events
+                    .push(egui::Event::PointerMoved(egui::pos2(p[0], p[1])));
+                input.events.push(egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    delta: egui::vec2(p[2], p[3]),
+                    phase: egui::TouchPhase::Move,
+                    modifiers,
+                });
+                advance(self, 1);
+            }
+            Step::Pinch(p) => {
+                input
+                    .events
+                    .push(egui::Event::PointerMoved(egui::pos2(p[0], p[1])));
+                input.events.push(egui::Event::Zoom(p[2]));
+                advance(self, 1);
+            }
+            Step::Rotate(p) => {
+                input
+                    .events
+                    .push(egui::Event::PointerMoved(egui::pos2(p[0], p[1])));
+                input.events.push(egui::Event::Rotate(p[2]));
+                advance(self, 1);
             }
             Step::Key {
                 name,

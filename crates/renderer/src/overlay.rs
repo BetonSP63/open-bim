@@ -74,6 +74,15 @@ pub enum Mark {
     },
 }
 
+/// Line that represents a level in the views: the first grid axis (by ID)
+/// raised to the level's elevation.
+pub fn level_line(project: &Project, level: &open_bim_model::Level) -> Option<(DVec3, DVec3)> {
+    let axis = project.axes.values().next()?;
+    let (a, b) = (v(axis.start), v(axis.end));
+    let dz = DVec3::Z * (level.elevation_mm - a.z);
+    Some((a + dz, b + dz))
+}
+
 /// World → absolute screen pixels for a viewport rectangle.
 #[derive(Clone, Copy)]
 pub struct Projector<'a> {
@@ -417,11 +426,16 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
             marks.push(text(c, axis.name.clone(), label, [0, 0], 12.));
         }
     }
-    // Level labels next to the first grid axis.
-    if let Some((wa, wb)) = first_axis {
+    // Level lines along the first grid axis, labelled at its start.
+    if first_axis.is_some() {
         for level in input.project.levels.values() {
-            let z = DVec3::new(0., 0., level.elevation_mm - wa.z);
-            if let (Some(a), Some(b)) = (p.screen(wa + z), p.screen(wb + z)) {
+            let Some((la, lb)) = level_line(input.project, level) else {
+                continue;
+            };
+            if let (Some(a), Some(b)) = (p.screen(la), p.screen(lb)) {
+                if input.selected.contains(&level.id) {
+                    marks.push(line(a, b, SELECTED_AXIS, 3., None));
+                }
                 marks.push(line(a, b, grid, 1., Some([8., 6.])));
                 marks.push(text(
                     add(a, [-1., 0.], 30.),

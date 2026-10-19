@@ -1,0 +1,27 @@
+LOAD_MS: 0.3
+GPU: Apple M5 · Metal; project=Новый проект objects=0
+SCRIPT: step 1 Wait(40)
+SCRIPT: step 2 Note("Щелчок по линии уровня +3,600")
+SCRIPT: world [0.0, 9000.0, 3600.0] → screen [331.16473, 460.50122]
+SCRIPT: step 3 Hover([331.16473, 460.50122])
+SCRIPT: step 4 Wait(3)
+SCRIPT: world [0.0, 9000.0, 3600.0] → screen [331.16473, 460.50122]
+SCRIPT: step 5 Click([331.16473, 460.50122])
+SCRIPT: step 6 Wait(15)
+SCRIPT: step 7 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/edit-members-views/07-level-selected.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/edit-members-views/07-level-selected.png 2560x1600
+SCRIPT: step 8 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 9 Wait(5)
+SCRIPT: step 10 Note("Двойной щелчок по оси 2 — диалог сетки с текущими значениями")
+SCRIPT: world [6000.0, 9000.0, 0.0] → screen [420.83792, 470.11334]
+SCRIPT: step 11 Hover([420.83792, 470.11334])
+SCRIPT: step 12 Wait(3)
+SCRIPT: world [6000.0, 9000.0, 0.0] → screen [420.83792, 470.11334]
+SCRIPT: step 13 Click([420.83792, 470.11334])
+SCRIPT: world [6000.0, 9000.0, 0.0] → screen [420.93164, 470.11334]
+SCRIPT: step 14 Click([420.93164, 470.11334])
+SCRIPT: step 15 Wait(20)
+SCRIPT: step 16 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/edit-members-views/08-grid-double-click.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/edit-members-views/08-grid-double-click.png 2560x1600
+SCRIPT: step 17 Quit
+SCRIPT: finished

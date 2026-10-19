@@ -167,7 +167,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     item(Cmd::ViewRight, Icon::View3d, "Справа"),
                     item(Cmd::Fit, Icon::WorkArea, "Вписать"),
                     item(Cmd::ToggleProjection, Icon::View3d, "Перспектива"),
-                    item(Cmd::GridViews, Icon::Grid, "Виды по сетке"),
+                    item(Cmd::GridViews, Icon::Grid, "По сетке"),
                     item(Cmd::PlaneOr3d, Icon::View3d, "3D / план"),
                 ],
             ),
@@ -178,12 +178,16 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     item(Cmd::HideSelected, Icon::Show, "Скрыть выбранные"),
                     item(Cmd::ToggleWorkArea, Icon::WorkArea, "Рабочая область"),
                     item(Cmd::ToggleSection, Icon::WorkArea, "Сечение"),
-                    item(Cmd::PanelModelTree, Icon::Grid, "Дерево модели"),
                 ],
             ),
             (
-                "Оформление",
-                vec![item(Cmd::ToggleTheme, Icon::Show, "Тема")],
+                "Отображение",
+                vec![
+                    item(Cmd::DisplayWireframe, Icon::View3d, "Каркас"),
+                    item(Cmd::DisplayTransparent, Icon::View3d, "Прозрачный"),
+                    item(Cmd::DisplayShaded, Icon::View3d, "Тонированный"),
+                    item(Cmd::ToggleTheme, Icon::Show, "Тема"),
+                ],
             ),
         ],
         RibbonTab::Drawings => vec![
@@ -217,6 +221,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     item(Cmd::NumberAndCheck, Icon::Numbering, "Нумерация"),
                     item(Cmd::PanelClash, Icon::Clash, "Коллизии"),
                     item(Cmd::AutoAssemblies, Icon::Assembly, "Сборки по швам"),
+                    item(Cmd::PanelModelTree, Icon::Grid, "Дерево модели"),
                 ],
             ),
             (

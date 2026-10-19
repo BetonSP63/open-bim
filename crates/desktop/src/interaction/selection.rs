@@ -18,6 +18,7 @@ pub struct Filter {
     pub bolts: bool,
     pub welds: bool,
     pub grids: bool,
+    pub levels: bool,
 }
 
 impl Default for Filter {
@@ -28,6 +29,7 @@ impl Default for Filter {
             bolts: true,
             welds: true,
             grids: true,
+            levels: true,
         }
     }
 }
@@ -107,6 +109,11 @@ pub fn corners(project: &Project, id: ObjectId) -> Result<Vec<DVec3>, String> {
 fn segments(project: &Project, id: ObjectId) -> Vec<(DVec3, DVec3)> {
     if let Some(axis) = project.axes.get(&id) {
         return vec![(v(axis.start), v(axis.end))];
+    }
+    if let Some(level) = project.levels.get(&id) {
+        return open_bim_renderer::overlay::level_line(project, level)
+            .into_iter()
+            .collect();
     }
     if let Some(detail) = project.details.get(&id) {
         return match &detail.kind {
@@ -202,6 +209,9 @@ pub fn area(
     }
     if filter.grids {
         ids.extend(project.axes.keys());
+    }
+    if filter.levels {
+        ids.extend(project.levels.keys());
     }
     ids.extend(project.details.values().filter_map(|d| match d.kind {
         DetailKind::BoltGroup { .. } if filter.bolts => Some(d.id),
