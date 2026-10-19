@@ -25,7 +25,8 @@ for name, info in summary.items():
             # cm scales mm→pt; tm holds the text origin in mm.
             found.append((text, tm[4], tm[5]))
     text = page.extract_text(visitor_text=visitor)
-    assert "ОБ-" in text and ("Вид" in text or "Фасад" in text), name
+    # Set designation «<base>-КМ» / «<base>-КМД» (ГОСТ Р 21.101-2026, 4.2.4).
+    assert "-КМ" in text and ("Вид" in text or "Фасад" in text), name
     out["page_mm"] = [round(v, 3) for v in size]
     out["cyrillic_sample"] = next(t for t, _, _ in found if any("А" <= c <= "я" for c in t))
     if name == "beam-a3":
@@ -40,13 +41,15 @@ for name, info in summary.items():
     layers = {l.dxf.name for l in doc.layers}
     msp = doc.modelspace()
     counts = {}
+    # Lines and texts per layer; the QR code is SOLID fills on OB_FRAME.
     for e in msp:
-        counts[e.dxf.layer] = counts.get(e.dxf.layer, 0) + 1
+        if e.dxftype() in ("LINE", "POLYLINE", "TEXT"):
+            counts[e.dxf.layer] = counts.get(e.dxf.layer, 0) + 1
     for layer, expected in info["entities"].items():
         assert layer in layers, (name, layer)
         assert counts.get(layer, 0) == expected, (name, layer, counts.get(layer, 0), expected)
     texts = [e.dxf.text for e in msp.query("TEXT")]
-    assert any("ОБ-" in t for t in texts), (name, texts[:5])
+    assert any("-\\U+041A\\U+041C" in t or "-КМ" in t for t in texts), (name, texts[:5])
     out["dxf_layers"] = sorted(layers)
     out["dxf_counts"] = counts
     if name == "beam-a3":

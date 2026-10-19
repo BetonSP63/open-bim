@@ -2,6 +2,7 @@
 //! fasteners. Positions come from `open-bim-numbering`; masses are net masses
 //! of the exact bodies (holes and cuts removed).
 pub mod csv;
+pub mod gost_tables;
 pub mod release;
 
 use open_bim_commands::Command;

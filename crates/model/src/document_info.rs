@@ -87,6 +87,10 @@ pub struct DocumentInfo {
     /// Graph 22: inventory number of the original this one replaces.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub replaced_inventory: String,
+    /// General notes of «Общие данные» (4.3.5), one item per entry; the
+    /// program adds its own items (masses, steel grades, welds) after them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub general_notes: Vec<String>,
 }
 
 fn is_working(stage: &Stage) -> bool {
@@ -95,6 +99,7 @@ fn is_working(stage: &Stage) -> bool {
 
 pub const MAX_OTHER_SIGNERS: usize = 4;
 pub const MAX_APPROVALS: usize = 6;
+pub const MAX_GENERAL_NOTES: usize = 50;
 
 /// Base designation used when none is set.
 pub const DEFAULT_BASE: &str = "0000";
@@ -158,6 +163,16 @@ impl DocumentInfo {
         if self.others.len() > MAX_OTHER_SIGNERS {
             return invalid(format!(
                 "не больше {MAX_OTHER_SIGNERS} дополнительных подписей"
+            ));
+        }
+        if self.general_notes.len() > MAX_GENERAL_NOTES
+            || self
+                .general_notes
+                .iter()
+                .any(|n| n.len() > 2048 || n.contains('\0'))
+        {
+            return invalid(format!(
+                "общих указаний не больше {MAX_GENERAL_NOTES}, каждое до 2048 байт"
             ));
         }
         if self.approvals.len() > MAX_APPROVALS {

@@ -17,12 +17,13 @@ pub use connection::{ConnectionInstance, ConnectionTemplate, TemplateKind};
 pub use construction::{Construction, ConstructionKind, DimPoint, ModelDimension};
 pub use detailing::{Detail, DetailKind, WeldSides, WeldType, weld_mark};
 pub use document_info::{
-    DEFAULT_BASE, DocumentInfo, MAX_APPROVALS, MAX_OTHER_SIGNERS, Person, Stage, format_date,
-    parse_date,
+    DEFAULT_BASE, DocumentInfo, MAX_APPROVALS, MAX_GENERAL_NOTES, MAX_OTHER_SIGNERS, Person, Stage,
+    format_date, parse_date,
 };
 pub use drawing::{
     Anchor, AnchorPoint, DimensionAxis, DimensionDef, Drawing, DrawingKind, DrawingView,
-    MAX_DRAWING_ITEMS, STANDARD_SCALES, SheetSize, TextNote, ViewDirection, standard_scale,
+    MAX_DRAWING_ITEMS, SET_MARKS, STANDARD_SCALES, SheetSize, TextNote, ViewDirection,
+    standard_scale,
 };
 pub use drawing_objects::{HatchPattern, LineType, SheetObject, SheetObjectKind};
 pub use frame::{Frame, GridAxis, Level};

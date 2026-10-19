@@ -3,7 +3,7 @@ use super::{DrawingEditor, ExportFormat};
 use crate::tools::{Editor, number};
 use eframe::egui;
 use open_bim_drawings::{SCALES, Status};
-use open_bim_model::{Anchor, AnchorPoint, DimensionAxis, Drawing, SheetSize};
+use open_bim_model::{Anchor, AnchorPoint, DimensionAxis, Drawing, DrawingKind, SheetSize};
 
 #[derive(Clone, Debug, Default)]
 pub struct Fields {
@@ -94,6 +94,14 @@ impl DrawingEditor {
             }
             if ui.button("Общий вид A3").clicked() {
                 let r = self.create_general(editor, SheetSize::A3);
+                report(self, r);
+            }
+            if ui
+                .button("Общие данные")
+                .on_hover_text("Первый лист комплекта: ведомости и общие указания")
+                .clicked()
+            {
+                let r = self.create_general_data(editor);
                 report(self, r);
             }
         });
@@ -192,6 +200,7 @@ impl DrawingEditor {
             let r = self.set_header(editor, &n, &t);
             report(self, r);
         }
+        let sheet_list = matches!(drawing.kind, DrawingKind::GeneralData { .. });
         ui.horizontal(|ui| {
             let mut sheet = drawing.sheet;
             egui::ComboBox::new("sheet size", "Лист")
@@ -211,6 +220,9 @@ impl DrawingEditor {
                 let r = self.set_sheet(editor, sheet);
                 report(self, r);
             }
+            if sheet_list {
+                return;
+            }
             let mut scale = drawing.scale;
             egui::ComboBox::new("sheet scale", "Масштаб")
                 .selected_text(format!("1:{scale}"))
@@ -224,133 +236,136 @@ impl DrawingEditor {
                 report(self, r);
             }
         });
-        ui.separator();
-        ui.strong("Виды");
-        for view in &drawing.views {
-            let text = format!(
-                "{} · {}{}",
-                view.name,
-                direction_label(view.direction),
-                if view.section.is_some() {
-                    " · сечение"
-                } else {
-                    ""
+        // «Общие данные» has neither views nor dimensions.
+        if !sheet_list {
+            ui.separator();
+            ui.strong("Виды");
+            for view in &drawing.views {
+                let text = format!(
+                    "{} · {}{}",
+                    view.name,
+                    direction_label(view.direction),
+                    if view.section.is_some() {
+                        " · сечение"
+                    } else {
+                        ""
+                    }
+                );
+                if ui
+                    .selectable_label(self.selected_view == Some(view.id), text)
+                    .clicked()
+                {
+                    self.selected_view = Some(view.id);
+                    self.fields.view = view.position.map(|x| format!("{x:.1}"));
                 }
-            );
-            if ui
-                .selectable_label(self.selected_view == Some(view.id), text)
-                .clicked()
-            {
-                self.selected_view = Some(view.id);
-                self.fields.view = view.position.map(|x| format!("{x:.1}"));
             }
-        }
-        if let Some(view) = self.selected_view {
-            ui.horizontal(|ui| {
-                let l = ui.label("Центр X");
-                ui.add(egui::TextEdit::singleline(&mut self.fields.view[0]).desired_width(60.))
-                    .labelled_by(l.id)
-                    .on_hover_text("Центр вида X, мм");
-                let l = ui.label("Y");
-                ui.add(egui::TextEdit::singleline(&mut self.fields.view[1]).desired_width(60.))
-                    .labelled_by(l.id)
-                    .on_hover_text("Центр вида Y, мм");
-                if ui.button("Переместить вид").clicked() {
-                    let r = number(&self.fields.view[0])
-                        .and_then(|x| Ok([x, number(&self.fields.view[1])?]))
-                        .and_then(|p| self.move_view(editor, view, p));
-                    report(self, r);
-                }
-            });
-        }
-        ui.separator();
-        ui.strong("Размеры");
-        for dim in &drawing.dimensions {
-            let text = format!(
-                "№{} · вид {} · точек {}",
-                dim.id,
-                dim.view,
-                dim.anchors.len()
-            );
-            if ui
-                .selectable_label(self.selected_dimension == Some(dim.id), text)
-                .clicked()
-            {
-                self.selected_dimension = Some(dim.id);
-                self.fields.offset = format!("{}", dim.offset);
-            }
-        }
-        ui.horizontal_wrapped(|ui| {
-            if ui
-                .button("Новая цепь по выбранным")
-                .on_hover_text("Начало/конец выбранных балок или вершины пластин")
-                .clicked()
-            {
-                let view = self.selected_view.unwrap_or(1);
-                let r = self
-                    .add_dimension(editor, view, DimensionAxis::Horizontal)
-                    .map(|_| ());
-                report(self, r);
-            }
-        });
-        if let Some(dim) = self
-            .selected_dimension
-            .and_then(|id| drawing.dimensions.iter().find(|d| d.id == id))
-            .cloned()
-        {
-            let mut remove = None;
-            for (i, a) in dim.anchors.iter().enumerate() {
+            if let Some(view) = self.selected_view {
                 ui.horizontal(|ui| {
-                    ui.label(format!("#{} {}", a.object.0, anchor_label(a.point)));
-                    if ui
-                        .small_button("✕")
-                        .on_hover_text("Удалить точку")
-                        .clicked()
-                    {
-                        remove = Some(i);
+                    let l = ui.label("Центр X");
+                    ui.add(egui::TextEdit::singleline(&mut self.fields.view[0]).desired_width(60.))
+                        .labelled_by(l.id)
+                        .on_hover_text("Центр вида X, мм");
+                    let l = ui.label("Y");
+                    ui.add(egui::TextEdit::singleline(&mut self.fields.view[1]).desired_width(60.))
+                        .labelled_by(l.id)
+                        .on_hover_text("Центр вида Y, мм");
+                    if ui.button("Переместить вид").clicked() {
+                        let r = number(&self.fields.view[0])
+                            .and_then(|x| Ok([x, number(&self.fields.view[1])?]))
+                            .and_then(|p| self.move_view(editor, view, p));
+                        report(self, r);
                     }
                 });
             }
-            if let Some(i) = remove {
-                let r = self.remove_anchor(editor, dim.id, i);
-                report(self, r);
+            ui.separator();
+            ui.strong("Размеры");
+            for dim in &drawing.dimensions {
+                let text = format!(
+                    "№{} · вид {} · точек {}",
+                    dim.id,
+                    dim.view,
+                    dim.anchors.len()
+                );
+                if ui
+                    .selectable_label(self.selected_dimension == Some(dim.id), text)
+                    .clicked()
+                {
+                    self.selected_dimension = Some(dim.id);
+                    self.fields.offset = format!("{}", dim.offset);
+                }
             }
-            ui.horizontal(|ui| {
-                let part = editor
-                    .selected
-                    .iter()
-                    .copied()
-                    .find(|id| editor.document.project().elements.contains_key(id));
-                for (label, point) in [
-                    ("+ начало", AnchorPoint::Start),
-                    ("+ конец", AnchorPoint::End),
-                ] {
-                    if ui
-                        .add_enabled(part.is_some(), egui::Button::new(label))
-                        .on_hover_text("Точка выбранной детали")
-                        .clicked()
-                        && let Some(object) = part
-                    {
-                        let r = self.add_anchor(editor, dim.id, Anchor { object, point });
+            ui.horizontal_wrapped(|ui| {
+                if ui
+                    .button("Новая цепь по выбранным")
+                    .on_hover_text("Начало/конец выбранных балок или вершины пластин")
+                    .clicked()
+                {
+                    let view = self.selected_view.unwrap_or(1);
+                    let r = self
+                        .add_dimension(editor, view, DimensionAxis::Horizontal)
+                        .map(|_| ());
+                    report(self, r);
+                }
+            });
+            if let Some(dim) = self
+                .selected_dimension
+                .and_then(|id| drawing.dimensions.iter().find(|d| d.id == id))
+                .cloned()
+            {
+                let mut remove = None;
+                for (i, a) in dim.anchors.iter().enumerate() {
+                    ui.horizontal(|ui| {
+                        ui.label(format!("#{} {}", a.object.0, anchor_label(a.point)));
+                        if ui
+                            .small_button("✕")
+                            .on_hover_text("Удалить точку")
+                            .clicked()
+                        {
+                            remove = Some(i);
+                        }
+                    });
+                }
+                if let Some(i) = remove {
+                    let r = self.remove_anchor(editor, dim.id, i);
+                    report(self, r);
+                }
+                ui.horizontal(|ui| {
+                    let part = editor
+                        .selected
+                        .iter()
+                        .copied()
+                        .find(|id| editor.document.project().elements.contains_key(id));
+                    for (label, point) in [
+                        ("+ начало", AnchorPoint::Start),
+                        ("+ конец", AnchorPoint::End),
+                    ] {
+                        if ui
+                            .add_enabled(part.is_some(), egui::Button::new(label))
+                            .on_hover_text("Точка выбранной детали")
+                            .clicked()
+                            && let Some(object) = part
+                        {
+                            let r = self.add_anchor(editor, dim.id, Anchor { object, point });
+                            report(self, r);
+                        }
+                    }
+                });
+                ui.horizontal(|ui| {
+                    let l = ui.label("Отступ, мм");
+                    ui.add(egui::TextEdit::singleline(&mut self.fields.offset).desired_width(60.))
+                        .labelled_by(l.id)
+                        .on_hover_text("Отступ размерной линии");
+                    if ui.button("Применить").clicked() {
+                        let r = number(&self.fields.offset)
+                            .and_then(|o| self.set_dimension_offset(editor, dim.id, o));
                         report(self, r);
                     }
-                }
-            });
-            ui.horizontal(|ui| {
-                let l = ui.label("Отступ, мм");
-                ui.add(egui::TextEdit::singleline(&mut self.fields.offset).desired_width(60.))
-                    .labelled_by(l.id)
-                    .on_hover_text("Отступ размерной линии");
-                if ui.button("Применить").clicked() {
-                    let r = number(&self.fields.offset)
-                        .and_then(|o| self.set_dimension_offset(editor, dim.id, o));
-                    report(self, r);
-                }
-                if ui.button("Удалить размер").clicked() {
-                    let r = self.delete_dimension(editor, dim.id);
-                    report(self, r);
-                }
-            });
+                    if ui.button("Удалить размер").clicked() {
+                        let r = self.delete_dimension(editor, dim.id);
+                        report(self, r);
+                    }
+                });
+            }
         }
         ui.separator();
         ui.strong("Тексты");

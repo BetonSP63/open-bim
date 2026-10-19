@@ -1,0 +1,47 @@
+LOAD_MS: 2.8
+GPU: Apple M5 · Metal; project=Контрольное здание objects=37
+SCRIPT: step 1 Wait(30)
+SCRIPT: step 2 Note("⌘P «Общий вид A1» — схема КМ со спецификацией металлопроката")
+SCRIPT: step 3 Key { name: "P", command: true, shift: false, alt: false, ctrl: false }
+SCRIPT: step 4 Wait(4)
+SCRIPT: step 5 Text("общий вид a1")
+SCRIPT: step 6 Wait(4)
+SCRIPT: step 7 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 8 Wait(40)
+SCRIPT: step 9 Key { name: "P", command: true, shift: true, alt: false, ctrl: false }
+SCRIPT: step 10 Wait(20)
+SCRIPT: step 11 Note("⌘P «Чертёж сборки» — колонна К1 со спецификацией формы 7")
+SCRIPT: step 12 Key { name: "P", command: true, shift: false, alt: false, ctrl: false }
+SCRIPT: step 13 Wait(4)
+SCRIPT: step 14 Text("чертёж сборки")
+SCRIPT: step 15 Wait(4)
+SCRIPT: step 16 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 17 Wait(40)
+SCRIPT: step 18 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/gost/specifications/native/02-assembly-spec.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/gost/specifications/native/02-assembly-spec.png 2940x1654
+SCRIPT: step 19 Key { name: "P", command: true, shift: true, alt: false, ctrl: false }
+SCRIPT: step 20 Wait(20)
+SCRIPT: step 21 Note("⌘P «Общие данные» — первый лист комплекта КМ")
+SCRIPT: step 22 Key { name: "P", command: true, shift: false, alt: false, ctrl: false }
+SCRIPT: step 23 Wait(4)
+SCRIPT: step 24 Text("общие данные")
+SCRIPT: step 25 Wait(4)
+SCRIPT: step 26 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 27 Wait(40)
+SCRIPT: step 28 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/gost/specifications/native/01-general-data-km.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/gost/specifications/native/01-general-data-km.png 2940x1654
+SCRIPT: step 29 Key { name: "P", command: true, shift: true, alt: false, ctrl: false }
+SCRIPT: step 30 Wait(20)
+SCRIPT: step 31 Note("⌘P «Общие данные» ещё раз — комплект КМД")
+SCRIPT: step 32 Key { name: "P", command: true, shift: false, alt: false, ctrl: false }
+SCRIPT: step 33 Wait(4)
+SCRIPT: step 34 Text("общие данные")
+SCRIPT: step 35 Wait(4)
+SCRIPT: step 36 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 37 Wait(40)
+SCRIPT: step 38 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/gost/specifications/native/03-general-data-kmd.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/gost/specifications/native/03-general-data-kmd.png 2940x1654
+SCRIPT: step 39 Key { name: "P", command: true, shift: true, alt: false, ctrl: false }
+SCRIPT: step 40 Wait(20)
+SCRIPT: step 41 Quit
+SCRIPT: finished

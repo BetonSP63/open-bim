@@ -99,6 +99,7 @@ pub enum Cmd {
     PartDrawing,
     AssemblyDrawing,
     GeneralDrawing,
+    GeneralData,
     UpdateDrawing,
     ExportPdf,
     ExportDxf,
@@ -630,6 +631,13 @@ pub const ALL: &[Spec] = &[
         category: "Чертежи",
         shortcut: None,
         keywords: "км общий вид",
+    },
+    Spec {
+        cmd: Cmd::GeneralData,
+        label: "Общие данные",
+        category: "Чертежи",
+        shortcut: None,
+        keywords: "ведомость рабочих чертежей общие указания первый лист",
     },
     Spec {
         cmd: Cmd::UpdateDrawing,

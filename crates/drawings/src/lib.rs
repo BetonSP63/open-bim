@@ -3,12 +3,16 @@
 //! dimension anchors and object fingerprints used for up-to-date checks.
 pub mod conventions;
 pub mod font;
+pub mod general_data;
 pub mod projection;
 pub mod qr;
 pub mod sample;
 pub mod sheet_objects;
 pub mod svg;
+pub mod tables;
 pub mod title_block;
+
+pub use general_data::general_data_drawing;
 
 use open_bim_model::{
     Anchor, AnchorPoint, DetailKind, DimensionAxis, DimensionDef, Drawing, DrawingKind,
@@ -163,7 +167,7 @@ pub fn drawing_basis(project: &Project, kind: &DrawingKind) -> Result<Basis, Err
         z: [0., -1., 0.],
     };
     let part = match kind {
-        DrawingKind::General { .. } => return Ok(world),
+        DrawingKind::General { .. } | DrawingKind::GeneralData { .. } => return Ok(world),
         DrawingKind::Part { part } => *part,
         DrawingKind::Assembly { assembly } => {
             project
@@ -202,6 +206,7 @@ pub fn drawing_parts(project: &Project, kind: &DrawingKind) -> Vec<ObjectId> {
             parts.extend(project.elements.keys())
         }
         DrawingKind::General { objects } => parts.extend(objects),
+        DrawingKind::GeneralData { .. } => {}
         DrawingKind::Part { part } => {
             parts.insert(*part);
         }
@@ -230,6 +235,8 @@ pub fn referenced_objects(project: &Project, drawing: &Drawing) -> BTreeSet<Obje
             project.elements.keys().copied().collect()
         }
         DrawingKind::General { objects } => objects.iter().copied().collect(),
+        // The general notes state the model mass.
+        DrawingKind::GeneralData { .. } => project.elements.keys().copied().collect(),
         DrawingKind::Part { part } => BTreeSet::from([*part]),
         DrawingKind::Assembly { assembly } => {
             let mut set: BTreeSet<_> = drawing_parts(project, &drawing.kind).into_iter().collect();
@@ -831,11 +838,14 @@ pub fn set_mark(kind: &DrawingKind) -> &'static str {
     match kind {
         DrawingKind::General { .. } => "КМ",
         DrawingKind::Part { .. } | DrawingKind::Assembly { .. } => "КМД",
+        DrawingKind::GeneralData { mark } if mark == "КМД" => "КМД",
+        DrawingKind::GeneralData { .. } => "КМ",
     }
 }
 
 /// Designation, sheet number and sheet count of a drawing within its set:
-/// sheets of one mark are numbered in drawing ID order.
+/// «Общие данные» first (4.3.1), then the sheets of one mark in drawing ID
+/// order.
 pub fn sheet_number(project: &Project, drawing: &Drawing) -> (String, usize, usize) {
     let mark = set_mark(&drawing.kind);
     let mut ids: Vec<ObjectId> = project
@@ -847,9 +857,43 @@ pub fn sheet_number(project: &Project, drawing: &Drawing) -> (String, usize, usi
     if !ids.contains(&drawing.id) {
         ids.push(drawing.id);
     }
-    ids.sort();
+    let first = |id: &ObjectId| {
+        let kind = if *id == drawing.id {
+            Some(&drawing.kind)
+        } else {
+            project.drawings.get(id).map(|d| &d.kind)
+        };
+        !matches!(kind, Some(DrawingKind::GeneralData { .. }))
+    };
+    ids.sort_by_key(|id| (first(id), *id));
     let no = ids.iter().position(|id| *id == drawing.id).unwrap_or(0) + 1;
     (project.document.designation(mark), no, ids.len())
+}
+
+/// Area of the main inscription with graph 27 and the QR code, kept free
+/// of other content.
+pub fn title_block_area(project: &Project, drawing: &Drawing) -> Result<[f64; 4], Error> {
+    Ok(title_block(project, drawing, &Status::UpToDate)?.reserved)
+}
+
+/// Specification placed on the sheet above the main inscription (6.1,
+/// 6.2): ГОСТ 21.502 rolled steel on КМ schemes, form 7 on assembly drawings.
+pub fn specification(project: &Project, kind: &DrawingKind) -> Option<tables::Table> {
+    match kind {
+        DrawingKind::General { .. } => {
+            let parts = drawing_parts(project, kind);
+            if parts.is_empty() {
+                return None;
+            }
+            tables::rolled_steel(project, &parts)
+                .ok()
+                .map(|rs| tables::rolled_steel_table(&rs))
+        }
+        DrawingKind::Assembly { assembly } => tables::assembly_specification(project, *assembly)
+            .ok()
+            .map(|rows| tables::form7(Some("Спецификация"), rows)),
+        _ => None,
+    }
 }
 
 fn title_block(
@@ -1089,13 +1133,18 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
                     [x0 + width + 0.5, shelf[1] + TEXT_HEIGHT + 1.],
                 ]
             };
+            let paper = drawing.sheet_mm();
             let clear = |r: [[f64; 2]; 2]| {
-                boxes.iter().all(|q| {
-                    r[1][0] <= q[0][0]
-                        || q[1][0] <= r[0][0]
-                        || r[1][1] <= q[0][1]
-                        || q[1][1] <= r[0][1]
-                })
+                r[0][0] >= MARGIN_LEFT + 1.
+                    && r[1][0] <= paper[0] - MARGIN - 1.
+                    && r[0][1] >= MARGIN + 1.
+                    && r[1][1] <= paper[1] - MARGIN - 1.
+                    && boxes.iter().all(|q| {
+                        r[1][0] <= q[0][0]
+                            || q[1][0] <= r[0][0]
+                            || r[1][1] <= q[0][1]
+                            || q[1][1] <= r[0][1]
+                    })
             };
             let first = 10. + 6. * (k % 3) as f64;
             let (shelf, left) = [0., 6., 12., 18., 24., 30.]
@@ -1165,7 +1214,22 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
     }
     let block = title_block(project, drawing, &status)?;
     let title_area = block.reserved;
-    let (frame, mut labels, fills) = (block.lines, block.labels, block.fills);
+    let (mut frame, mut labels, fills) = (block.lines, block.labels, block.fills);
+    let size = drawing.sheet_mm();
+    if let Some(table) = specification(project, &drawing.kind) {
+        let at = [
+            size[0] - MARGIN - table.width(),
+            title_area[3] + 3. + table.height(),
+        ];
+        let drawn = table.draw(at);
+        frame.extend(drawn.lines);
+        labels.extend(drawn.labels);
+    }
+    if matches!(drawing.kind, DrawingKind::GeneralData { .. }) {
+        let (lines, texts) = general_data::content(project, drawing, size, title_area)?;
+        frame.extend(lines);
+        labels.extend(texts);
+    }
     for note in &drawing.texts {
         labels.push(Label {
             position: note.position,
@@ -1244,10 +1308,19 @@ pub fn layout(
     let side = directions
         .iter()
         .position(|d| matches!(d, ViewDirection::Left | ViewDirection::Right));
+    // The specification above the inscription takes either the strip above
+    // it or the column at the right, whichever leaves the larger scale.
+    let spec = specification(project, kind).map(|t| [t.width() + 10., t.height() + 30.]);
+    let fields = match spec {
+        Some([sw, sh]) => vec![[field[0], field[1] - sh], [field[0] - sw, field[1]]],
+        None => vec![field],
+    };
     let fits = |s: f64| {
         let width = main[0] / s + side.map_or(0., |i| gap + column(i)[0] / s);
         let height = main[1] / s + below.map_or(0., |i| gap + column(i)[1] / s);
-        width + gap <= field[0] && height + gap <= field[1]
+        fields
+            .iter()
+            .any(|f| width + gap <= f[0] && height + gap <= f[1])
     };
     let scale = SCALES
         .iter()

@@ -69,6 +69,12 @@ check(ticks, "КМ-1: нет засечек под 45°")
 # Digits in the drawing field (the main inscription, 185×55 at the lower
 # right of the A1 inner frame, and the binding strip are left out).
 field = [t for t in texts if t[1] > 20 and not (t[1] > 841 - 5 - 185 and t[2] < 5 + 55)]
+# The rolled-steel specification above the inscription (phase 12) is a
+# table, not dimensions: its row numbers are left out too.
+spec = [t for t in texts if t[0] == "Спецификация металлопроката"]
+if spec:
+    _, sx, sy, _ = spec[0]
+    field = [t for t in field if not (abs(t[1] - sx) < 100 and t[2] < sy)]
 dim_texts = [t for t in field if re.fullmatch(r"\d+", t[0]) and t[3] < 3.0]
 check(len(dim_texts) >= 4, f"КМ-1: размерных чисел {len(dim_texts)} < 4")
 dim_height = dim_texts[0][3] if dim_texts else 0

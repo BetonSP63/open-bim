@@ -117,7 +117,8 @@ pub fn control_project() -> Fixture {
 }
 
 /// Control building for КМ schemes: grid 1–5 × А–Г (6000 mm), levels 0,000
-/// and +3,600, columns at every grid node, beams along rows А–Г at +3,600.
+/// and +3,600, I-section columns of a second test grade at every grid
+/// node, channel beams along rows А–Г at +3,600.
 pub fn control_building() -> Project {
     use open_bim_model::numbering_rules::{axis_letter, level_mark};
     use open_bim_model::{GridAxis, Level};
@@ -161,7 +162,20 @@ pub fn control_building() -> Project {
             },
         );
     }
+    let s355 = p.allocate_id().expect("ids");
+    p.materials.insert(
+        s355,
+        open_bim_model::Material {
+            id: s355,
+            name: "S355 · тестовый материал".into(),
+            density_kg_m3: 7850.,
+        },
+    );
     let member = |p: &mut Project, kind: MemberKind, name: &str, a: [f64; 3], b: [f64; 3]| {
+        let (material, profile) = match kind {
+            MemberKind::Column => (s355, ObjectId(2)),
+            MemberKind::Beam => (ObjectId(1), ObjectId(4)),
+        };
         let (frame, length) = Frame::along(Point3(a), Point3(b)).expect("member");
         let id = p.allocate_id().expect("ids");
         p.elements.insert(
@@ -169,10 +183,10 @@ pub fn control_building() -> Project {
             Element {
                 id,
                 name: name.into(),
-                material: ObjectId(1),
+                material,
                 shape: ElementShape::Member {
                     member_kind: kind,
-                    profile: ObjectId(2),
+                    profile,
                     length,
                     frame,
                 },
@@ -204,4 +218,100 @@ pub fn control_building() -> Project {
         }
     }
     p
+}
+
+/// Control documentation set: the control building with a base plate
+/// welded to column 1/А (assembly «Колонна К1»); drawings КМ — «Общие
+/// данные» and the arrangement scheme; КМД — «Общие данные», the column
+/// assembly drawing and a beam part drawing.
+pub fn control_set() -> Result<Project, crate::Error> {
+    let mut p = control_building();
+    let column = p
+        .elements
+        .values()
+        .find(|e| {
+            matches!(
+                e.shape,
+                ElementShape::Member {
+                    member_kind: MemberKind::Column,
+                    ..
+                }
+            ) && e.shape.frame().origin.0 == [0., 0., 0.]
+        })
+        .map(|e| e.id)
+        .ok_or("нет колонны 1/А")?;
+    let beam = p
+        .elements
+        .values()
+        .find(|e| e.name == "Балка")
+        .map(|e| e.id)
+        .ok_or("нет балки")?;
+    let next = |p: &mut Project| p.allocate_id().map_err(|e| e.to_string());
+    let plate = next(&mut p)?;
+    p.elements.insert(
+        plate,
+        Element {
+            id: plate,
+            name: "Плита базы".into(),
+            material: ObjectId(1),
+            shape: ElementShape::Plate {
+                contour: vec![[0., 0.], [400., 0.], [400., 400.], [0., 400.]],
+                thickness: LengthMm::new(20.).map_err(|e| e.to_string())?,
+                frame: Frame {
+                    origin: Point3([-200., -200., -20.]),
+                    ..Frame::default()
+                },
+            },
+            properties: BTreeMap::new(),
+        },
+    );
+    let weld = next(&mut p)?;
+    p.details.insert(
+        weld,
+        Detail {
+            id: weld,
+            kind: DetailKind::Weld {
+                parts: BTreeSet::from([column, plate]),
+                weld_type: open_bim_model::WeldType::Fillet,
+                size: 6.,
+                path: vec![Point3([-75., -150., 0.]), Point3([75., -150., 0.])],
+                shop: true,
+                sides: Default::default(),
+                around: true,
+            },
+        },
+    );
+    let assembly = next(&mut p)?;
+    p.assemblies.insert(
+        assembly,
+        Assembly {
+            id: assembly,
+            name: "Колонна К1".into(),
+            main_part: column,
+            members: BTreeSet::from([column, plate]),
+            children: BTreeSet::new(),
+            properties: BTreeMap::new(),
+        },
+    );
+    let ga = next(&mut p)?;
+    let d = crate::general_drawing(&p, ga, Vec::new(), "КМ-1", open_bim_model::SheetSize::A1)?;
+    p.drawings.insert(ga, d);
+    let ad = next(&mut p)?;
+    let d = crate::assembly_drawing(&p, ad, assembly, "КМД-1")?;
+    p.drawings.insert(ad, d);
+    let pd = next(&mut p)?;
+    let d = crate::part_drawing(&p, pd, beam, "КМД-2")?;
+    p.drawings.insert(pd, d);
+    for mark in ["КМ", "КМД"] {
+        let od = next(&mut p)?;
+        let d = crate::general_data_drawing(&p, od, mark)?;
+        p.drawings.insert(od, d);
+    }
+    // Fingerprints taken after every object exists.
+    let drawings: Vec<_> = p.drawings.values().cloned().collect();
+    for d in drawings {
+        p.drawings.insert(d.id, crate::updated(&p, &d));
+    }
+    p.validate().map_err(|e| e.to_string())?;
+    Ok(p)
 }

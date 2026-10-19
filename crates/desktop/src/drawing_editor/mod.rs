@@ -143,6 +143,31 @@ impl DrawingEditor {
         self.create(editor, drawing)
     }
 
+    /// «Общие данные» of a set: КМ when the model has general drawings or
+    /// no part and assembly drawings, otherwise КМД. One per set.
+    pub fn create_general_data(&mut self, editor: &mut Editor) -> Result<(), String> {
+        let project = editor.document.project();
+        let has = |mark: &str| {
+            project
+                .drawings
+                .values()
+                .any(|d| open_bim_drawings::set_mark(&d.kind) == mark)
+        };
+        let exists = |mark: &str| {
+            project
+                .drawings
+                .values()
+                .any(|d| matches!(&d.kind, DrawingKind::GeneralData { mark: m } if m == mark))
+        };
+        let mark = ["КМ", "КМД"]
+            .into_iter()
+            .find(|m| has(m) && !exists(m))
+            .ok_or("Общие данные уже есть у каждого комплекта с чертежами")?;
+        let id = ObjectId(project.next_id);
+        let drawing = open_bim_drawings::general_data_drawing(project, id, mark)?;
+        self.create(editor, drawing)
+    }
+
     pub fn create_general(&mut self, editor: &mut Editor, sheet: SheetSize) -> Result<(), String> {
         let project = editor.document.project();
         let id = ObjectId(project.next_id);
@@ -443,6 +468,7 @@ impl DrawingEditor {
             DrawingKind::General { .. } => "Общий вид",
             DrawingKind::Part { .. } => "Деталь",
             DrawingKind::Assembly { .. } => "Сборка",
+            DrawingKind::GeneralData { .. } => "Общие данные",
         }
     }
 }

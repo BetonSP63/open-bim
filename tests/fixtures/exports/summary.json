@@ -1,13 +1,13 @@
 {
   "assembly-a3": {
     "entities": {
-      "OB_FRAME": 24,
+      "OB_FRAME": 31,
       "OB_HATCH": 0,
       "OB_HIDDEN": 7,
       "OB_LOST": 0,
       "OB_SECTION": 0,
-      "OB_TEXT": 25,
-      "OB_THIN": 20,
+      "OB_TEXT": 45,
+      "OB_THIN": 23,
       "OB_VISIBLE": 10
     },
     "size_mm": [
@@ -33,13 +33,13 @@
   },
   "general-a1": {
     "entities": {
-      "OB_FRAME": 24,
+      "OB_FRAME": 34,
       "OB_HATCH": 0,
       "OB_HIDDEN": 76,
       "OB_LOST": 0,
       "OB_SECTION": 0,
-      "OB_TEXT": 48,
-      "OB_THIN": 62,
+      "OB_TEXT": 124,
+      "OB_THIN": 72,
       "OB_VISIBLE": 76
     },
     "size_mm": [

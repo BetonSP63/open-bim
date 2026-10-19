@@ -11,7 +11,7 @@ pub fn field(value: &str) -> String {
     }
 }
 
-fn table(header: &[&str], rows: impl Iterator<Item = Vec<String>>) -> String {
+pub(crate) fn table(header: &[&str], rows: impl Iterator<Item = Vec<String>>) -> String {
     let mut out = String::from("\u{feff}");
     let line =
         |cells: Vec<String>| cells.iter().map(|c| field(c)).collect::<Vec<_>>().join(",") + "\r\n";

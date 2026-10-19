@@ -35,6 +35,16 @@
 <polyline class="Frame" points="13,267 20,267 20,232 13,232 13,267" fill="none" stroke="#000" stroke-width="0.7"/>
 <polyline class="Frame" points="8,232 13,232 13,207 8,207 8,232" fill="none" stroke="#000" stroke-width="0.7"/>
 <polyline class="Frame" points="13,232 20,232 20,207 13,207 13,232" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="230,178.5 415,178.5 415,217.5 230,217.5 230,178.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="230,193.5 415,193.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="245,178.5 245,217.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="305,178.5 305,217.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="370,178.5 370,217.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="380,178.5 380,217.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="395,178.5 395,217.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Thin" points="331.536,199.55 343.464,199.55" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="230,201.5 415,201.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="230,209.5 415,209.5" fill="none" stroke="#000" stroke-width="0.25"/>
 <rect x="400.5" y="222.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="401" y="222.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="401.5" y="222.5" width="0.5" height="0.5" fill="#000"/>
@@ -402,4 +412,24 @@
 <text x="11.375" y="279.5" font-size="2.5" text-anchor="middle" fill="#000" transform="rotate(-90 11.375 279.5)">Инв. № подл.</text>
 <text x="11.375" y="249.5" font-size="2.5" text-anchor="middle" fill="#000" transform="rotate(-90 11.375 249.5)">Подп. и дата</text>
 <text x="11.375" y="219.5" font-size="2.5" text-anchor="middle" fill="#000" transform="rotate(-90 11.375 219.5)">Взам. инв. №</text>
+<text x="322.5" y="174.5" font-size="5" text-anchor="middle" fill="#000">Спецификация</text>
+<text x="237.5" y="187.25" font-size="3.571" text-anchor="middle" fill="#000">Поз.</text>
+<text x="275" y="187.25" font-size="3.571" text-anchor="middle" fill="#000">Обозначение</text>
+<text x="337.5" y="187.25" font-size="3.571" text-anchor="middle" fill="#000">Наименование</text>
+<text x="375" y="187.25" font-size="3.571" text-anchor="middle" fill="#000">Кол.</text>
+<text x="387.5" y="185.25" font-size="3.571" text-anchor="middle" fill="#000">Масса</text>
+<text x="387.5" y="189.25" font-size="3.571" text-anchor="middle" fill="#000">ед., кг</text>
+<text x="405" y="185.25" font-size="3.571" text-anchor="middle" fill="#000">Приме-</text>
+<text x="405" y="189.25" font-size="3.571" text-anchor="middle" fill="#000">чание</text>
+<text x="337.5" y="198.75" font-size="3.571" text-anchor="middle" fill="#000">Детали</text>
+<text x="237.5" y="206.75" font-size="3.571" text-anchor="middle" fill="#000">P0001</text>
+<text x="306" y="206.75" font-size="3.571" text-anchor="start" fill="#000">—20×300, L=400</text>
+<text x="375" y="206.75" font-size="3.571" text-anchor="middle" fill="#000">1</text>
+<text x="387.5" y="206.75" font-size="3.571" text-anchor="middle" fill="#000">18,721</text>
+<text x="396" y="206.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
+<text x="237.5" y="214.75" font-size="3.571" text-anchor="middle" fill="#000">P0002</text>
+<text x="306" y="214.75" font-size="3.571" text-anchor="start" fill="#000">I 300×150×8×12, L=3000</text>
+<text x="375" y="214.75" font-size="3.571" text-anchor="middle" fill="#000">1</text>
+<text x="387.5" y="214.75" font-size="3.571" text-anchor="middle" fill="#000">136,731</text>
+<text x="396" y="214.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
 </svg>

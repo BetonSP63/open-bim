@@ -213,6 +213,14 @@ fn write_set(
         crate::csv::assemblies(&reports).as_bytes(),
         &mut summary.files,
     )?;
+    if !project.elements.is_empty() {
+        let steel = crate::gost_tables::rolled_steel(project)?;
+        write(
+            "спецификация-металлопроката.csv".into(),
+            crate::gost_tables::rolled_steel_csv(&steel).as_bytes(),
+            &mut summary.files,
+        )?;
+    }
     write(
         "крепёж-и-сварка.csv".into(),
         crate::csv::fasteners(&reports).as_bytes(),

@@ -143,6 +143,8 @@ pub struct Workbench {
     pub display: open_bim_renderer::Display,
     /// «Сведения о документе» being edited (main inscription attributes).
     pub document_info: Option<open_bim_model::DocumentInfo>,
+    /// General notes being edited, one item per line.
+    pub document_notes: String,
     /// The dialog edits the existing grid (otherwise it creates a new one).
     pub grid_editing: bool,
     /// Keyboard cursor (Alt+arrows): a snap point while picking, or the
@@ -230,6 +232,7 @@ impl Workbench {
             trim: Default::default(),
             display: Default::default(),
             document_info: None,
+            document_notes: String::new(),
             grid_editing: false,
             axis_buffer: None,
             level_buffer: None,
@@ -485,6 +488,13 @@ impl Workbench {
             }
             Cmd::DocumentInfo => {
                 self.document_info = Some(self.editor.document.project().document.clone());
+                self.document_notes = self
+                    .editor
+                    .document
+                    .project()
+                    .document
+                    .general_notes
+                    .join("\n");
                 self.message(
                     "Сведения о документе: графы основной надписи (ГОСТ Р 21.101, прил. Е)",
                 );
@@ -933,6 +943,11 @@ impl Workbench {
                 let r = self.drawings.create_assembly(&mut self.editor);
                 report(r, self);
             }
+            Cmd::GeneralData => {
+                self.mode = Mode::Drawings;
+                let r = self.drawings.create_general_data(&mut self.editor);
+                report(r, self);
+            }
             Cmd::GeneralDrawing => {
                 self.mode = Mode::Drawings;
                 let r = self
@@ -1360,11 +1375,26 @@ impl Workbench {
                     }
                 });
                 ui.small("Подписи ставятся вручную или электронной подписью; программа выводит фамилии и даты.");
+                ui.separator();
+                let label = ui.label("Общие указания (лист «Общие данные»), по пункту в строке");
+                ui.add(
+                    egui::TextEdit::multiline(&mut self.document_notes)
+                        .desired_rows(4)
+                        .desired_width(440.),
+                )
+                .labelled_by(label.id);
                 apply = ui.button("Применить").clicked();
             });
         if apply {
             let mut info = info.clone();
             info.others.retain(|p| !p.is_empty());
+            info.general_notes = self
+                .document_notes
+                .lines()
+                .map(str::trim)
+                .filter(|l| !l.is_empty())
+                .map(String::from)
+                .collect();
             match info.validate() {
                 Ok(()) => {
                     requests.push(Request::Action(Action::Commit(

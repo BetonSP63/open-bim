@@ -57,7 +57,14 @@ pub enum DrawingKind {
     Part { part: ObjectId },
     /// Assembly drawing in the main part frame.
     Assembly { assembly: ObjectId },
+    /// «Общие данные» — the first sheet of a set (ГОСТ Р 21.101-2026, 4.3):
+    /// sheet lists, referenced documents and general notes. `mark` is the
+    /// set mark, «КМ» or «КМД».
+    GeneralData { mark: String },
 }
+
+/// Set marks Open BIM issues (appendix В).
+pub const SET_MARKS: [&str; 2] = ["КМ", "КМД"];
 
 /// Viewing direction in the drawing frame (first-angle projection, ГОСТ 2.305).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -229,7 +236,13 @@ impl Drawing {
         if !standard_scale(self.scale) {
             return invalid("масштаб не из ряда ГОСТ 2.302");
         }
-        if self.views.is_empty()
+        let sheet_list = matches!(self.kind, DrawingKind::GeneralData { .. });
+        if let DrawingKind::GeneralData { mark } = &self.kind
+            && !SET_MARKS.contains(&mark.as_str())
+        {
+            return invalid("марка комплекта общих данных — КМ или КМД");
+        }
+        if (self.views.is_empty() && !sheet_list)
             || self.views.len() > 64
             || self.dimensions.len() > MAX_DRAWING_ITEMS
             || self.texts.len() > MAX_DRAWING_ITEMS
