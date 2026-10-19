@@ -488,6 +488,71 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
             13.,
         ));
     }
+    // Welds: a thick red line along the path with the ГОСТ 2.312-style mark;
+    // bolts: a circle at each bolt of the group.
+    for detail in input.project.details.values() {
+        let selected = input.selected.contains(&detail.id);
+        match &detail.kind {
+            open_bim_model::DetailKind::Weld {
+                path,
+                weld_type,
+                size,
+                shop,
+                sides,
+                around,
+                ..
+            } => {
+                let points: Vec<[f64; 2]> = path.iter().filter_map(|q| p.screen(v(*q))).collect();
+                let colour = if selected {
+                    SELECTED_AXIS
+                } else {
+                    [210, 40, 40, 255]
+                };
+                for w in points.windows(2) {
+                    marks.push(line(w[0], w[1], colour, 4., None));
+                }
+                if let (Some(a), Some(b)) = (points.first(), points.last()) {
+                    let mid = [(a[0] + b[0]) / 2., (a[1] + b[1]) / 2. - 12.];
+                    let mark = open_bim_model::weld_mark(*weld_type, *sides, *size, *around, *shop);
+                    // The joint and leg only: «Т3-Δ6».
+                    let short = mark.trim_start_matches("ГОСТ 5264-80-").to_string();
+                    marks.push(text(mid, short, colour, [0, 1], 12.));
+                }
+            }
+            open_bim_model::DetailKind::BoltGroup {
+                frame,
+                steps_x,
+                steps_y,
+                ..
+            } => {
+                let prefix = |s: &[f64]| {
+                    let mut out = vec![0.];
+                    for x in s {
+                        out.push(out.last().copied().unwrap_or(0.) + x);
+                    }
+                    out
+                };
+                let colour = if selected {
+                    SELECTED_AXIS
+                } else {
+                    [20, 90, 30, 255]
+                };
+                for x in prefix(steps_x) {
+                    for y in prefix(steps_y) {
+                        if let Some(c) = p.screen(v(frame.world(Point3([x, y, 0.])))) {
+                            marks.push(Mark::Circle {
+                                center: c,
+                                radius: 4.,
+                                color: colour,
+                                fill: None,
+                            });
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
     // Level lines along the first grid axis, labelled at its start.
     if first_axis.is_some() {
         for level in input.project.levels.values() {

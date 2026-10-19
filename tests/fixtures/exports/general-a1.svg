@@ -332,6 +332,14 @@
 <polyline class="Thin" data-object="69" points="487.25,115 491.25,119" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline class="Thin" data-object="81" points="335.175,115 339.175,119" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline class="Thin" data-object="94" points="635.175,115 639.175,119" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" data-object="47" points="38.5,190 39.914,187.172" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" data-object="47" points="38.5,190 60.5,168 99.56,168" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" data-object="55" points="108.5,190 109.914,187.172" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" data-object="55" points="108.5,190 130.5,168 169.56,168" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" data-object="67" points="191,122.5 192.414,119.672" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" data-object="67" points="191,122.5 201,112.5 240.06,112.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" data-object="79" points="491,122.5 492.414,119.672" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" data-object="79" points="491,122.5 507,106.5 546.06,106.5" fill="none" stroke="#000" stroke-width="0.25"/>
 <text x="340.125" y="201.25" font-size="5" text-anchor="middle" fill="#000">Фасад по оси А 1:20</text>
 <text x="46.25" y="111" font-size="3.5" text-anchor="start" fill="#000" data-object="8">P0003</text>
 <text x="116.25" y="111" font-size="3.5" text-anchor="start" fill="#000" data-object="9">P0003</text>
@@ -349,6 +357,10 @@
 <text x="491.25" y="119" font-size="3.5" text-anchor="start" fill="#000" data-object="69">P0006</text>
 <text x="339.175" y="119" font-size="3.5" text-anchor="start" fill="#000" data-object="81">P0002</text>
 <text x="639.175" y="119" font-size="3.5" text-anchor="start" fill="#000" data-object="94">P0002</text>
+<text x="61" y="167" font-size="3.5" text-anchor="start" fill="#000" data-object="47">ГОСТ 5264-80-Т1-Δ6</text>
+<text x="131" y="167" font-size="3.5" text-anchor="start" fill="#000" data-object="55">ГОСТ 5264-80-Т1-Δ6</text>
+<text x="201.5" y="111.5" font-size="3.5" text-anchor="start" fill="#000" data-object="67">ГОСТ 5264-80-Т1-Δ6</text>
+<text x="507.5" y="105.5" font-size="3.5" text-anchor="start" fill="#000" data-object="79">ГОСТ 5264-80-Т1-Δ6</text>
 </g>
 <g class="view" data-view="2">
 <polyline class="Hidden" data-object="10" points="183.5,252.251 191,252.251" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>

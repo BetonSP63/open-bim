@@ -820,6 +820,9 @@ impl Workbench {
                             }
                         }
                         Mode::Model => match self.side_panel {
+                            Some(SidePanel::Properties) if self.tool_pane_active() => {
+                                self.tool_pane(ui)
+                            }
                             Some(SidePanel::Tree) => self.tree_panel(ui),
                             Some(SidePanel::Views) => self.views_panel(ui, requests),
                             Some(SidePanel::Properties) if has_selection => {
@@ -937,6 +940,97 @@ impl Workbench {
             }
         });
         if let Some(m) = &self.tools.message {
+            ui.label(m.clone());
+        }
+    }
+
+    fn tool_pane_active(&self) -> bool {
+        use crate::interaction::trim::TrimTool;
+        self.detail.tool.is_some()
+            || matches!(self.trim.tool, Some(TrimTool::Gusset | TrimTool::Stiffener))
+    }
+
+    /// Properties of the running bolt, weld, gusset or stiffener command
+    /// (Tekla opens the command's dialog the same way) with its steps.
+    fn tool_pane(&mut self, ui: &mut egui::Ui) {
+        use crate::interaction::tools::DetailTool;
+        use crate::interaction::trim::TrimTool;
+        let (title, steps): (&str, &[&str]) = match (self.detail.tool, self.trim.tool) {
+            (Some(DetailTool::Bolt), _) => (
+                "Свойства болтов",
+                &[
+                    "1. Щёлкните основную деталь, затем присоединяемые",
+                    "2. Enter или средняя кнопка — детали выбраны",
+                    "3. Укажите начало группы (первый болт)",
+                    "4. Укажите направление ряда X — болты видны заранее",
+                ],
+            ),
+            (Some(DetailTool::Weld), _) => (
+                "Свойства шва",
+                &[
+                    "1. Щёлкните деталь, к которой приваривают",
+                    "2. Щёлкните привариваемую деталь — шов создан",
+                    "Заводской шов объединяет детали в сборку",
+                ],
+            ),
+            (_, Some(TrimTool::Gusset)) => (
+                "Косынка",
+                &[
+                    "Пластина в углу между двумя деталями: края на их гранях,",
+                    "катеты вдоль деталей, угол срезан фаской.",
+                    "1. Щёлкните первую деталь угла, 2. вторую",
+                ],
+            ),
+            _ => (
+                "Ребро жёсткости",
+                &[
+                    "Пластина поперёк двутавра между полками,",
+                    "со срезами углов у стенки.",
+                    "1. Щёлкните балку, 2. укажите место со стороны стенки",
+                ],
+            ),
+        };
+        ui.heading(title);
+        for s in steps {
+            ui.label(*s);
+        }
+        ui.separator();
+        let d = &mut self.tools.detailing;
+        match (self.detail.tool, self.trim.tool) {
+            (Some(DetailTool::Bolt), _) => d.bolt_fields(ui),
+            (Some(DetailTool::Weld), _) => d.weld_fields(ui),
+            (_, Some(TrimTool::Gusset)) => {
+                egui::Grid::new("gusset fields")
+                    .num_columns(2)
+                    .show(ui, |ui| {
+                        for (caption, value) in [
+                            ("Толщина, мм", &mut self.editor.draft.thickness),
+                            ("Катет, мм", &mut d.gusset_leg),
+                            ("Фаска угла, мм", &mut d.gusset_chamfer),
+                        ] {
+                            let l = ui.label(caption);
+                            ui.text_edit_singleline(value).labelled_by(l.id);
+                            ui.end_row();
+                        }
+                    });
+            }
+            _ => {
+                egui::Grid::new("stiffener fields")
+                    .num_columns(2)
+                    .show(ui, |ui| {
+                        for (caption, value) in [
+                            ("Толщина, мм", &mut self.editor.draft.thickness),
+                            ("Срез угла у стенки, мм", &mut d.stiffener_snip),
+                        ] {
+                            let l = ui.label(caption);
+                            ui.text_edit_singleline(value).labelled_by(l.id);
+                            ui.end_row();
+                        }
+                    });
+            }
+        }
+        if let Some(m) = &self.tools.message {
+            ui.separator();
             ui.label(m.clone());
         }
     }

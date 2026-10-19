@@ -245,12 +245,20 @@ fn assembly_key(
                 size,
                 path,
                 shop,
+                sides,
+                around,
             } if joined.is_subset(&assembly.members) => {
                 let mut keys: Vec<_> = joined.iter().map(|p| &parts[p]).collect();
                 keys.sort();
-                Some(
-                    json!({"kind":"weld","parts":keys,"type":weld_type,"size":dimensions(size),"path":dimensions(path.iter().map(|p|local_point(main.shape.frame(),*p)).collect::<Vec<_>>()),"shop":shop}),
-                )
+                let mut weld = json!({"kind":"weld","parts":keys,"type":weld_type,"size":dimensions(size),"path":dimensions(path.iter().map(|p|local_point(main.shape.frame(),*p)).collect::<Vec<_>>()),"shop":shop});
+                // Only non-default extras, so existing assembly keys stay the same.
+                if *sides != open_bim_model::WeldSides::One {
+                    weld["sides"] = json!(sides);
+                }
+                if *around {
+                    weld["around"] = json!(true);
+                }
+                Some(weld)
             }
             _ => None,
         };

@@ -6,9 +6,7 @@ use crate::tools::detailing_ui::DetailingUi;
 use crate::tools::number;
 use open_bim_commands::Command;
 use open_bim_model::numbering_rules::{digits_along_x, level_mark, next_axis_label};
-use open_bim_model::{
-    Detail, DetailKind, Frame, GridAxis, Level, ObjectId, Point3, Project, WeldType,
-};
+use open_bim_model::{Detail, DetailKind, Frame, GridAxis, Level, ObjectId, Point3, Project};
 use open_bim_renderer::DVec3;
 use std::collections::BTreeSet;
 
@@ -236,17 +234,18 @@ pub fn default_project() -> Result<Project, String> {
     Ok(project)
 }
 
-/// Bolt group through `parts`: rows start at `a` and run towards `b`; the bolt
-/// axis is `axis` (work plane normal) and spans all parts, so every part gets
-/// a through hole. Spacing, diameter and standard come from the bolt properties.
-pub fn bolt_by_picks(
+/// Bolt group through `parts` (Tekla «by parts and points»): the first
+/// point is the group origin, the second sets its X direction; the bolt axis
+/// is `axis` (work plane normal) and spans all parts, so every part gets a
+/// through hole. Spacings, shift and rotation come from the bolt properties.
+pub fn bolt_pattern(
     project: &Project,
     parts: &BTreeSet<ObjectId>,
     a: DVec3,
     b: DVec3,
     axis: DVec3,
     props: &DetailingUi,
-) -> Result<Vec<Command>, String> {
+) -> Result<open_bim_steel::BoltPattern, String> {
     if parts.is_empty() {
         return Err("Сначала выберите соединяемые детали".into());
     }
@@ -263,31 +262,61 @@ pub fn bolt_by_picks(
             high = high.max(t);
         }
     }
-    let steps = |s: &str| -> Result<Vec<f64>, String> {
-        s.split([';', ' '])
-            .filter(|t| !t.trim().is_empty())
-            .map(number)
-            .collect()
-    };
-    let origin = a + z * low;
-    open_bim_steel::bolt_commands(
-        project,
-        &open_bim_steel::BoltPattern {
-            parts: parts.clone(),
-            frame: Frame {
-                origin: Point3(origin.to_array()),
-                axes: [x.to_array(), y.to_array(), z.to_array()],
-            },
-            diameter: number(&props.diameter)?,
-            clearance: number(&props.clearance)?,
-            hole_depth: high - low,
-            steps_x: steps(&props.steps_x)?,
-            steps_y: steps(&props.steps_y)?,
-            standard: props.standard.clone(),
-            grade: props.grade.clone(),
+    let (mut steps_x, mut steps_y) = (
+        crate::tools::detailing_ui::spacings(&props.steps_x)?,
+        crate::tools::detailing_ui::spacings(&props.steps_y)?,
+    );
+    if props.rotate {
+        std::mem::swap(&mut steps_x, &mut steps_y);
+    }
+    let origin = a + z * low + x * number(&props.shift_x)? + y * number(&props.shift_y)?;
+    Ok(open_bim_steel::BoltPattern {
+        parts: parts.clone(),
+        frame: Frame {
+            origin: Point3(origin.to_array()),
+            axes: [x.to_array(), y.to_array(), z.to_array()],
         },
-    )
-    .map_err(|e| e.to_string())
+        diameter: number(&props.diameter)?,
+        clearance: number(&props.clearance)?,
+        hole_depth: high - low,
+        steps_x,
+        steps_y,
+        standard: props.standard.clone(),
+        grade: props.grade.clone(),
+    })
+}
+
+/// Bolt axes of a pattern (start and end of each bolt), for the preview.
+pub fn bolt_axes(pattern: &open_bim_steel::BoltPattern) -> Vec<(DVec3, DVec3)> {
+    let f = &pattern.frame;
+    let prefix = |s: &[f64]| {
+        let mut out = vec![0.];
+        for v in s {
+            out.push(out.last().copied().unwrap_or(0.) + v);
+        }
+        out
+    };
+    let mut out = Vec::new();
+    for x in prefix(&pattern.steps_x) {
+        for y in prefix(&pattern.steps_y) {
+            let a = DVec3::from_array(f.world(Point3([x, y, 0.])).0);
+            let b = DVec3::from_array(f.world(Point3([x, y, pattern.hole_depth])).0);
+            out.push((a, b));
+        }
+    }
+    out
+}
+
+pub fn bolt_by_picks(
+    project: &Project,
+    parts: &BTreeSet<ObjectId>,
+    a: DVec3,
+    b: DVec3,
+    axis: DVec3,
+    props: &DetailingUi,
+) -> Result<Vec<Command>, String> {
+    let pattern = bolt_pattern(project, parts, a, b, axis, props)?;
+    open_bim_steel::bolt_commands(project, &pattern).map_err(|e| e.to_string())
 }
 
 /// Weld of `secondary` to `main`: the path is the secondary part's edge
@@ -316,19 +345,22 @@ pub fn weld_between(
         id,
         kind: DetailKind::Weld {
             parts: BTreeSet::from([main, secondary]),
-            weld_type: if props.butt {
-                WeldType::Butt
-            } else {
-                WeldType::Fillet
-            },
+            weld_type: props.weld_type,
             size: number(&props.weld_size)?,
             path: vec![Point3(first.to_array()), Point3(second.to_array())],
             shop: props.shop,
+            sides: props.weld_sides,
+            around: props.weld_around,
         },
     };
     candidate.details.insert(id, detail.clone());
     candidate.validate().map_err(|e| e.to_string())?;
-    Ok(vec![Command::CreateDetail { detail }])
+    let mut commands = vec![Command::CreateDetail { detail }];
+    // A shop weld makes one assembly of the two parts (Tekla).
+    if props.shop {
+        commands.extend(super::assembly_edit::join(&candidate, main, secondary));
+    }
+    Ok(commands)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

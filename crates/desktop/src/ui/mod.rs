@@ -456,19 +456,12 @@ impl Workbench {
                     self.display.transparency * 100.
                 ));
             }
-            Cmd::ToolAxis
-            | Cmd::ToolBeam
-            | Cmd::ToolColumn
-            | Cmd::ToolPlate
-            | Cmd::ToolGusset
-            | Cmd::ToolStiffener => {
+            Cmd::ToolAxis | Cmd::ToolBeam | Cmd::ToolColumn | Cmd::ToolPlate => {
                 let (mode, kind) = tool(match cmd {
                     Cmd::ToolAxis => ToolKind::Axis,
                     Cmd::ToolBeam => ToolKind::Beam,
                     Cmd::ToolColumn => ToolKind::Column,
-                    Cmd::ToolPlate => ToolKind::Plate,
-                    Cmd::ToolGusset => ToolKind::Gusset,
-                    _ => ToolKind::Stiffener,
+                    _ => ToolKind::Plate,
                 });
                 self.mode = mode;
                 self.detail.cancel();
@@ -486,6 +479,8 @@ impl Workbench {
                     crate::interaction::tools::DetailTool::Weld
                 };
                 self.detail = crate::interaction::tools::DetailPicker::start(tool);
+                // The command's properties show in the side pane (Tekla dialog).
+                self.side_panel = Some(chrome::SidePanel::Properties);
                 self.message(self.prompt());
             }
             Cmd::DocumentInfo => {
@@ -503,10 +498,15 @@ impl Workbench {
             | Cmd::CutPolygon
             | Cmd::SplitPart
             | Cmd::CombineParts
-            | Cmd::ExtendTo => {
+            | Cmd::ExtendTo
+            | Cmd::ToolGusset
+            | Cmd::ToolStiffener
+            | Cmd::AssemblyAdd => {
                 use crate::interaction::trim::{TrimPicker, TrimTool};
                 self.engine.cancel();
                 self.detail.cancel();
+                self.mode = Mode::Model;
+                self.side_panel = Some(chrome::SidePanel::Properties);
                 self.trim = TrimPicker::start(match cmd {
                     Cmd::ConstructionLine => TrimTool::ConstructionLine,
                     Cmd::ConstructionCircle => TrimTool::ConstructionCircle,
@@ -518,16 +518,49 @@ impl Workbench {
                     Cmd::SplitPart => TrimTool::Split,
                     Cmd::CombineParts => TrimTool::Combine,
                     Cmd::ExtendTo => TrimTool::Extend,
+                    Cmd::ToolGusset => TrimTool::Gusset,
+                    Cmd::ToolStiffener => TrimTool::Stiffener,
+                    Cmd::AssemblyAdd => TrimTool::AddToAssembly,
                     _ => unreachable!("matched above"),
                 });
                 // A selected part is taken as the first part, like Tekla.
                 if self.trim.need() == Some(crate::interaction::trim::Need::Part)
+                    && self.trim.tool != Some(TrimTool::AddToAssembly)
                     && let [id] = self.editor.selected.iter().copied().collect::<Vec<_>>()[..]
                     && self.editor.document.project().elements.contains_key(&id)
                 {
                     self.trim.parts.push(id);
                 }
                 self.message(self.prompt());
+            }
+            Cmd::AssemblyCreate
+            | Cmd::AssemblyRemove
+            | Cmd::AssemblySetMain
+            | Cmd::AssemblyExplode => {
+                use crate::interaction::assembly_edit as asm;
+                let project = self.editor.document.project();
+                let selected = &self.editor.selected;
+                let result = match cmd {
+                    Cmd::AssemblyCreate => asm::create_from(project, selected),
+                    Cmd::AssemblyRemove => asm::remove_from(project, selected),
+                    Cmd::AssemblySetMain => {
+                        match selected.iter().copied().collect::<Vec<_>>()[..] {
+                            [part] => asm::set_main(project, part),
+                            _ => Err("Выберите одну деталь — она станет главной".into()),
+                        }
+                    }
+                    _ => asm::explode(project, selected),
+                };
+                return match result {
+                    Ok(commands) => Some(Request::Action(Action::Commit(
+                        commands::caption(cmd),
+                        commands,
+                    ))),
+                    Err(e) => {
+                        self.message(e);
+                        None
+                    }
+                };
             }
             Cmd::GridDialog => {
                 // An existing grid opens prefilled for editing (Tekla: double-click a grid).
@@ -1020,6 +1053,22 @@ impl Workbench {
             || self.trim.need() == Some(crate::interaction::trim::Need::Part)
     }
 
+    /// Gusset/stiffener sizes from the plate defaults and the preset fields.
+    fn plate_preset(&self) -> Result<crate::interaction::trim::PlatePreset, String> {
+        let d = &self.tools.detailing;
+        let corner = if self.trim.tool == Some(crate::interaction::trim::TrimTool::Gusset) {
+            &d.gusset_chamfer
+        } else {
+            &d.stiffener_snip
+        };
+        Ok(crate::interaction::trim::PlatePreset {
+            thickness: crate::tools::number(&self.editor.draft.thickness)?,
+            material: self.editor.draft.material,
+            leg: crate::tools::number(&d.gusset_leg)?,
+            corner: crate::tools::number(corner)?,
+        })
+    }
+
     /// Run the fitting/cutting/construction command once its inputs are in.
     fn finish_trim(&mut self) -> Option<Request> {
         use crate::interaction::trim::{self, TrimTool};
@@ -1044,6 +1093,15 @@ impl Workbench {
             (TrimTool::Split, [p], [a]) => trim::split(project, *p, *a),
             (TrimTool::Combine, [a, b], []) => trim::combine(project, *a, *b),
             (TrimTool::Extend, [p], [a]) => trim::extend_to(project, *p, *a),
+            (TrimTool::Gusset, [a, b], []) => self
+                .plate_preset()
+                .and_then(|pr| trim::gusset(project, *a, *b, pr)),
+            (TrimTool::Stiffener, [b], [at]) => self
+                .plate_preset()
+                .and_then(|pr| trim::stiffener(project, *b, *at, pr)),
+            (TrimTool::AddToAssembly, [target], []) => {
+                crate::interaction::assembly_edit::add_to(project, &self.editor.selected, *target)
+            }
             _ => return None,
         };
         // The command stays armed for the next object (Tekla repeats it).
@@ -1370,9 +1428,14 @@ impl Workbench {
                 }
             };
         }
-        // Fitting/cutting/construction commands take typed points too.
-        if self.trim.tool.is_some() {
-            let previous = self.trim.points.last().copied();
+        // Fitting/cutting/construction and bolt commands take typed points too.
+        if self.trim.tool.is_some() || self.detail.picks_points() {
+            let previous = self
+                .trim
+                .points
+                .last()
+                .or(self.detail.points.last())
+                .copied();
             let direction = previous.zip(self.cursor).map(|(p, c)| c - p);
             return match crate::interaction::numeric::parse(
                 text,
@@ -1441,7 +1504,7 @@ impl Workbench {
         let trim_points = matches!(
             self.trim.need(),
             Some(crate::interaction::trim::Need::Point | crate::interaction::trim::Need::Polygon)
-        );
+        ) || self.detail.picks_points();
         if !self.engine.active() && !trim_points {
             self.engine.numeric = None;
             return;

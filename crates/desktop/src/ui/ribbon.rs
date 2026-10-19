@@ -49,6 +49,8 @@ pub struct Item {
     pub cmd: Option<Cmd>,
     pub icon: Icon,
     pub label: &'static str,
+    /// Drawn as a small button, three to a column.
+    pub small: bool,
 }
 
 const fn item(cmd: Cmd, icon: Icon, label: &'static str) -> Item {
@@ -56,6 +58,15 @@ const fn item(cmd: Cmd, icon: Icon, label: &'static str) -> Item {
         cmd: Some(cmd),
         icon,
         label,
+        small: false,
+    }
+}
+const fn small(cmd: Cmd, icon: Icon, label: &'static str) -> Item {
+    Item {
+        cmd: Some(cmd),
+        icon,
+        label,
+        small: true,
     }
 }
 const fn future(icon: Icon, label: &'static str) -> Item {
@@ -63,6 +74,7 @@ const fn future(icon: Icon, label: &'static str) -> Item {
         cmd: None,
         icon,
         label,
+        small: false,
     }
 }
 
@@ -97,7 +109,12 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
             (
                 "Сборки и узлы",
                 vec![
-                    item(Cmd::AutoAssemblies, Icon::Assembly, "Сборка"),
+                    small(Cmd::AssemblyCreate, Icon::Assembly, "Создать сборку"),
+                    small(Cmd::AssemblyAdd, Icon::Assembly, "Добавить в сборку"),
+                    small(Cmd::AssemblyRemove, Icon::Assembly, "Удалить из сборки"),
+                    small(Cmd::AssemblySetMain, Icon::Assembly, "Главная деталь"),
+                    small(Cmd::AssemblyExplode, Icon::Assembly, "Разбить сборку"),
+                    small(Cmd::AutoAssemblies, Icon::Assembly, "Сборки по швам"),
                     item(Cmd::PanelConnections, Icon::Component, "Узлы"),
                 ],
             ),
@@ -111,9 +128,9 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
             (
                 "Построения",
                 vec![
-                    item(Cmd::ConstructionLine, Icon::Grid, "Линия"),
-                    item(Cmd::ConstructionCircle, Icon::Grid, "Окружность"),
-                    item(Cmd::ModelDimension, Icon::Grid, "Размер"),
+                    small(Cmd::ConstructionLine, Icon::Grid, "Линия"),
+                    small(Cmd::ConstructionCircle, Icon::Grid, "Окружность"),
+                    small(Cmd::ModelDimension, Icon::Grid, "Размер"),
                 ],
             ),
         ],
@@ -317,43 +334,82 @@ impl Workbench {
                             for (name, items) in groups(self.ribbon_tab) {
                                 ui.vertical(|ui| {
                                     ui.horizontal(|ui| {
+                                        // Large buttons in a row, small ones in columns of three.
+                                        let mut column: Vec<&Item> = Vec::new();
+                                        let mut cells: Vec<Vec<&Item>> = Vec::new();
                                         for it in &items {
-                                            let enabled = it.cmd.is_some() && !self.busy();
-                                            let tip =
-                                                it.cmd.map_or(UNAVAILABLE.to_string(), tooltip);
-                                            let selected =
-                                                it.cmd.is_some_and(|c| self.ribbon_selected(c));
-                                            let response = icons::button(
-                                                ui,
-                                                it.icon,
-                                                30.,
-                                                Some(it.label),
-                                                it.label,
-                                                &tip,
-                                                enabled,
-                                                selected,
-                                            );
-                                            if self.keytips == super::keytips::KeyTips::Buttons
-                                                && let Some(t) = tips.get(k).copied().flatten()
-                                            {
-                                                super::keytips::badge(ui.ctx(), response.rect, t);
-                                            }
-                                            k += 1;
-                                            if response.clicked()
-                                                && let Some(cmd) = it.cmd
-                                            {
-                                                self.run(cmd, requests);
-                                                // Tekla: Shift+click a tool opens its properties.
-                                                if ui.input(|i| i.modifiers.shift) {
-                                                    self.mode = Mode::Model;
-                                                    self.side_panel = Some(match cmd {
-                                                        Cmd::ToolBolt | Cmd::ToolWeld => {
-                                                            SidePanel::Detailing
-                                                        }
-                                                        _ => SidePanel::Properties,
-                                                    });
+                                            if it.small {
+                                                column.push(it);
+                                                if column.len() == 3 {
+                                                    cells.push(std::mem::take(&mut column));
                                                 }
+                                            } else {
+                                                if !column.is_empty() {
+                                                    cells.push(std::mem::take(&mut column));
+                                                }
+                                                cells.push(vec![it]);
                                             }
+                                        }
+                                        if !column.is_empty() {
+                                            cells.push(column);
+                                        }
+                                        for cell in cells {
+                                            ui.vertical(|ui| {
+                                                ui.spacing_mut().item_spacing.y = 1.;
+                                                for it in cell {
+                                                    let enabled = it.cmd.is_some() && !self.busy();
+                                                    let tip = it
+                                                        .cmd
+                                                        .map_or(UNAVAILABLE.to_string(), tooltip);
+                                                    let selected = it
+                                                        .cmd
+                                                        .is_some_and(|c| self.ribbon_selected(c));
+                                                    let response = if it.small {
+                                                        icons::small_button(
+                                                            ui, it.icon, it.label, &tip, enabled,
+                                                            selected,
+                                                        )
+                                                    } else {
+                                                        icons::button(
+                                                            ui,
+                                                            it.icon,
+                                                            30.,
+                                                            Some(it.label),
+                                                            it.label,
+                                                            &tip,
+                                                            enabled,
+                                                            selected,
+                                                        )
+                                                    };
+                                                    if self.keytips
+                                                        == super::keytips::KeyTips::Buttons
+                                                        && let Some(t) =
+                                                            tips.get(k).copied().flatten()
+                                                    {
+                                                        super::keytips::badge(
+                                                            ui.ctx(),
+                                                            response.rect,
+                                                            t,
+                                                        );
+                                                    }
+                                                    k += 1;
+                                                    if response.clicked()
+                                                        && let Some(cmd) = it.cmd
+                                                    {
+                                                        self.run(cmd, requests);
+                                                        // Tekla: Shift+click a tool opens its properties.
+                                                        if ui.input(|i| i.modifiers.shift) {
+                                                            self.mode = Mode::Model;
+                                                            self.side_panel = Some(match cmd {
+                                                                Cmd::ToolBolt | Cmd::ToolWeld => {
+                                                                    SidePanel::Detailing
+                                                                }
+                                                                _ => SidePanel::Properties,
+                                                            });
+                                                        }
+                                                    }
+                                                }
+                                            });
                                         }
                                     });
                                     ui.small(name);
@@ -371,8 +427,6 @@ impl Workbench {
             Cmd::ToolColumn => Some(K::Column),
             Cmd::ToolBeam => Some(K::Beam),
             Cmd::ToolPlate => Some(K::Plate),
-            Cmd::ToolGusset => Some(K::Gusset),
-            Cmd::ToolStiffener => Some(K::Stiffener),
             Cmd::ToolAxis => Some(K::Axis),
             _ => None,
         };
@@ -385,5 +439,9 @@ impl Workbench {
             || cmd == Cmd::ToolWeld
                 && self.detail.tool == Some(crate::interaction::tools::DetailTool::Weld)
             || cmd == Cmd::ToggleWorkArea && self.work_area
+            || cmd == Cmd::ToolGusset
+                && self.trim.tool == Some(crate::interaction::trim::TrimTool::Gusset)
+            || cmd == Cmd::ToolStiffener
+                && self.trim.tool == Some(crate::interaction::trim::TrimTool::Stiffener)
     }
 }

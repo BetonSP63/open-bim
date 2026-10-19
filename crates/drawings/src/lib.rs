@@ -835,12 +835,70 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
     let marks = open_bim_numbering::number(project)
         .map(|n| n.parts)
         .unwrap_or_default();
-    let mut views = Vec::new();
+    let mut views: Vec<ViewGraphic> = Vec::new();
     let mut contexts = BTreeMap::new();
     for view in &drawing.views {
         let (graphic, context) = view_graphic(drawing, view, &basis, &meshes, &marks);
         views.push(graphic);
         contexts.insert(view.id, context);
+    }
+    // Weld signs in the main view (ГОСТ 2.312): leader from the weld to a
+    // shelf, the designation above the shelf.
+    if let Some(main) = drawing.views.first()
+        && let Some(context) = contexts.get(&main.id)
+        && let Some(graphic) = views.iter_mut().find(|v| v.id == main.id)
+    {
+        let shown: BTreeSet<ObjectId> = parts.iter().copied().collect();
+        for (k, detail) in project.details.values().enumerate() {
+            let DetailKind::Weld {
+                parts: welded,
+                path,
+                weld_type,
+                size,
+                shop,
+                sides,
+                around,
+            } = &detail.kind
+            else {
+                continue;
+            };
+            if shown.len() < 2 || !welded.is_subset(&shown) || path.len() < 2 {
+                continue;
+            }
+            let (a, b) = (path[0].0, path[path.len() - 1].0);
+            let mid = [(a[0] + b[0]) / 2., (a[1] + b[1]) / 2., (a[2] + b[2]) / 2.];
+            let q = context.basis.project(mid);
+            let at = context.paper([q[0], q[1]]);
+            let text = open_bim_model::weld_mark(*weld_type, *sides, *size, *around, *shop);
+            let width = text.chars().count() as f64 * TEXT_HEIGHT * 0.62;
+            let lift = 10. + 6. * (k % 3) as f64;
+            let shelf = [at[0] + lift, at[1] + lift];
+            let line = |points: Vec<[f64; 2]>| Polyline {
+                points,
+                style: LineStyle::Thin,
+                object: Some(detail.id),
+            };
+            // One-sided arrow at the weld, leader, shelf.
+            let d = [shelf[0] - at[0], shelf[1] - at[1]];
+            let len = (d[0] * d[0] + d[1] * d[1]).sqrt();
+            let (ux, uy) = (d[0] / len, d[1] / len);
+            graphic.lines.push(line(vec![
+                at,
+                [at[0] + ux * 3. - uy * 1., at[1] + uy * 3. + ux * 1.],
+            ]));
+            graphic
+                .lines
+                .push(line(vec![at, shelf, [shelf[0] + width, shelf[1]]]));
+            graphic.labels.push(Label {
+                position: [shelf[0] + 0.5, shelf[1] + 1.],
+                text,
+                height: TEXT_HEIGHT,
+                align: Align::Start,
+                rotation: 0.,
+                object: Some(detail.id),
+                lost: false,
+            });
+        }
     }
     let dimensions: Vec<DimensionGraphic> = drawing
         .dimensions

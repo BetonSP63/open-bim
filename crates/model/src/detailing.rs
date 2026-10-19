@@ -5,8 +5,92 @@ use std::collections::BTreeSet;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WeldType {
+    /// Угловой шов таврового соединения.
     Fillet,
+    /// Стыковой со скосом двух кромок (V).
     Butt,
+    /// Стыковой без скоса кромок.
+    ButtSquare,
+    /// Стыковой с двумя симметричными скосами (X), двусторонний.
+    ButtX,
+    /// Нахлёсточный.
+    Lap,
+}
+
+/// Which sides of the joint are welded.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WeldSides {
+    #[default]
+    One,
+    Both,
+}
+
+impl WeldType {
+    pub const ALL: [WeldType; 5] = [
+        Self::Fillet,
+        Self::ButtSquare,
+        Self::Butt,
+        Self::ButtX,
+        Self::Lap,
+    ];
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Fillet => "угловой (тавровое соединение)",
+            Self::ButtSquare => "стыковой без скоса кромок",
+            Self::Butt => "стыковой V-образный",
+            Self::ButtX => "стыковой X-образный",
+            Self::Lap => "нахлёсточный",
+        }
+    }
+    /// Joint designation of ГОСТ 5264-80 (manual arc welding) for the sides.
+    pub fn joint(self, sides: WeldSides) -> &'static str {
+        match (self, sides) {
+            (Self::Fillet, WeldSides::One) => "Т1",
+            (Self::Fillet, WeldSides::Both) => "Т3",
+            (Self::ButtSquare, WeldSides::One) => "С2",
+            (Self::ButtSquare, WeldSides::Both) => "С7",
+            (Self::Butt, WeldSides::One) => "С17",
+            (Self::Butt, WeldSides::Both) => "С21",
+            (Self::ButtX, _) => "С25",
+            (Self::Lap, WeldSides::One) => "Н1",
+            (Self::Lap, WeldSides::Both) => "Н2",
+        }
+    }
+}
+
+fn is_one_side(s: &WeldSides) -> bool {
+    *s == WeldSides::One
+}
+
+fn size_text(size: f64) -> String {
+    if size.fract().abs() < 1e-9 {
+        format!("{size:.0}")
+    } else {
+        format!("{size}").replace('.', ",")
+    }
+}
+
+/// Weld mark text in the style of ГОСТ 2.312: standard, joint, leg size
+/// (fillet and lap welds), «по контуру» and site welding.
+pub fn weld_mark(
+    weld_type: WeldType,
+    sides: WeldSides,
+    size: f64,
+    around: bool,
+    shop: bool,
+) -> String {
+    let leg = matches!(weld_type, WeldType::Fillet | WeldType::Lap)
+        .then(|| format!("-Δ{}", size_text(size)))
+        .unwrap_or_default();
+    let mut mark = format!("ГОСТ 5264-80-{}{leg}", weld_type.joint(sides));
+    if around {
+        mark.push_str(" по контуру");
+    }
+    if !shop {
+        mark.push_str(" (монт.)");
+    }
+    mark
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -62,6 +146,11 @@ pub enum DetailKind {
         size: f64,
         path: Vec<Point3>,
         shop: bool,
+        #[serde(default, skip_serializing_if = "is_one_side")]
+        sides: WeldSides,
+        /// Welded all around the joint («по контуру»).
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        around: bool,
     },
 }
 

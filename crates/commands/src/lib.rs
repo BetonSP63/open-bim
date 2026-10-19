@@ -24,6 +24,10 @@ pub enum Command {
     ReplaceAssembly {
         assembly: open_bim_model::Assembly,
     },
+    /// Remove an assembly object only; its parts stay in the model.
+    RemoveAssembly {
+        id: ObjectId,
+    },
     CreateDrawing {
         drawing: open_bim_model::Drawing,
     },
@@ -343,6 +347,14 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
                 return Err(ModelError::MissingReference(assembly.id).into());
             }
             project.assemblies.insert(assembly.id, assembly.clone());
+        }
+        Command::RemoveAssembly { id } => {
+            if project.assemblies.remove(id).is_none() {
+                return Err(ModelError::MissingReference(*id).into());
+            }
+            for a in project.assemblies.values_mut() {
+                a.children.remove(id);
+            }
         }
         Command::CreateConstruction { construction } => {
             let id = construction.id;

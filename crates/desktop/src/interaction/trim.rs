@@ -29,6 +29,9 @@ pub enum TrimTool {
     Split,
     Combine,
     Extend,
+    Gusset,
+    Stiffener,
+    AddToAssembly,
 }
 
 /// What a command asks for next.
@@ -53,6 +56,9 @@ impl TrimTool {
             Self::Split => "Разделить",
             Self::Combine => "Объединить",
             Self::Extend => "Удлинить до точки",
+            Self::Gusset => "Косынка",
+            Self::Stiffener => "Ребро жёсткости",
+            Self::AddToAssembly => "Добавить в сборку",
         }
     }
 
@@ -63,7 +69,9 @@ impl TrimTool {
             Self::ConstructionLine | Self::ConstructionCircle | Self::Dimension => &[Point, Point],
             Self::FitEnd => &[Part, Point, Point],
             Self::CutLine => &[Part, Point, Point, Point],
-            Self::CutPart | Self::Combine => &[Part, Part],
+            Self::CutPart | Self::Combine | Self::Gusset => &[Part, Part],
+            Self::AddToAssembly => &[Part],
+            Self::Stiffener => &[Part, Point],
             Self::CutPolygon => &[Part, Polygon],
             Self::Split | Self::Extend => &[Part, Point],
         }
@@ -94,6 +102,13 @@ impl TrimTool {
             (Self::Combine, _) => "Выберите вторую деталь (на одной оси, тот же профиль)",
             (Self::Extend, 0) => "Выберите деталь",
             (Self::Extend, _) => "Укажите точку, до которой удлинить ближний торец",
+            (Self::Gusset, 0) => "Выберите первую деталь угла (например, колонну)",
+            (Self::Gusset, _) => "Выберите вторую деталь угла (например, балку)",
+            (Self::Stiffener, 0) => "Выберите двутавр, в который ставится ребро",
+            (Self::Stiffener, _) => "Укажите место ребра на балке со стороны стенки",
+            (Self::AddToAssembly, _) => {
+                "Укажите деталь сборки, в которую добавить выбранные детали"
+            }
         };
         format!("{}: {step} (Esc — прервать)", self.label())
     }
@@ -511,4 +526,191 @@ pub fn dimension(project: &Project, a: DVec3, b: DVec3) -> Result<Vec<Command>, 
             b: tie(b),
         },
     }])
+}
+
+fn plate(
+    project: &Project,
+    name: &str,
+    role: &str,
+    material: ObjectId,
+    frame: Frame,
+    contour: Vec<[f64; 2]>,
+    thickness: f64,
+) -> Result<Vec<Command>, String> {
+    let element = Element {
+        id: ObjectId(project.next_id),
+        name: name.into(),
+        material,
+        shape: ElementShape::Plate {
+            contour,
+            thickness: LengthMm::new(thickness).map_err(|e| e.to_string())?,
+            frame,
+        },
+        properties: [(
+            "fabrication_role".to_string(),
+            open_bim_model::PropertyValue::Text(role.into()),
+        )]
+        .into(),
+    };
+    let mut candidate = project.clone();
+    candidate.elements.insert(element.id, element.clone());
+    candidate.next_id = element.id.0 + 1;
+    candidate.validate().map_err(|e| e.to_string())?;
+    Ok(vec![Command::Create { element }])
+}
+
+/// Sizes of a gusset or stiffener (mm).
+#[derive(Clone, Copy, Debug)]
+pub struct PlatePreset {
+    pub thickness: f64,
+    pub material: ObjectId,
+    /// Gusset legs along both members.
+    pub leg: f64,
+    /// Gusset corner chamfer; stiffener corner snips at the web.
+    pub corner: f64,
+}
+
+/// «Косынка» between two members: a plate in the plane of both axes, in the
+/// corner between them, its edges on the members' faces, legs along each
+/// member and a chamfered corner.
+pub fn gusset(
+    project: &Project,
+    first: ObjectId,
+    second: ObjectId,
+    p: PlatePreset,
+) -> Result<Vec<Command>, String> {
+    if first == second {
+        return Err("Укажите две разные детали".into());
+    }
+    let (e1, e2) = (element(project, first)?, element(project, second)?);
+    let ((s1, d1, l1), (s2, d2, l2)) = (axis(e1)?, axis(e2)?);
+    let n = d1.cross(d2);
+    if n.length() < 1e-6 {
+        return Err("Детали параллельны: косынка ставится в угол между ними".into());
+    }
+    // Joint: the closest points of the two axes.
+    let r = s1 - s2;
+    let (b, c, f) = (d1.dot(d2), d1.dot(r), d2.dot(r));
+    let den = 1. - b * b;
+    let t1 = (b * f - c) / den;
+    let t2 = (f - b * c) / den;
+    let joint = (s1 + d1 * t1 + s2 + d2 * t2) * 0.5;
+    if (s1 + d1 * t1).distance(s2 + d2 * t2) > 1. {
+        return Err("Оси деталей не пересекаются".into());
+    }
+    // Each leg runs from the joint along its member, towards its far end.
+    let away = |s: DVec3, d: DVec3, l: f64| {
+        if (joint - s).length() < (joint - (s + d * l)).length() {
+            d
+        } else {
+            -d
+        }
+    };
+    let (u1, u2) = (away(s1, d1, l1), away(s2, d2, l2));
+    let normal = u1.cross(u2).normalize();
+    // Face of a member towards the other: its section extent in that direction.
+    let face = |e: &Element, toward: DVec3| -> Result<f64, String> {
+        let (section, _) = prism_of(project, e)?;
+        let f = e.shape.frame();
+        let (ax, ay) = (DVec3::from_array(f.axes[0]), DVec3::from_array(f.axes[1]));
+        Ok(section
+            .iter()
+            .map(|q| (ax * q[0] + ay * q[1]).dot(toward))
+            .fold(f64::NEG_INFINITY, f64::max))
+    };
+    let w1 = u2.reject_from(u1).normalize();
+    let w2 = u1.reject_from(u2).normalize();
+    let corner = joint + w1 * face(e1, w1)? + w2 * face(e2, w2)?;
+    let x = u1;
+    let y = normal.cross(x);
+    let local = |q: DVec3| [(q - corner).dot(x), (q - corner).dot(y)];
+    let (leg, ch) = (p.leg, p.corner.max(0.));
+    if leg <= ch + 1. {
+        return Err("Катет косынки должен быть больше фаски".into());
+    }
+    let mut contour = Vec::new();
+    if ch > 0. {
+        contour.push(local(corner + u1 * ch));
+    } else {
+        contour.push(local(corner));
+    }
+    contour.push(local(corner + u1 * leg));
+    contour.push(local(corner + u2 * leg));
+    if ch > 0. {
+        contour.push(local(corner + u2 * ch));
+    }
+    // Centred on the plane of both axes (the webs).
+    let frame = Frame {
+        origin: p3(corner - normal * p.thickness / 2.),
+        axes: [x.to_array(), y.to_array(), normal.to_array()],
+    };
+    plate(
+        project,
+        "Косынка",
+        "gusset",
+        p.material,
+        frame,
+        contour,
+        p.thickness,
+    )
+}
+
+/// «Ребро жёсткости» in an I-beam: a plate across the beam at the picked
+/// point, on the picked side of the web, touching both flanges and the web,
+/// with corner snips at the web–flange fillets.
+pub fn stiffener(
+    project: &Project,
+    beam: ObjectId,
+    at: DVec3,
+    p: PlatePreset,
+) -> Result<Vec<Command>, String> {
+    let e = element(project, beam)?;
+    let (s, d, len) = axis(e)?;
+    let ElementShape::Member { profile, frame, .. } = &e.shape else {
+        return Err("Ребро ставится в балку или колонну".into());
+    };
+    let ProfileShape::ISection {
+        height: h,
+        width: w,
+        web: tw,
+        flange: tf,
+    } = project.profiles.get(profile).ok_or("Нет профиля")?.shape
+    else {
+        return Err("Ребро жёсткости ставится в двутавр (между полками)".into());
+    };
+    let t = (at - s).dot(d);
+    if t < p.thickness || t > len - p.thickness {
+        return Err("Точка ребра должна лежать в пределах балки".into());
+    }
+    let ax = DVec3::from_array(frame.axes[0]);
+    let side = if (at - s).dot(ax) < 0. { -1. } else { 1. };
+    let (inner, snip) = (h / 2. - tf, p.corner.max(0.));
+    if snip >= inner || tw / 2. + snip >= w / 2. {
+        return Err("Срез угла ребра больше самого ребра".into());
+    }
+    let x0 = side * tw / 2.;
+    let x1 = side * w / 2.;
+    let xs = side * (tw / 2. + snip);
+    let contour = vec![
+        [xs, -inner],
+        [x1, -inner],
+        [x1, inner],
+        [xs, inner],
+        [x0, inner - snip],
+        [x0, -inner + snip],
+    ];
+    let origin = DVec3::from_array(frame.origin.0) + d * (t - p.thickness / 2.);
+    let plate_frame = Frame {
+        origin: p3(origin),
+        axes: frame.axes,
+    };
+    plate(
+        project,
+        "Ребро жёсткости",
+        "stiffener",
+        p.material,
+        plate_frame,
+        contour,
+        p.thickness,
+    )
 }

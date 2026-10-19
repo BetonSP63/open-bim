@@ -149,6 +149,7 @@ pub fn fabrication_rows(project: &Project) -> Result<Vec<FabricationRow>, ModelE
                 size,
                 path,
                 shop,
+                ..
             } => Some(FabricationRow::Weld {
                 id: detail.id,
                 weld_type: *weld_type,

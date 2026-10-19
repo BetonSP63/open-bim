@@ -1,0 +1,152 @@
+LOAD_MS: 0.9
+GPU: Apple M5 · Metal; project=Контрольный стальной каркас objects=7
+SCRIPT: step 1 Wait(40)
+SCRIPT: step 2 Scroll([417.6313, 601.6145, 120.0])
+SCRIPT: step 3 Wait(3)
+SCRIPT: step 4 Scroll([417.6313, 601.6145, 120.0])
+SCRIPT: step 5 Wait(3)
+SCRIPT: step 6 Scroll([417.6313, 601.6145, 120.0])
+SCRIPT: step 7 Wait(3)
+SCRIPT: step 8 Scroll([417.6313, 601.6145, 120.0])
+SCRIPT: step 9 Wait(3)
+SCRIPT: step 10 Scroll([417.6313, 601.6145, 120.0])
+SCRIPT: step 11 Wait(3)
+SCRIPT: step 12 Scroll([417.6313, 601.61444, 120.0])
+SCRIPT: step 13 Wait(3)
+SCRIPT: step 14 Scroll([417.63126, 601.61444, 120.0])
+SCRIPT: step 15 Wait(3)
+SCRIPT: step 16 Scroll([417.6313, 601.61444, 120.0])
+SCRIPT: step 17 Wait(3)
+SCRIPT: step 18 Scroll([417.63126, 601.61444, 120.0])
+SCRIPT: step 19 Wait(3)
+SCRIPT: step 20 Scroll([417.6313, 601.61444, 120.0])
+SCRIPT: step 21 Wait(3)
+SCRIPT: step 22 Scroll([417.63126, 601.61444, 120.0])
+SCRIPT: step 23 Wait(3)
+SCRIPT: step 24 Note("Болт: опорная пластина → Enter → начало → направление X")
+SCRIPT: step 25 Key { name: "P", command: true, shift: false, alt: false, ctrl: false }
+SCRIPT: step 26 Wait(4)
+SCRIPT: step 27 Text("болт по двум точкам")
+SCRIPT: step 28 Wait(4)
+SCRIPT: step 29 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 30 Wait(8)
+SCRIPT: world [180.0, -180.0, 20.0] → screen [615.0747, 590.9523]
+SCRIPT: step 31 Hover([615.0747, 590.9523])
+SCRIPT: step 32 Wait(4)
+SCRIPT: world [180.0, -180.0, 20.0] → screen [615.0747, 590.9523]
+SCRIPT: step 33 Click([615.0747, 590.9523])
+SCRIPT: step 34 Wait(6)
+SCRIPT: step 35 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 36 Wait(6)
+SCRIPT: step 37 Text("!")
+SCRIPT: step 38 Text("-150,-150,20")
+SCRIPT: step 39 Wait(2)
+SCRIPT: step 40 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 41 Wait(6)
+SCRIPT: world [150.0, -150.0, 20.0] → screen [582.0533, 590.8086]
+SCRIPT: step 42 Hover([582.0533, 590.8086])
+SCRIPT: step 43 Wait(12)
+SCRIPT: step 44 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/bolts-welds-assemblies/01-bolt-preview.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/bolts-welds-assemblies/01-bolt-preview.png 2560x1600
+SCRIPT: step 45 Text("!")
+SCRIPT: step 46 Text("150,-150,20")
+SCRIPT: step 47 Wait(2)
+SCRIPT: step 48 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 49 Wait(6)
+SCRIPT: step 50 Wait(8)
+SCRIPT: step 51 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 52 Wait(4)
+SCRIPT: step 53 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 54 Wait(4)
+SCRIPT: step 55 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/bolts-welds-assemblies/02-bolts-created.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/bolts-welds-assemblies/02-bolts-created.png 2560x1600
+SCRIPT: step 56 Key { name: "Home", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 57 Wait(8)
+SCRIPT: step 58 Note("Шов: свойства в панели, затем колонна и пластина")
+SCRIPT: step 59 Key { name: "P", command: true, shift: false, alt: false, ctrl: false }
+SCRIPT: step 60 Wait(4)
+SCRIPT: step 61 Text("сварной шов между деталями")
+SCRIPT: step 62 Wait(4)
+SCRIPT: step 63 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 64 Wait(8)
+SCRIPT: step 65 Wait(6)
+SCRIPT: step 66 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/bolts-welds-assemblies/03-weld-properties.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/bolts-welds-assemblies/03-weld-properties.png 2560x1600
+SCRIPT: world [0.0, 0.0, 1500.0] → screen [415.12927, 534.7464]
+SCRIPT: step 67 Hover([415.12927, 534.7464])
+SCRIPT: step 68 Wait(4)
+SCRIPT: world [0.0, 0.0, 1500.0] → screen [415.12927, 534.7464]
+SCRIPT: step 69 Click([415.12927, 534.7464])
+SCRIPT: step 70 Wait(6)
+SCRIPT: world [150.0, 150.0, 20.0] → screen [418.24576, 592.3347]
+SCRIPT: step 71 Hover([418.24576, 592.3347])
+SCRIPT: step 72 Wait(4)
+SCRIPT: world [180.0, -180.0, 20.0] → screen [431.96994, 600.8402]
+SCRIPT: step 73 Click([431.96994, 600.8402])
+SCRIPT: step 74 Wait(6)
+SCRIPT: step 75 Wait(8)
+SCRIPT: step 76 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 77 Wait(4)
+SCRIPT: step 78 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/bolts-welds-assemblies/04-weld-created.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/bolts-welds-assemblies/04-weld-created.png 2560x1600
+SCRIPT: step 79 Note("Ребро жёсткости в балке 1")
+SCRIPT: step 80 Key { name: "P", command: true, shift: false, alt: false, ctrl: false }
+SCRIPT: step 81 Wait(4)
+SCRIPT: step 82 Text("ребро жёсткости")
+SCRIPT: step 83 Wait(4)
+SCRIPT: step 84 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 85 Wait(8)
+SCRIPT: step 86 Wait(4)
+SCRIPT: step 87 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/bolts-welds-assemblies/05-stiffener-properties.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/bolts-welds-assemblies/05-stiffener-properties.png 2560x1600
+SCRIPT: world [3000.0, 0.0, 3000.0] → screen [535.8463, 396.4775]
+SCRIPT: step 88 Hover([535.8463, 396.4775])
+SCRIPT: step 89 Wait(4)
+SCRIPT: world [3000.0, 0.0, 3000.0] → screen [535.8463, 396.4775]
+SCRIPT: step 90 Click([535.8463, 396.4775])
+SCRIPT: step 91 Wait(6)
+SCRIPT: step 92 Text("!")
+SCRIPT: step 93 Text("3000,40,3000")
+SCRIPT: step 94 Wait(2)
+SCRIPT: step 95 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 96 Wait(6)
+SCRIPT: step 97 Wait(8)
+SCRIPT: step 98 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 99 Wait(4)
+SCRIPT: step 100 Key { name: "Home", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 101 Wait(6)
+SCRIPT: step 102 Key { name: "2", command: false, shift: false, alt: false, ctrl: true }
+SCRIPT: step 103 Wait(4)
+SCRIPT: step 104 Scroll([535.8463, 396.4775, 120.0])
+SCRIPT: step 105 Wait(3)
+SCRIPT: step 106 Scroll([535.8463, 396.4775, 120.0])
+SCRIPT: step 107 Wait(3)
+SCRIPT: step 108 Scroll([535.8463, 396.4775, 120.0])
+SCRIPT: step 109 Wait(3)
+SCRIPT: step 110 Scroll([535.8463, 396.4775, 120.0])
+SCRIPT: step 111 Wait(3)
+SCRIPT: step 112 Scroll([535.8463, 396.4775, 120.0])
+SCRIPT: step 113 Wait(3)
+SCRIPT: step 114 Scroll([535.8463, 396.4775, 120.0])
+SCRIPT: step 115 Wait(3)
+SCRIPT: step 116 Scroll([535.84625, 396.47748, 120.0])
+SCRIPT: step 117 Wait(3)
+SCRIPT: step 118 Scroll([535.8463, 396.4775, 120.0])
+SCRIPT: step 119 Wait(3)
+SCRIPT: step 120 Scroll([535.8463, 396.47748, 120.0])
+SCRIPT: step 121 Wait(3)
+SCRIPT: step 122 Scroll([535.8463, 396.4775, 120.0])
+SCRIPT: step 123 Wait(3)
+SCRIPT: step 124 Scroll([535.8463, 396.47748, 120.0])
+SCRIPT: step 125 Wait(3)
+SCRIPT: step 126 Scroll([535.8463, 396.4775, 120.0])
+SCRIPT: step 127 Wait(3)
+SCRIPT: step 128 Scroll([535.8463, 396.47748, 120.0])
+SCRIPT: step 129 Wait(3)
+SCRIPT: step 130 Wait(10)
+SCRIPT: step 131 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/bolts-welds-assemblies/06-stiffener-zoom.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/bolts-welds-assemblies/06-stiffener-zoom.png 2560x1600
+SCRIPT: step 132 Key { name: "S", command: true, shift: false, alt: false, ctrl: false }
+SCRIPT: step 133 Wait(8)
+SCRIPT: step 134 Quit
+SCRIPT: finished

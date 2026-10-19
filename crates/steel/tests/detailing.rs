@@ -62,6 +62,8 @@ fn bolts_welds_roundtrip_history_and_deletion_dependencies() {
                 weld_type: WeldType::Fillet,
                 size: 6.,
                 shop: true,
+                sides: open_bim_model::WeldSides::One,
+                around: false,
                 path: vec![
                     Point3([0., 0., 20.]),
                     Point3([30., 40., 20.]),

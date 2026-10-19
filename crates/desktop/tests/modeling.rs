@@ -394,6 +394,8 @@ fn linked_bolts_and_weld_follow_whole_group_rigid_edits() {
                 size: 6.,
                 path: vec![Point3([0., 0., 20.]), Point3([100., 0., 20.])],
                 shop: true,
+                sides: open_bim_model::WeldSides::One,
+                around: false,
             },
         },
     });

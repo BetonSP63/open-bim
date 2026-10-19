@@ -14,7 +14,7 @@ mod validation;
 pub use catalog::{Material, Profile, ProfileShape};
 pub use connection::{ConnectionInstance, ConnectionTemplate, TemplateKind};
 pub use construction::{Construction, ConstructionKind, DimPoint, ModelDimension};
-pub use detailing::{Detail, DetailKind, WeldType};
+pub use detailing::{Detail, DetailKind, WeldSides, WeldType, weld_mark};
 pub use document_info::{
     DEFAULT_BASE, DocumentInfo, MAX_APPROVALS, MAX_OTHER_SIGNERS, Person, Stage, format_date,
     parse_date,

@@ -77,7 +77,11 @@ pub fn common(project: &Project, selected: &BTreeSet<ObjectId>) -> Option<Common
                     open_bim_model::MemberKind::Beam => "Балка",
                     open_bim_model::MemberKind::Column => "Колонна",
                 },
-                ElementShape::Plate { .. } => "Пластина",
+                ElementShape::Plate { .. } => match e.properties.get("fabrication_role") {
+                    Some(PropertyValue::Text(r)) if r == "gusset" => "Косынка",
+                    Some(PropertyValue::Text(r)) if r == "stiffener" => "Ребро жёсткости",
+                    _ => "Пластина",
+                },
             }
             .to_string()
         }))?,

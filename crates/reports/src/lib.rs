@@ -246,12 +246,18 @@ fn fasteners(project: &Project) -> Vec<FastenerRow> {
                 size,
                 path,
                 shop,
+                sides,
                 ..
             } => {
                 let kind = match weld_type {
                     WeldType::Fillet => "угловой",
                     WeldType::Butt => "стыковой",
+                    WeldType::ButtSquare => "стыковой без скоса",
+                    WeldType::ButtX => "стыковой X",
+                    WeldType::Lap => "нахлёсточный",
                 };
+                // Joint per ГОСТ 5264-80 (Т1, Т3, С2, …).
+                let kind = format!("{kind} {}", weld_type.joint(*sides));
                 let place = if *shop {
                     "заводской"
                 } else {

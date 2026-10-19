@@ -117,6 +117,8 @@ pub fn rebuild_base_plates(project: &mut Project, previous: &Project) -> Result<
                     size: t.weld_size,
                     path: recipe.weld_path,
                     shop: true,
+                    sides: open_bim_model::WeldSides::One,
+                    around: false,
                 },
             },
         );

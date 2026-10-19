@@ -1075,6 +1075,32 @@ impl eframe::App for Desktop {
                     ink,
                 );
             }
+            // Bolt group preview while the X direction is picked (Tekla shows
+            // the bolts before the second point).
+            if self.bench.detail.picks_points()
+                && let [a] = self.bench.detail.points[..]
+                && let Some(c) = self.bench.cursor
+                && let Ok(pattern) = open_bim_desktop::interaction::tools::bolt_pattern(
+                    self.bench.editor.document.project(),
+                    &self.bench.detail.parts,
+                    a,
+                    c,
+                    self.bench.engine.workplane.axes[2],
+                    &self.bench.tools.detailing,
+                )
+            {
+                let ink = egui::Stroke::new(2., egui::Color32::from_rgb(20, 120, 40));
+                for (s, e) in open_bim_desktop::interaction::tools::bolt_axes(&pattern) {
+                    if let (Some(ps), Some(pe)) = (projector.screen(s), projector.screen(e)) {
+                        let (ps, pe) = (
+                            egui::pos2(ps[0] as f32, ps[1] as f32),
+                            egui::pos2(pe[0] as f32, pe[1] as f32),
+                        );
+                        ui.painter().line_segment([ps, pe], ink);
+                        ui.painter().circle_stroke(ps, 5., ink);
+                    }
+                }
+            }
             // Rotation centre while an orbit gesture runs.
             if let Some(pivot) = self.orbit.active(ctx.input(|i| i.time))
                 && let Some(c) = projector.screen(pivot)

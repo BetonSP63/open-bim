@@ -1,7 +1,7 @@
 use super::{number, point};
 use eframe::egui;
 use open_bim_commands::Command;
-use open_bim_model::{Detail, DetailKind, Frame, ObjectId, Project, WeldType};
+use open_bim_model::{Detail, DetailKind, Frame, ObjectId, Project, WeldSides, WeldType};
 use std::collections::BTreeSet;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -38,8 +38,20 @@ pub struct DetailingUi {
     pub standard: String,
     pub grade: String,
     pub weld_size: String,
-    pub butt: bool,
+    pub weld_type: WeldType,
+    pub weld_sides: WeldSides,
+    /// Welded all around («по контуру»).
+    pub weld_around: bool,
     pub shop: bool,
+    /// Bolt group shift along its X and Y from the picked start point, mm.
+    pub shift_x: String,
+    pub shift_y: String,
+    /// Swap the X and Y spacings (Tekla «Повернуть» by 90°).
+    pub rotate: bool,
+    /// Gusset legs and corner chamfer, stiffener corner snips, mm.
+    pub gusset_leg: String,
+    pub gusset_chamfer: String,
+    pub stiffener_snip: String,
 }
 impl Default for DetailingUi {
     fn default() -> Self {
@@ -58,8 +70,16 @@ impl Default for DetailingUi {
             standard: "ISO 4014".into(),
             grade: "8.8".into(),
             weld_size: "6".into(),
-            butt: false,
+            weld_type: WeldType::Fillet,
+            weld_sides: WeldSides::One,
+            weld_around: false,
             shop: true,
+            shift_x: "0".into(),
+            shift_y: "0".into(),
+            rotate: false,
+            gusset_leg: "300".into(),
+            gusset_chamfer: "30".into(),
+            stiffener_snip: "20".into(),
         }
     }
 }
@@ -84,13 +104,7 @@ impl DetailingUi {
             axes,
         };
         if self.kind == DetailTool::Bolts {
-            let steps = |s: &str| -> Result<Vec<f64>, String> {
-                if s.trim().is_empty() {
-                    Ok(vec![])
-                } else {
-                    s.split(';').map(number).collect()
-                }
-            };
+            let steps = |s: &str| spacings(s);
             return open_bim_steel::bolt_commands(
                 project,
                 &open_bim_steel::BoltPattern {
@@ -134,14 +148,12 @@ impl DetailingUi {
                 },
                 DetailTool::Weld => DetailKind::Weld {
                     parts: selected.clone(),
-                    weld_type: if self.butt {
-                        WeldType::Butt
-                    } else {
-                        WeldType::Fillet
-                    },
+                    weld_type: self.weld_type,
                     size: number(&self.weld_size)?,
                     path: vec![start, point(&self.end)?],
                     shop: self.shop,
+                    sides: self.weld_sides,
+                    around: self.weld_around,
                 },
                 DetailTool::Bolts => unreachable!(),
             };
@@ -212,9 +224,7 @@ impl DetailingUi {
                 DetailTool::Weld => {
                     ui.label("Конец шва, мм");
                     super::ui::vector_fields(ui, "weld end", &mut self.end);
-                    field(ui, "Размер шва, мм", &mut self.weld_size);
-                    ui.checkbox(&mut self.butt, "Стыковой (иначе угловой)");
-                    ui.checkbox(&mut self.shop, "Заводской шов");
+                    self.weld_fields(ui);
                 }
             }
             if ui
@@ -245,6 +255,95 @@ impl DetailingUi {
         action
     }
 }
+/// Spacings «80 80», «80;80» or «3*80» (Tekla notation) → [80, 80, 80].
+pub fn spacings(text: &str) -> Result<Vec<f64>, String> {
+    let mut out = Vec::new();
+    for token in text.split([';', ' ', ',']).filter(|t| !t.trim().is_empty()) {
+        match token.split_once('*') {
+            Some((n, step)) => {
+                let n: usize = n
+                    .trim()
+                    .parse()
+                    .map_err(|_| format!("«{token}»: число повторов"))?;
+                if n == 0 || n > 200 {
+                    return Err(format!("«{token}»: 1…200 повторов"));
+                }
+                out.extend(std::iter::repeat_n(number(step)?, n));
+            }
+            None => out.push(number(token)?),
+        }
+    }
+    if out.iter().any(|v| *v <= 0.) {
+        return Err("Шаги должны быть положительными".into());
+    }
+    Ok(out)
+}
+
+impl DetailingUi {
+    /// Weld properties: type, sides, leg, all around, shop/site, and the
+    /// resulting designation.
+    pub fn weld_fields(&mut self, ui: &mut egui::Ui) {
+        let l = ui.label("Тип шва");
+        egui::ComboBox::from_id_salt("weld type")
+            .selected_text(self.weld_type.label())
+            .show_ui(ui, |ui| {
+                for t in WeldType::ALL {
+                    ui.selectable_value(&mut self.weld_type, t, t.label());
+                }
+            })
+            .response
+            .labelled_by(l.id);
+        ui.horizontal(|ui| {
+            ui.selectable_value(&mut self.weld_sides, WeldSides::One, "Односторонний");
+            ui.selectable_value(&mut self.weld_sides, WeldSides::Both, "Двусторонний");
+        });
+        field(ui, "Катет / размер шва, мм", &mut self.weld_size);
+        ui.checkbox(&mut self.weld_around, "По контуру");
+        ui.horizontal(|ui| {
+            ui.selectable_value(&mut self.shop, true, "Заводской");
+            ui.selectable_value(&mut self.shop, false, "Монтажный");
+        });
+        if let Ok(size) = number(&self.weld_size) {
+            ui.small(format!(
+                "Обозначение: {}",
+                open_bim_model::weld_mark(
+                    self.weld_type,
+                    self.weld_sides,
+                    size,
+                    self.weld_around,
+                    self.shop
+                )
+            ));
+        }
+    }
+
+    /// Bolt group properties for the interactive bolt command.
+    pub fn bolt_fields(&mut self, ui: &mut egui::Ui) {
+        field(ui, "Стандарт", &mut self.standard);
+        field(ui, "Класс прочности", &mut self.grade);
+        field(ui, "Диаметр, мм", &mut self.diameter);
+        field(ui, "Зазор отверстия, мм", &mut self.clearance);
+        field(ui, "Шаги по X («3*80»)", &mut self.steps_x);
+        field(ui, "Шаги по Y («80»)", &mut self.steps_y);
+        field(ui, "Сдвиг по X, мм", &mut self.shift_x);
+        field(ui, "Сдвиг по Y, мм", &mut self.shift_y);
+        ui.checkbox(&mut self.rotate, "Повернуть на 90° (поменять X и Y)");
+        match (spacings(&self.steps_x), spacings(&self.steps_y)) {
+            (Ok(x), Ok(y)) => {
+                ui.small(format!(
+                    "Болтов в группе: {} × {} = {}",
+                    x.len() + 1,
+                    y.len() + 1,
+                    (x.len() + 1) * (y.len() + 1)
+                ));
+            }
+            (Err(e), _) | (_, Err(e)) => {
+                ui.colored_label(ui.visuals().error_fg_color, e);
+            }
+        }
+    }
+}
+
 fn field(ui: &mut egui::Ui, label: &str, value: &mut String) {
     let field_label = ui.label(label);
     ui.text_edit_singleline(value).labelled_by(field_label.id);

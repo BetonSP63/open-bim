@@ -716,6 +716,61 @@ pub fn paint(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32, en
     }
 }
 
+/// Small ribbon button: 16 px icon and the caption on one line (Tekla
+/// stacks three of them in a column).
+pub fn small_button(
+    ui: &mut egui::Ui,
+    icon: Icon,
+    name: &str,
+    tooltip: &str,
+    enabled: bool,
+    selected: bool,
+) -> egui::Response {
+    let font = egui::FontId::proportional(12.);
+    let text = ui
+        .painter()
+        .layout_no_wrap(name.to_string(), font.clone(), Color32::BLACK)
+        .size();
+    let sense = if enabled {
+        egui::Sense::click()
+    } else {
+        egui::Sense::hover()
+    };
+    let (rect, response) = ui.allocate_exact_size(vec2(text.x + 28., 20.), sense);
+    let response = response.on_hover_text(tooltip);
+    response.widget_info(|| {
+        egui::WidgetInfo::selected(egui::WidgetType::Button, enabled, selected, name)
+    });
+    if ui.is_rect_visible(rect) {
+        let visuals = ui.style().interact_selectable(&response, selected);
+        if selected || response.hovered() || response.has_focus() {
+            ui.painter().rect(
+                rect,
+                3.,
+                visuals.weak_bg_fill,
+                visuals.bg_stroke,
+                egui::StrokeKind::Inside,
+            );
+        }
+        let ink = ui.visuals().widgets.inactive.fg_stroke.color;
+        let icon_rect = Rect::from_min_size(pos2(rect.min.x + 4., rect.min.y + 2.), vec2(16., 16.));
+        paint(ui.painter(), icon_rect, icon, ink, enabled);
+        let color = if enabled {
+            ui.visuals().text_color()
+        } else {
+            ui.visuals().weak_text_color()
+        };
+        ui.painter().text(
+            pos2(rect.min.x + 24., rect.center().y),
+            egui::Align2::LEFT_CENTER,
+            name,
+            font,
+            color,
+        );
+    }
+    response
+}
+
 /// Icon-only (or icon + caption) button with an accessible name and tooltip.
 #[allow(clippy::too_many_arguments)]
 pub fn button(
