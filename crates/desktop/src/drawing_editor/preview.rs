@@ -191,6 +191,10 @@ pub fn show(
     for line in &sheet.frame {
         polyline(&painter, &map, line, [0., 0.]);
     }
+    for f in &sheet.fills {
+        let (a, b) = (map.screen([f[0], f[1]]), map.screen([f[2], f[3]]));
+        painter.rect_filled(egui::Rect::from_two_pos(a, b), 0., egui::Color32::BLACK);
+    }
     for view in &sheet.views {
         let offset = shift(view.id);
         for line in &view.lines {

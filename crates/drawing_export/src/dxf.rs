@@ -166,6 +166,20 @@ pub fn render(sheet: &Sheet) -> String {
     for line in &sheet.frame {
         polyline(&mut out, line);
     }
+    let (frame_layer, _, _) = layer(LineStyle::Frame);
+    for f in &sheet.fills {
+        // SOLID corners in the order 1-2-4-3 of a quadrilateral.
+        pair(&mut out, 0, "SOLID");
+        pair(&mut out, 8, frame_layer);
+        for (i, p) in [[f[0], f[1]], [f[2], f[1]], [f[0], f[3]], [f[2], f[3]]]
+            .iter()
+            .enumerate()
+        {
+            pair(&mut out, 10 + i as i32, n(p[0]));
+            pair(&mut out, 20 + i as i32, n(p[1]));
+            pair(&mut out, 30 + i as i32, 0);
+        }
+    }
     for view in &sheet.views {
         for line in &view.lines {
             polyline(&mut out, line);

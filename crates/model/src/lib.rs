@@ -3,6 +3,7 @@ mod body;
 mod catalog;
 mod connection;
 mod detailing;
+mod document_info;
 mod drawing;
 mod frame;
 pub mod numbering_rules;
@@ -12,9 +13,13 @@ mod validation;
 pub use catalog::{Material, Profile, ProfileShape};
 pub use connection::{ConnectionInstance, ConnectionTemplate, TemplateKind};
 pub use detailing::{Detail, DetailKind, WeldType};
+pub use document_info::{
+    DEFAULT_BASE, DocumentInfo, MAX_APPROVALS, MAX_OTHER_SIGNERS, Person, Stage, format_date,
+    parse_date,
+};
 pub use drawing::{
     Anchor, AnchorPoint, DimensionAxis, DimensionDef, Drawing, DrawingKind, DrawingView,
-    MAX_DRAWING_ITEMS, SheetSize, TextNote, ViewDirection,
+    MAX_DRAWING_ITEMS, STANDARD_SCALES, SheetSize, TextNote, ViewDirection, standard_scale,
 };
 pub use frame::{Frame, GridAxis, Level};
 pub use open_bim_geometry::{GeometryError, LengthMm, Point3};

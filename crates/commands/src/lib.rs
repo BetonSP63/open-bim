@@ -71,6 +71,10 @@ pub enum Command {
     ReplaceElement {
         element: Element,
     },
+    /// Main inscription attributes of the project (ГОСТ Р 21.101, прил. Е).
+    SetDocumentInfo {
+        info: Box<open_bim_model::DocumentInfo>,
+    },
     RenameProject {
         name: String,
     },
@@ -446,6 +450,10 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
             }
         }
         Command::RenameProject { name } => project.name = name.clone(),
+        Command::SetDocumentInfo { info } => {
+            info.validate()?;
+            project.document = info.as_ref().clone();
+        }
     }
     Ok(())
 }

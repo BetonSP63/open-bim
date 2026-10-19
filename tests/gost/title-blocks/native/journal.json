@@ -1,0 +1,547 @@
+{
+  "events": [
+    {
+      "action": "Сведения о документе",
+      "revision": 1,
+      "objects": 7,
+      "axes": 2,
+      "sha256": "7f30fa5b9f914c316ed50dd84093ad8c4b16c162d50a50861095b3b6e75f6373"
+    },
+    {
+      "action": "Создать чертёж КМД-1",
+      "revision": 2,
+      "objects": 7,
+      "axes": 2,
+      "sha256": "548dbd4d625c2ec7ca57a7c933f9d73c313f5790190c946efd92ca64f0940844"
+    },
+    {
+      "action": "Сохранить",
+      "revision": 2,
+      "objects": 7,
+      "axes": 2,
+      "sha256": "548dbd4d625c2ec7ca57a7c933f9d73c313f5790190c946efd92ca64f0940844"
+    },
+    {
+      "action": "Экспорт drawings/КМД-1.pdf",
+      "revision": 2,
+      "objects": 7,
+      "axes": 2,
+      "sha256": "548dbd4d625c2ec7ca57a7c933f9d73c313f5790190c946efd92ca64f0940844"
+    }
+  ],
+  "project": {
+    "name": "Контрольный стальной каркас",
+    "units": "millimetres",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "revision": 2,
+    "next_id": 21,
+    "materials": {
+      "1": {
+        "id": 1,
+        "name": "S235 · тестовый материал",
+        "density_kg_m3": 7850.0
+      }
+    },
+    "profiles": {
+      "2": {
+        "id": 2,
+        "name": "I 300×150×8×12",
+        "shape": {
+          "kind": "i_section",
+          "height": 300.0,
+          "width": 150.0,
+          "web": 8.0,
+          "flange": 12.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "3": {
+        "id": 3,
+        "name": "L 100×75×8",
+        "shape": {
+          "kind": "angle",
+          "height": 100.0,
+          "width": 75.0,
+          "thickness": 8.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "4": {
+        "id": 4,
+        "name": "C 200×75×6×10",
+        "shape": {
+          "kind": "channel",
+          "height": 200.0,
+          "width": 75.0,
+          "web": 6.0,
+          "flange": 10.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "5": {
+        "id": 5,
+        "name": "CHS 114×6",
+        "shape": {
+          "kind": "circular_hollow",
+          "diameter": 114.0,
+          "thickness": 6.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "6": {
+        "id": 6,
+        "name": "RHS 150×100×6",
+        "shape": {
+          "kind": "rectangular_hollow",
+          "height": 150.0,
+          "width": 100.0,
+          "thickness": 6.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "7": {
+        "id": 7,
+        "name": "R 100×50",
+        "shape": {
+          "kind": "rectangle",
+          "height": 100.0,
+          "width": 50.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      }
+    },
+    "elements": {
+      "8": {
+        "id": 8,
+        "name": "Колонна 1",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3000.0,
+          "frame": {
+            "origin": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "9": {
+        "id": 9,
+        "name": "Колонна 2",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3000.0,
+          "frame": {
+            "origin": [
+              6000.0,
+              0.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "10": {
+        "id": 10,
+        "name": "Колонна 3",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3000.0,
+          "frame": {
+            "origin": [
+              0.0,
+              4000.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "11": {
+        "id": 11,
+        "name": "Колонна 4",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3000.0,
+          "frame": {
+            "origin": [
+              6000.0,
+              4000.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "12": {
+        "id": 12,
+        "name": "Балка 1",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "beam",
+          "profile": 2,
+          "length": 6000.0,
+          "frame": {
+            "origin": [
+              0.0,
+              0.0,
+              3000.0
+            ],
+            "axes": [
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "13": {
+        "id": 13,
+        "name": "Балка 2",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "beam",
+          "profile": 2,
+          "length": 6000.0,
+          "frame": {
+            "origin": [
+              0.0,
+              4000.0,
+              3000.0
+            ],
+            "axes": [
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "14": {
+        "id": 14,
+        "name": "Опорная пластина",
+        "material": 1,
+        "shape": {
+          "kind": "plate",
+          "contour": [
+            [
+              -200.0,
+              -200.0
+            ],
+            [
+              200.0,
+              -200.0
+            ],
+            [
+              200.0,
+              200.0
+            ],
+            [
+              -200.0,
+              200.0
+            ]
+          ],
+          "thickness": 20.0,
+          "frame": {
+            "origin": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {
+          "Марка": {
+            "type": "text",
+            "value": "П-1"
+          }
+        }
+      }
+    },
+    "assemblies": {
+      "15": {
+        "id": 15,
+        "name": "Колонна с опорной пластиной",
+        "main_part": 8,
+        "members": [
+          8,
+          14
+        ],
+        "children": [],
+        "properties": {
+          "Этап": {
+            "type": "number",
+            "value": 1.0
+          }
+        }
+      }
+    },
+    "axes": {
+      "16": {
+        "id": 16,
+        "name": "А",
+        "start": [
+          0.0,
+          -1000.0,
+          0.0
+        ],
+        "end": [
+          0.0,
+          5000.0,
+          0.0
+        ]
+      },
+      "17": {
+        "id": 17,
+        "name": "Б",
+        "start": [
+          6000.0,
+          -1000.0,
+          0.0
+        ],
+        "end": [
+          6000.0,
+          5000.0,
+          0.0
+        ]
+      }
+    },
+    "levels": {
+      "18": {
+        "id": 18,
+        "name": "Основание",
+        "elevation_mm": 0.0
+      },
+      "19": {
+        "id": 19,
+        "name": "Верх",
+        "elevation_mm": 3000.0
+      }
+    },
+    "drawings": {
+      "20": {
+        "id": 20,
+        "kind": {
+          "kind": "part",
+          "part": 8
+        },
+        "number": "КМД-1",
+        "title": "Колонна 1",
+        "sheet": "a3",
+        "scale": 10.0,
+        "views": [
+          {
+            "id": 1,
+            "name": "Вид спереди",
+            "direction": "front",
+            "position": [
+              185.0,
+              242.0
+            ]
+          },
+          {
+            "id": 2,
+            "name": "Вид сверху",
+            "direction": "top",
+            "position": [
+              185.0,
+              189.5
+            ]
+          },
+          {
+            "id": 3,
+            "name": "Вид слева",
+            "direction": "left",
+            "position": [
+              372.5,
+              242.0
+            ]
+          }
+        ],
+        "dimensions": [
+          {
+            "id": 1,
+            "view": 1,
+            "anchors": [
+              {
+                "object": 8,
+                "point": {
+                  "kind": "start"
+                }
+              },
+              {
+                "object": 8,
+                "point": {
+                  "kind": "end"
+                }
+              }
+            ],
+            "axis": "horizontal",
+            "offset": 18.0
+          }
+        ],
+        "texts": [],
+        "fingerprints": {
+          "8": "9c207a473eb9106a524e735dced387fa6a417ac6f4b51cf36256cc82b843a35b"
+        },
+        "generated_revision": 1
+      }
+    },
+    "document": {
+      "base_designation": "2345",
+      "object": "Производственный корпус",
+      "building": "Каркас пролёта 1-2",
+      "organisation": "ООО «Проект»",
+      "customer": "АО «Заказчик»",
+      "developer": {
+        "name": "Иванов",
+        "date": "19.10.26"
+      },
+      "checker": {
+        "name": "Смирнов",
+        "date": "19.10.26"
+      },
+      "norm_control": {
+        "name": "Петров",
+        "date": "20.10.26"
+      },
+      "approver": {
+        "position": "ГИП",
+        "name": "Сидоров",
+        "date": "21.10.26"
+      },
+      "inventory_number": "1234"
+    }
+  }
+}

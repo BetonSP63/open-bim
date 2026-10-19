@@ -2,13 +2,257 @@
 <rect width="420" height="297" fill="#fff"/>
 <polyline class="Thin" points="0,297 420,297 420,0 0,0 0,297" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline class="Frame" points="20,292 415,292 415,5 20,5 20,292" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="230,292 415,292 415,237 230,237 230,292" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="230,252 415,252" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="230,267 415,267" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="230,282 415,282" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Thin" points="300,282 300,267" fill="none" stroke="#000" stroke-width="0.25"/>
-<polyline class="Thin" points="335,282 335,267" fill="none" stroke="#000" stroke-width="0.25"/>
-<polyline class="Thin" points="370,282 370,267" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Frame" points="230,292 415,292" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="415,292 415,237" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="415,237 230,237" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="230,237 230,292" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Thin" points="230,287 295,287" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="230,282 295,282" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="230,277 295,277" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="230,272 295,272" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="230,267 295,267" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="230,262 295,262" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="230,257 295,257" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Frame" points="230,252 295,252" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Thin" points="230,247 295,247" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="230,242 295,242" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Frame" points="240,252 240,237" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="260,252 260,237" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="250,292 250,237" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="270,292 270,237" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="285,292 285,237" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="295,292 295,237" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="295,247 415,247" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="295,262 415,262" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Thin" points="365,267 415,267" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Frame" points="295,277 415,277" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="365,292 365,262" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="380,277 380,262" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="395,277 395,262" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="8,292 13,292 13,267 8,267 8,292" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="13,292 20,292 20,267 13,267 13,292" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="8,267 13,267 13,232 8,232 8,267" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="13,267 20,267 20,232 13,232 13,267" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="8,232 13,232 13,207 8,207 8,232" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="13,232 20,232 20,207 13,207 13,232" fill="none" stroke="#000" stroke-width="0.7"/>
+<rect x="402.5" y="224.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="403" y="224.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="403.5" y="224.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="404" y="224.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="404.5" y="224.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="405" y="224.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="405.5" y="224.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="408" y="224.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="409.5" y="224.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="410" y="224.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="410.5" y="224.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="411" y="224.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="411.5" y="224.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="412" y="224.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="412.5" y="224.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="402.5" y="225" width="0.5" height="0.5" fill="#000"/>
+<rect x="405.5" y="225" width="0.5" height="0.5" fill="#000"/>
+<rect x="406.5" y="225" width="0.5" height="0.5" fill="#000"/>
+<rect x="407" y="225" width="0.5" height="0.5" fill="#000"/>
+<rect x="408" y="225" width="0.5" height="0.5" fill="#000"/>
+<rect x="408.5" y="225" width="0.5" height="0.5" fill="#000"/>
+<rect x="409.5" y="225" width="0.5" height="0.5" fill="#000"/>
+<rect x="412.5" y="225" width="0.5" height="0.5" fill="#000"/>
+<rect x="402.5" y="225.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="403.5" y="225.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="404" y="225.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="404.5" y="225.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="405.5" y="225.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="407" y="225.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="407.5" y="225.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="409.5" y="225.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="410.5" y="225.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="411" y="225.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="411.5" y="225.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="412.5" y="225.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="402.5" y="226" width="0.5" height="0.5" fill="#000"/>
+<rect x="403.5" y="226" width="0.5" height="0.5" fill="#000"/>
+<rect x="404" y="226" width="0.5" height="0.5" fill="#000"/>
+<rect x="404.5" y="226" width="0.5" height="0.5" fill="#000"/>
+<rect x="405.5" y="226" width="0.5" height="0.5" fill="#000"/>
+<rect x="407" y="226" width="0.5" height="0.5" fill="#000"/>
+<rect x="408" y="226" width="0.5" height="0.5" fill="#000"/>
+<rect x="408.5" y="226" width="0.5" height="0.5" fill="#000"/>
+<rect x="409.5" y="226" width="0.5" height="0.5" fill="#000"/>
+<rect x="410.5" y="226" width="0.5" height="0.5" fill="#000"/>
+<rect x="411" y="226" width="0.5" height="0.5" fill="#000"/>
+<rect x="411.5" y="226" width="0.5" height="0.5" fill="#000"/>
+<rect x="412.5" y="226" width="0.5" height="0.5" fill="#000"/>
+<rect x="402.5" y="226.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="403.5" y="226.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="404" y="226.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="404.5" y="226.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="405.5" y="226.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="406.5" y="226.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="407" y="226.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="407.5" y="226.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="408.5" y="226.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="409.5" y="226.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="410.5" y="226.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="411" y="226.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="411.5" y="226.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="412.5" y="226.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="402.5" y="227" width="0.5" height="0.5" fill="#000"/>
+<rect x="405.5" y="227" width="0.5" height="0.5" fill="#000"/>
+<rect x="407" y="227" width="0.5" height="0.5" fill="#000"/>
+<rect x="407.5" y="227" width="0.5" height="0.5" fill="#000"/>
+<rect x="408" y="227" width="0.5" height="0.5" fill="#000"/>
+<rect x="409.5" y="227" width="0.5" height="0.5" fill="#000"/>
+<rect x="412.5" y="227" width="0.5" height="0.5" fill="#000"/>
+<rect x="402.5" y="227.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="403" y="227.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="403.5" y="227.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="404" y="227.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="404.5" y="227.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="405" y="227.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="405.5" y="227.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="406.5" y="227.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="407.5" y="227.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="408.5" y="227.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="409.5" y="227.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="410" y="227.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="410.5" y="227.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="411" y="227.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="411.5" y="227.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="412" y="227.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="412.5" y="227.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="407" y="228" width="0.5" height="0.5" fill="#000"/>
+<rect x="407.5" y="228" width="0.5" height="0.5" fill="#000"/>
+<rect x="408.5" y="228" width="0.5" height="0.5" fill="#000"/>
+<rect x="402.5" y="228.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="403.5" y="228.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="404.5" y="228.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="405.5" y="228.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="407" y="228.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="408.5" y="228.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="410.5" y="228.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="412" y="228.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="402.5" y="229" width="0.5" height="0.5" fill="#000"/>
+<rect x="403" y="229" width="0.5" height="0.5" fill="#000"/>
+<rect x="404" y="229" width="0.5" height="0.5" fill="#000"/>
+<rect x="406" y="229" width="0.5" height="0.5" fill="#000"/>
+<rect x="408.5" y="229" width="0.5" height="0.5" fill="#000"/>
+<rect x="409" y="229" width="0.5" height="0.5" fill="#000"/>
+<rect x="411" y="229" width="0.5" height="0.5" fill="#000"/>
+<rect x="412.5" y="229" width="0.5" height="0.5" fill="#000"/>
+<rect x="402.5" y="229.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="403" y="229.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="403.5" y="229.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="404" y="229.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="405.5" y="229.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="407.5" y="229.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="408.5" y="229.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="409.5" y="229.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="410" y="229.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="411.5" y="229.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="412.5" y="229.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="402.5" y="230" width="0.5" height="0.5" fill="#000"/>
+<rect x="404.5" y="230" width="0.5" height="0.5" fill="#000"/>
+<rect x="406" y="230" width="0.5" height="0.5" fill="#000"/>
+<rect x="406.5" y="230" width="0.5" height="0.5" fill="#000"/>
+<rect x="409" y="230" width="0.5" height="0.5" fill="#000"/>
+<rect x="409.5" y="230" width="0.5" height="0.5" fill="#000"/>
+<rect x="410" y="230" width="0.5" height="0.5" fill="#000"/>
+<rect x="410.5" y="230" width="0.5" height="0.5" fill="#000"/>
+<rect x="411" y="230" width="0.5" height="0.5" fill="#000"/>
+<rect x="412" y="230" width="0.5" height="0.5" fill="#000"/>
+<rect x="403" y="230.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="403.5" y="230.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="404" y="230.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="404.5" y="230.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="405" y="230.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="405.5" y="230.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="408.5" y="230.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="409" y="230.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="409.5" y="230.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="411" y="230.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="412.5" y="230.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="406.5" y="231" width="0.5" height="0.5" fill="#000"/>
+<rect x="407" y="231" width="0.5" height="0.5" fill="#000"/>
+<rect x="408" y="231" width="0.5" height="0.5" fill="#000"/>
+<rect x="409.5" y="231" width="0.5" height="0.5" fill="#000"/>
+<rect x="411" y="231" width="0.5" height="0.5" fill="#000"/>
+<rect x="412.5" y="231" width="0.5" height="0.5" fill="#000"/>
+<rect x="402.5" y="231.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="403" y="231.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="403.5" y="231.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="404" y="231.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="404.5" y="231.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="405" y="231.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="405.5" y="231.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="407" y="231.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="407.5" y="231.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="408" y="231.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="408.5" y="231.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="409.5" y="231.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="411.5" y="231.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="412.5" y="231.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="402.5" y="232" width="0.5" height="0.5" fill="#000"/>
+<rect x="405.5" y="232" width="0.5" height="0.5" fill="#000"/>
+<rect x="408.5" y="232" width="0.5" height="0.5" fill="#000"/>
+<rect x="409" y="232" width="0.5" height="0.5" fill="#000"/>
+<rect x="410" y="232" width="0.5" height="0.5" fill="#000"/>
+<rect x="411" y="232" width="0.5" height="0.5" fill="#000"/>
+<rect x="412" y="232" width="0.5" height="0.5" fill="#000"/>
+<rect x="412.5" y="232" width="0.5" height="0.5" fill="#000"/>
+<rect x="402.5" y="232.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="403.5" y="232.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="404" y="232.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="404.5" y="232.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="405.5" y="232.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="406.5" y="232.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="409" y="232.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="410.5" y="232.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="411" y="232.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="412" y="232.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="402.5" y="233" width="0.5" height="0.5" fill="#000"/>
+<rect x="403.5" y="233" width="0.5" height="0.5" fill="#000"/>
+<rect x="404" y="233" width="0.5" height="0.5" fill="#000"/>
+<rect x="404.5" y="233" width="0.5" height="0.5" fill="#000"/>
+<rect x="405.5" y="233" width="0.5" height="0.5" fill="#000"/>
+<rect x="407.5" y="233" width="0.5" height="0.5" fill="#000"/>
+<rect x="408.5" y="233" width="0.5" height="0.5" fill="#000"/>
+<rect x="409" y="233" width="0.5" height="0.5" fill="#000"/>
+<rect x="409.5" y="233" width="0.5" height="0.5" fill="#000"/>
+<rect x="411" y="233" width="0.5" height="0.5" fill="#000"/>
+<rect x="412" y="233" width="0.5" height="0.5" fill="#000"/>
+<rect x="402.5" y="233.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="403.5" y="233.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="404" y="233.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="404.5" y="233.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="405.5" y="233.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="406.5" y="233.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="407.5" y="233.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="408.5" y="233.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="409" y="233.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="410" y="233.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="411.5" y="233.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="412.5" y="233.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="402.5" y="234" width="0.5" height="0.5" fill="#000"/>
+<rect x="405.5" y="234" width="0.5" height="0.5" fill="#000"/>
+<rect x="407" y="234" width="0.5" height="0.5" fill="#000"/>
+<rect x="409" y="234" width="0.5" height="0.5" fill="#000"/>
+<rect x="411" y="234" width="0.5" height="0.5" fill="#000"/>
+<rect x="412" y="234" width="0.5" height="0.5" fill="#000"/>
+<rect x="402.5" y="234.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="403" y="234.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="403.5" y="234.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="404" y="234.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="404.5" y="234.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="405" y="234.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="405.5" y="234.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="406.5" y="234.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="407" y="234.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="408.5" y="234.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="409" y="234.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="410" y="234.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="412" y="234.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="412.5" y="234.5" width="0.5" height="0.5" fill="#000"/>
 <g class="view" data-view="1">
 <polyline class="Hidden" data-object="8" points="334.999,70 334.999,40" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
 <polyline class="Visible" data-object="8" points="334.999,70 35,70 35,68.8 334.999,68.8" fill="none" stroke="#000" stroke-width="0.5"/>
@@ -34,15 +278,24 @@
 <polyline class="Visible" data-object="11" points="335,140 335,100 337,100 337,140 335,140" fill="none" stroke="#000" stroke-width="0.5"/>
 <text x="186" y="150" font-size="5" text-anchor="middle" fill="#000">План 1:10</text>
 </g>
-<text x="233" y="247.5" font-size="7" text-anchor="start" fill="#000">ОБ-КМ-1</text>
-<text x="233" y="262" font-size="5" text-anchor="start" fill="#000">Общий вид · Новый проект</text>
-<text x="233" y="274" font-size="2.5" text-anchor="start" fill="#000">Материал</text>
-<text x="233" y="278" font-size="3.5" text-anchor="start" fill="#000">—</text>
-<text x="303" y="274" font-size="2.5" text-anchor="start" fill="#000">Масса, кг</text>
-<text x="303" y="278" font-size="3.5" text-anchor="start" fill="#000">155,5</text>
-<text x="338" y="274" font-size="2.5" text-anchor="start" fill="#000">Масштаб</text>
-<text x="338" y="278" font-size="3.5" text-anchor="start" fill="#000">1:10</text>
-<text x="373" y="274" font-size="2.5" text-anchor="start" fill="#000">Лист / формат</text>
-<text x="373" y="278" font-size="3.5" text-anchor="start" fill="#000">1 / A3</text>
-<text x="233" y="289" font-size="3" text-anchor="start" fill="#000">Актуален · модель рев. 0 · чертёж рев. 0</text>
+<text x="231" y="250.375" font-size="2.5" text-anchor="start" fill="#000">Изм.</text>
+<text x="241" y="250.375" font-size="2.5" text-anchor="start" fill="#000">Кол.уч</text>
+<text x="251" y="250.375" font-size="2.5" text-anchor="start" fill="#000">Лист</text>
+<text x="261" y="250.375" font-size="2.5" text-anchor="start" fill="#000">№ док.</text>
+<text x="271" y="250.375" font-size="2.5" text-anchor="start" fill="#000">Подп.</text>
+<text x="286" y="250.375" font-size="2.5" text-anchor="start" fill="#000">Дата</text>
+<text x="231" y="255.375" font-size="2.5" text-anchor="start" fill="#000">Разраб.</text>
+<text x="231" y="260.375" font-size="2.5" text-anchor="start" fill="#000">Пров.</text>
+<text x="231" y="285.375" font-size="2.5" text-anchor="start" fill="#000">Н. контр.</text>
+<text x="366" y="265.375" font-size="2.5" text-anchor="start" fill="#000">Стадия</text>
+<text x="381" y="265.375" font-size="2.5" text-anchor="start" fill="#000">Лист</text>
+<text x="396" y="265.375" font-size="2.5" text-anchor="start" fill="#000">Листов</text>
+<text x="355" y="243.75" font-size="5" text-anchor="middle" fill="#000">0000-КМ</text>
+<text x="330" y="285.725" font-size="3.5" text-anchor="middle" fill="#000">Общий вид · Новый проект</text>
+<text x="372.5" y="273.225" font-size="3.5" text-anchor="middle" fill="#000">Р</text>
+<text x="405" y="273.225" font-size="3.5" text-anchor="middle" fill="#000">1</text>
+<text x="366" y="295.8" font-size="2.5" text-anchor="start" fill="#000">Формат A3</text>
+<text x="11.375" y="279.5" font-size="2.5" text-anchor="middle" fill="#000" transform="rotate(-90 11.375 279.5)">Инв. № подл.</text>
+<text x="11.375" y="249.5" font-size="2.5" text-anchor="middle" fill="#000" transform="rotate(-90 11.375 249.5)">Подп. и дата</text>
+<text x="11.375" y="219.5" font-size="2.5" text-anchor="middle" fill="#000" transform="rotate(-90 11.375 219.5)">Взам. инв. №</text>
 </svg>

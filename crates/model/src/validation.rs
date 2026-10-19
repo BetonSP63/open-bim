@@ -117,6 +117,7 @@ impl Project {
     pub fn validate(&self) -> Result<(), ModelError> {
         text(&self.name)?;
         valid_point(self.origin)?;
+        self.document.validate()?;
         let mut ids = BTreeSet::new();
         let mut register = |key: ObjectId, id: ObjectId| {
             if key != id || id.0 == 0 || !ids.insert(id) {

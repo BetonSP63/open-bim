@@ -113,6 +113,20 @@ pub fn render(sheets: &[Sheet], title: &str) -> Result<Vec<u8>, String> {
         for line in &sheet.frame {
             page.line(line);
         }
+        if !sheet.fills.is_empty() {
+            page.content.push_str("0 0 0 rg\n");
+            for f in &sheet.fills {
+                let _ = writeln!(
+                    page.content,
+                    "{} {} {} {} re",
+                    n(f[0]),
+                    n(f[1]),
+                    n(f[2] - f[0]),
+                    n(f[3] - f[1])
+                );
+            }
+            page.content.push_str("f\n");
+        }
         for view in &sheet.views {
             for line in &view.lines {
                 page.line(line);

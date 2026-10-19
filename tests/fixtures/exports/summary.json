@@ -1,13 +1,13 @@
 {
   "assembly-a3": {
     "entities": {
-      "OB_FRAME": 5,
+      "OB_FRAME": 24,
       "OB_HATCH": 0,
       "OB_HIDDEN": 7,
       "OB_LOST": 0,
       "OB_SECTION": 0,
-      "OB_TEXT": 16,
-      "OB_THIN": 11,
+      "OB_TEXT": 25,
+      "OB_THIN": 18,
       "OB_VISIBLE": 8
     },
     "size_mm": [
@@ -17,13 +17,13 @@
   },
   "beam-a3": {
     "entities": {
-      "OB_FRAME": 5,
+      "OB_FRAME": 24,
       "OB_HATCH": 0,
       "OB_HIDDEN": 4,
       "OB_LOST": 0,
       "OB_SECTION": 0,
-      "OB_TEXT": 19,
-      "OB_THIN": 23,
+      "OB_TEXT": 28,
+      "OB_THIN": 30,
       "OB_VISIBLE": 7
     },
     "size_mm": [
@@ -33,13 +33,13 @@
   },
   "general-a1": {
     "entities": {
-      "OB_FRAME": 5,
+      "OB_FRAME": 24,
       "OB_HATCH": 0,
       "OB_HIDDEN": 76,
       "OB_LOST": 0,
       "OB_SECTION": 0,
-      "OB_TEXT": 29,
-      "OB_THIN": 20,
+      "OB_TEXT": 38,
+      "OB_THIN": 27,
       "OB_VISIBLE": 54
     },
     "size_mm": [
@@ -49,13 +49,13 @@
   },
   "plate-a3": {
     "entities": {
-      "OB_FRAME": 5,
+      "OB_FRAME": 24,
       "OB_HATCH": 0,
       "OB_HIDDEN": 0,
       "OB_LOST": 0,
       "OB_SECTION": 0,
-      "OB_TEXT": 19,
-      "OB_THIN": 31,
+      "OB_TEXT": 28,
+      "OB_THIN": 38,
       "OB_VISIBLE": 3
     },
     "size_mm": [

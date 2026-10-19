@@ -82,7 +82,7 @@ impl FocusArea {
 }
 
 pub enum ActiveJob {
-    Open(Job<(Project, Arc<Scene>)>, PathBuf),
+    Open(Box<Job<(Project, Arc<Scene>)>>, PathBuf),
     Check(Job<(open_bim_numbering::Numbering, open_bim_coordination::Report)>),
     Release(Job<open_bim_reports::release::ReleaseSummary>),
 }
@@ -137,6 +137,8 @@ pub struct Workbench {
     pub detail: crate::interaction::tools::DetailPicker,
     /// Open grid dialog («Сетка осей…»).
     pub grid: Option<crate::interaction::tools::GridSpec>,
+    /// «Сведения о документе» being edited (main inscription attributes).
+    pub document_info: Option<open_bim_model::DocumentInfo>,
     /// The dialog edits the existing grid (otherwise it creates a new one).
     pub grid_editing: bool,
     /// Keyboard cursor (Alt+arrows): a snap point while picking, or the
@@ -219,6 +221,7 @@ impl Workbench {
             work_area: true,
             detail: Default::default(),
             grid: None,
+            document_info: None,
             grid_editing: false,
             axis_buffer: None,
             kb_cursor: None,
@@ -285,7 +288,7 @@ impl Workbench {
                 Ok((project, Arc::new(scene)))
             },
         );
-        self.job = Some(ActiveJob::Open(job, path));
+        self.job = Some(ActiveJob::Open(Box::new(job), path));
     }
 
     pub fn start_check(&mut self) {
@@ -462,6 +465,12 @@ impl Workbench {
                 };
                 self.detail = crate::interaction::tools::DetailPicker::start(tool);
                 self.message(self.prompt());
+            }
+            Cmd::DocumentInfo => {
+                self.document_info = Some(self.editor.document.project().document.clone());
+                self.message(
+                    "Сведения о документе: графы основной надписи (ГОСТ Р 21.101, прил. Е)",
+                );
             }
             Cmd::GridDialog => {
                 // An existing grid opens prefilled for editing (Tekla: double-click a grid).
@@ -1039,6 +1048,104 @@ impl Workbench {
         }
     }
 
+    fn document_window(&mut self, ctx: &egui::Context, requests: &mut Vec<Request>) {
+        let Some(info) = &mut self.document_info else {
+            return;
+        };
+        let mut open = true;
+        let mut apply = false;
+        egui::Window::new("Сведения о документе")
+            .open(&mut open)
+            .collapsible(false)
+            .default_width(460.)
+            .show(ctx, |ui| {
+                egui::Grid::new("document fields").num_columns(2).show(ui, |ui| {
+                    for (caption, value) in [
+                        ("Базовое обозначение", &mut info.base_designation),
+                        ("Объект (графа 2)", &mut info.object),
+                        ("Здание (графа 3)", &mut info.building),
+                        ("Организация (графа 9)", &mut info.organisation),
+                        ("Заказчик (графа 27)", &mut info.customer),
+                        ("Инв. № подл. (графа 20)", &mut info.inventory_number),
+                        ("Взам. инв. № (графа 22)", &mut info.replaced_inventory),
+                    ] {
+                        let label = ui.label(caption);
+                        ui.add(egui::TextEdit::singleline(value).desired_width(280.))
+                            .labelled_by(label.id);
+                        ui.end_row();
+                    }
+                    let label = ui.label("Стадия (графа 6)");
+                    egui::ComboBox::from_id_salt("document stage")
+                        .selected_text(info.stage.code())
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut info.stage, open_bim_model::Stage::Working, "Р — рабочая");
+                            ui.selectable_value(&mut info.stage, open_bim_model::Stage::Design, "П — проектная");
+                        })
+                        .response
+                        .labelled_by(label.id);
+                    ui.end_row();
+                });
+                ui.separator();
+                ui.label("Подписи (графы 10–13), дата ДД.ММ.ГГ");
+                egui::Grid::new("document people").num_columns(4).show(ui, |ui| {
+                    ui.label("Строка");
+                    ui.label("Должность");
+                    ui.label("Фамилия");
+                    ui.label("Дата");
+                    ui.end_row();
+                    if info.others.len() < open_bim_model::MAX_OTHER_SIGNERS {
+                        info.others
+                            .resize(open_bim_model::MAX_OTHER_SIGNERS, Default::default());
+                    }
+                    let rows: Vec<(&str, &mut open_bim_model::Person, bool)> = [
+                        ("Разраб.", &mut info.developer, false),
+                        ("Пров.", &mut info.checker, false),
+                    ]
+                    .into_iter()
+                    .chain(info.others.iter_mut().map(|p| ("—", p, true)))
+                    .chain([
+                        ("Н. контр.", &mut info.norm_control, false),
+                        ("Утверждает", &mut info.approver, true),
+                    ])
+                    .collect();
+                    for (row, person, position) in rows {
+                        let label = ui.label(row);
+                        if position {
+                            ui.add(egui::TextEdit::singleline(&mut person.position).desired_width(90.))
+                                .labelled_by(label.id);
+                        } else {
+                            ui.label("");
+                        }
+                        ui.add(egui::TextEdit::singleline(&mut person.name).desired_width(140.))
+                            .labelled_by(label.id);
+                        ui.add(egui::TextEdit::singleline(&mut person.date).desired_width(70.))
+                            .labelled_by(label.id);
+                        ui.end_row();
+                    }
+                });
+                ui.small("Подписи ставятся вручную или электронной подписью; программа выводит фамилии и даты.");
+                apply = ui.button("Применить").clicked();
+            });
+        if apply {
+            let mut info = info.clone();
+            info.others.retain(|p| !p.is_empty());
+            match info.validate() {
+                Ok(()) => {
+                    requests.push(Request::Action(Action::Commit(
+                        "Сведения о документе".into(),
+                        vec![open_bim_commands::Command::SetDocumentInfo {
+                            info: Box::new(info),
+                        }],
+                    )));
+                    self.document_info = None;
+                }
+                Err(e) => self.message(e.to_string()),
+            }
+        } else if !open {
+            self.document_info = None;
+        }
+    }
+
     fn grid_window(&mut self, ctx: &egui::Context, requests: &mut Vec<Request>) {
         let Some(spec) = &mut self.grid else { return };
         let mut open = true;
@@ -1290,6 +1397,7 @@ impl Workbench {
         }
         self.job_window(&ctx, &mut requests);
         self.grid_window(&ctx, &mut requests);
+        self.document_window(&ctx, &mut requests);
         self.delete_window(&ctx, &mut requests);
         self.chrome(ui, &mut requests);
         if self.focus_target.take() == Some(FocusArea::Viewport) {

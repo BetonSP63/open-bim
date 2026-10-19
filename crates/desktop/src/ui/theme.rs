@@ -62,6 +62,8 @@ pub fn light_visuals() -> egui::Visuals {
     v.widgets.inactive.fg_stroke = Stroke::new(1., text);
     v.widgets.inactive.bg_fill = Color32::from_rgb(226, 229, 234);
     v.widgets.inactive.weak_bg_fill = Color32::from_rgb(226, 229, 234);
+    // Text fields are white like windows: an outline keeps them visible.
+    v.widgets.inactive.bg_stroke = Stroke::new(1., Color32::from_rgb(178, 184, 194));
     v.widgets.hovered.fg_stroke = Stroke::new(1.5, Color32::BLACK);
     v.widgets.hovered.weak_bg_fill = Color32::from_rgb(214, 228, 245);
     v.widgets.hovered.bg_fill = Color32::from_rgb(214, 228, 245);

@@ -29,6 +29,7 @@ pub enum Cmd {
     ToolBolt,
     ToolWeld,
     GridDialog,
+    DocumentInfo,
     MoveByPicks,
     CopyByPicks,
     MirrorByPicks,
@@ -624,6 +625,13 @@ pub const ALL: &[Spec] = &[
         category: "Ведомости",
         shortcut: None,
         keywords: "csv excel",
+    },
+    Spec {
+        cmd: Cmd::DocumentInfo,
+        label: "Сведения о документе",
+        category: "Чертежи",
+        shortcut: None,
+        keywords: "основная надпись штамп гост обозначение организация разраб подпись",
     },
     Spec {
         cmd: Cmd::ReleaseSet,

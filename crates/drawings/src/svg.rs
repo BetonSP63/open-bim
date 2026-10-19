@@ -95,6 +95,16 @@ pub fn render(sheet: &Sheet) -> String {
     for line in &sheet.frame {
         polyline(&mut out, line, h);
     }
+    for f in &sheet.fills {
+        let _ = writeln!(
+            out,
+            "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"#000\"/>",
+            n(f[0]),
+            n(h - f[3]),
+            n(f[2] - f[0]),
+            n(f[3] - f[1])
+        );
+    }
     for view in &sheet.views {
         let _ = writeln!(out, "<g class=\"view\" data-view=\"{}\">", view.id);
         // Hidden lines first so visible outlines stay on top.

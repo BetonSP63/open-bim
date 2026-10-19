@@ -1,7 +1,8 @@
 //! Sheet layout check: every label inside the drawing frame, no label
 //! overlapping another label, and only title-block labels in the title block.
 use open_bim_drawings::font::Font;
-use open_bim_drawings::{Align, Label, MARGIN, MARGIN_LEFT, Sheet, TITLE_BLOCK};
+use open_bim_drawings::title_block::margins;
+use open_bim_drawings::{Align, Label, Sheet};
 pub use rect::Rect;
 
 mod rect {
@@ -60,13 +61,19 @@ fn overlap(a: Rect, b: Rect) -> bool {
 pub fn check(sheet: &Sheet) -> Result<Vec<Issue>, String> {
     let font = Font::load()?;
     let [w, h] = sheet.size;
+    let [ml, mb, mr, mt] = margins(sheet.size);
     let inner = Rect {
-        min: [MARGIN_LEFT, MARGIN],
-        max: [w - MARGIN, h - MARGIN],
+        min: [ml, mb],
+        max: [w - mr, h - mt],
     };
     let title = Rect {
-        min: [w - MARGIN - TITLE_BLOCK[0], MARGIN],
-        max: [w - MARGIN, MARGIN + TITLE_BLOCK[1]],
+        min: [sheet.title_area[0], sheet.title_area[1]],
+        max: [sheet.title_area[2], sheet.title_area[3]],
+    };
+    // Inscription graphs also sit on the binding field and under the frame.
+    let paper = Rect {
+        min: [0., 0.],
+        max: [w, h],
     };
     let drawing_labels: Vec<&Label> = sheet
         .views
@@ -90,7 +97,7 @@ pub fn check(sheet: &Sheet) -> Result<Vec<Issue>, String> {
                 missing,
             });
         }
-        let limit = if *own { title } else { inner };
+        let limit = if *own { paper } else { inner };
         let inside = |outer: Rect| {
             r.min[0] >= outer.min[0] - 1e-9
                 && r.min[1] >= outer.min[1] - 1e-9

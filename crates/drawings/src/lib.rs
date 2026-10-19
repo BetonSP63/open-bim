@@ -3,8 +3,10 @@
 //! dimension anchors and object fingerprints used for up-to-date checks.
 pub mod font;
 pub mod projection;
+pub mod qr;
 pub mod sample;
 pub mod svg;
+pub mod title_block;
 
 use open_bim_model::{
     Anchor, AnchorPoint, DetailKind, DimensionAxis, DimensionDef, Drawing, DrawingKind,
@@ -124,6 +126,11 @@ pub struct Sheet {
     pub dimensions: Vec<DimensionGraphic>,
     pub frame: Vec<Polyline>,
     pub labels: Vec<Label>,
+    /// Filled black rectangles [x0, y0, x1, y1] (QR code modules).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub fills: Vec<[f64; 4]>,
+    /// Area kept free of drawing content: inscription, graph 27, QR code.
+    pub title_area: [f64; 4],
 }
 
 pub type Error = String;
@@ -743,117 +750,71 @@ fn place_marks(
     }
 }
 
+/// Mark of the set a drawing belongs to (ГОСТ Р 21.101-2026, appendix В):
+/// arrangement drawings — КМ, part and assembly drawings — КМД.
+pub fn set_mark(kind: &DrawingKind) -> &'static str {
+    match kind {
+        DrawingKind::General { .. } => "КМ",
+        DrawingKind::Part { .. } | DrawingKind::Assembly { .. } => "КМД",
+    }
+}
+
+/// Designation, sheet number and sheet count of a drawing within its set:
+/// sheets of one mark are numbered in drawing ID order.
+pub fn sheet_number(project: &Project, drawing: &Drawing) -> (String, usize, usize) {
+    let mark = set_mark(&drawing.kind);
+    let mut ids: Vec<ObjectId> = project
+        .drawings
+        .values()
+        .filter(|d| set_mark(&d.kind) == mark)
+        .map(|d| d.id)
+        .collect();
+    if !ids.contains(&drawing.id) {
+        ids.push(drawing.id);
+    }
+    ids.sort();
+    let no = ids.iter().position(|id| *id == drawing.id).unwrap_or(0) + 1;
+    (project.document.designation(mark), no, ids.len())
+}
+
 fn title_block(
     project: &Project,
     drawing: &Drawing,
     status: &Status,
-) -> (Vec<Polyline>, Vec<Label>) {
-    let [w, h] = drawing.sheet.landscape_mm();
-    let rect = |x0: f64, y0: f64, x1: f64, y1: f64, style| Polyline {
-        points: vec![[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]],
-        style,
-        object: None,
-    };
-    let (x0, y0) = (w - MARGIN - TITLE_BLOCK[0], MARGIN);
-    let (x1, y1) = (w - MARGIN, MARGIN + TITLE_BLOCK[1]);
-    let mut lines = vec![
-        rect(0., 0., w, h, LineStyle::Thin),
-        rect(
-            MARGIN_LEFT,
-            MARGIN,
-            w - MARGIN,
-            h - MARGIN,
-            LineStyle::Frame,
-        ),
-        rect(x0, y0, x1, y1, LineStyle::Frame),
-    ];
-    // Rows: designation, title, data row, status (ГОСТ 2.104 form 1, simplified).
-    for y in [y1 - 15., y1 - 30., y0 + 10.] {
-        lines.push(Polyline {
-            points: vec![[x0, y], [x1, y]],
-            style: LineStyle::Frame,
+) -> Result<title_block::TitleBlock, Error> {
+    let (designation, sheet_no, sheets) = sheet_number(project, drawing);
+    let mut tb = title_block::build(&title_block::SheetInfo {
+        info: &project.document,
+        size: drawing.sheet_mm(),
+        form: title_block::form_for(title_block::DocumentClass::WorkingSet, sheet_no),
+        designation,
+        title: drawing.title.clone(),
+        sheet_no,
+        sheets,
+        format: drawing.format_label(),
+        material: None,
+        mass_kg: None,
+        scale: None,
+        version: 1,
+    })?;
+    // Model link state is a program mark, outside the inscription.
+    if *status != Status::UpToDate {
+        tb.labels.push(Label {
+            position: [tb.block[0], tb.reserved[3] + 2.],
+            text: format!(
+                "{} · модель рев. {} · чертёж рев. {}",
+                status.label(),
+                project.revision,
+                drawing.generated_revision
+            ),
+            height: 3.5,
+            align: Align::Start,
+            rotation: 0.,
             object: None,
+            lost: true,
         });
     }
-    for x in [x0 + 70., x0 + 105., x0 + 140.] {
-        lines.push(Polyline {
-            points: vec![[x, y0 + 10.], [x, y1 - 30.]],
-            style: LineStyle::Thin,
-            object: None,
-        });
-    }
-    let parts = drawing_parts(project, &drawing.kind);
-    let mass: f64 = parts
-        .iter()
-        .filter_map(|id| project.element_mass_kg(*id).ok())
-        .sum();
-    let material = match &drawing.kind {
-        DrawingKind::Part { part } => project
-            .elements
-            .get(part)
-            .and_then(|e| project.materials.get(&e.material))
-            .map(|m| m.name.clone()),
-        _ => None,
-    };
-    let label = |x: f64, y: f64, text: String, height: f64| Label {
-        position: [x, y],
-        text,
-        height,
-        align: Align::Start,
-        rotation: 0.,
-        object: None,
-        lost: false,
-    };
-    let mut labels = vec![
-        label(x0 + 3., y1 - 10.5, drawing.number.clone(), 7.),
-        label(x0 + 3., y1 - 25., drawing.title.clone(), 5.),
-        label(x0 + 3., y1 - 37., "Материал".into(), 2.5),
-        label(
-            x0 + 3.,
-            y0 + 14.,
-            material.unwrap_or_else(|| "—".into()),
-            3.5,
-        ),
-        label(x0 + 73., y1 - 37., "Масса, кг".into(), 2.5),
-        label(
-            x0 + 73.,
-            y0 + 14.,
-            format!("{mass:.1}").replace('.', ","),
-            3.5,
-        ),
-        label(x0 + 108., y1 - 37., "Масштаб".into(), 2.5),
-        label(
-            x0 + 108.,
-            y0 + 14.,
-            format!("1:{}", format_mm(drawing.scale)),
-            3.5,
-        ),
-        label(x0 + 143., y1 - 37., "Лист / формат".into(), 2.5),
-        label(
-            x0 + 143.,
-            y0 + 14.,
-            format!("1 / {}", drawing.sheet.label()),
-            3.5,
-        ),
-    ];
-    let mut status_label = label(
-        x0 + 3.,
-        y0 + 3.,
-        format!(
-            "{} · модель рев. {} · чертёж рев. {}{}",
-            status.label(),
-            project.revision,
-            drawing.generated_revision,
-            drawing
-                .issued_revision
-                .map(|r| format!(" · выдан рев. {r}"))
-                .unwrap_or_default()
-        ),
-        3.,
-    );
-    status_label.lost = *status != Status::UpToDate;
-    labels.push(status_label);
-    (lines, labels)
+    Ok(tb)
 }
 
 /// Regenerate the full sheet from the model.
@@ -904,7 +865,9 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
             title.position[1] = lowest - 10.;
         }
     }
-    let (frame, mut labels) = title_block(project, drawing, &status);
+    let block = title_block(project, drawing, &status)?;
+    let title_area = block.reserved;
+    let (frame, mut labels, fills) = (block.lines, block.labels, block.fills);
     for note in &drawing.texts {
         labels.push(Label {
             position: note.position,
@@ -918,12 +881,14 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
     }
     Ok(Sheet {
         drawing: drawing.id,
-        size: drawing.sheet.landscape_mm(),
+        size: drawing.sheet_mm(),
         status,
         views,
         dimensions,
         frame,
         labels,
+        fills,
+        title_area,
     })
 }
 
@@ -1123,6 +1088,8 @@ pub fn part_drawing(
         fingerprints: BTreeMap::new(),
         generated_revision: 0,
         issued_revision: None,
+        multiple: 1,
+        portrait: false,
     })
     .map(|d| updated(project, &d))
 }
@@ -1182,6 +1149,8 @@ pub fn assembly_drawing(
             fingerprints: BTreeMap::new(),
             generated_revision: 0,
             issued_revision: None,
+            multiple: 1,
+            portrait: false,
         },
     ))
 }
@@ -1216,6 +1185,8 @@ pub fn general_drawing(
             fingerprints: BTreeMap::new(),
             generated_revision: 0,
             issued_revision: None,
+            multiple: 1,
+            portrait: false,
         },
     ))
 }

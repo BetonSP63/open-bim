@@ -121,6 +121,9 @@ pub struct Project {
         deserialize_with = "unique_map"
     )]
     pub drawings: BTreeMap<ObjectId, crate::Drawing>,
+    /// Main inscription attributes (ГОСТ Р 21.101-2026, appendix Е).
+    #[serde(default, skip_serializing_if = "crate::DocumentInfo::is_empty")]
+    pub document: crate::DocumentInfo,
 }
 
 impl Default for Project {
@@ -141,6 +144,7 @@ impl Default for Project {
             details: BTreeMap::new(),
             connections: BTreeMap::new(),
             drawings: BTreeMap::new(),
+            document: crate::DocumentInfo::default(),
         }
     }
 }

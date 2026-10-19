@@ -197,6 +197,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     item(Cmd::UpdateDrawing, Icon::Drawing, "Обновить"),
                     item(Cmd::ExportPdf, Icon::Drawing, "PDF"),
                     item(Cmd::ExportDxf, Icon::Drawing, "DXF"),
+                    item(Cmd::DocumentInfo, Icon::Drawing, "Основная надпись"),
                 ],
             ),
             (

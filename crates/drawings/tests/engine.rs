@@ -119,10 +119,17 @@ fn every_drawing_kind_has_scale_frame_title_block_and_designation() {
         let sheet = generate(&f.project, d).unwrap();
         assert_eq!(sheet.status, Status::UpToDate);
         let texts: Vec<&str> = sheet.labels.iter().map(|l| l.text.as_str()).collect();
-        assert!(texts.contains(&d.number.as_str()), "{file}: designation");
-        assert!(texts.contains(&d.title.as_str()), "{file}: title");
+        // Graph 1: set designation; graph 4: the sheet title (may wrap).
+        let (designation, _, _) = open_bim_drawings::sheet_number(&f.project, d);
+        assert!(texts.contains(&designation.as_str()), "{file}: designation");
+        assert!(texts.join(" ").contains(&d.title), "{file}: title");
+        // Form 3 has no scale graph: the scale is in the view titles.
         assert!(
-            texts.iter().any(|t| *t == format!("1:{}", d.scale)),
+            sheet
+                .views
+                .iter()
+                .flat_map(|v| &v.labels)
+                .any(|l| l.text.contains(&format!("1:{}", d.scale))),
             "{file}: scale"
         );
         assert!(sheet.frame.iter().any(|l| l.style == LineStyle::Frame));

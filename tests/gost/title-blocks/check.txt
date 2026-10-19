@@ -1,0 +1,55 @@
+a3-form3:
+  ok  outer frame
+  ok  inner frame offsets (20, 5, 5, 5)
+  ok  form 3 185×55: 27 column lines
+  ok  texts 2345-КМД, Формат A3, Изм., Кол.уч, № док., Подп., Дата, Разраб., Н. контр., Иванов, 19.10.26, Р
+  ok  binding-field graphs 20–22
+  ok  QR decodes «2345-КМД;1;A3»
+  ok  PDF page 420.0×297.0 mm
+  ok  PDF line widths [0.25, 0.7]
+a1-form3:
+  ok  outer frame
+  ok  inner frame offsets (20, 5, 5, 5)
+  ok  form 3 185×55: 27 column lines
+  ok  texts 2345-КМД, Формат A1, Изм., Кол.уч, № док., Подп., Дата, Разраб., Н. контр., Иванов, 19.10.26, Р
+  ok  binding-field graphs 20–22
+  ok  QR decodes «2345-КМД;1;A1»
+  ok  PDF page 841.0×594.0 mm
+  ok  PDF line widths [0.25, 0.7]
+a4-form4:
+  ok  outer frame
+  ok  inner frame offsets (20, 5, 5, 5)
+  ok  form 4 185×55: 28 column lines
+  ok  texts 2345-КМД, Формат A4, Изм., Кол.уч, № док., Подп., Дата, Разраб., Н. контр., Иванов, 19.10.26, Р
+  ok  binding-field graphs 20–22
+  ok  QR decodes «2345-КМД;1;A4»
+  ok  PDF page 210.0×297.0 mm
+  ok  PDF line widths [0.25, 0.7]
+a4-form5:
+  ok  outer frame
+  ok  inner frame offsets (20, 5, 5, 5)
+  ok  form 5 185×40: 23 column lines
+  ok  texts 2345-КМД, Формат A4, Изм., Кол.уч, № док., Подп., Дата, Разраб., Н. контр., Иванов, 19.10.26, Р
+  ok  binding-field graphs 20–22
+  ok  QR decodes «2345-КМД;1;A4»
+  ok  PDF page 210.0×297.0 mm
+  ok  PDF line widths [0.25, 0.7]
+a4-form6:
+  ok  outer frame
+  ok  inner frame offsets (20, 5, 5, 5)
+  ok  form 6 185×15: 14 column lines
+  ok  texts 2345-КМД, Формат A4, Изм., Кол.уч, № док., Подп., Дата
+  ok  binding-field graphs 20–22
+  ok  QR decodes «2345-КМД;1;A4»
+  ok  PDF page 210.0×297.0 mm
+  ok  PDF line widths [0.25, 0.7]
+a4-landscape-form3:
+  ok  outer frame
+  ok  inner frame offsets (5, 5, 5, 20)
+  ok  form 3 185×55: 27 column lines
+  ok  texts 2345-КМД, Формат A4, Изм., Кол.уч, № док., Подп., Дата, Разраб., Н. контр., Иванов, 19.10.26, Р
+  ok  binding-field graphs 20–22
+  ok  QR decodes «2345-КМД;1;A4»
+  ok  PDF page 297.0×210.0 mm
+  ok  PDF line widths [0.25, 0.7]
+TITLE_BLOCKS_OK
