@@ -1,0 +1,13 @@
+[{"wait": 30},
+ {"note": "⌘P «Общий вид A1» — схема КМ контрольного здания"},
+ {"key": {"name": "P", "command": true}}, {"wait": 4}, {"text": "общий вид a1"}, {"wait": 4}, {"key": {"name": "Enter"}}, {"wait": 40},
+ {"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/gost/conventions/native/01-ga-sheet.png"},
+ {"note": "⇧⌘P — экспорт КМ-1 в PDF"},
+ {"key": {"name": "P", "command": true, "shift": true}}, {"wait": 20},
+ {"note": "F2 — модель, щелчок по колонне 1/А, ⌘D — чертёж детали"},
+ {"key": {"name": "F2"}}, {"wait": 20},
+ {"click_world": [0, 0, 1800]}, {"wait": 10},
+ {"key": {"name": "D", "command": true}}, {"wait": 40},
+ {"capture": "/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/gost/conventions/native/02-part-sheet.png"},
+ {"key": {"name": "P", "command": true, "shift": true}}, {"wait": 20},
+ "quit"]

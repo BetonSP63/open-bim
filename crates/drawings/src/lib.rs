@@ -1,6 +1,7 @@
 //! Drawing engine: regenerates sheets from model references. Nothing drawn is
 //! stored in the model; a drawing keeps view definitions, associative
 //! dimension anchors and object fingerprints used for up-to-date checks.
+pub mod conventions;
 pub mod font;
 pub mod projection;
 pub mod qr;
@@ -11,7 +12,7 @@ pub mod title_block;
 
 use open_bim_model::{
     Anchor, AnchorPoint, DetailKind, DimensionAxis, DimensionDef, Drawing, DrawingKind,
-    DrawingView, ElementShape, ObjectId, Point3, Project, SheetSize, ViewDirection,
+    DrawingView, ElementShape, MemberKind, ObjectId, Point3, Project, SheetSize, ViewDirection,
 };
 use projection::{Basis, PartMesh, V3, ViewBasis, add, cross, mul, sub};
 use serde::Serialize;
@@ -26,7 +27,8 @@ pub const SCALES: [f64; 15] = [
 pub const MARGIN_LEFT: f64 = 20.;
 pub const MARGIN: f64 = 5.;
 pub const TITLE_BLOCK: [f64; 2] = [185., 55.];
-pub const TEXT_HEIGHT: f64 = 3.5;
+/// Notes and weld signs: font 2.5.
+pub const TEXT_HEIGHT: f64 = conventions::em(2.5);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -410,7 +412,12 @@ fn arrow(tip: [f64; 2], direction: [f64; 2]) -> Polyline {
     }
 }
 
-fn dimension(project: &Project, def: &DimensionDef, view: &ViewContext) -> DimensionGraphic {
+fn dimension(
+    project: &Project,
+    def: &DimensionDef,
+    view: &ViewContext,
+    ticks: bool,
+) -> DimensionGraphic {
     let objects: Vec<ObjectId> = def.anchors.iter().map(|a| a.object).collect();
     let points: Vec<Option<[f64; 2]>> = def
         .anchors
@@ -510,24 +517,48 @@ fn dimension(project: &Project, def: &DimensionDef, view: &ViewContext) -> Dimen
             object: None,
         });
     }
-    for pair in sorted.windows(2) {
+    let count = sorted.len();
+    for (k, pair) in sorted.windows(2).enumerate() {
         let value = (along(pair[1]) - along(pair[0])).abs();
         graphic.values_mm.push(value);
         let (a, b) = (line_at(pair[0]), line_at(pair[1]));
+        // With ticks the line runs 0–3 mm past the outer extension lines.
+        let (mut sa, mut sb) = (a, b);
+        if ticks {
+            if k == 0 {
+                sa = [
+                    a[0] - direction[0] * conventions::DIM_OVERSHOOT,
+                    a[1] - direction[1] * conventions::DIM_OVERSHOOT,
+                ];
+            }
+            if k + 2 == count {
+                sb = [
+                    b[0] + direction[0] * conventions::DIM_OVERSHOOT,
+                    b[1] + direction[1] * conventions::DIM_OVERSHOOT,
+                ];
+            }
+        }
         graphic.lines.push(Polyline {
-            points: vec![a, b],
+            points: vec![sa, sb],
             style: LineStyle::Thin,
             object: None,
         });
         if value > 1e-9 {
-            graphic.lines.push(arrow(a, [-direction[0], -direction[1]]));
-            graphic.lines.push(arrow(b, direction));
+            if ticks {
+                if k == 0 {
+                    graphic.lines.push(conventions::tick(a, direction));
+                }
+                graphic.lines.push(conventions::tick(b, direction));
+            } else {
+                graphic.lines.push(arrow(a, [-direction[0], -direction[1]]));
+                graphic.lines.push(arrow(b, direction));
+            }
         }
         let mid = [(a[0] + b[0]) / 2., (a[1] + b[1]) / 2.];
         graphic.labels.push(Label {
             position: [mid[0] + normal[0] * 1., mid[1] + normal[1] * 1.],
             text: format_mm(value),
-            height: TEXT_HEIGHT,
+            height: conventions::DIM_TEXT,
             align: Align::Middle,
             rotation: direction[1].atan2(direction[0]).to_degrees(),
             object: None,
@@ -722,6 +753,8 @@ fn place_marks(
             r[1][0] <= q[0][0] || q[1][0] <= r[0][0] || r[1][1] <= q[0][1] || q[1][1] <= r[0][1]
         })
     };
+    // Parts behind one another with the same mark are marked once.
+    let mut marked: Vec<(&str, [f64; 2])> = Vec::new();
     for m in meshes {
         let Some(mark) = marks.get(&m.id) else {
             continue;
@@ -732,10 +765,17 @@ fn place_marks(
         });
         let n = m.vertices.len().max(1) as f64;
         let at = context.paper([centre[0] / n, centre[1] / n]);
+        if marked
+            .iter()
+            .any(|(t, p)| *t == mark.as_str() && (p[0] - at[0]).hypot(p[1] - at[1]) < 1.)
+        {
+            continue;
+        }
+        marked.push((mark, at));
         let mut label = Label {
             position: [at[0] + 4., at[1] + 4.],
             text: mark.clone(),
-            height: TEXT_HEIGHT,
+            height: conventions::MARK_TEXT,
             align: Align::Start,
             rotation: 0.,
             object: Some(m.id),
@@ -758,11 +798,29 @@ fn place_marks(
             }
         }
         placed.push(rect(&label));
+        // Leader from a dot on the part to a shelf under the mark (5.4.5).
+        let width = metrics.width(&label.text, label.height);
+        let shelf_y = label.position[1] - 0.6;
+        let (s0, s1) = match label.align {
+            Align::End => (label.position[0] - width - 0.5, label.position[0] + 0.5),
+            _ => (label.position[0] - 0.5, label.position[0] + width + 0.5),
+        };
+        let near = if (at[0] - s0).abs() < (at[0] - s1).abs() {
+            s0
+        } else {
+            s1
+        };
         lines.push(Polyline {
-            points: vec![at, label.position],
+            points: vec![at, [near, shelf_y]],
             style: LineStyle::Thin,
             object: Some(m.id),
         });
+        lines.push(Polyline {
+            points: vec![[s0, shelf_y], [s1, shelf_y]],
+            style: LineStyle::Thin,
+            object: Some(m.id),
+        });
+        lines.push(conventions::circle(at, 0.5, LineStyle::Visible));
         labels.push(label);
     }
 }
@@ -919,6 +977,57 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
         views.push(graphic);
         contexts.insert(view.id, context);
     }
+    let dimensions: Vec<DimensionGraphic> = drawing
+        .dimensions
+        .iter()
+        .map(|d| {
+            dimension(
+                project,
+                d,
+                &contexts[&d.view],
+                conventions::uses_ticks(drawing),
+            )
+        })
+        .collect();
+    // КМ schemes: titles, coordination axes and level marks (5.3–5.5).
+    if matches!(drawing.kind, DrawingKind::General { .. }) {
+        for view in &drawing.views {
+            let ctx = &contexts[&view.id];
+            if let Some(g) = views.iter_mut().find(|g| g.id == view.id) {
+                if let Some(t) = g.labels.first_mut() {
+                    t.text = conventions::ga_title(project, drawing, view, ctx);
+                    t.height = conventions::TITLE_TEXT;
+                }
+                // Bubbles go beyond the dimension chains left of and below the view.
+                let reach = dimensions
+                    .iter()
+                    .filter(|d| d.view == view.id)
+                    .flat_map(|d| d.lines.iter().flat_map(|l| l.points.iter()))
+                    .fold(g.bounds[0], |r, p| [r[0].min(p[0]), r[1].min(p[1])]);
+                conventions::axes(project, view, ctx, g, reach);
+                conventions::levels(project, view, ctx, g);
+            }
+        }
+    }
+    // Section lines with arrows on the first view the cutting plane crosses
+    // edge-on (a vertical section shows on the plan).
+    for section in drawing.views.iter().filter(|v| v.section.is_some()) {
+        let t = contexts[&section.id].basis.toward;
+        let host = drawing.views.iter().find(|v| {
+            let h = contexts[&v.id].basis.toward;
+            v.id != section.id && (t[0] * h[0] + t[1] * h[1] + t[2] * h[2]).abs() < 1e-6
+        });
+        if let Some(host) = host
+            && let Some(g) = views.iter_mut().find(|g| g.id == host.id)
+        {
+            conventions::section_traces(
+                drawing,
+                &contexts[&host.id],
+                &[(section, &contexts[&section.id])],
+                g,
+            );
+        }
+    }
     // Weld signs in the main view (ГОСТ 2.312): leader from the weld to a
     // shelf, the designation above the shelf.
     if let Some(main) = drawing.views.first()
@@ -926,6 +1035,7 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
         && let Some(graphic) = views.iter_mut().find(|v| v.id == main.id)
     {
         let shown: BTreeSet<ObjectId> = parts.iter().copied().collect();
+        let metrics = font::Font::load();
         for (k, detail) in project.details.values().enumerate() {
             let DetailKind::Weld {
                 parts: welded,
@@ -947,9 +1057,61 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
             let q = context.basis.project(mid);
             let at = context.paper([q[0], q[1]]);
             let text = open_bim_model::weld_mark(*weld_type, *sides, *size, *around, *shop);
-            let width = text.chars().count() as f64 * TEXT_HEIGHT * 0.62;
-            let lift = 10. + 6. * (k % 3) as f64;
-            let shelf = [at[0] + lift, at[1] + lift];
+            let width = metrics.as_ref().map_or_else(
+                |_| text.chars().count() as f64 * TEXT_HEIGHT * 0.62,
+                |m| m.width(&text, TEXT_HEIGHT),
+            ) + 1.;
+            // Shelf up-right of the weld, moved further out and to the left
+            // until the sign clears the marks and other signs.
+            let boxes: Vec<[[f64; 2]; 2]> = graphic
+                .labels
+                .iter()
+                .map(|l| {
+                    let w = metrics.as_ref().map_or_else(
+                        |_| l.text.chars().count() as f64 * l.height * 0.62,
+                        |m| m.width(&l.text, l.height),
+                    );
+                    let x0 = match l.align {
+                        Align::Start => l.position[0],
+                        Align::Middle => l.position[0] - w / 2.,
+                        Align::End => l.position[0] - w,
+                    };
+                    [
+                        [x0, l.position[1] - 0.3 * l.height],
+                        [x0 + w, l.position[1] + l.height],
+                    ]
+                })
+                .collect();
+            let sign_box = |shelf: [f64; 2], left: bool| {
+                let x0 = if left { shelf[0] - width } else { shelf[0] };
+                [
+                    [x0 - 0.5, shelf[1]],
+                    [x0 + width + 0.5, shelf[1] + TEXT_HEIGHT + 1.],
+                ]
+            };
+            let clear = |r: [[f64; 2]; 2]| {
+                boxes.iter().all(|q| {
+                    r[1][0] <= q[0][0]
+                        || q[1][0] <= r[0][0]
+                        || r[1][1] <= q[0][1]
+                        || q[1][1] <= r[0][1]
+                })
+            };
+            let first = 10. + 6. * (k % 3) as f64;
+            let (shelf, left) = [0., 6., 12., 18., 24., 30.]
+                .iter()
+                .flat_map(|extra| [(first + extra, false), (first + extra, true)])
+                .map(|(lift, left)| {
+                    let dx = if left { -lift } else { lift };
+                    ([at[0] + dx, at[1] + lift], left)
+                })
+                .find(|(shelf, left)| clear(sign_box(*shelf, *left)))
+                .unwrap_or(([at[0] + first, at[1] + first], false));
+            let shelf_end = if left {
+                shelf[0] - width
+            } else {
+                shelf[0] + width
+            };
             let line = |points: Vec<[f64; 2]>| Polyline {
                 points,
                 style: LineStyle::Thin,
@@ -965,9 +1127,9 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
             ]));
             graphic
                 .lines
-                .push(line(vec![at, shelf, [shelf[0] + width, shelf[1]]]));
+                .push(line(vec![at, shelf, [shelf_end, shelf[1]]]));
             graphic.labels.push(Label {
-                position: [shelf[0] + 0.5, shelf[1] + 1.],
+                position: [shelf[0].min(shelf_end) + 0.5, shelf[1] + 1.],
                 text,
                 height: TEXT_HEIGHT,
                 align: Align::Start,
@@ -977,11 +1139,6 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
             });
         }
     }
-    let dimensions: Vec<DimensionGraphic> = drawing
-        .dimensions
-        .iter()
-        .map(|d| dimension(project, d, &contexts[&d.view]))
-        .collect();
     // View titles go under the lowest dimension of their view.
     for view in &mut views {
         let lowest = dimensions
@@ -996,6 +1153,12 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
                     .flat_map(|d| d.labels.iter().map(|l| l.position[1] - l.height)),
             )
             .fold(view.bounds[0][1], f64::min);
+        // Axis bubbles and other view annotations below the outline too.
+        let lowest = view
+            .lines
+            .iter()
+            .flat_map(|l| l.points.iter().map(|p| p[1]))
+            .fold(lowest, f64::min);
         if let Some(title) = view.labels.first_mut() {
             title.position[1] = lowest - 10.;
         }
@@ -1069,7 +1232,12 @@ pub fn layout(
         w - MARGIN_LEFT - MARGIN - 20.,
         h - 2. * MARGIN - TITLE_BLOCK[1] - 25.,
     ];
-    let gap = 30.;
+    // КМ schemes need room for axis bubbles and view titles between views.
+    let gap = if matches!(kind, DrawingKind::General { .. }) {
+        60.
+    } else {
+        30.
+    };
     let column = |i: usize| sizes.get(i).copied().unwrap_or([0.; 2]);
     let main = column(0);
     let below = directions.iter().position(|d| *d == ViewDirection::Top);
@@ -1086,7 +1254,13 @@ pub fn layout(
         .copied()
         .find(|s| fits(*s))
         .ok_or("Виды не помещаются на листе даже в масштабе 1:400")?;
-    let left = MARGIN_LEFT + 15.;
+    // КМ schemes leave room for axis bubbles left of the views.
+    let left = MARGIN_LEFT
+        + if matches!(kind, DrawingKind::General { .. }) {
+            35.
+        } else {
+            15.
+        };
     let top = h - MARGIN - 35.;
     let main_centre = [left + main[0] / scale / 2., top - main[1] / scale / 2.];
     let positions = directions
@@ -1308,17 +1482,51 @@ pub fn general_drawing(
     ];
     let dirs: Vec<ViewDirection> = directions.iter().map(|d| d.0).collect();
     let (scale, positions) = layout(project, &kind, sheet, &dirs)?;
+    // Chain over the columns of the front row on the elevation, with ticks.
+    let mut front: Vec<(f64, f64, ObjectId)> = drawing_parts(project, &kind)
+        .iter()
+        .filter_map(|id| match &project.elements.get(id)?.shape {
+            ElementShape::Member {
+                member_kind: MemberKind::Column,
+                frame,
+                ..
+            } => Some((frame.origin.0[1], frame.origin.0[0], *id)),
+            _ => None,
+        })
+        .collect();
+    let nearest = front.iter().map(|c| c.0).fold(f64::INFINITY, f64::min);
+    front.retain(|c| c.0 - nearest < 1.);
+    front.sort_by(|a, b| a.1.total_cmp(&b.1));
+    front.dedup_by(|a, b| (a.1 - b.1).abs() < 1.);
+    let dimensions = if front.len() >= 2 {
+        vec![DimensionDef {
+            id: 1,
+            view: 1,
+            anchors: front
+                .iter()
+                .map(|c| Anchor {
+                    object: c.2,
+                    point: AnchorPoint::Start,
+                })
+                .collect(),
+            axis: DimensionAxis::Horizontal,
+            offset: -20.,
+        }]
+    } else {
+        Vec::new()
+    };
     Ok(updated(
         project,
         &Drawing {
             id,
             kind,
             number: number.into(),
-            title: format!("Общий вид · {}", project.name),
+            // КМ drawings are element arrangement schemes (5.5.17).
+            title: format!("Схема расположения элементов · {}", project.name),
             sheet,
             scale,
             views: views(&directions, &positions),
-            dimensions: Vec::new(),
+            dimensions,
             texts: Vec::new(),
             objects: Vec::new(),
             fingerprints: BTreeMap::new(),

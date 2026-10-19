@@ -1,0 +1,1737 @@
+{
+  "events": [
+    {
+      "action": "Создать чертёж КМ-1",
+      "revision": 1,
+      "objects": 36,
+      "axes": 9,
+      "sha256": "d3e6384424f2f052f21238cb948616d21b2ab3ba6526c0f63113e202abff569d"
+    },
+    {
+      "action": "Экспорт drawings/КМ-1.pdf",
+      "revision": 1,
+      "objects": 36,
+      "axes": 9,
+      "sha256": "d3e6384424f2f052f21238cb948616d21b2ab3ba6526c0f63113e202abff569d"
+    },
+    {
+      "action": "Создать чертёж КМД-2",
+      "revision": 2,
+      "objects": 36,
+      "axes": 9,
+      "sha256": "0d68a8f55cff2013c2a1a7935511b27eb526d0131fb98365846fe8d7406a7da5"
+    },
+    {
+      "action": "Экспорт drawings/КМД-2.pdf",
+      "revision": 2,
+      "objects": 36,
+      "axes": 9,
+      "sha256": "0d68a8f55cff2013c2a1a7935511b27eb526d0131fb98365846fe8d7406a7da5"
+    }
+  ],
+  "project": {
+    "name": "Контрольное здание",
+    "units": "millimetres",
+    "origin": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "revision": 2,
+    "next_id": 57,
+    "materials": {
+      "1": {
+        "id": 1,
+        "name": "S235 · тестовый материал",
+        "density_kg_m3": 7850.0
+      }
+    },
+    "profiles": {
+      "2": {
+        "id": 2,
+        "name": "I 300×150×8×12",
+        "shape": {
+          "kind": "i_section",
+          "height": 300.0,
+          "width": 150.0,
+          "web": 8.0,
+          "flange": 12.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "3": {
+        "id": 3,
+        "name": "L 100×75×8",
+        "shape": {
+          "kind": "angle",
+          "height": 100.0,
+          "width": 75.0,
+          "thickness": 8.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "4": {
+        "id": 4,
+        "name": "C 200×75×6×10",
+        "shape": {
+          "kind": "channel",
+          "height": 200.0,
+          "width": 75.0,
+          "web": 6.0,
+          "flange": 10.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "5": {
+        "id": 5,
+        "name": "CHS 114×6",
+        "shape": {
+          "kind": "circular_hollow",
+          "diameter": 114.0,
+          "thickness": 6.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "6": {
+        "id": 6,
+        "name": "RHS 150×100×6",
+        "shape": {
+          "kind": "rectangular_hollow",
+          "height": 150.0,
+          "width": 100.0,
+          "thickness": 6.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      },
+      "7": {
+        "id": 7,
+        "name": "R 100×50",
+        "shape": {
+          "kind": "rectangle",
+          "height": 100.0,
+          "width": 50.0
+        },
+        "source": "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ"
+      }
+    },
+    "elements": {
+      "19": {
+        "id": 19,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "20": {
+        "id": 20,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              6000.0,
+              0.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "21": {
+        "id": 21,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              12000.0,
+              0.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "22": {
+        "id": 22,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              18000.0,
+              0.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "23": {
+        "id": 23,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              24000.0,
+              0.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "24": {
+        "id": 24,
+        "name": "Балка",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "beam",
+          "profile": 2,
+          "length": 6000.0,
+          "frame": {
+            "origin": [
+              0.0,
+              0.0,
+              3600.0
+            ],
+            "axes": [
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "25": {
+        "id": 25,
+        "name": "Балка",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "beam",
+          "profile": 2,
+          "length": 6000.0,
+          "frame": {
+            "origin": [
+              6000.0,
+              0.0,
+              3600.0
+            ],
+            "axes": [
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "26": {
+        "id": 26,
+        "name": "Балка",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "beam",
+          "profile": 2,
+          "length": 6000.0,
+          "frame": {
+            "origin": [
+              12000.0,
+              0.0,
+              3600.0
+            ],
+            "axes": [
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "27": {
+        "id": 27,
+        "name": "Балка",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "beam",
+          "profile": 2,
+          "length": 6000.0,
+          "frame": {
+            "origin": [
+              18000.0,
+              0.0,
+              3600.0
+            ],
+            "axes": [
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "28": {
+        "id": 28,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              0.0,
+              6000.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "29": {
+        "id": 29,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              6000.0,
+              6000.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "30": {
+        "id": 30,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              12000.0,
+              6000.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "31": {
+        "id": 31,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              18000.0,
+              6000.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "32": {
+        "id": 32,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              24000.0,
+              6000.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "33": {
+        "id": 33,
+        "name": "Балка",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "beam",
+          "profile": 2,
+          "length": 6000.0,
+          "frame": {
+            "origin": [
+              0.0,
+              6000.0,
+              3600.0
+            ],
+            "axes": [
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "34": {
+        "id": 34,
+        "name": "Балка",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "beam",
+          "profile": 2,
+          "length": 6000.0,
+          "frame": {
+            "origin": [
+              6000.0,
+              6000.0,
+              3600.0
+            ],
+            "axes": [
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "35": {
+        "id": 35,
+        "name": "Балка",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "beam",
+          "profile": 2,
+          "length": 6000.0,
+          "frame": {
+            "origin": [
+              12000.0,
+              6000.0,
+              3600.0
+            ],
+            "axes": [
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "36": {
+        "id": 36,
+        "name": "Балка",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "beam",
+          "profile": 2,
+          "length": 6000.0,
+          "frame": {
+            "origin": [
+              18000.0,
+              6000.0,
+              3600.0
+            ],
+            "axes": [
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "37": {
+        "id": 37,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              0.0,
+              12000.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "38": {
+        "id": 38,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              6000.0,
+              12000.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "39": {
+        "id": 39,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              12000.0,
+              12000.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "40": {
+        "id": 40,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              18000.0,
+              12000.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "41": {
+        "id": 41,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              24000.0,
+              12000.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "42": {
+        "id": 42,
+        "name": "Балка",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "beam",
+          "profile": 2,
+          "length": 6000.0,
+          "frame": {
+            "origin": [
+              0.0,
+              12000.0,
+              3600.0
+            ],
+            "axes": [
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "43": {
+        "id": 43,
+        "name": "Балка",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "beam",
+          "profile": 2,
+          "length": 6000.0,
+          "frame": {
+            "origin": [
+              6000.0,
+              12000.0,
+              3600.0
+            ],
+            "axes": [
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "44": {
+        "id": 44,
+        "name": "Балка",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "beam",
+          "profile": 2,
+          "length": 6000.0,
+          "frame": {
+            "origin": [
+              12000.0,
+              12000.0,
+              3600.0
+            ],
+            "axes": [
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "45": {
+        "id": 45,
+        "name": "Балка",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "beam",
+          "profile": 2,
+          "length": 6000.0,
+          "frame": {
+            "origin": [
+              18000.0,
+              12000.0,
+              3600.0
+            ],
+            "axes": [
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "46": {
+        "id": 46,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              0.0,
+              18000.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "47": {
+        "id": 47,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              6000.0,
+              18000.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "48": {
+        "id": 48,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              12000.0,
+              18000.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "49": {
+        "id": 49,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              18000.0,
+              18000.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "50": {
+        "id": 50,
+        "name": "Колонна",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "column",
+          "profile": 2,
+          "length": 3600.0,
+          "frame": {
+            "origin": [
+              24000.0,
+              18000.0,
+              0.0
+            ],
+            "axes": [
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "51": {
+        "id": 51,
+        "name": "Балка",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "beam",
+          "profile": 2,
+          "length": 6000.0,
+          "frame": {
+            "origin": [
+              0.0,
+              18000.0,
+              3600.0
+            ],
+            "axes": [
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "52": {
+        "id": 52,
+        "name": "Балка",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "beam",
+          "profile": 2,
+          "length": 6000.0,
+          "frame": {
+            "origin": [
+              6000.0,
+              18000.0,
+              3600.0
+            ],
+            "axes": [
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "53": {
+        "id": 53,
+        "name": "Балка",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "beam",
+          "profile": 2,
+          "length": 6000.0,
+          "frame": {
+            "origin": [
+              12000.0,
+              18000.0,
+              3600.0
+            ],
+            "axes": [
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      },
+      "54": {
+        "id": 54,
+        "name": "Балка",
+        "material": 1,
+        "shape": {
+          "kind": "member",
+          "member_kind": "beam",
+          "profile": 2,
+          "length": 6000.0,
+          "frame": {
+            "origin": [
+              18000.0,
+              18000.0,
+              3600.0
+            ],
+            "axes": [
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.0,
+                0.0
+              ]
+            ]
+          }
+        },
+        "properties": {}
+      }
+    },
+    "assemblies": {},
+    "axes": {
+      "8": {
+        "id": 8,
+        "name": "1",
+        "start": [
+          0.0,
+          -2000.0,
+          0.0
+        ],
+        "end": [
+          0.0,
+          20000.0,
+          0.0
+        ]
+      },
+      "9": {
+        "id": 9,
+        "name": "2",
+        "start": [
+          6000.0,
+          -2000.0,
+          0.0
+        ],
+        "end": [
+          6000.0,
+          20000.0,
+          0.0
+        ]
+      },
+      "10": {
+        "id": 10,
+        "name": "3",
+        "start": [
+          12000.0,
+          -2000.0,
+          0.0
+        ],
+        "end": [
+          12000.0,
+          20000.0,
+          0.0
+        ]
+      },
+      "11": {
+        "id": 11,
+        "name": "4",
+        "start": [
+          18000.0,
+          -2000.0,
+          0.0
+        ],
+        "end": [
+          18000.0,
+          20000.0,
+          0.0
+        ]
+      },
+      "12": {
+        "id": 12,
+        "name": "5",
+        "start": [
+          24000.0,
+          -2000.0,
+          0.0
+        ],
+        "end": [
+          24000.0,
+          20000.0,
+          0.0
+        ]
+      },
+      "13": {
+        "id": 13,
+        "name": "А",
+        "start": [
+          -2000.0,
+          0.0,
+          0.0
+        ],
+        "end": [
+          26000.0,
+          0.0,
+          0.0
+        ]
+      },
+      "14": {
+        "id": 14,
+        "name": "Б",
+        "start": [
+          -2000.0,
+          6000.0,
+          0.0
+        ],
+        "end": [
+          26000.0,
+          6000.0,
+          0.0
+        ]
+      },
+      "15": {
+        "id": 15,
+        "name": "В",
+        "start": [
+          -2000.0,
+          12000.0,
+          0.0
+        ],
+        "end": [
+          26000.0,
+          12000.0,
+          0.0
+        ]
+      },
+      "16": {
+        "id": 16,
+        "name": "Г",
+        "start": [
+          -2000.0,
+          18000.0,
+          0.0
+        ],
+        "end": [
+          26000.0,
+          18000.0,
+          0.0
+        ]
+      }
+    },
+    "levels": {
+      "17": {
+        "id": 17,
+        "name": "0,000",
+        "elevation_mm": 0.0
+      },
+      "18": {
+        "id": 18,
+        "name": "+3,600",
+        "elevation_mm": 3600.0
+      }
+    },
+    "drawings": {
+      "55": {
+        "id": 55,
+        "kind": {
+          "kind": "general",
+          "objects": []
+        },
+        "number": "КМ-1",
+        "title": "Схема расположения элементов · Контрольное здание",
+        "sheet": "a1",
+        "scale": 75.0,
+        "views": [
+          {
+            "id": 1,
+            "name": "Фасад",
+            "direction": "front",
+            "position": [
+              216.0,
+              529.0
+            ]
+          },
+          {
+            "id": 2,
+            "name": "План",
+            "direction": "top",
+            "position": [
+              216.0,
+              322.0
+            ]
+          }
+        ],
+        "dimensions": [
+          {
+            "id": 1,
+            "view": 1,
+            "anchors": [
+              {
+                "object": 19,
+                "point": {
+                  "kind": "start"
+                }
+              },
+              {
+                "object": 20,
+                "point": {
+                  "kind": "start"
+                }
+              },
+              {
+                "object": 21,
+                "point": {
+                  "kind": "start"
+                }
+              },
+              {
+                "object": 22,
+                "point": {
+                  "kind": "start"
+                }
+              },
+              {
+                "object": 23,
+                "point": {
+                  "kind": "start"
+                }
+              }
+            ],
+            "axis": "horizontal",
+            "offset": -20.0
+          }
+        ],
+        "texts": [],
+        "fingerprints": {
+          "19": "081e090de6cee1d2174c222b317062eba5812da59b60d2b6317093b6f234e48e",
+          "20": "755a0f9c0f84e9bb9e461afe67b020aa6ef4608a6287d8bc29ece07b540837bd",
+          "21": "1aaac3b7fee04f0e34b3e2871dcd49c69243de6558382d9e392b921d715dd97d",
+          "22": "22dc87e18465f9a9410283b43c67eeae0fd0b2f0fce45abecb553312b8bd4e51",
+          "23": "4e9f947fc33c578cb7fff537e8392d080f369e0575c51cbe0411bf84e68dc191",
+          "24": "815d75f1909bc1866dc9660bbdd1a9927d3719921c58753f2aa6a88ccca6eb94",
+          "25": "8141b3bef9803c6805802ab7e2eed25ae4e2d4cbf2bc2ad4b848d3b9037afec3",
+          "26": "b1cb202f662bdf30d23ec1419b9a88ce9800c7e7be0bd10a19416ebef90dfa36",
+          "27": "333f2591acf375f39438606397bcc0291ea7392eab84ff4427c62d1e5e8e5f67",
+          "28": "87053d3eb95086022448a8a4d4c52ca665e0de9180eada9721a2b74e8267c319",
+          "29": "96276705a4a41fca97c6812d911b0848f35d53a885f11c565a5b3ed3b7cf8ce6",
+          "30": "965bc7755c64ce31684c25efce56be6ebc933dbc6c78a9e7ac0692acbc7aff5b",
+          "31": "83d5bea74fe4464bdba7984bd503b71ffce3c8426da2818b460350f21d9749c8",
+          "32": "f4bd1c950be1559a3d5b905ed1970f1837ffd6179d0e68d52016b7000ef24c64",
+          "33": "bf8bfd2b699b910661a24a0a9e679a4cff02b683a3beaa42214e6b2f573f43c6",
+          "34": "5a140de2889e5ace8561ea80cc99ea0d59ab41d455a4a39005115b16dfef498d",
+          "35": "edbfc8d32b9661227f9456c13bfc767dd57a3056de24a15b3016d60ab2424d04",
+          "36": "94cfa9678861ba138495cdca12d7b44cf0345abef2426c1eed15d95cb04ca53c",
+          "37": "f273e89de59f851446cab884417ac2491a1111e2e34b32d73936ed8863703a4d",
+          "38": "22e341a2b61006b491014737e7930655478fe9fd61b166a3cc5b38d48533bf1b",
+          "39": "ff77c46beb6f02e6b259899714f0bb731e9658935dfd4e373744c07a64dbe0d2",
+          "40": "1dc9ab1efe84e3e5f52a02cf04e88dacd9133c47fc8480b1740df171c1e4eede",
+          "41": "e425b4da0f122f4ee3a50a3c7bc461e4d1e0cfec72a6e80a7a0bdfafaf9c97d9",
+          "42": "25c288ce80e2a0d774ae38d6b1acb17b9b8bd58842fff29fa4c6fda0b5d8be95",
+          "43": "94f208bada4c579ed4fcaf7bc01ceda5783212f5b05810f3d39978b039c80db6",
+          "44": "c1a481db2522f426f22ca8e2656caff6820992fc18ebfe4f0485cd8c13ebc0a3",
+          "45": "feda3100751048bacb5c88ebcaed8bd33c3aa96ecb5fd9eca6efde0b7586326f",
+          "46": "adfa285aefab5016f926e09c5e54a3c13a19a19fd7b56c345e39d0af5ad9e6f1",
+          "47": "bc98a78e9ba9670f915065e2dc5cbeb7673a4b3e41653bbd6a96a43731e9f35c",
+          "48": "bf082485efc53e135144c4b261764fc4794a43446e08989a87a2410fb39ddc32",
+          "49": "af1a82e2e360377f9b1d455b84d7b8a81cd8d30cbd3bdcddc7fd4b72f9d1239f",
+          "50": "c59f87d38d7d9f189e7a3bbd7123e1b3e25c6ffea04b09aecba8e731cec97a65",
+          "51": "a1b699e79f9ae5feaee958db494f8b10b2e68477beb407cc3f7a2bfadb7cc507",
+          "52": "66b60ebc008a350dbb49b4a77dd5e4c4a923de30a27665d45b269e889addb02d",
+          "53": "5124e0525343793549a12f918ed2cf14e6703e778356c2bdf89fb58dd7cfc100",
+          "54": "fba7e9177ba71fac3cc20932a228d6383bb7810ae69d304528b2f281128122b0"
+        },
+        "generated_revision": 0
+      },
+      "56": {
+        "id": 56,
+        "kind": {
+          "kind": "part",
+          "part": 19
+        },
+        "number": "КМД-2",
+        "title": "Колонна",
+        "sheet": "a3",
+        "scale": 15.0,
+        "views": [
+          {
+            "id": 1,
+            "name": "Вид спереди",
+            "direction": "front",
+            "position": [
+              155.0,
+              247.0
+            ]
+          },
+          {
+            "id": 2,
+            "name": "Вид сверху",
+            "direction": "top",
+            "position": [
+              155.0,
+              202.0
+            ]
+          },
+          {
+            "id": 3,
+            "name": "Вид слева",
+            "direction": "left",
+            "position": [
+              310.0,
+              247.0
+            ]
+          }
+        ],
+        "dimensions": [
+          {
+            "id": 1,
+            "view": 1,
+            "anchors": [
+              {
+                "object": 19,
+                "point": {
+                  "kind": "start"
+                }
+              },
+              {
+                "object": 19,
+                "point": {
+                  "kind": "end"
+                }
+              }
+            ],
+            "axis": "horizontal",
+            "offset": 18.0
+          }
+        ],
+        "texts": [],
+        "fingerprints": {
+          "19": "081e090de6cee1d2174c222b317062eba5812da59b60d2b6317093b6f234e48e"
+        },
+        "generated_revision": 1
+      }
+    }
+  }
+}

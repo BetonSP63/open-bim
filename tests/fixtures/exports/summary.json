@@ -7,8 +7,8 @@
       "OB_LOST": 0,
       "OB_SECTION": 0,
       "OB_TEXT": 25,
-      "OB_THIN": 18,
-      "OB_VISIBLE": 8
+      "OB_THIN": 20,
+      "OB_VISIBLE": 10
     },
     "size_mm": [
       420.0,
@@ -23,8 +23,8 @@
       "OB_LOST": 0,
       "OB_SECTION": 0,
       "OB_TEXT": 28,
-      "OB_THIN": 30,
-      "OB_VISIBLE": 7
+      "OB_THIN": 31,
+      "OB_VISIBLE": 8
     },
     "size_mm": [
       420.0,
@@ -38,9 +38,9 @@
       "OB_HIDDEN": 76,
       "OB_LOST": 0,
       "OB_SECTION": 0,
-      "OB_TEXT": 42,
-      "OB_THIN": 35,
-      "OB_VISIBLE": 54
+      "OB_TEXT": 48,
+      "OB_THIN": 62,
+      "OB_VISIBLE": 76
     },
     "size_mm": [
       841.0,
@@ -55,8 +55,8 @@
       "OB_LOST": 0,
       "OB_SECTION": 0,
       "OB_TEXT": 28,
-      "OB_THIN": 38,
-      "OB_VISIBLE": 3
+      "OB_THIN": 39,
+      "OB_VISIBLE": 4
     },
     "size_mm": [
       420.0,

@@ -254,29 +254,33 @@
 <rect x="412" y="234.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="412.5" y="234.5" width="0.5" height="0.5" fill="#000"/>
 <g class="view" data-view="1">
-<polyline class="Hidden" data-object="8" points="334.999,70 334.999,40" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
-<polyline class="Visible" data-object="8" points="334.999,70 35,70 35,68.8 334.999,68.8" fill="none" stroke="#000" stroke-width="0.5"/>
-<polyline class="Visible" data-object="8" points="35,68.8 35,40 334.999,40" fill="none" stroke="#000" stroke-width="0.5"/>
-<polyline class="Visible" data-object="8" points="35,41.2 334.999,41.2" fill="none" stroke="#000" stroke-width="0.5"/>
-<polyline class="Visible" data-object="8" points="83.9,51.003 83.92,50.792 83.982,50.583 84.085,50.39 84.219,50.226 84.382,50.09 84.574,49.986 84.783,49.922 85,49.9 85.217,49.922 85.42,49.983 85.613,50.087 85.777,50.221 85.915,50.39 86.015,50.577 86.078,50.779 86.1,50.997 86.08,51.208 86.018,51.417 85.919,51.605 85.781,51.774 85.613,51.913 85.426,52.014 85.217,52.078 85.007,52.1 84.789,52.08 84.586,52.019 84.393,51.917 84.223,51.779 84.088,51.616 83.985,51.423 83.922,51.221 83.9,51.003" fill="none" stroke="#000" stroke-width="0.5"/>
-<polyline class="Visible" data-object="8" points="158.9,51.003 158.922,51.221 158.985,51.423 159.088,51.616 159.223,51.779 159.393,51.917 159.586,52.019 159.789,52.08 160.007,52.1 160.217,52.078 160.426,52.014 160.613,51.913 160.781,51.774 160.915,51.61 161.018,51.417 161.08,51.208 161.1,50.997 161.078,50.779 161.013,50.571 160.908,50.379 160.772,50.216 160.602,50.079 160.414,49.981 160.204,49.919 159.993,49.9 159.776,49.923 159.574,49.986 159.387,50.087 159.219,50.226 159.085,50.39 158.982,50.583 158.921,50.786 158.9,51.003" fill="none" stroke="#000" stroke-width="0.5"/>
-<polyline class="Visible" data-object="11" points="335,70 335,40 337,40 337,70 335,70" fill="none" stroke="#000" stroke-width="0.5"/>
-<polyline class="Thin" data-object="8" points="122.858,51.023 126.858,47.023" fill="none" stroke="#000" stroke-width="0.25"/>
-<polyline class="Thin" data-object="11" points="336,55 340,51" fill="none" stroke="#000" stroke-width="0.25"/>
-<text x="186" y="80" font-size="5" text-anchor="middle" fill="#000">Фасад 1:10</text>
-<text x="126.858" y="47.023" font-size="3.5" text-anchor="start" fill="#000" data-object="8">P0002</text>
-<text x="340" y="51" font-size="3.5" text-anchor="start" fill="#000" data-object="11">P0001</text>
+<polyline class="Hidden" data-object="8" points="354.999,70 354.999,40" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Visible" data-object="8" points="354.999,70 55,70 55,68.8 354.999,68.8" fill="none" stroke="#000" stroke-width="0.5"/>
+<polyline class="Visible" data-object="8" points="55,68.8 55,40 354.999,40" fill="none" stroke="#000" stroke-width="0.5"/>
+<polyline class="Visible" data-object="8" points="55,41.2 354.999,41.2" fill="none" stroke="#000" stroke-width="0.5"/>
+<polyline class="Visible" data-object="8" points="103.9,51.003 103.92,50.792 103.982,50.583 104.085,50.39 104.219,50.226 104.382,50.09 104.574,49.986 104.783,49.922 105,49.9 105.217,49.922 105.42,49.983 105.613,50.087 105.777,50.221 105.915,50.39 106.015,50.577 106.078,50.779 106.1,50.997 106.08,51.208 106.018,51.417 105.919,51.605 105.781,51.774 105.613,51.913 105.426,52.014 105.217,52.078 105.007,52.1 104.789,52.08 104.586,52.019 104.393,51.917 104.223,51.779 104.088,51.616 103.985,51.423 103.922,51.221 103.9,51.003" fill="none" stroke="#000" stroke-width="0.5"/>
+<polyline class="Visible" data-object="8" points="178.9,51.003 178.922,51.221 178.985,51.423 179.088,51.616 179.223,51.779 179.393,51.917 179.586,52.019 179.789,52.08 180.007,52.1 180.217,52.078 180.426,52.014 180.613,51.913 180.781,51.774 180.915,51.61 181.018,51.417 181.08,51.208 181.1,50.997 181.078,50.779 181.013,50.571 180.908,50.379 180.772,50.216 180.602,50.079 180.414,49.981 180.204,49.919 179.993,49.9 179.776,49.923 179.574,49.986 179.387,50.087 179.219,50.226 179.085,50.39 178.982,50.583 178.921,50.786 178.9,51.003" fill="none" stroke="#000" stroke-width="0.5"/>
+<polyline class="Visible" data-object="11" points="355,70 355,40 357,40 357,70 355,70" fill="none" stroke="#000" stroke-width="0.5"/>
+<polyline class="Visible" points="143.358,51.023 143.354,50.958 143.341,50.893 143.32,50.832 143.291,50.773 143.255,50.719 143.211,50.669 143.162,50.626 143.108,50.59 143.049,50.561 142.987,50.54 142.923,50.527 142.858,50.523 142.793,50.527 142.728,50.54 142.666,50.561 142.608,50.59 142.553,50.626 142.504,50.669 142.461,50.719 142.425,50.773 142.396,50.832 142.375,50.893 142.362,50.958 142.358,51.023 142.362,51.088 142.375,51.152 142.396,51.214 142.425,51.273 142.461,51.327 142.504,51.376 142.553,51.42 142.608,51.456 142.666,51.485 142.728,51.506 142.793,51.519 142.858,51.523 142.923,51.519 142.987,51.506 143.049,51.485 143.108,51.456 143.162,51.42 143.211,51.376 143.255,51.327 143.291,51.273 143.32,51.214 143.341,51.152 143.354,51.088 143.358,51.023" fill="none" stroke="#000" stroke-width="0.5"/>
+<polyline class="Visible" points="356.5,55 356.496,54.935 356.483,54.871 356.462,54.809 356.433,54.75 356.397,54.696 356.354,54.646 356.304,54.603 356.25,54.567 356.191,54.538 356.129,54.517 356.065,54.504 356,54.5 355.935,54.504 355.871,54.517 355.809,54.538 355.75,54.567 355.696,54.603 355.646,54.646 355.603,54.696 355.567,54.75 355.538,54.809 355.517,54.871 355.504,54.935 355.5,55 355.504,55.065 355.517,55.129 355.538,55.191 355.567,55.25 355.603,55.304 355.646,55.354 355.696,55.397 355.75,55.433 355.809,55.462 355.871,55.483 355.935,55.496 356,55.5 356.065,55.496 356.129,55.483 356.191,55.462 356.25,55.433 356.304,55.397 356.354,55.354 356.397,55.304 356.433,55.25 356.462,55.191 356.483,55.129 356.496,55.065 356.5,55" fill="none" stroke="#000" stroke-width="0.5"/>
+<polyline class="Thin" data-object="8" points="142.858,51.023 146.358,47.623" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" data-object="8" points="146.358,47.623 167.701,47.623" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" data-object="11" points="356,55 359.5,51.6" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" data-object="11" points="359.5,51.6 380.843,51.6" fill="none" stroke="#000" stroke-width="0.25"/>
+<text x="206" y="80" font-size="7.143" text-anchor="middle" fill="#000">Фасад</text>
+<text x="146.858" y="47.023" font-size="7.143" text-anchor="start" fill="#000" data-object="8">P0002</text>
+<text x="360" y="51" font-size="7.143" text-anchor="start" fill="#000" data-object="11">P0001</text>
 </g>
 <g class="view" data-view="2">
-<polyline class="Hidden" data-object="8" points="35,120.4 335,120.4" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
-<polyline class="Hidden" data-object="8" points="35,119.6 335,119.6" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
-<polyline class="Hidden" data-object="11" points="335,135.1 337,135.1" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
-<polyline class="Hidden" data-object="11" points="335,132.9 337,132.9" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
-<polyline class="Hidden" data-object="11" points="335,107.1 337,107.1" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
-<polyline class="Hidden" data-object="11" points="335,104.9 337,104.9" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
-<polyline class="Visible" data-object="8" points="35,127.5 35,112.5 335,112.5 335,127.5 35,127.5" fill="none" stroke="#000" stroke-width="0.5"/>
-<polyline class="Visible" data-object="11" points="335,140 335,100 337,100 337,140 335,140" fill="none" stroke="#000" stroke-width="0.5"/>
-<text x="186" y="150" font-size="5" text-anchor="middle" fill="#000">План 1:10</text>
+<polyline class="Hidden" data-object="8" points="55,150.4 355,150.4" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="8" points="55,149.6 355,149.6" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="11" points="355,165.1 357,165.1" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="11" points="355,162.9 357,162.9" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="11" points="355,137.1 357,137.1" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="11" points="355,134.9 357,134.9" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Visible" data-object="8" points="55,157.5 55,142.5 355,142.5 355,157.5 55,157.5" fill="none" stroke="#000" stroke-width="0.5"/>
+<polyline class="Visible" data-object="11" points="355,170 355,130 357,130 357,170 355,170" fill="none" stroke="#000" stroke-width="0.5"/>
+<text x="206" y="180" font-size="7.143" text-anchor="middle" fill="#000">План</text>
 </g>
 <text x="231" y="250.375" font-size="2.5" text-anchor="start" fill="#000">Изм.</text>
 <text x="241" y="250.375" font-size="2.5" text-anchor="start" fill="#000">Кол.уч</text>
@@ -291,7 +295,8 @@
 <text x="381" y="265.375" font-size="2.5" text-anchor="start" fill="#000">Лист</text>
 <text x="396" y="265.375" font-size="2.5" text-anchor="start" fill="#000">Листов</text>
 <text x="355" y="243.75" font-size="5" text-anchor="middle" fill="#000">0000-КМ</text>
-<text x="330" y="285.725" font-size="3.5" text-anchor="middle" fill="#000">Общий вид · Новый проект</text>
+<text x="330" y="283.188" font-size="3.5" text-anchor="middle" fill="#000">Схема расположения элементов · Новый</text>
+<text x="330" y="288.263" font-size="3.5" text-anchor="middle" fill="#000">проект</text>
 <text x="372.5" y="273.225" font-size="3.5" text-anchor="middle" fill="#000">Р</text>
 <text x="405" y="273.225" font-size="3.5" text-anchor="middle" fill="#000">1</text>
 <text x="366" y="295.8" font-size="2.5" text-anchor="start" fill="#000">Формат A3</text>

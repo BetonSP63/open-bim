@@ -123,15 +123,14 @@ fn every_drawing_kind_has_scale_frame_title_block_and_designation() {
         let (designation, _, _) = open_bim_drawings::sheet_number(&f.project, d);
         assert!(texts.contains(&designation.as_str()), "{file}: designation");
         assert!(texts.join(" ").contains(&d.title), "{file}: title");
-        // Form 3 has no scale graph: the scale is in the view titles.
-        assert!(
-            sheet
-                .views
-                .iter()
-                .flat_map(|v| &v.labels)
-                .any(|l| l.text.contains(&format!("1:{}", d.scale))),
-            "{file}: scale"
-        );
+        // Form 3 has no scale graph: the scale is in the view titles of
+        // product drawings; КМ schemes state no scale (ГОСТ Р 21.101, 5.1.6).
+        let scaled = sheet
+            .views
+            .iter()
+            .flat_map(|v| &v.labels)
+            .any(|l| l.text.contains(&format!("1:{}", d.scale)));
+        assert_eq!(scaled, file != "general.svg", "{file}: scale");
         assert!(sheet.frame.iter().any(|l| l.style == LineStyle::Frame));
         // All view geometry stays inside the inner frame.
         for v in &sheet.views {

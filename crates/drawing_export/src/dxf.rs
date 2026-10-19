@@ -1,9 +1,8 @@
 //! ASCII DXF R12 (AC1009) in paper millimetres. One layer per line style,
 //! DASHED line type for hidden lines, non-ASCII text as \U+XXXX escapes.
+use open_bim_drawings::conventions::CAP_RATIO;
 use open_bim_drawings::{Align, Label, LineStyle, Polyline, Sheet};
 use std::fmt::Write;
-
-pub const TEXT_CAP_RATIO: f64 = 0.7;
 
 pub fn layer(style: LineStyle) -> (&'static str, i32, &'static str) {
     match style {
@@ -101,7 +100,7 @@ fn text(out: &mut String, label: &Label) {
     pair(out, 10, n(label.position[0]));
     pair(out, 20, n(label.position[1]));
     pair(out, 30, 0);
-    pair(out, 40, n(label.height * TEXT_CAP_RATIO));
+    pair(out, 40, n(label.height * CAP_RATIO));
     pair(out, 1, escape(&label.text));
     if label.rotation.abs() > 1e-9 {
         pair(out, 50, n(label.rotation));

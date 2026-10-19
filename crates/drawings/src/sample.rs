@@ -115,3 +115,93 @@ pub fn control_project() -> Fixture {
         assembly,
     }
 }
+
+/// Control building for КМ schemes: grid 1–5 × А–Г (6000 mm), levels 0,000
+/// and +3,600, columns at every grid node, beams along rows А–Г at +3,600.
+pub fn control_building() -> Project {
+    use open_bim_model::numbering_rules::{axis_letter, level_mark};
+    use open_bim_model::{GridAxis, Level};
+    let mut p = Project {
+        name: "Контрольное здание".into(),
+        ..Project::default()
+    };
+    let add_axis = |p: &mut Project, name: String, start: [f64; 3], end: [f64; 3]| {
+        let id = p.allocate_id().expect("ids");
+        p.axes.insert(
+            id,
+            GridAxis {
+                id,
+                name,
+                start: Point3(start),
+                end: Point3(end),
+            },
+        );
+    };
+    for i in 0..5 {
+        let x = 6000. * i as f64;
+        add_axis(
+            &mut p,
+            (i + 1).to_string(),
+            [x, -2000., 0.],
+            [x, 20000., 0.],
+        );
+    }
+    for j in 0..4 {
+        let y = 6000. * j as f64;
+        add_axis(&mut p, axis_letter(j), [-2000., y, 0.], [26000., y, 0.]);
+    }
+    for z in [0., 3600.] {
+        let id = p.allocate_id().expect("ids");
+        p.levels.insert(
+            id,
+            Level {
+                id,
+                name: level_mark(z),
+                elevation_mm: z,
+            },
+        );
+    }
+    let member = |p: &mut Project, kind: MemberKind, name: &str, a: [f64; 3], b: [f64; 3]| {
+        let (frame, length) = Frame::along(Point3(a), Point3(b)).expect("member");
+        let id = p.allocate_id().expect("ids");
+        p.elements.insert(
+            id,
+            Element {
+                id,
+                name: name.into(),
+                material: ObjectId(1),
+                shape: ElementShape::Member {
+                    member_kind: kind,
+                    profile: ObjectId(2),
+                    length,
+                    frame,
+                },
+                properties: Default::default(),
+            },
+        );
+    };
+    for j in 0..4 {
+        let y = 6000. * j as f64;
+        for i in 0..5 {
+            let x = 6000. * i as f64;
+            member(
+                &mut p,
+                MemberKind::Column,
+                "Колонна",
+                [x, y, 0.],
+                [x, y, 3600.],
+            );
+        }
+        for i in 0..4 {
+            let x = 6000. * i as f64;
+            member(
+                &mut p,
+                MemberKind::Beam,
+                "Балка",
+                [x, y, 3600.],
+                [x + 6000., y, 3600.],
+            );
+        }
+    }
+    p
+}
