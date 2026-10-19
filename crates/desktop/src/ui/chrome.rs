@@ -62,11 +62,19 @@ impl Workbench {
             || self.detail.picks_points()
             || self.edit_pick.op.is_some()
             || self.measure.is_some()
+            || matches!(
+                self.trim.need(),
+                Some(
+                    crate::interaction::trim::Need::Point | crate::interaction::trim::Need::Polygon
+                )
+            )
     }
 
     pub fn prompt(&self) -> String {
         if self.workplane_picks.is_some() {
             self.workplane_prompt()
+        } else if let Some(p) = self.trim.prompt() {
+            p
         } else if let Some(p) = self.detail.prompt() {
             p
         } else if let Some(p) = self.edit_pick.prompt() {
@@ -241,13 +249,16 @@ impl Workbench {
         let allowed = |id: &ObjectId| {
             (self.select.grids && project.axes.contains_key(id))
                 || (self.select.levels && project.levels.contains_key(id))
+                || project.construction.contains_key(id)
+                || project.dimensions.contains_key(id)
         };
         match (part, axis.filter(allowed)) {
             (None, Some(axis)) => {
                 let name = match (project.axes.get(&axis), project.levels.get(&axis)) {
                     (Some(a), _) => format!("Выбрана ось {}", a.name),
                     (_, Some(l)) => format!("Выбран уровень {}", l.name),
-                    _ => String::new(),
+                    _ if project.dimensions.contains_key(&axis) => "Выбран размер".into(),
+                    _ => "Выбран вспомогательный объект (Delete — удалить)".into(),
                 };
                 crate::interaction::selection::apply(
                     &mut self.editor.selected,

@@ -10,6 +10,7 @@ pub mod polygon;
 pub mod selection;
 pub mod snap;
 pub mod tools;
+pub mod trim;
 pub mod workplane;
 
 use crate::tools::ToolKind;

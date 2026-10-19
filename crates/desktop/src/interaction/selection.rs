@@ -110,6 +110,19 @@ fn segments(project: &Project, id: ObjectId) -> Vec<(DVec3, DVec3)> {
     if let Some(axis) = project.axes.get(&id) {
         return vec![(v(axis.start), v(axis.end))];
     }
+    if let Some(c) = project.construction.get(&id) {
+        return c
+            .segments()
+            .into_iter()
+            .map(|(a, b)| (DVec3::from_array(a), DVec3::from_array(b)))
+            .collect();
+    }
+    if let Some(d) = project.dimensions.get(&id) {
+        return match (project.dim_point(&d.a), project.dim_point(&d.b)) {
+            (Some(a), Some(b)) => vec![(v(a), v(b))],
+            _ => Vec::new(),
+        };
+    }
     if let Some(level) = project.levels.get(&id) {
         return open_bim_renderer::overlay::level_line(project, level)
             .into_iter()
@@ -213,6 +226,8 @@ pub fn area(
     if filter.levels {
         ids.extend(project.levels.keys());
     }
+    ids.extend(project.construction.keys());
+    ids.extend(project.dimensions.keys());
     ids.extend(project.details.values().filter_map(|d| match d.kind {
         DetailKind::BoltGroup { .. } if filter.bolts => Some(d.id),
         DetailKind::Weld { .. } if filter.welds => Some(d.id),

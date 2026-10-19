@@ -708,7 +708,8 @@ impl eframe::App for Desktop {
                     .reference
                     .or(self.bench.engine.picks.last().copied())
                     .or(self.bench.edit_pick.points.last().copied())
-                    .or(self.bench.detail.points.last().copied()),
+                    .or(self.bench.detail.points.last().copied())
+                    .or(self.bench.trim.points.last().copied()),
             };
             let snapping = self.bench.picking() || self.handle_drag.is_some();
             let candidates = match (snapping, response.hover_pos()) {
@@ -862,9 +863,14 @@ impl eframe::App for Desktop {
                         use open_bim_desktop::interaction::grid_edit::{pick_axis, pick_level};
                         let project = self.bench.editor.document.project();
                         let at = [p.x as f64, p.y as f64];
-                        pick_level(project, &projector, at, 6.)
-                            .filter(|_| self.bench.select.levels)
-                            .or_else(|| pick_axis(project, &projector, at, 6.))
+                        open_bim_desktop::interaction::grid_edit::pick_annotation(
+                            project, &projector, at, 6.,
+                        )
+                        .or_else(|| {
+                            pick_level(project, &projector, at, 6.)
+                                .filter(|_| self.bench.select.levels)
+                        })
+                        .or_else(|| pick_axis(project, &projector, at, 6.))
                     });
                     self.bench.select_clicked(id, axis, click_mode);
                     self.bench.select = saved;
@@ -979,6 +985,8 @@ impl eframe::App for Desktop {
                 self.bench.edit_pick.points.clone()
             } else if !self.bench.detail.points.is_empty() {
                 self.bench.detail.points.clone()
+            } else if !self.bench.trim.points.is_empty() {
+                self.bench.trim.points.clone()
             } else {
                 self.bench.engine.picks.clone()
             };

@@ -1,0 +1,7 @@
+IFC beams (mean y → volume mm³): {6000: 58080000, 12000: 104520768}
+ok   beam 1: fitted to 13000, cut at x = 10000 → 58080000 vs 58080000 (±0.5 %)
+ok   beam 2: cut by the column, 23232 mm³ removed
+ok   openings in IFC: 2
+ok   construction line kept in the model, not in IFC
+ok   model dimension tied to both beam ends
+IFC_VOLUMES_OK

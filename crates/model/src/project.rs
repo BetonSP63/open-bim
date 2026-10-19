@@ -121,6 +121,19 @@ pub struct Project {
         deserialize_with = "unique_map"
     )]
     pub drawings: BTreeMap<ObjectId, crate::Drawing>,
+    /// Construction lines and circles (snap targets, never on drawings).
+    #[serde(
+        default,
+        skip_serializing_if = "BTreeMap::is_empty",
+        deserialize_with = "unique_map"
+    )]
+    pub construction: BTreeMap<ObjectId, crate::Construction>,
+    #[serde(
+        default,
+        skip_serializing_if = "BTreeMap::is_empty",
+        deserialize_with = "unique_map"
+    )]
+    pub dimensions: BTreeMap<ObjectId, crate::ModelDimension>,
     /// Main inscription attributes (ГОСТ Р 21.101-2026, appendix Е).
     #[serde(default, skip_serializing_if = "crate::DocumentInfo::is_empty")]
     pub document: crate::DocumentInfo,
@@ -144,6 +157,8 @@ impl Default for Project {
             details: BTreeMap::new(),
             connections: BTreeMap::new(),
             drawings: BTreeMap::new(),
+            construction: BTreeMap::new(),
+            dimensions: BTreeMap::new(),
             document: crate::DocumentInfo::default(),
         }
     }
@@ -173,6 +188,8 @@ impl Project {
             || self.details.contains_key(&id)
             || self.connections.contains_key(&id)
             || self.drawings.contains_key(&id)
+            || self.construction.contains_key(&id)
+            || self.dimensions.contains_key(&id)
     }
 
     pub fn element_volume_mm3(&self, id: ObjectId) -> Result<f64, ModelError> {

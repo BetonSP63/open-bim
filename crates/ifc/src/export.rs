@@ -159,6 +159,26 @@ fn local(frame: &Frame, origin: open_bim_model::Point3) -> [f64; 3] {
 }
 
 /// IFC4 STEP text and a report of model data that was not exported.
+/// Largest dimension of a part (length or section), for opening sizes.
+fn part_extent(project: &Project, element: &open_bim_model::Element) -> f64 {
+    match &element.shape {
+        ElementShape::Member {
+            length, profile, ..
+        } => {
+            let section = project
+                .profiles
+                .get(profile)
+                .and_then(|p| p.shape.solid_contour().ok())
+                .map(|c| c.iter().flatten().map(|v| v.abs()).fold(0., f64::max))
+                .unwrap_or(1000.);
+            length.value() + 2. * section
+        }
+        ElementShape::Plate {
+            contour, thickness, ..
+        } => contour.iter().flatten().map(|v| v.abs()).fold(0., f64::max) * 2. + thickness.value(),
+    }
+}
+
 pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
     project.validate().map_err(|e| e.to_string())?;
     let mut w = Writer {
@@ -363,14 +383,71 @@ pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
                         size[2],
                     )
                 }
-                _ => {
-                    report
-                        .skipped
-                        .entry("plane_cut".into())
-                        .or_default()
-                        .push(detail.id);
-                    continue;
+                DetailKind::PrismCut {
+                    frame,
+                    contour,
+                    length,
+                    ..
+                } => {
+                    let mut points: Vec<u64> = contour
+                        .iter()
+                        .map(|p| {
+                            w.add(format!(
+                                "IFCCARTESIANPOINT(({},{}))",
+                                real(p[0]),
+                                real(p[1])
+                            ))
+                        })
+                        .collect();
+                    points.push(points[0]);
+                    let poly = w.add(format!("IFCPOLYLINE(({}))", refs(&points)));
+                    (
+                        *frame,
+                        w.add(format!("IFCARBITRARYCLOSEDPROFILEDEF(.AREA.,$,#{poly})")),
+                        *length,
+                    )
                 }
+                // A plane cut voids everything on its removed side: a block
+                // larger than the part, its base on the plane.
+                DetailKind::PlaneCut { normal, offset, .. } => {
+                    let len =
+                        (normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2])
+                            .sqrt();
+                    let n = normal.map(|v| v / len);
+                    let helper = if n[0].abs() < 0.9 {
+                        [1., 0., 0.]
+                    } else {
+                        [0., 1., 0.]
+                    };
+                    let x = {
+                        let c = [
+                            helper[1] * n[2] - helper[2] * n[1],
+                            helper[2] * n[0] - helper[0] * n[2],
+                            helper[0] * n[1] - helper[1] * n[0],
+                        ];
+                        let l = (c[0] * c[0] + c[1] * c[1] + c[2] * c[2]).sqrt();
+                        c.map(|v| v / l)
+                    };
+                    let y = [
+                        n[1] * x[2] - n[2] * x[1],
+                        n[2] * x[0] - n[0] * x[2],
+                        n[0] * x[1] - n[1] * x[0],
+                    ];
+                    let size = 4. * part_extent(project, element);
+                    (
+                        Frame {
+                            origin: open_bim_model::Point3(n.map(|v| v * offset / len)),
+                            axes: [x, y, n],
+                        },
+                        w.add(format!(
+                            "IFCRECTANGLEPROFILEDEF(.AREA.,$,$,{},{})",
+                            real(size),
+                            real(size)
+                        )),
+                        size,
+                    )
+                }
+                _ => continue,
             };
             let op_place = w.placement(
                 frame_local.origin.0,

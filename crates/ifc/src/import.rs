@@ -400,6 +400,72 @@ fn property_value(v: &Value) -> Option<PropertyValue> {
 }
 
 /// Parse IFC text into a new project; unsupported content goes to the report.
+/// Whether a rectangular opening block (centred on its frame origin in XY,
+/// extruded `depth` along Z) holds every corner of the part's bounding box
+/// that lies above its base plane — i.e. it removes the whole part on that side.
+fn covers(
+    project: &Project,
+    part: ObjectId,
+    opening: &Transform,
+    width: f64,
+    height: f64,
+    depth: f64,
+) -> bool {
+    let Some(element) = project.elements.get(&part) else {
+        return false;
+    };
+    let (section, length) = match &element.shape {
+        ElementShape::Plate {
+            contour, thickness, ..
+        } => (contour.clone(), thickness.value()),
+        ElementShape::Member {
+            profile, length, ..
+        } => match project
+            .profiles
+            .get(profile)
+            .map(|p| p.shape.solid_contour())
+        {
+            Some(Ok(c)) => (c, length.value()),
+            _ => return false,
+        },
+    };
+    let (lo, hi) = section.iter().fold(
+        ([f64::INFINITY; 2], [f64::NEG_INFINITY; 2]),
+        |(lo, hi), p| {
+            (
+                [lo[0].min(p[0]), lo[1].min(p[1])],
+                [hi[0].max(p[0]), hi[1].max(p[1])],
+            )
+        },
+    );
+    let corners = [lo[0], hi[0]].into_iter().flat_map(|x| {
+        [lo[1], hi[1]]
+            .into_iter()
+            .flat_map(move |y| [0., length].map(move |z| [x, y, z]))
+    });
+    let mut any_inside = false;
+    for c in corners {
+        let d = [
+            c[0] - opening.origin[0],
+            c[1] - opening.origin[1],
+            c[2] - opening.origin[2],
+        ];
+        let (x, y, z) = (
+            dot(d, opening.axes[0]),
+            dot(d, opening.axes[1]),
+            dot(d, opening.axes[2]),
+        );
+        if z <= 0. {
+            continue;
+        }
+        any_inside = true;
+        if x.abs() > width / 2. || y.abs() > height / 2. || z > depth {
+            return false;
+        }
+    }
+    any_inside && width.min(height) > 0.
+}
+
 pub fn import(text: &str) -> Result<(Project, ImportReport), String> {
     let file = parse(text)?;
     let mut report = ImportReport {
@@ -738,6 +804,37 @@ pub fn import(text: &str) -> Result<(Project, ImportReport), String> {
                             size: [width, height, odepth],
                         }
                     }
+                    // A block covering the whole part beyond its base plane
+                    // is a plane cut (that is how plane cuts are exported).
+                    Shape::Profile(ProfileShape::Rectangle { width, height })
+                        if covers(&project, element_id, &local, width, height, odepth) =>
+                    {
+                        let z = local.axes[2];
+                        DetailKind::PlaneCut {
+                            part: element_id,
+                            normal: z,
+                            offset: dot(local.origin, z),
+                        }
+                    }
+                    Shape::Profile(ProfileShape::Rectangle { width, height }) => {
+                        DetailKind::PrismCut {
+                            part: element_id,
+                            frame: local.frame(),
+                            contour: vec![
+                                [-width / 2., -height / 2.],
+                                [width / 2., -height / 2.],
+                                [width / 2., height / 2.],
+                                [-width / 2., height / 2.],
+                            ],
+                            length: odepth,
+                        }
+                    }
+                    Shape::Contour(contour) => DetailKind::PrismCut {
+                        part: element_id,
+                        frame: local.frame(),
+                        contour,
+                        length: odepth,
+                    },
                     _ => {
                         report
                             .issues

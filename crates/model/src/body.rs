@@ -96,13 +96,28 @@ impl Project {
                 .drill(frame.axes, frame.origin.0, diameter / 2.0, *depth)
                 .map_err(geometry_error)?;
         }
-        for detail in details {
+        // Half-space clips and Boolean subtractions commute; clipping the
+        // clean solid first keeps the kernel away from clipping Boolean output.
+        let mut ordered = details.clone();
+        ordered.sort_by_key(|d| !matches!(d.kind, DetailKind::PlaneCut { .. }));
+        for detail in ordered {
             body = match &detail.kind {
                 DetailKind::PlaneCut { normal, offset, .. } => {
                     body.clip_plane(*normal, *offset).map_err(geometry_error)?
                 }
                 DetailKind::BoxCut { origin, size, .. } => {
                     let tool = Body::cuboid(*size, *origin).map_err(geometry_error)?;
+                    body.difference(&tool).map_err(geometry_error)?
+                }
+                DetailKind::PrismCut {
+                    frame,
+                    contour,
+                    length,
+                    ..
+                } => {
+                    let tool = Body::prism(contour, *length, Point3([0.0; 3]))
+                        .and_then(|b| b.rigid_transform(frame.axes, frame.origin.0))
+                        .map_err(geometry_error)?;
                     body.difference(&tool).map_err(geometry_error)?
                 }
                 _ => body,

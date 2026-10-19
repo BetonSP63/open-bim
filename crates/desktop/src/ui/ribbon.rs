@@ -108,6 +108,14 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     item(Cmd::ToolAxis, Icon::Grid, "Ось"),
                 ],
             ),
+            (
+                "Построения",
+                vec![
+                    item(Cmd::ConstructionLine, Icon::Grid, "Линия"),
+                    item(Cmd::ConstructionCircle, Icon::Grid, "Окружность"),
+                    item(Cmd::ModelDimension, Icon::Grid, "Размер"),
+                ],
+            ),
         ],
         RibbonTab::Concrete => vec![(
             "Бетон",
@@ -139,10 +147,15 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                 ],
             ),
             (
-                "История",
+                "Подгонка и резка",
                 vec![
-                    item(Cmd::Undo, Icon::Undo, "Отменить"),
-                    item(Cmd::Redo, Icon::Redo, "Повторить"),
+                    item(Cmd::FitEnd, Icon::Move, "Подогнать"),
+                    item(Cmd::CutLine, Icon::Delete, "Рез линией"),
+                    item(Cmd::CutPart, Icon::Delete, "Рез деталью"),
+                    item(Cmd::CutPolygon, Icon::Delete, "Рез контуром"),
+                    item(Cmd::SplitPart, Icon::Move, "Разделить"),
+                    item(Cmd::CombineParts, Icon::Move, "Объединить"),
+                    item(Cmd::ExtendTo, Icon::Move, "Удлинить"),
                 ],
             ),
             (
@@ -151,10 +164,6 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     item(Cmd::WorkPlaneThreePoints, Icon::WorkPlane, "По 3 точкам"),
                     item(Cmd::WorkPlaneReset, Icon::WorkPlane, "Глобальная XY"),
                 ],
-            ),
-            (
-                "Свойства",
-                vec![item(Cmd::PanelProperties, Icon::Properties, "Свойства")],
             ),
         ],
         RibbonTab::View => vec![

@@ -31,6 +31,14 @@ pub enum DetailKind {
         origin: Point3,
         size: [f64; 3],
     },
+    /// Prism cut in the part's local frame: `contour` in the XY plane of
+    /// `frame`, extruded `length` along its Z (cut by polygon, cut by part).
+    PrismCut {
+        part: ObjectId,
+        frame: crate::Frame,
+        contour: Vec<[f64; 2]>,
+        length: f64,
+    },
     Hole {
         part: ObjectId,
         frame: Frame,
@@ -60,9 +68,10 @@ pub enum DetailKind {
 impl DetailKind {
     pub fn part(&self) -> Option<ObjectId> {
         match self {
-            Self::PlaneCut { part, .. } | Self::BoxCut { part, .. } | Self::Hole { part, .. } => {
-                Some(*part)
-            }
+            Self::PlaneCut { part, .. }
+            | Self::BoxCut { part, .. }
+            | Self::PrismCut { part, .. }
+            | Self::Hole { part, .. } => Some(*part),
             _ => None,
         }
     }
@@ -105,6 +114,26 @@ impl DetailKind {
                 part(*id)?;
                 crate::validation::valid_point(*origin)?;
                 if !size.iter().all(|v| positive(*v)) {
+                    return Err(invalid());
+                }
+            }
+            Self::PrismCut {
+                part: id,
+                frame,
+                contour,
+                length,
+            } => {
+                part(*id)?;
+                frame.validate()?;
+                if contour.len() < 3
+                    || contour.len() > 10_000
+                    || !contour
+                        .iter()
+                        .flatten()
+                        .all(|v| v.is_finite() && v.abs() <= 1e7)
+                    || !positive(*length)
+                    || crate::polygon_area(contour).is_err()
+                {
                     return Err(invalid());
                 }
             }

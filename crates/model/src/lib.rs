@@ -2,6 +2,7 @@
 mod body;
 mod catalog;
 mod connection;
+mod construction;
 mod detailing;
 mod document_info;
 mod drawing;
@@ -12,6 +13,7 @@ mod validation;
 
 pub use catalog::{Material, Profile, ProfileShape};
 pub use connection::{ConnectionInstance, ConnectionTemplate, TemplateKind};
+pub use construction::{Construction, ConstructionKind, DimPoint, ModelDimension};
 pub use detailing::{Detail, DetailKind, WeldType};
 pub use document_info::{
     DEFAULT_BASE, DocumentInfo, MAX_APPROVALS, MAX_OTHER_SIGNERS, Person, Stage, format_date,

@@ -74,6 +74,12 @@ pub enum Command {
     ReplaceElement {
         element: Element,
     },
+    CreateConstruction {
+        construction: open_bim_model::Construction,
+    },
+    CreateDimension {
+        dimension: open_bim_model::ModelDimension,
+    },
     /// Main inscription attributes of the project (ГОСТ Р 21.101, прил. Е).
     SetDocumentInfo {
         info: Box<open_bim_model::DocumentInfo>,
@@ -338,6 +344,30 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
             }
             project.assemblies.insert(assembly.id, assembly.clone());
         }
+        Command::CreateConstruction { construction } => {
+            let id = construction.id;
+            if project.contains_id(id) || id.0 == 0 {
+                return Err(ModelError::DuplicateId(id).into());
+            }
+            construction.validate()?;
+            project.next_id = project.next_id.max(
+                id.0.checked_add(1)
+                    .ok_or_else(|| CommandError::InvalidTransaction("Недопустимый ID".into()))?,
+            );
+            project.construction.insert(id, construction.clone());
+        }
+        Command::CreateDimension { dimension } => {
+            let id = dimension.id;
+            if project.contains_id(id) || id.0 == 0 {
+                return Err(ModelError::DuplicateId(id).into());
+            }
+            dimension.validate(project)?;
+            project.next_id = project.next_id.max(
+                id.0.checked_add(1)
+                    .ok_or_else(|| CommandError::InvalidTransaction("Недопустимый ID".into()))?,
+            );
+            project.dimensions.insert(id, dimension.clone());
+        }
         Command::CreateDrawing { drawing } => {
             if project.contains_id(drawing.id) || drawing.id.0 == 0 {
                 return Err(ModelError::DuplicateId(drawing.id).into());
@@ -516,6 +546,15 @@ fn delete(project: &mut Project, id: ObjectId, policy: DeletePolicy) -> Result<(
                 removed.extend(holes);
             }
         }
+        // A dimension tied to a removed part goes with it.
+        for d in project.dimensions.values() {
+            let tied = [&d.a, &d.b].iter().any(|p| {
+                matches!(p, open_bim_model::DimPoint::PartEnd { part, .. } if removed.contains(part))
+            });
+            if tied {
+                removed.insert(d.id);
+            }
+        }
         if previous == removed.len() {
             break;
         }
@@ -538,6 +577,8 @@ fn delete(project: &mut Project, id: ObjectId, policy: DeletePolicy) -> Result<(
         project.details.remove(id);
         project.connections.remove(id);
         project.drawings.remove(id);
+        project.construction.remove(id);
+        project.dimensions.remove(id);
     }
     for assembly in project.assemblies.values_mut() {
         assembly.members.retain(|id| !removed.contains(id));

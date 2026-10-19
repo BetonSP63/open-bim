@@ -86,6 +86,33 @@ pub fn pick_level(
         .map(|(id, _)| id)
 }
 
+/// Construction line/circle or model dimension under the cursor.
+pub fn pick_annotation(
+    project: &Project,
+    p: &Projector,
+    cursor: [f64; 2],
+    tolerance: f64,
+) -> Option<ObjectId> {
+    let construction = project.construction.values().flat_map(|c| {
+        c.segments()
+            .into_iter()
+            .map(move |(a, b)| (c.id, DVec3::from_array(a), DVec3::from_array(b)))
+    });
+    let dimensions = project.dimensions.values().filter_map(|d| {
+        Some((
+            d.id,
+            v(project.dim_point(&d.a)?),
+            v(project.dim_point(&d.b)?),
+        ))
+    });
+    construction
+        .chain(dimensions)
+        .filter_map(|(id, a, b)| pixels_to_segment(p, a, b, cursor).map(|px| (id, px)))
+        .filter(|(_, px)| *px <= tolerance)
+        .min_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(id, _)| id)
+}
+
 /// Relative coordinate string of sorted positions: «0 4*6000», «1500 3000 2*6000».
 fn spacing_string(mut xs: Vec<f64>) -> String {
     xs.sort_by(f64::total_cmp);

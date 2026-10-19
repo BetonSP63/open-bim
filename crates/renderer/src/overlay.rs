@@ -426,6 +426,68 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
             marks.push(text(c, axis.name.clone(), label, [0, 0], 12.));
         }
     }
+    // Construction lines and circles: dashed magenta (Tekla style).
+    let construction: Rgba = if input.light {
+        [190, 30, 150, 255]
+    } else {
+        [240, 110, 220, 255]
+    };
+    for c in input.project.construction.values() {
+        let selected = input.selected.contains(&c.id);
+        for (a, b) in c.segments() {
+            if let (Some(sa), Some(sb)) = (
+                p.screen(DVec3::from_array(a)),
+                p.screen(DVec3::from_array(b)),
+            ) {
+                if selected {
+                    marks.push(line(sa, sb, SELECTED_AXIS, 3., None));
+                }
+                marks.push(line(sa, sb, construction, 1.2, Some([9., 4.])));
+            }
+        }
+    }
+    // Model dimensions: line, 45° ticks and the value in millimetres.
+    for d in input.project.dimensions.values() {
+        let (Some(a), Some(b)) = (input.project.dim_point(&d.a), input.project.dim_point(&d.b))
+        else {
+            continue;
+        };
+        let (wa, wb) = (v(a), v(b));
+        let (Some(sa), Some(sb)) = (p.screen(wa), p.screen(wb)) else {
+            continue;
+        };
+        let colour = if input.selected.contains(&d.id) {
+            SELECTED_AXIS
+        } else {
+            label
+        };
+        marks.push(line(sa, sb, colour, 1.2, None));
+        let dir = [sb[0] - sa[0], sb[1] - sa[1]];
+        let len = (dir[0] * dir[0] + dir[1] * dir[1]).sqrt().max(1e-9);
+        let (ux, uy) = (dir[0] / len, dir[1] / len);
+        // Tick at 45° to the dimension line, 10 px long.
+        let tick = [(ux - uy) * 5. / 2f64.sqrt(), (uy + ux) * 5. / 2f64.sqrt()];
+        for c in [sa, sb] {
+            marks.push(line(
+                [c[0] - tick[0], c[1] - tick[1]],
+                [c[0] + tick[0], c[1] + tick[1]],
+                colour,
+                1.6,
+                None,
+            ));
+        }
+        let mid = [
+            (sa[0] + sb[0]) / 2. + uy * 10.,
+            (sa[1] + sb[1]) / 2. - ux * 10.,
+        ];
+        marks.push(text(
+            mid,
+            format!("{:.0}", wa.distance(wb)),
+            colour,
+            [0, 0],
+            13.,
+        ));
+    }
     // Level lines along the first grid axis, labelled at its start.
     if first_axis.is_some() {
         for level in input.project.levels.values() {

@@ -189,6 +189,85 @@ fn closest_on_segment_to_ray(a: DVec3, b: DVec3, ray: Ray) -> DVec3 {
     a + d * t.clamp(0., 1.)
 }
 
+/// Segments of construction objects (circles as 48-sided polygons).
+pub fn construction_segments(project: &Project) -> Vec<(ObjectId, (DVec3, DVec3))> {
+    project
+        .construction
+        .values()
+        .flat_map(|c| {
+            c.segments()
+                .into_iter()
+                .map(move |(a, b)| (c.id, (DVec3::from_array(a), DVec3::from_array(b))))
+        })
+        .collect()
+}
+
+/// Snap points of construction objects: line ends and midpoints, circle
+/// centres and quadrant points.
+fn construction_marks(project: &Project) -> Vec<(ObjectId, DVec3, SnapKind)> {
+    use open_bim_model::ConstructionKind;
+    let mut out = Vec::new();
+    for c in project.construction.values() {
+        match &c.kind {
+            ConstructionKind::Line { a, b } => {
+                let (a, b) = (DVec3::from_array(a.0), DVec3::from_array(b.0));
+                out.push((c.id, a, SnapKind::Reference));
+                out.push((c.id, b, SnapKind::Reference));
+                out.push((c.id, (a + b) * 0.5, SnapKind::MidPoint));
+            }
+            ConstructionKind::Circle { center, .. } => {
+                out.push((c.id, DVec3::from_array(center.0), SnapKind::Reference));
+                let segments = c.segments();
+                for k in [0, 12, 24, 36] {
+                    out.push((c.id, DVec3::from_array(segments[k].0), SnapKind::Reference));
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Every snap point construction objects add: their own points and their
+/// crossings with grid lines (at every level), member axes and each other.
+pub fn construction_points(project: &Project) -> Vec<DVec3> {
+    let own = construction_segments(project);
+    let mut others: Vec<(DVec3, DVec3)> = own.iter().map(|(_, s)| *s).collect();
+    for axis in project.axes.values() {
+        let (a, b) = (
+            DVec3::from_array(axis.start.0),
+            DVec3::from_array(axis.end.0),
+        );
+        let mut shifts = vec![0.];
+        shifts.extend(project.levels.values().map(|l| l.elevation_mm - a.z));
+        for dz in shifts {
+            others.push((a + DVec3::Z * dz, b + DVec3::Z * dz));
+        }
+    }
+    for e in project.elements.values() {
+        if let ElementShape::Member { length, frame, .. } = &e.shape {
+            let a = DVec3::from_array(frame.origin.0);
+            let b = DVec3::from_array(frame.world(Point3([0., 0., length.value()])).0);
+            others.push((a, b));
+        }
+    }
+    let mut out: Vec<DVec3> = construction_marks(project)
+        .into_iter()
+        .map(|m| m.1)
+        .collect();
+    for (_, x) in &own {
+        for y in &others {
+            if (x.0 - y.0).length() < 1e-9 && (x.1 - y.1).length() < 1e-9 {
+                continue;
+            }
+            let scale = (x.1 - x.0).length().max((y.1 - y.0).length()).max(1.);
+            if let Some(p) = intersection(*x, *y, 1e-9 * scale) {
+                out.push(p);
+            }
+        }
+    }
+    out
+}
+
 /// Intersection of two segments in 3D (closest points closer than `eps`).
 fn intersection(a: (DVec3, DVec3), b: (DVec3, DVec3), eps: f64) -> Option<DVec3> {
     let (d1, d2, r) = (a.1 - a.0, b.1 - b.0, a.0 - b.0);
@@ -313,6 +392,13 @@ impl Snapper {
                 offer(SnapKind::Reference, b, Some(axis.id), true);
                 lines.push((a, b, Some(axis.id), true));
             }
+        }
+        // Construction lines and circles: reference geometry like grid lines.
+        for (id, (a, b)) in construction_segments(project) {
+            lines.push((a, b, Some(id), true));
+        }
+        for (id, point, kind) in construction_marks(project) {
+            offer(kind, point, Some(id), true);
         }
         for index in &near {
             let instance = &scene.instances[*index];

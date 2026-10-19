@@ -235,6 +235,7 @@ impl DetailingUi {
                     DetailKind::Hole { .. } => "Отверстие",
                     DetailKind::PlaneCut { .. } => "Срез",
                     DetailKind::BoxCut { .. } => "Вырез",
+                    DetailKind::PrismCut { .. } => "Вырез по контуру",
                     DetailKind::BoltGroup { .. } => "Болты",
                     DetailKind::Weld { .. } => "Шов",
                 };

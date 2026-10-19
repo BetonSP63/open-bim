@@ -137,6 +137,8 @@ pub struct Workbench {
     pub detail: crate::interaction::tools::DetailPicker,
     /// Open grid dialog («Сетка осей…»).
     pub grid: Option<crate::interaction::tools::GridSpec>,
+    /// Fitting, cutting and construction commands in progress.
+    pub trim: crate::interaction::trim::TrimPicker,
     /// Part display mode and transparency (Tekla «Отображение»).
     pub display: open_bim_renderer::Display,
     /// «Сведения о документе» being edited (main inscription attributes).
@@ -225,6 +227,7 @@ impl Workbench {
             work_area: true,
             detail: Default::default(),
             grid: None,
+            trim: Default::default(),
             display: Default::default(),
             document_info: None,
             grid_editing: false,
@@ -491,6 +494,41 @@ impl Workbench {
                     "Сведения о документе: графы основной надписи (ГОСТ Р 21.101, прил. Е)",
                 );
             }
+            Cmd::ConstructionLine
+            | Cmd::ConstructionCircle
+            | Cmd::ModelDimension
+            | Cmd::FitEnd
+            | Cmd::CutLine
+            | Cmd::CutPart
+            | Cmd::CutPolygon
+            | Cmd::SplitPart
+            | Cmd::CombineParts
+            | Cmd::ExtendTo => {
+                use crate::interaction::trim::{TrimPicker, TrimTool};
+                self.engine.cancel();
+                self.detail.cancel();
+                self.trim = TrimPicker::start(match cmd {
+                    Cmd::ConstructionLine => TrimTool::ConstructionLine,
+                    Cmd::ConstructionCircle => TrimTool::ConstructionCircle,
+                    Cmd::ModelDimension => TrimTool::Dimension,
+                    Cmd::FitEnd => TrimTool::FitEnd,
+                    Cmd::CutLine => TrimTool::CutLine,
+                    Cmd::CutPart => TrimTool::CutPart,
+                    Cmd::CutPolygon => TrimTool::CutPolygon,
+                    Cmd::SplitPart => TrimTool::Split,
+                    Cmd::CombineParts => TrimTool::Combine,
+                    Cmd::ExtendTo => TrimTool::Extend,
+                    _ => unreachable!("matched above"),
+                });
+                // A selected part is taken as the first part, like Tekla.
+                if self.trim.need() == Some(crate::interaction::trim::Need::Part)
+                    && let [id] = self.editor.selected.iter().copied().collect::<Vec<_>>()[..]
+                    && self.editor.document.project().elements.contains_key(&id)
+                {
+                    self.trim.parts.push(id);
+                }
+                self.message(self.prompt());
+            }
             Cmd::GridDialog => {
                 // An existing grid opens prefilled for editing (Tekla: double-click a grid).
                 let existing = crate::interaction::grid_edit::spec_from_project(
@@ -514,7 +552,7 @@ impl Workbench {
                 } else if self.measure.take().is_some() {
                     self.measured = None;
                     self.message("Измерение завершено");
-                } else if self.detail.cancel() || self.edit_pick.cancel() {
+                } else if self.trim.cancel() || self.detail.cancel() || self.edit_pick.cancel() {
                     self.message("Команда прервана");
                 } else if self.delete_confirm.take().is_some() {
                     self.message("Удаление отменено");
@@ -757,7 +795,11 @@ impl Workbench {
             }
             Cmd::UndoPick => {
                 self.engine.plate_mode = self.editor.draft.plate_mode;
-                if let Some(points) = &mut self.workplane_picks {
+                if self.trim.tool.is_some() {
+                    if self.trim.points.pop().is_none() {
+                        self.trim.parts.pop();
+                    }
+                } else if let Some(points) = &mut self.workplane_picks {
                     points.pop();
                 } else if self.edit_pick.op.is_some() {
                     self.edit_pick.points.pop();
@@ -772,6 +814,7 @@ impl Workbench {
                 }
                 self.message(self.prompt());
             }
+            Cmd::FinishPicks if self.trim.tool.is_some() => return self.finish_trim(),
             Cmd::FinishPicks if self.detail.tool.is_some() => match self.detail.finish_parts() {
                 Ok(()) => self.message(self.prompt()),
                 Err(e) => self.message(e),
@@ -871,6 +914,17 @@ impl Workbench {
     /// A pick from the viewport (world point, already snapped).
     pub fn pick(&mut self, point: open_bim_renderer::DVec3) -> Option<Request> {
         self.engine.reference = None;
+        if matches!(
+            self.trim.need(),
+            Some(crate::interaction::trim::Need::Point | crate::interaction::trim::Need::Polygon)
+        ) {
+            self.trim.points.push(point);
+            if self.trim.complete() {
+                return self.finish_trim();
+            }
+            self.message(self.prompt());
+            return None;
+        }
         if let Some(picks) = &mut self.measure {
             picks.push(point);
             if let [a, b] = picks[..] {
@@ -959,9 +1013,54 @@ impl Workbench {
         self.outcome(outcome)
     }
 
-    /// Whether a viewport click picks a part (bolt parts, weld) instead of a point.
+    /// Whether a viewport click picks a part (bolt parts, weld, the parts of
+    /// fitting and cutting) instead of a point.
     pub fn picks_objects(&self) -> bool {
         self.detail.picks_objects()
+            || self.trim.need() == Some(crate::interaction::trim::Need::Part)
+    }
+
+    /// Run the fitting/cutting/construction command once its inputs are in.
+    fn finish_trim(&mut self) -> Option<Request> {
+        use crate::interaction::trim::{self, TrimTool};
+        let tool = self.trim.tool?;
+        let project = self.editor.document.project();
+        let normal = self.engine.workplane.axes[2];
+        let (parts, pts) = (self.trim.parts.clone(), self.trim.points.clone());
+        let result = match (tool, &parts[..], &pts[..]) {
+            (TrimTool::ConstructionLine | TrimTool::ConstructionCircle, [], [a, b]) => {
+                trim::construction(project, tool, *a, *b, normal)
+            }
+            (TrimTool::Dimension, [], [a, b]) => trim::dimension(project, *a, *b),
+            (TrimTool::FitEnd, [p], [a, b]) => trim::fit_end(project, *p, *a, *b, normal),
+            (TrimTool::CutLine, [p], [a, b, side]) => {
+                trim::cut_line(project, *p, *a, *b, *side, normal)
+            }
+            (TrimTool::CutPart, [t, c], []) => trim::cut_part(project, *t, *c),
+            (TrimTool::CutPolygon, [p], polygon) if polygon.len() >= 3 => {
+                trim::cut_polygon(project, *p, polygon, normal)
+            }
+            (TrimTool::CutPolygon, _, _) => Err("Нужно не меньше 3 вершин выреза".into()),
+            (TrimTool::Split, [p], [a]) => trim::split(project, *p, *a),
+            (TrimTool::Combine, [a, b], []) => trim::combine(project, *a, *b),
+            (TrimTool::Extend, [p], [a]) => trim::extend_to(project, *p, *a),
+            _ => return None,
+        };
+        // The command stays armed for the next object (Tekla repeats it).
+        self.trim = crate::interaction::trim::TrimPicker::start(tool);
+        match result {
+            Ok(commands) => {
+                self.message(self.prompt());
+                Some(Request::Action(Action::Commit(
+                    tool.label().into(),
+                    commands,
+                )))
+            }
+            Err(e) => {
+                self.message(e);
+                None
+            }
+        }
     }
 
     /// Bolt: collect the main and secondary parts. Weld: first click the main
@@ -972,6 +1071,14 @@ impl Workbench {
             self.message("Укажите деталь модели");
             return None;
         };
+        if self.trim.need() == Some(crate::interaction::trim::Need::Part) {
+            self.trim.parts.push(id);
+            if self.trim.complete() {
+                return self.finish_trim();
+            }
+            self.message(self.prompt());
+            return None;
+        }
         if self.detail.tool == Some(crate::interaction::tools::DetailTool::Bolt) {
             self.detail.parts.insert(id);
             self.editor.selected = self.detail.parts.clone();
@@ -1263,6 +1370,28 @@ impl Workbench {
                 }
             };
         }
+        // Fitting/cutting/construction commands take typed points too.
+        if self.trim.tool.is_some() {
+            let previous = self.trim.points.last().copied();
+            let direction = previous.zip(self.cursor).map(|(p, c)| c - p);
+            return match crate::interaction::numeric::parse(
+                text,
+                &self.engine.workplane,
+                previous,
+                direction,
+            ) {
+                Ok(point) => {
+                    self.engine.numeric = None;
+                    self.engine.error = None;
+                    self.pick(point)
+                }
+                Err(e) => {
+                    self.engine.error = Some(e.clone());
+                    self.message(e);
+                    None
+                }
+            };
+        }
         let outcome = self.engine.pick_numeric(text, self.cursor);
         self.outcome(outcome)
     }
@@ -1309,7 +1438,11 @@ impl Workbench {
 
     /// Typing a digit, «@» or «-» during a pick opens the coordinate box.
     fn numeric_input(&mut self, ctx: &egui::Context, requests: &mut Vec<Request>) {
-        if !self.engine.active() {
+        let trim_points = matches!(
+            self.trim.need(),
+            Some(crate::interaction::trim::Need::Point | crate::interaction::trim::Need::Polygon)
+        );
+        if !self.engine.active() && !trim_points {
             self.engine.numeric = None;
             return;
         }
