@@ -24,7 +24,7 @@ pub use document_info::{
 };
 pub use drawing::{
     Anchor, AnchorPoint, DimensionAxis, DimensionDef, Drawing, DrawingKind, DrawingView,
-    MAX_DRAWING_ITEMS, SET_MARKS, STANDARD_SCALES, SheetSize, TextNote, ViewDirection,
+    MAX_DRAWING_ITEMS, NodeRegion, SET_MARKS, STANDARD_SCALES, SheetSize, TextNote, ViewDirection,
     standard_scale,
 };
 pub use drawing_objects::{HatchPattern, LineType, SheetObject, SheetObjectKind};

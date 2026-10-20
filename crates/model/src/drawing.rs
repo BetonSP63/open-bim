@@ -93,6 +93,18 @@ pub struct DrawingView {
     /// Scale denominator override (1:N); `None` uses the drawing scale.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scale: Option<f64>,
+    /// Node («Узел n», ГОСТ Р 21.101 5.5.3, 5.5.4): only this region of the
+    /// view plane is drawn, and its place is marked on the main view.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub node: Option<NodeRegion>,
+}
+
+/// Square region of a view plane: centre (u, v) and half side, model mm.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NodeRegion {
+    pub centre: [f64; 2],
+    pub radius: f64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -283,6 +295,10 @@ impl Drawing {
                 .section
                 .is_some_and(|v| !v.is_finite() || v.abs() > 1e9)
                 || view.scale.is_some_and(|s| !standard_scale(s))
+                || view.node.is_some_and(|n| {
+                    !n.centre.iter().all(|v| v.is_finite() && v.abs() < 1e9)
+                        || !(n.radius.is_finite() && n.radius > 1. && n.radius < 1e6)
+                })
             {
                 return invalid("сечение или масштаб вида");
             }

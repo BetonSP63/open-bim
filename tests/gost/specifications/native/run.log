@@ -1,4 +1,4 @@
-LOAD_MS: 2.8
+LOAD_MS: 2.2
 GPU: Apple M5 · Metal; project=Контрольное здание objects=37
 SCRIPT: step 1 Wait(30)
 SCRIPT: step 2 Note("⌘P «Общий вид A1» — схема КМ со спецификацией металлопроката")

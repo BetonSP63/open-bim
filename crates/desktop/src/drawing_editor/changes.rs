@@ -145,7 +145,7 @@ impl DrawingEditor {
                 ui.add(
                     egui::TextEdit::multiline(&mut self.change.description)
                         .desired_rows(2)
-                        .desired_width(240.),
+                        .desired_width(200.),
                 )
                 .labelled_by(l.id);
                 ui.end_row();
@@ -157,7 +157,7 @@ impl DrawingEditor {
                     .map_or("—".to_string(), |r| format!("{} — {}", r.0, r.1));
                 egui::ComboBox::from_id_salt("change reason")
                     .selected_text(current)
-                    .width(240.)
+                    .width(200.)
                     .show_ui(ui, |ui| {
                         ui.selectable_value(&mut self.change.reason, None, "—");
                         for (code, text) in open_bim_model::REASONS {
@@ -194,7 +194,7 @@ impl DrawingEditor {
                 super::panel_report(self, r);
             }
         });
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             let l = ui.label("Папка пакета");
             ui.add(egui::TextEdit::singleline(&mut self.change.package_dir).desired_width(140.))
                 .labelled_by(l.id);

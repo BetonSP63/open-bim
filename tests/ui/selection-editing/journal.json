@@ -5,56 +5,56 @@
       "revision": 1,
       "objects": 1,
       "axes": 9,
-      "sha256": "3bae421b7b2f6b1747350f2efab847d28230ade6dac11a7876f50bccce209c22"
+      "sha256": "ae9b3ea59f8b9ac04430b39638ca8d85600aa2fc236de424078721b389e60e67"
     },
     {
       "action": "Создать: Балка",
       "revision": 2,
       "objects": 2,
       "axes": 9,
-      "sha256": "07b3996749905c6d9f8db2326419df96ac2484f8e565b95c6cbaa995bda7e60c"
+      "sha256": "4d2277a0168cbc61dd4848b55da9389a0684dda80a76ebfc4139b292f155d307"
     },
     {
       "action": "Создать: Балка",
       "revision": 3,
       "objects": 3,
       "axes": 9,
-      "sha256": "768dbd36bafb5006b0989a36634efb3dd0dbd7c0a2797ab2b336ba10b2f26902"
+      "sha256": "4d302f5664472dc586f4fe57b4f42842f303ad2471b6d46614ea65c68558e249"
     },
     {
       "action": "Переместить ручку",
       "revision": 4,
       "objects": 3,
       "axes": 9,
-      "sha256": "5c4a56aa13896bd45429bd226c48f0dc51b4a55d775c547ace81b3411dd97fc4"
+      "sha256": "b9b720617738f23272f4783787fff297040f97f31840262a050ab980605f5f08"
     },
     {
       "action": "Переместить",
       "revision": 5,
       "objects": 3,
       "axes": 9,
-      "sha256": "bedb92c72969fd1dba1dd9523360e25b93a12f8db45ab355c46245d7669c6c1e"
+      "sha256": "74a2f38f721c58ecacd3ffc526404171bc534ba1c742b247530dc25a15da2170"
     },
     {
       "action": "Копировать",
       "revision": 6,
       "objects": 4,
       "axes": 9,
-      "sha256": "359de11af635181fb19421c4a08b447c14cc694e73bf77f37438c8fd6354cd69"
+      "sha256": "4613a73bb15b40d462ccd995ec918b893986c5802dfcf99cdc72e162741b21cc"
     },
     {
       "action": "Удалить",
       "revision": 7,
       "objects": 3,
       "axes": 9,
-      "sha256": "7079276ba33a449c6106466822affb0a9beeb6308152e3d45ec5a307fe3326ef"
+      "sha256": "a61c7406b0f3baed4a1b285899472eb6431713282270533a1831d2466991ddea"
     },
     {
       "action": "Сохранить",
       "revision": 7,
       "objects": 3,
       "axes": 9,
-      "sha256": "7079276ba33a449c6106466822affb0a9beeb6308152e3d45ec5a307fe3326ef"
+      "sha256": "a61c7406b0f3baed4a1b285899472eb6431713282270533a1831d2466991ddea"
     }
   ],
   "project": {
@@ -384,12 +384,12 @@
     "levels": {
       "17": {
         "id": 17,
-        "name": "0.000",
+        "name": "0,000",
         "elevation_mm": 0.0
       },
       "18": {
         "id": 18,
-        "name": "+3.600",
+        "name": "+3,600",
         "elevation_mm": 3600.0
       }
     }

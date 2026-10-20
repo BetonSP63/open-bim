@@ -1,7 +1,7 @@
 {
   "magic": "open-bim-project",
   "format_version": 1,
-  "payload_sha256": "7079276ba33a449c6106466822affb0a9beeb6308152e3d45ec5a307fe3326ef",
+  "payload_sha256": "a61c7406b0f3baed4a1b285899472eb6431713282270533a1831d2466991ddea",
   "project": {
     "name": "Новый проект",
     "units": "millimetres",
@@ -329,12 +329,12 @@
     "levels": {
       "17": {
         "id": 17,
-        "name": "0.000",
+        "name": "0,000",
         "elevation_mm": 0.0
       },
       "18": {
         "id": 18,
-        "name": "+3.600",
+        "name": "+3,600",
         "elevation_mm": 3600.0
       }
     }

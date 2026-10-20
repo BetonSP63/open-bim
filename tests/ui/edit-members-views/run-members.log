@@ -1,12 +1,12 @@
-LOAD_MS: 1.3
+LOAD_MS: 1.7
 GPU: Apple M5 · Metal; project=Контрольный стальной каркас objects=7
 SCRIPT: step 1 Wait(40)
 SCRIPT: step 2 Note("Щелчок по балке: длина в виде и в панели")
-SCRIPT: world [3000.0, 0.0, 3000.0] → screen [537.1672, 391.22516]
-SCRIPT: step 3 Hover([537.1672, 391.22516])
+SCRIPT: world [3000.0, 0.0, 3000.0] → screen [535.8463, 396.4775]
+SCRIPT: step 3 Hover([535.8463, 396.4775])
 SCRIPT: step 4 Wait(3)
-SCRIPT: world [3000.0, 0.0, 3000.0] → screen [537.1672, 391.22516]
-SCRIPT: step 5 Click([537.1672, 391.22516])
+SCRIPT: world [3000.0, 0.0, 3000.0] → screen [535.8463, 396.4775]
+SCRIPT: step 5 Click([535.8463, 396.4775])
 SCRIPT: step 6 Wait(15)
 SCRIPT: step 7 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/edit-members-views/01-beam-length.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/edit-members-views/01-beam-length.png 2560x1600
@@ -54,8 +54,8 @@ CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/test
 SCRIPT: step 45 Note("Трекпад: прокрутка двумя пальцами вращает вокруг точки под курсором")
 SCRIPT: step 46 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 47 Wait(5)
-SCRIPT: world [6000.0, 4000.0, 1500.0] → screen [487.06677, 353.81866]
-SCRIPT: step 48 Hover([487.06677, 353.81866])
+SCRIPT: world [6000.0, 4000.0, 1500.0] → screen [486.56378, 359.68158]
+SCRIPT: step 48 Hover([486.56378, 359.68158])
 SCRIPT: step 49 Wait(3)
 SCRIPT: step 50 Trackpad([622.0, 420.0, -8.0, 2.0])
 SCRIPT: step 51 Trackpad([622.0, 420.0, -8.0, 2.0])

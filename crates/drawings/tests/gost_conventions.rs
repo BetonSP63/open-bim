@@ -17,6 +17,20 @@ pub fn ga(project: &Project) -> Drawing {
         section: Some(-3000.),
         position: [620., 500.],
         scale: Some(100.),
+        node: None,
+    });
+    // «Узел 1»: the joint of column 1/А and the beam at +3,600 at 1:20.
+    d.views.push(DrawingView {
+        id: 4,
+        name: "Узел".into(),
+        direction: ViewDirection::Front,
+        section: None,
+        position: [700., 330.],
+        scale: Some(20.),
+        node: Some(open_bim_model::NodeRegion {
+            centre: [0., 3600.],
+            radius: 500.,
+        }),
     });
     d
 }
@@ -208,4 +222,50 @@ fn control_building_project_file() {
         std::fs::write(&path, &bytes).unwrap();
     }
     assert_eq!(std::fs::read(&path).unwrap(), bytes);
+}
+
+#[test]
+fn node_view_keeps_its_region_and_is_marked_on_the_main_view() {
+    let p = control_building();
+    let s = generate(&p, &ga(&p)).unwrap();
+    let node = view(&s, 4);
+    assert_eq!(node.labels[0].text, "Узел 1");
+    let [lo, hi] = node.bounds;
+    assert!(
+        (hi[0] - lo[0] - 1000. / 20.).abs() < 1e-6,
+        "область 1000 мм в 1:20"
+    );
+    for l in &node.lines {
+        for q in &l.points {
+            assert!(
+                q[0] >= lo[0] - 1e-6
+                    && q[0] <= hi[0] + 1e-6
+                    && q[1] >= lo[1] - 1e-6
+                    && q[1] <= hi[1] + 1e-6
+            );
+        }
+    }
+    assert!(node.lines.len() > 4, "узел показывает колонну и балку");
+    // Main view (elevation, 1:100): a thin circle of 500/100 = 5 mm with «1».
+    let main = view(&s, 1);
+    let circle = main
+        .lines
+        .iter()
+        .find(|l| {
+            l.style == LineStyle::Thin && l.points.len() == 49 && {
+                let xs: Vec<f64> = l.points.iter().map(|p| p[0]).collect();
+                let w = xs.iter().cloned().fold(f64::MIN, f64::max)
+                    - xs.iter().cloned().fold(f64::MAX, f64::min);
+                (w - 10.).abs() < 0.05
+            }
+        })
+        .expect("окружность узла");
+    let c = circle.points[0];
+    assert!(
+        main.labels
+            .iter()
+            .any(|l| l.text == "1" && (l.position[0] - c[0]).abs() < 20.)
+    );
+    // Sections and nodes are numbered separately (5.5.6).
+    assert!(view(&s, 3).labels[0].text == "Разрез 1-1");
 }

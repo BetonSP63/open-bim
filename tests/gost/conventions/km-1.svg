@@ -428,6 +428,8 @@
 <polyline class="Thin" points="378,41.333 395,41.333" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline class="Thin" points="388.879,39.212 391,41.333 393.121,39.212" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline class="Thin" points="391,41.333 391,35.333 410.6,35.333" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="62.667,41.333 62.61,40.463 62.44,39.608 62.159,38.782 61.774,38 61.289,37.275 60.714,36.619 60.058,36.044 59.333,35.56 58.551,35.174 57.725,34.894 56.87,34.724 56,34.667 55.13,34.724 54.275,34.894 53.449,35.174 52.667,35.56 51.942,36.044 51.286,36.619 50.711,37.275 50.226,38 49.841,38.782 49.56,39.608 49.39,40.463 49.333,41.333 49.39,42.204 49.56,43.059 49.841,43.885 50.226,44.667 50.711,45.392 51.286,46.047 51.942,46.622 52.667,47.107 53.449,47.493 54.275,47.773 55.13,47.943 56,48 56.87,47.943 57.725,47.773 58.551,47.493 59.333,47.107 60.058,46.622 60.714,46.047 61.289,45.392 61.774,44.667 62.159,43.885 62.44,43.059 62.61,42.204 62.667,41.333" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="60.714,36.619 66.714,30.619 72.714,30.619" fill="none" stroke="#000" stroke-width="0.25"/>
 <text x="216" y="135.333" font-size="7.143" text-anchor="middle" fill="#000">Фасад 1-5</text>
 <text x="60" y="61.333" font-size="7.143" text-anchor="start" fill="#000" data-object="20">P0001</text>
 <text x="140" y="61.333" font-size="7.143" text-anchor="start" fill="#000" data-object="21">P0001</text>
@@ -445,6 +447,7 @@
 <text x="376" y="122.833" font-size="7.143" text-anchor="middle" fill="#000">5</text>
 <text x="387.5" y="82.533" font-size="5" text-anchor="start" fill="#000">0,000</text>
 <text x="391.5" y="34.533" font-size="5" text-anchor="start" fill="#000">+3,600</text>
+<text x="69.714" y="29.819" font-size="7.143" text-anchor="middle" fill="#000">1</text>
 </g>
 <g class="view" data-view="2">
 <polyline class="Hidden" data-object="20" points="56.053,391.833 56.053,390.833" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
@@ -606,6 +609,38 @@
 <text x="740" y="132" font-size="7.143" text-anchor="middle" fill="#000">5</text>
 <text x="751.25" y="105.7" font-size="5" text-anchor="start" fill="#000">0,000</text>
 <text x="755.25" y="69.7" font-size="5" text-anchor="start" fill="#000">+3,600</text>
+</g>
+<g class="view" data-view="4">
+<polyline class="Hidden" data-object="20" points="699.8,289 699.8,264" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="20" points="700.2,289 700.2,264" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="25" points="703.749,269 700,269 700,264" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="25" points="700,268.5 725,268.5" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="25" points="700,259.5 725,259.5" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="29" points="696.25,289 696.25,264 703.75,264 703.75,289" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="29" points="699.8,289 699.8,264" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="29" points="700.2,289 700.2,264" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="34" points="700,269 700,259 725,259" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="34" points="725,269 700,269" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="34" points="700,268.5 725,268.5" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="34" points="700,259.5 725,259.5" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="38" points="696.25,289 696.25,264 703.75,264 703.75,289" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="38" points="699.8,289 699.8,264" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="38" points="700.2,289 700.2,264" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="43" points="700,269 700,259 725,259" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="43" points="725,269 700,269" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="43" points="700,268.5 725,268.5" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="43" points="700,259.5 725,259.5" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="47" points="696.25,289 696.25,264 703.75,264 703.75,289" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="47" points="699.8,289 699.8,264" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="47" points="700.2,289 700.2,264" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="52" points="700,269 700,259 725,259" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="52" points="725,269 700,269" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="52" points="700,268.5 725,268.5" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Hidden" data-object="52" points="700,259.5 725,259.5" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
+<polyline class="Visible" data-object="20" points="696.25,289 696.25,264 703.75,264 703.75,289" fill="none" stroke="#000" stroke-width="0.5"/>
+<polyline class="Visible" data-object="25" points="700,264 700,259 725,259" fill="none" stroke="#000" stroke-width="0.5"/>
+<polyline class="Visible" data-object="25" points="703.749,269 725,269" fill="none" stroke="#000" stroke-width="0.5"/>
+<text x="700" y="299" font-size="7.143" text-anchor="middle" fill="#000">Узел 1</text>
 </g>
 <g class="dimension" data-dimension="1" data-view="1">
 <polyline class="Thin" points="56,90.333 56,111.333" fill="none" stroke="#000" stroke-width="0.25"/>

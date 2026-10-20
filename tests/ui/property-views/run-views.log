@@ -1,4 +1,4 @@
-LOAD_MS: 8.7
+LOAD_MS: 3.8
 GPU: Apple M5 · Metal; project=Контрольный стальной каркас objects=7
 SCRIPT: step 1 Wait(40)
 SCRIPT: step 2 Key { name: "I", command: false, shift: false, alt: false, ctrl: true }

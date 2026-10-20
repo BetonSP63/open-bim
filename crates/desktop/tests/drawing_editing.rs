@@ -189,6 +189,7 @@ fn drawing_tools_run_from_commands_and_keys() {
         (Cmd::DrawHatch, DrawTool::Hatch),
         (Cmd::DrawWipeout, DrawTool::Wipeout),
         (Cmd::DrawText, DrawTool::Text),
+        (Cmd::DrawNode, DrawTool::Node),
     ] {
         b.execute(cmd);
         assert_eq!(b.drawings.tool.tool, Some(tool));
@@ -198,4 +199,36 @@ fn drawing_tools_run_from_commands_and_keys() {
             "{label}"
         );
     }
+}
+
+#[test]
+fn node_tool_adds_a_node_view_marked_on_its_view() {
+    let (mut editor, mut drawings, id, _) = setup();
+    let sheet = drawings.sheet(editor.document.project()).unwrap().clone();
+    let main = &sheet.views[0];
+    let c = [
+        (main.bounds[0][0] + main.bounds[1][0]) / 2.,
+        (main.bounds[0][1] + main.bounds[1][1]) / 2.,
+    ];
+    drawings.start_tool(DrawTool::Node);
+    drawings.tool_click(&mut editor, c).unwrap();
+    drawings.tool_click(&mut editor, [c[0] + 8., c[1]]).unwrap();
+    let d = &editor.document.project().drawings[&id];
+    let node = d.views.iter().find(|v| v.node.is_some()).expect("вид узла");
+    assert!(open_bim_model::standard_scale(node.scale.unwrap()));
+    let sheet = drawings.sheet(editor.document.project()).unwrap();
+    let view = sheet.views.iter().find(|v| v.id == node.id).unwrap();
+    assert!(view.labels[0].text.starts_with("Узел 1 1:"));
+    // Undo removes the node view.
+    editor.history(false).unwrap();
+    assert!(
+        editor.document.project().drawings[&id]
+            .views
+            .iter()
+            .all(|v| v.node.is_none())
+    );
+    // A click outside every view is refused.
+    drawings.start_tool(DrawTool::Node);
+    drawings.tool_click(&mut editor, [30., 30.]).unwrap();
+    assert!(drawings.tool_click(&mut editor, [35., 30.]).is_err());
 }

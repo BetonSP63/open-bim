@@ -5,7 +5,7 @@
       "revision": 1,
       "objects": 1,
       "axes": 9,
-      "sha256": "39d468915d5db743c80df92cd9249f3b1c3b2f515780b7aba4fbc56fed4fda82"
+      "sha256": "87ffadf78807fdf23c3b464617194ebc257559f1317b8bfbff86c8a0f1b72f9f"
     }
   ],
   "project": {
@@ -292,12 +292,12 @@
     "levels": {
       "17": {
         "id": 17,
-        "name": "0.000",
+        "name": "0,000",
         "elevation_mm": 0.0
       },
       "18": {
         "id": 18,
-        "name": "+3.600",
+        "name": "+3,600",
         "elevation_mm": 3600.0
       }
     }

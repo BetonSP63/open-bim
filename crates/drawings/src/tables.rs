@@ -572,7 +572,7 @@ pub fn assembly_specification(project: &Project, assembly: ObjectId) -> Result<V
             && joined.is_subset(&parts)
         {
             let name = format!(
-                "Болт М{} кл. {grade} {standard}",
+                "Болт М{}, класс прочности {grade}, {standard}",
                 crate::format_mm(*diameter)
             );
             *bolts.entry(name).or_default() += (steps_x.len() + 1) * (steps_y.len() + 1);

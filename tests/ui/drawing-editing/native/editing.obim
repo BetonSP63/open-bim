@@ -1,7 +1,7 @@
 {
   "magic": "open-bim-project",
   "format_version": 1,
-  "payload_sha256": "b11e4080bed89fec147b12f719c4f5ff93a5f3c4f5dce847e22ddb9cb371de6f",
+  "payload_sha256": "d52272cc89133131a5f30b5617b9b05d8445ce01a21539941c91ebcc77310d7d",
   "project": {
     "name": "Контрольный стальной каркас",
     "units": "millimetres",
@@ -501,7 +501,7 @@
               }
             ],
             "axis": "horizontal",
-            "offset": 15.0
+            "offset": 25.0
           }
         ],
         "texts": [],

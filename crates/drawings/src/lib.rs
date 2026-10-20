@@ -602,6 +602,11 @@ fn view_graphic(
     if !lo[0].is_finite() {
         (lo, hi) = ([0.; 2], [0.; 2]);
     }
+    // A node shows its region only, centred on it.
+    if let Some(n) = view.node {
+        lo = [n.centre[0] - n.radius, n.centre[1] - n.radius];
+        hi = [n.centre[0] + n.radius, n.centre[1] + n.radius];
+    }
     let context = ViewContext {
         basis: vb,
         centre: [(lo[0] + hi[0]) / 2., (lo[1] + hi[1]) / 2.],
@@ -982,7 +987,7 @@ fn title_block(
         tb.labels.push(Label {
             position: [tb.block[0], tb.reserved[3] + 2.],
             text: format!(
-                "{} · модель рев. {} · чертёж рев. {}",
+                "{} · ревизия модели {}, чертежа {}",
                 status.label(),
                 project.revision,
                 drawing.generated_revision
@@ -995,6 +1000,42 @@ fn title_block(
         });
     }
     Ok(tb)
+}
+
+/// The view (not a node or section) under a sheet point and the point in
+/// that view's plane, model mm.
+pub fn view_at(
+    project: &Project,
+    drawing: &Drawing,
+    paper: [f64; 2],
+) -> Result<Option<(u32, [f64; 2], f64)>, Error> {
+    let parts = drawing_parts(project, &drawing.kind);
+    let basis = drawing_basis(project, &drawing.kind)?;
+    let meshes = parts
+        .iter()
+        .map(|id| PartMesh::new(project, *id))
+        .collect::<Result<Vec<_>, _>>()?;
+    let marks = BTreeMap::new();
+    for view in drawing
+        .views
+        .iter()
+        .filter(|v| v.node.is_none() && v.section.is_none())
+    {
+        let (g, ctx) = view_graphic(drawing, view, &basis, &meshes, &marks);
+        let [lo, hi] = g.bounds;
+        if paper[0] >= lo[0] - 5.
+            && paper[0] <= hi[0] + 5.
+            && paper[1] >= lo[1] - 5.
+            && paper[1] <= hi[1] + 5.
+        {
+            let uv = [
+                ctx.centre[0] + (paper[0] - ctx.position[0]) * ctx.scale,
+                ctx.centre[1] + (paper[1] - ctx.position[1]) * ctx.scale,
+            ];
+            return Ok(Some((view.id, uv, ctx.scale)));
+        }
+    }
+    Ok(None)
 }
 
 /// Points a sheet dimension can be tied to: member ends, plate vertices and
@@ -1112,6 +1153,39 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
                 conventions::axes(project, view, ctx, g, reach);
                 conventions::levels(project, view, ctx, g);
             }
+        }
+    }
+    // Nodes (5.5.3, 5.5.4): the node view keeps what lies in its region;
+    // the main view of the same direction marks the place with a thin
+    // circle and the node number on a leader shelf.
+    let mut node_number = 0;
+    for view in &drawing.views {
+        let Some(node) = view.node else { continue };
+        node_number += 1;
+        if let Some(g) = views.iter_mut().find(|g| g.id == view.id) {
+            conventions::keep_inside(g);
+            if let Some(t) = g.labels.first_mut() {
+                t.text = if matches!(drawing.kind, DrawingKind::General { .. }) {
+                    format!("Узел {node_number}")
+                } else {
+                    format!("Узел {node_number} 1:{}", format_mm(g.scale))
+                };
+            }
+        }
+        let host = drawing
+            .views
+            .iter()
+            .find(|v| v.direction == view.direction && v.node.is_none() && v.section.is_none());
+        if let Some(host) = host
+            && let Some(g) = views.iter_mut().find(|g| g.id == host.id)
+        {
+            let ctx = &contexts[&host.id];
+            conventions::node_mark(
+                g,
+                ctx.paper(node.centre),
+                node.radius / ctx.scale,
+                node_number,
+            );
         }
     }
     // Section lines with arrows on the first view the cutting plane crosses
@@ -1483,6 +1557,7 @@ fn views(directions: &[(ViewDirection, &str)], positions: &[[f64; 2]]) -> Vec<Dr
             section: None,
             position: *position,
             scale: None,
+            node: None,
         })
         .collect()
 }

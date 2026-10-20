@@ -5,119 +5,119 @@
       "revision": 1,
       "objects": 1,
       "axes": 9,
-      "sha256": "ed4c86930d36c9f270748db7267398caf39b78b955faf4c8eb5eb0129036de4f"
+      "sha256": "39b48bab1121cbfbf9861c5a2f24f458cbefea411ca13c81707c70864675c671"
     },
     {
       "action": "Создать: Колонна",
       "revision": 2,
       "objects": 2,
       "axes": 9,
-      "sha256": "5e313b8e9159d2441d20a5318c30868f5ec8cd0159e9d1198ff4aa79337fe056"
+      "sha256": "4c86bc60f6ff46543f10a94642de4241888718502fc3f5eb1053b99b68e52eca"
     },
     {
       "action": "Создать: Колонна",
       "revision": 3,
       "objects": 3,
       "axes": 9,
-      "sha256": "f9b98dfb49a3583e773140809df81668c8f08e780c2e9c33cdd2f36a5ba8093b"
+      "sha256": "6244f1887f62736bc59188fae66c978571db72178f8849dfc22d40ccc14505bb"
     },
     {
       "action": "Создать: Балка",
       "revision": 4,
       "objects": 4,
       "axes": 9,
-      "sha256": "e2d16e0643c2c82c569793fcfc260d030d5fe297350650cd2f4a662e2851d651"
+      "sha256": "ffe76a6b757268ac21471e949ff1027c27de9e67c38931fdc2079d841252b279"
     },
     {
       "action": "Переместить ручку",
       "revision": 5,
       "objects": 4,
       "axes": 9,
-      "sha256": "0389e0f752c0ba7b91bf23685c1bef7f1a11a00346375ce475f3abc543dbbde0"
+      "sha256": "13fe0227d4aa08aff695cd33622969c449ae14c7fd00d0f56aa7fc313db7e84d"
     },
     {
       "action": "Соединение",
       "revision": 6,
       "objects": 5,
       "axes": 9,
-      "sha256": "12c841a45bbaa595a2b35f2afeaf12dcada42a77072369434060ca83ca904e59"
+      "sha256": "38ba5910dc15c24483dbd991d58c847e39ecf7b05406296c6fb2ba68c1158a57"
     },
     {
       "action": "Нумерация и проверка коллизий",
       "revision": 6,
       "objects": 5,
       "axes": 9,
-      "sha256": "12c841a45bbaa595a2b35f2afeaf12dcada42a77072369434060ca83ca904e59"
+      "sha256": "38ba5910dc15c24483dbd991d58c847e39ecf7b05406296c6fb2ba68c1158a57"
     },
     {
       "action": "Изменить свойства (1)",
       "revision": 7,
       "objects": 5,
       "axes": 9,
-      "sha256": "f9525056adc1317cdd92ed76e288fde6421abc69569877cefaf3290d3cca7524"
+      "sha256": "a1d3c0a78c11562269315747946785058c8ededfb743182995323fd5fa9c110d"
     },
     {
       "action": "Создать чертёж КМД-1",
       "revision": 8,
       "objects": 5,
       "axes": 9,
-      "sha256": "2453d56ba7b0a8c43794a756fe9bfcad4ba2b978ee491f006e38d8e8c673978e"
+      "sha256": "53b0429a43b31ecf165b5e820e6b87f03662b49c607a6b315495b5943bf1b6bd"
     },
     {
       "action": "Экспорт drawings/КМД-1.pdf",
       "revision": 8,
       "objects": 5,
       "axes": 9,
-      "sha256": "2453d56ba7b0a8c43794a756fe9bfcad4ba2b978ee491f006e38d8e8c673978e"
+      "sha256": "53b0429a43b31ecf165b5e820e6b87f03662b49c607a6b315495b5943bf1b6bd"
     },
     {
       "action": "Ведомости сформированы",
       "revision": 8,
       "objects": 5,
       "axes": 9,
-      "sha256": "2453d56ba7b0a8c43794a756fe9bfcad4ba2b978ee491f006e38d8e8c673978e"
+      "sha256": "53b0429a43b31ecf165b5e820e6b87f03662b49c607a6b315495b5943bf1b6bd"
     },
     {
       "action": "Комплект чертежей",
       "revision": 9,
       "objects": 5,
       "axes": 9,
-      "sha256": "39bb73cee2283c723b7522393465b574df1e8aa77357c52dd8897d9e5f8c4cef"
+      "sha256": "e3addb4ec3dc1c9a5502ef6882a3dfc98ff66006261ef3add598c723f7fce533"
     },
     {
-      "action": "Выпуск комплекта: 4 чертежей, 8 файлов",
+      "action": "Выпуск комплекта: 4 чертежей, 9 файлов",
       "revision": 9,
       "objects": 5,
       "axes": 9,
-      "sha256": "39bb73cee2283c723b7522393465b574df1e8aa77357c52dd8897d9e5f8c4cef"
+      "sha256": "e3addb4ec3dc1c9a5502ef6882a3dfc98ff66006261ef3add598c723f7fce533"
     },
     {
       "action": "Ведомости сформированы",
       "revision": 9,
       "objects": 5,
       "axes": 9,
-      "sha256": "39bb73cee2283c723b7522393465b574df1e8aa77357c52dd8897d9e5f8c4cef"
+      "sha256": "e3addb4ec3dc1c9a5502ef6882a3dfc98ff66006261ef3add598c723f7fce533"
     },
     {
       "action": "Экспорт IFC /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/workflow.ifc",
       "revision": 9,
       "objects": 5,
       "axes": 9,
-      "sha256": "39bb73cee2283c723b7522393465b574df1e8aa77357c52dd8897d9e5f8c4cef"
+      "sha256": "e3addb4ec3dc1c9a5502ef6882a3dfc98ff66006261ef3add598c723f7fce533"
     },
     {
       "action": "Сохранить",
       "revision": 9,
       "objects": 5,
       "axes": 9,
-      "sha256": "39bb73cee2283c723b7522393465b574df1e8aa77357c52dd8897d9e5f8c4cef"
+      "sha256": "e3addb4ec3dc1c9a5502ef6882a3dfc98ff66006261ef3add598c723f7fce533"
     },
     {
       "action": "Открыть /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/workflow.obim",
       "revision": 9,
       "objects": 5,
       "axes": 9,
-      "sha256": "39bb73cee2283c723b7522393465b574df1e8aa77357c52dd8897d9e5f8c4cef"
+      "sha256": "e3addb4ec3dc1c9a5502ef6882a3dfc98ff66006261ef3add598c723f7fce533"
     }
   ],
   "project": {
@@ -540,12 +540,12 @@
     "levels": {
       "17": {
         "id": 17,
-        "name": "0.000",
+        "name": "0,000",
         "elevation_mm": 0.0
       },
       "18": {
         "id": 18,
-        "name": "+3.600",
+        "name": "+3,600",
         "elevation_mm": 3600.0
       }
     },
@@ -919,17 +919,17 @@
           "objects": []
         },
         "number": "КМ-1",
-        "title": "Общий вид · Новый проект",
+        "title": "Схема расположения элементов · Новый проект",
         "sheet": "a1",
-        "scale": 25.0,
+        "scale": 40.0,
         "views": [
           {
             "id": 1,
             "name": "Фасад",
             "direction": "front",
             "position": [
-              159.4,
-              478.6
+              132.75,
+              506.875
             ]
           },
           {
@@ -937,12 +937,33 @@
             "name": "План",
             "direction": "top",
             "position": [
-              159.4,
-              245.80000000000004
+              132.75,
+              320.125
             ]
           }
         ],
-        "dimensions": [],
+        "dimensions": [
+          {
+            "id": 1,
+            "view": 1,
+            "anchors": [
+              {
+                "object": 19,
+                "point": {
+                  "kind": "start"
+                }
+              },
+              {
+                "object": 20,
+                "point": {
+                  "kind": "start"
+                }
+              }
+            ],
+            "axis": "horizontal",
+            "offset": -20.0
+          }
+        ],
         "texts": [],
         "fingerprints": {
           "19": "3af40e4c4553e6824675b28bb1afaab3223c8406544428ebfad6c03c2b7dc9d6",

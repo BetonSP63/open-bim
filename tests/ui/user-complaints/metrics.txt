@@ -1,0 +1,2 @@
+06-no-ripple-closeup.png: ripple 0.02 % of part pixels (crop 650 300 1050 1200; ../viewport-depth/ripple_metric.py); user's report 2.56 %
+01-zoom-in-kept.png: model pixels 64.2 % of the viewport after 40 wheel steps; ../viewport-depth/after-zoom-40.png: 90.4 % (before the fix: 1.0 %)

@@ -4,73 +4,73 @@ SCRIPT: step 1 Wait(40)
 SCRIPT: step 2 Note("Три балки: А1–А2, А2–А3, Б1–Б2")
 SCRIPT: step 3 Click([97.0, 78.0])
 SCRIPT: step 4 Wait(10)
-SCRIPT: world [0.0, 0.0, 0.0] → screen [421.05814, 564.0498]
-SCRIPT: step 5 Hover([421.05814, 564.0498])
+SCRIPT: world [0.0, 0.0, 0.0] → screen [421.63257, 566.4811]
+SCRIPT: step 5 Hover([421.63257, 566.4811])
 SCRIPT: step 6 Wait(6)
-SCRIPT: world [0.0, 0.0, 0.0] → screen [421.05814, 564.0498]
-SCRIPT: step 7 Click([421.05814, 564.0498])
+SCRIPT: world [0.0, 0.0, 0.0] → screen [421.63257, 566.4811]
+SCRIPT: step 7 Click([421.63257, 566.4811])
 SCRIPT: step 8 Wait(10)
-SCRIPT: world [6000.0, 0.0, 0.0] → screen [486.4349, 522.4223]
-SCRIPT: step 9 Hover([486.4349, 522.4223])
+SCRIPT: world [6000.0, 0.0, 0.0] → screen [485.94217, 525.5331]
+SCRIPT: step 9 Hover([485.94217, 525.5331])
 SCRIPT: step 10 Wait(6)
-SCRIPT: world [6000.0, 0.0, 0.0] → screen [486.4349, 522.4223]
-SCRIPT: step 11 Click([486.4349, 522.4223])
+SCRIPT: world [6000.0, 0.0, 0.0] → screen [485.94217, 525.5331]
+SCRIPT: step 11 Click([485.94217, 525.5331])
 SCRIPT: step 12 Wait(10)
-SCRIPT: world [6000.0, 0.0, 0.0] → screen [486.44318, 521.4938]
-SCRIPT: step 13 Hover([486.44318, 521.4938])
+SCRIPT: world [6000.0, 0.0, 0.0] → screen [485.95035, 524.61975]
+SCRIPT: step 13 Hover([485.95035, 524.61975])
 SCRIPT: step 14 Wait(6)
-SCRIPT: world [6000.0, 0.0, 0.0] → screen [486.44318, 521.4938]
-SCRIPT: step 15 Click([486.44318, 521.4938])
+SCRIPT: world [6000.0, 0.0, 0.0] → screen [485.95035, 524.61975]
+SCRIPT: step 15 Click([485.95035, 524.61975])
 SCRIPT: step 16 Wait(10)
-SCRIPT: world [12000.0, 0.0, 0.0] → screen [542.5441, 485.83813]
-SCRIPT: step 17 Hover([542.5441, 485.83813])
+SCRIPT: world [12000.0, 0.0, 0.0] → screen [541.1355, 489.5461]
+SCRIPT: step 17 Hover([541.1355, 489.5461])
 SCRIPT: step 18 Wait(6)
-SCRIPT: world [12000.0, 0.0, 0.0] → screen [542.5441, 485.83813]
-SCRIPT: step 19 Click([542.5441, 485.83813])
+SCRIPT: world [12000.0, 0.0, 0.0] → screen [541.1355, 489.5461]
+SCRIPT: step 19 Click([541.1355, 489.5461])
 SCRIPT: step 20 Wait(10)
-SCRIPT: world [0.0, 6000.0, 0.0] → screen [361.90024, 521.01575]
-SCRIPT: step 21 Hover([361.90024, 521.01575])
+SCRIPT: world [0.0, 6000.0, 0.0] → screen [363.44034, 524.14954]
+SCRIPT: step 21 Hover([363.44034, 524.14954])
 SCRIPT: step 22 Wait(6)
-SCRIPT: world [0.0, 6000.0, 0.0] → screen [361.90024, 521.01575]
-SCRIPT: step 23 Click([361.90024, 521.01575])
+SCRIPT: world [0.0, 6000.0, 0.0] → screen [363.44034, 524.14954]
+SCRIPT: step 23 Click([363.44034, 524.14954])
 SCRIPT: step 24 Wait(10)
-SCRIPT: world [6000.0, 6000.0, 0.0] → screen [426.79422, 485.4256]
-SCRIPT: step 25 Hover([426.79422, 485.4256])
+SCRIPT: world [6000.0, 6000.0, 0.0] → screen [427.27502, 489.1403]
+SCRIPT: step 25 Hover([427.27502, 489.1403])
 SCRIPT: step 26 Wait(6)
-SCRIPT: world [6000.0, 6000.0, 0.0] → screen [426.79422, 485.4256]
-SCRIPT: step 27 Click([426.79422, 485.4256])
+SCRIPT: world [6000.0, 6000.0, 0.0] → screen [427.27502, 489.1403]
+SCRIPT: step 27 Click([427.27502, 489.1403])
 SCRIPT: step 28 Wait(10)
 SCRIPT: step 29 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 30 Wait(5)
 SCRIPT: step 31 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/selection-editing/01-beams.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/selection-editing/01-beams.png 2560x1600
 SCRIPT: step 32 Note("Окно слева направо вокруг А1–А2 (А2–А3 задета частично)")
-SCRIPT: step 33 Drag([419.29868, 586.6847, 490.33234, 499.9504])
+SCRIPT: step 33 Drag([419.90186, 588.7465, 489.776, 503.428])
 SCRIPT: step 34 Wait(15)
 SCRIPT: step 35 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/selection-editing/02-window-select.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/selection-editing/02-window-select.png 2560x1600
 SCRIPT: step 36 Note("Ручка конца А2 → узел Б2")
-SCRIPT: step 37 Drag([486.44318, 521.4938, 426.79422, 485.4256])
+SCRIPT: step 37 Drag([485.95035, 524.61975, 427.27502, 489.1403])
 SCRIPT: step 38 Wait(15)
 SCRIPT: step 39 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/selection-editing/03-handle-drag.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/selection-editing/03-handle-drag.png 2560x1600
 SCRIPT: step 40 Note("Выбор Б1–Б2 щелчком и перемещение Ctrl+M на 6000 по Y")
-SCRIPT: world [2500.0, 6000.0, 0.0] → screen [390.10767, 505.54578]
-SCRIPT: step 41 Click([390.10767, 505.54578])
+SCRIPT: world [2500.0, 6000.0, 0.0] → screen [391.18732, 508.93207]
+SCRIPT: step 41 Click([391.18732, 508.93207])
 SCRIPT: step 42 Wait(10)
 SCRIPT: step 43 Key { name: "M", command: false, shift: false, alt: false, ctrl: true }
 SCRIPT: step 44 Wait(5)
-SCRIPT: world [0.0, 6000.0, 0.0] → screen [361.90024, 521.01575]
-SCRIPT: step 45 Hover([361.90024, 521.01575])
+SCRIPT: world [0.0, 6000.0, 0.0] → screen [363.44034, 524.14954]
+SCRIPT: step 45 Hover([363.44034, 524.14954])
 SCRIPT: step 46 Wait(6)
-SCRIPT: world [0.0, 6000.0, 0.0] → screen [361.90024, 521.01575]
-SCRIPT: step 47 Click([361.90024, 521.01575])
+SCRIPT: world [0.0, 6000.0, 0.0] → screen [363.44034, 524.14954]
+SCRIPT: step 47 Click([363.44034, 524.14954])
 SCRIPT: step 48 Wait(10)
-SCRIPT: world [0.0, 12000.0, 0.0] → screen [311.24908, 485.0138]
-SCRIPT: step 49 Hover([311.24908, 485.0138])
+SCRIPT: world [0.0, 12000.0, 0.0] → screen [313.6159, 488.73523]
+SCRIPT: step 49 Hover([313.6159, 488.73523])
 SCRIPT: step 50 Wait(6)
-SCRIPT: world [0.0, 12000.0, 0.0] → screen [311.24908, 485.0138]
-SCRIPT: step 51 Click([311.24908, 485.0138])
+SCRIPT: world [0.0, 12000.0, 0.0] → screen [313.6159, 488.73523]
+SCRIPT: step 51 Click([313.6159, 488.73523])
 SCRIPT: step 52 Wait(10)
 SCRIPT: step 53 Wait(10)
 SCRIPT: step 54 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/selection-editing/04-moved.png")
@@ -78,25 +78,25 @@ CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/test
 SCRIPT: step 55 Note("Копирование Ctrl+C на В→Г")
 SCRIPT: step 56 Key { name: "C", command: false, shift: false, alt: false, ctrl: true }
 SCRIPT: step 57 Wait(5)
-SCRIPT: world [0.0, 12000.0, 0.0] → screen [311.24908, 485.0138]
-SCRIPT: step 58 Hover([311.24908, 485.0138])
+SCRIPT: world [0.0, 12000.0, 0.0] → screen [313.6159, 488.73523]
+SCRIPT: step 58 Hover([313.6159, 488.73523])
 SCRIPT: step 59 Wait(6)
-SCRIPT: world [0.0, 12000.0, 0.0] → screen [311.24908, 485.0138]
-SCRIPT: step 60 Click([311.24908, 485.0138])
+SCRIPT: world [0.0, 12000.0, 0.0] → screen [313.6159, 488.73523]
+SCRIPT: step 60 Click([313.6159, 488.73523])
 SCRIPT: step 61 Wait(10)
-SCRIPT: world [0.0, 18000.0, 0.0] → screen [267.38614, 453.8368]
-SCRIPT: step 62 Hover([267.38614, 453.8368])
+SCRIPT: world [0.0, 18000.0, 0.0] → screen [270.46896, 458.06714]
+SCRIPT: step 62 Hover([270.46896, 458.06714])
 SCRIPT: step 63 Wait(6)
-SCRIPT: world [0.0, 18000.0, 0.0] → screen [267.38614, 453.8368]
-SCRIPT: step 64 Click([267.38614, 453.8368])
+SCRIPT: world [0.0, 18000.0, 0.0] → screen [270.46896, 458.06714]
+SCRIPT: step 64 Click([270.46896, 458.06714])
 SCRIPT: step 65 Wait(10)
 SCRIPT: step 66 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 67 Wait(10)
 SCRIPT: step 68 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/selection-editing/05-copied.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/selection-editing/05-copied.png 2560x1600
 SCRIPT: step 69 Note("Удалить копию: щелчок и Delete")
-SCRIPT: world [2500.0, 18000.0, 0.0] → screen [294.45114, 442.18738]
-SCRIPT: step 70 Click([294.45114, 442.18738])
+SCRIPT: world [2500.0, 18000.0, 0.0] → screen [297.0922, 446.60785]
+SCRIPT: step 70 Click([297.0922, 446.60785])
 SCRIPT: step 71 Wait(10)
 SCRIPT: step 72 Key { name: "Delete", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 73 Wait(15)

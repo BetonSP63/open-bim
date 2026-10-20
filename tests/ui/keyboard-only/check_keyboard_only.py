@@ -57,6 +57,7 @@ print("saved .obim revision", saved["project"]["revision"], "sha256 field", save
 
 pdf = PdfReader(D / "drawings" / "КМД-1.pdf")
 text = "".join(p.extract_text() or "" for p in pdf.pages)
-assert len(pdf.pages) >= 1 and "КМД-1" in text, text[:200]
-print(f"pdf: {len(pdf.pages)} page(s), contains «КМД-1»")
+# Graph 1: set designation «<base>-КМД» (ГОСТ Р 21.101, 4.2.4).
+assert len(pdf.pages) >= 1 and "-КМД" in text, text[:200]
+print(f"pdf: {len(pdf.pages)} page(s), contains «-КМД»")
 print("KEYBOARD_ONLY_OK")

@@ -5,77 +5,77 @@
       "revision": 1,
       "objects": 1,
       "axes": 9,
-      "sha256": "ed4c86930d36c9f270748db7267398caf39b78b955faf4c8eb5eb0129036de4f"
+      "sha256": "39b48bab1121cbfbf9861c5a2f24f458cbefea411ca13c81707c70864675c671"
     },
     {
       "action": "Создать: Колонна",
       "revision": 2,
       "objects": 2,
       "axes": 9,
-      "sha256": "5e313b8e9159d2441d20a5318c30868f5ec8cd0159e9d1198ff4aa79337fe056"
+      "sha256": "4c86bc60f6ff46543f10a94642de4241888718502fc3f5eb1053b99b68e52eca"
     },
     {
       "action": "Создать: Колонна",
       "revision": 3,
       "objects": 3,
       "axes": 9,
-      "sha256": "f9b98dfb49a3583e773140809df81668c8f08e780c2e9c33cdd2f36a5ba8093b"
+      "sha256": "6244f1887f62736bc59188fae66c978571db72178f8849dfc22d40ccc14505bb"
     },
     {
       "action": "Создать: Колонна",
       "revision": 4,
       "objects": 4,
       "axes": 9,
-      "sha256": "86cfdcb0ad9e0bbffc0895ea86fc0dd4d8d0d9dc673aad01bea61dfd59ed748b"
+      "sha256": "ed0209031604349be80b96365f4f8cbfe4612812c9acf6cd2ee53068f6d8d329"
     },
     {
       "action": "Создать: Балка",
       "revision": 5,
       "objects": 5,
       "axes": 9,
-      "sha256": "a180c6c1c8a0fe5c059ea2d65e1032383d665ae8adfc2017f169eaebbcff41be"
+      "sha256": "6e7189d2974ca134650f39e3202df1aa8e878e2ab1c81cd380e2e50e583f86c4"
     },
     {
       "action": "Создать: Балка",
       "revision": 6,
       "objects": 6,
       "axes": 9,
-      "sha256": "fc8df3f95f2db6e88f70adc72c7aef095546d92ef81c5921ef277747526580df"
+      "sha256": "bf80a5a405e61a58c31ff84eadf70e660b895fe9b96931bd6b28dce90e305521"
     },
     {
       "action": "Создать: Балка",
       "revision": 7,
       "objects": 7,
       "axes": 9,
-      "sha256": "3ae798a4555a203820ce5947112beec952486f0a3d72a12cc92db739dc49a5dc"
+      "sha256": "68066166b6cd9730c0608d0287c2b7c177895e174e61ca648ccfaef2f34414dc"
     },
     {
       "action": "Создать: Балка",
       "revision": 8,
       "objects": 8,
       "axes": 9,
-      "sha256": "c73eec09c468f1058813782a23b32dc288004b462c6e4c61b70d1d17276ae9bb"
+      "sha256": "74a8cc0dc9dd9ae13eb8240ac67303a6a4fcee058a50ad7654de5ee976daea59"
     },
     {
       "action": "Создать: Контурная плита",
       "revision": 9,
       "objects": 9,
       "axes": 9,
-      "sha256": "670521f9c43f7bcd0693a96d70f1fabd632eb167cace7c78f9559f18643e2e63"
+      "sha256": "289819d3f2f202f95ef85a270c5523478f381e202a0988438caaa1ed26486e8a"
     },
     {
       "action": "Создать: болт",
       "revision": 10,
       "objects": 9,
       "axes": 9,
-      "sha256": "54c33384197d262642c839f463fa06bfe12b083fc9325390a2a1a4b05a296e24"
+      "sha256": "b94a190a620403480e962514842e8e14d64d7618ba13ba53b3fba6e77134c828"
     },
     {
       "action": "Сохранить",
       "revision": 10,
       "objects": 9,
       "axes": 9,
-      "sha256": "54c33384197d262642c839f463fa06bfe12b083fc9325390a2a1a4b05a296e24"
+      "sha256": "b94a190a620403480e962514842e8e14d64d7618ba13ba53b3fba6e77134c828"
     }
   ],
   "project": {
@@ -642,12 +642,12 @@
     "levels": {
       "17": {
         "id": 17,
-        "name": "0.000",
+        "name": "0,000",
         "elevation_mm": 0.0
       },
       "18": {
         "id": 18,
-        "name": "+3.600",
+        "name": "+3,600",
         "elevation_mm": 3600.0
       }
     },

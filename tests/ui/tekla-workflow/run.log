@@ -6,54 +6,54 @@ CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/test
 SCRIPT: step 3 Note("Колонны В4 В5 Г4")
 SCRIPT: step 4 Click([38.0, 78.0])
 SCRIPT: step 5 Wait(10)
-SCRIPT: world [18000.0, 12000.0, 0.0] → screen [480.51056, 404.10846]
-SCRIPT: step 6 Hover([480.51056, 404.10846])
+SCRIPT: world [18000.0, 12000.0, 0.0] → screen [480.11453, 409.1505]
+SCRIPT: step 6 Hover([480.11453, 409.1505])
 SCRIPT: step 7 Wait(6)
-SCRIPT: world [18000.0, 12000.0, 0.0] → screen [480.51056, 404.10846]
-SCRIPT: step 8 Click([480.51056, 404.10846])
+SCRIPT: world [18000.0, 12000.0, 0.0] → screen [480.11453, 409.1505]
+SCRIPT: step 8 Click([480.11453, 409.1505])
 SCRIPT: step 9 Wait(10)
-SCRIPT: world [24000.0, 12000.0, 0.0] → screen [524.45306, 382.8738]
-SCRIPT: step 10 Hover([524.45306, 382.8738])
+SCRIPT: world [24000.0, 12000.0, 0.0] → screen [523.3398, 388.26245]
+SCRIPT: step 10 Hover([523.3398, 388.26245])
 SCRIPT: step 11 Wait(6)
-SCRIPT: world [24000.0, 12000.0, 0.0] → screen [524.45306, 382.8738]
-SCRIPT: step 12 Click([524.45306, 382.8738])
+SCRIPT: world [24000.0, 12000.0, 0.0] → screen [523.3398, 388.26245]
+SCRIPT: step 12 Click([523.3398, 388.26245])
 SCRIPT: step 13 Wait(10)
-SCRIPT: world [18000.0, 18000.0, 0.0] → screen [434.4599, 382.6239]
-SCRIPT: step 14 Hover([434.4599, 382.6239])
+SCRIPT: world [18000.0, 18000.0, 0.0] → screen [434.8156, 388.01663]
+SCRIPT: step 14 Hover([434.8156, 388.01663])
 SCRIPT: step 15 Wait(6)
-SCRIPT: world [18000.0, 18000.0, 0.0] → screen [434.4599, 382.6239]
-SCRIPT: step 16 Click([434.4599, 382.6239])
+SCRIPT: world [18000.0, 18000.0, 0.0] → screen [434.8156, 388.01663]
+SCRIPT: step 16 Click([434.8156, 388.01663])
 SCRIPT: step 17 Wait(10)
 SCRIPT: step 18 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 19 Note("Балка по верхам В4→В5")
 SCRIPT: step 20 Click([97.0, 78.0])
 SCRIPT: step 21 Wait(10)
-SCRIPT: world [18000.0, 12000.0, 3600.0] → screen [481.22455, 367.4713]
-SCRIPT: step 22 Hover([481.22455, 367.4713])
+SCRIPT: world [18000.0, 12000.0, 3600.0] → screen [480.8169, 373.1114]
+SCRIPT: step 22 Hover([480.8169, 373.1114])
 SCRIPT: step 23 Wait(6)
-SCRIPT: world [18000.0, 12000.0, 3600.0] → screen [481.22455, 367.4713]
-SCRIPT: step 24 Click([481.22455, 367.4713])
+SCRIPT: world [18000.0, 12000.0, 3600.0] → screen [480.8169, 373.1114]
+SCRIPT: step 24 Click([480.8169, 373.1114])
 SCRIPT: step 25 Wait(10)
-SCRIPT: world [24000.0, 12000.0, 3600.0] → screen [526.3464, 347.72754]
-SCRIPT: step 26 Hover([526.3464, 347.72754])
+SCRIPT: world [24000.0, 12000.0, 3600.0] → screen [525.20215, 353.68988]
+SCRIPT: step 26 Hover([525.20215, 353.68988])
 SCRIPT: step 27 Wait(6)
-SCRIPT: world [24000.0, 12000.0, 3600.0] → screen [526.3464, 347.72754]
-SCRIPT: step 28 Click([526.3464, 347.72754])
+SCRIPT: world [24000.0, 12000.0, 3600.0] → screen [525.20215, 353.68988]
+SCRIPT: step 28 Click([525.20215, 353.68988])
 SCRIPT: step 29 Wait(10)
 SCRIPT: step 30 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 31 Wait(5)
 SCRIPT: step 32 Note("Выбрать балку, перетащить конечную ручку на верх Г4")
-SCRIPT: world [21000.0, 12000.0, 3600.0] → screen [504.44467, 357.31097]
-SCRIPT: step 33 Click([504.44467, 357.31097])
+SCRIPT: world [21000.0, 12000.0, 3600.0] → screen [503.658, 363.11688]
+SCRIPT: step 33 Click([503.658, 363.11688])
 SCRIPT: step 34 Wait(10)
-SCRIPT: step 35 Drag([526.3464, 347.72754, 433.85547, 347.49554])
+SCRIPT: step 35 Drag([525.20215, 353.68988, 434.22104, 353.46167])
 SCRIPT: step 36 Wait(15)
 SCRIPT: step 37 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/02-columns-beam-handle.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/02-columns-beam-handle.png 2560x1600
 SCRIPT: step 38 Note("Выбрать колонну В4, панель Узлы")
 SCRIPT: step 39 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
-SCRIPT: world [18000.0, 12000.0, 1800.0] → screen [480.86237, 386.05554]
-SCRIPT: step 40 Click([480.86237, 386.05554])
+SCRIPT: world [18000.0, 12000.0, 1800.0] → screen [480.46063, 391.39227]
+SCRIPT: step 40 Click([480.46063, 391.39227])
 SCRIPT: step 41 Wait(10)
 SCRIPT: step 42 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/03-column-selected.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/03-column-selected.png 2560x1600
@@ -80,17 +80,17 @@ SCRIPT: step 59 Wait(10)
 SCRIPT: step 60 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/07-numbering-clash.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/07-numbering-clash.png 2560x1600
 SCRIPT: step 61 Note("Балка: класс 2 в панели свойств")
-SCRIPT: world [18000.0, 15000.0, 3600.0] → screen [456.83957, 357.18805]
-SCRIPT: step 62 Click([456.83957, 357.18805])
+SCRIPT: world [18000.0, 15000.0, 3600.0] → screen [456.82993, 362.99597]
+SCRIPT: step 62 Click([456.82993, 362.99597])
 SCRIPT: step 63 Wait(10)
 SCRIPT: step 64 Click([1261.0, 137.0])
 SCRIPT: step 65 Wait(10)
 SCRIPT: step 66 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/08-beam-properties.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/08-beam-properties.png 2560x1600
-SCRIPT: step 67 Click([1018.0, 221.0])
+SCRIPT: step 67 Click([1022.0, 231.0])
 SCRIPT: step 68 Text("2")
 SCRIPT: step 69 Wait(3)
-SCRIPT: step 70 Click([955.0, 400.0])
+SCRIPT: step 70 Click([955.0, 433.0])
 SCRIPT: step 71 Wait(15)
 SCRIPT: step 72 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/09-class-changed.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/09-class-changed.png 2560x1600

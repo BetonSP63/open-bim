@@ -18,6 +18,8 @@ pub enum DrawTool {
     Hatch,
     Wipeout,
     Text,
+    /// Node «Узел n»: centre and edge of the region on a view (5.5.3).
+    Node,
 }
 
 impl DrawTool {
@@ -31,6 +33,7 @@ impl DrawTool {
             Self::Hatch => "Штриховка",
             Self::Wipeout => "Маскировка",
             Self::Text => "Текст",
+            Self::Node => "Узел",
         }
     }
 
@@ -50,6 +53,8 @@ impl DrawTool {
             (Self::Hatch | Self::Wipeout, n) if n < 3 => "Укажите вершины области",
             (Self::Hatch | Self::Wipeout, _) => "Следующая вершина или Enter — замкнуть область",
             (Self::Text, _) => "Щёлкните, где поставить текст (текст — в поле «Текст примечания»)",
+            (Self::Node, 0) => "Узел: щёлкните центр узла на виде",
+            (Self::Node, _) => "Узел: щёлкните край области узла",
         }
     }
 }
@@ -150,6 +155,11 @@ impl DrawingEditor {
             _ => self.tool.points.push(at),
         }
         let points = self.tool.points.clone();
+        if let (DrawTool::Node, [c, p]) = (tool, &points[..]) {
+            self.tool.points.clear();
+            self.add_node(editor, *c, (p[0] - c[0]).hypot(p[1] - c[1]))?;
+            return Ok(());
+        }
         let done = match (tool, &points[..]) {
             (DrawTool::Line, [a, b]) => Some(SheetObjectKind::Line {
                 points: vec![*a, *b],
@@ -192,6 +202,50 @@ impl DrawingEditor {
         };
         self.add_object(editor, kind)?;
         self.message = Some(tool.prompt(0).into());
+        Ok(())
+    }
+
+    /// A node view of the region around sheet point `at` with half side
+    /// `size` sheet mm on the view under it, at a standard scale giving about
+    /// 60 mm on the sheet, placed in the upper right corner.
+    pub fn add_node(&mut self, editor: &mut Editor, at: [f64; 2], size: f64) -> Result<(), String> {
+        let project = editor.document.project();
+        let mut d = self.require(project)?;
+        let (host, centre, scale) = open_bim_drawings::view_at(project, &d, at)?
+            .ok_or("Щёлкните внутри вида (не узла и не разреза)")?;
+        let radius = (size.max(2.) * scale).max(10.);
+        let node_scale = open_bim_model::STANDARD_SCALES
+            .iter()
+            .copied()
+            .find(|s| *s >= 1. && 2. * radius / s <= 60.)
+            .unwrap_or(scale);
+        let direction = d
+            .views
+            .iter()
+            .find(|v| v.id == host)
+            .map(|v| v.direction)
+            .ok_or("Вид не найден")?;
+        let side = 2. * radius / node_scale;
+        let [w, h] = d.sheet_mm();
+        let id = next_id(&d.views, |v| v.id);
+        d.views.push(open_bim_model::DrawingView {
+            id,
+            name: "Узел".into(),
+            direction,
+            section: None,
+            position: [
+                w - open_bim_drawings::MARGIN - 15. - side / 2.,
+                h - open_bim_drawings::MARGIN - 20. - side / 2.,
+            ],
+            scale: Some(node_scale),
+            node: Some(open_bim_model::NodeRegion { centre, radius }),
+        });
+        d.validate().map_err(|e| e.to_string())?;
+        self.selected_view = Some(id);
+        self.replace(editor, &format!("узел (вид {id})"), d)?;
+        self.message = Some(format!(
+            "Узел добавлен в масштабе 1:{node_scale}; переместите вид полями «Центр X/Y»"
+        ));
         Ok(())
     }
 

@@ -12,70 +12,70 @@
       "revision": 2,
       "objects": 7,
       "axes": 2,
-      "sha256": "7be33950567708682921ff29aac37a6ab5bc39cb544a682c6d2888bf2f068489"
+      "sha256": "8c8ed82fe38f4d7fb8e378a80617787f1317d83c7b17a67bc9f8f741347d51fa"
     },
     {
       "action": "Чертёж КМД-1: штриховка 1",
       "revision": 3,
       "objects": 7,
       "axes": 2,
-      "sha256": "93a8053eb637113a97b4deb213cfbb00e44b444bfdea5eebfc1f43157f05368a"
+      "sha256": "3b0b88c8b571dbef9ad89742c73c2b9d2acd7a6f31131d9f45be7dbe5b6c8529"
     },
     {
       "action": "Чертёж КМД-1: маскировка 2",
       "revision": 4,
       "objects": 7,
       "axes": 2,
-      "sha256": "b5bea596b1a78932e5447f0c0e1dae2cafb263084f278aac81569215713c779e"
+      "sha256": "70d8dcb5b03fb44e83539b4ac95d329f9298945d59d734ba8f0ed68e84e5a474"
     },
     {
       "action": "Чертёж КМД-1: линия 3",
       "revision": 5,
       "objects": 7,
       "axes": 2,
-      "sha256": "6f36f1092d0d9ac402cff28bdb8cad6e79c47b63fcfaf243c8d6ead4922fa567"
+      "sha256": "c3b64e97e1ded9499f967afea8de86c8ea7fe86461d0873941e112b1e2362280"
     },
     {
       "action": "Чертёж КМД-1: объект 3 перемещён",
       "revision": 6,
       "objects": 7,
       "axes": 2,
-      "sha256": "09a3d0c4bdb226bd702525ed728f5cac00adfa56c5f0ec663fb24e1bcb35c884"
+      "sha256": "826c3276689ffd267039b7df7625540db20f8095e968660757087dd20b7f34d3"
     },
     {
       "action": "Чертёж КМД-1: объект 3 перемещён",
       "revision": 7,
       "objects": 7,
       "axes": 2,
-      "sha256": "b11e4080bed89fec147b12f719c4f5ff93a5f3c4f5dce847e22ddb9cb371de6f"
+      "sha256": "d52272cc89133131a5f30b5617b9b05d8445ce01a21539941c91ebcc77310d7d"
     },
     {
       "action": "Чертёж КМД-1: объект 3 удалён",
       "revision": 8,
       "objects": 7,
       "axes": 2,
-      "sha256": "1379414d48e7c5ad2420987730ac0d41db14e211854e6fd885b790bf95e74f0a"
+      "sha256": "955e14c92bd2e040ea96891ea500e92efccd1f203057ad0c50ada9224877b66f"
     },
     {
       "action": "Отменить",
       "revision": 7,
       "objects": 7,
       "axes": 2,
-      "sha256": "b11e4080bed89fec147b12f719c4f5ff93a5f3c4f5dce847e22ddb9cb371de6f"
+      "sha256": "d52272cc89133131a5f30b5617b9b05d8445ce01a21539941c91ebcc77310d7d"
     },
     {
       "action": "Экспорт drawings/КМД-1.pdf",
       "revision": 7,
       "objects": 7,
       "axes": 2,
-      "sha256": "b11e4080bed89fec147b12f719c4f5ff93a5f3c4f5dce847e22ddb9cb371de6f"
+      "sha256": "d52272cc89133131a5f30b5617b9b05d8445ce01a21539941c91ebcc77310d7d"
     },
     {
       "action": "Сохранить",
       "revision": 7,
       "objects": 7,
       "axes": 2,
-      "sha256": "b11e4080bed89fec147b12f719c4f5ff93a5f3c4f5dce847e22ddb9cb371de6f"
+      "sha256": "d52272cc89133131a5f30b5617b9b05d8445ce01a21539941c91ebcc77310d7d"
     }
   ],
   "project": {
@@ -577,7 +577,7 @@
               }
             ],
             "axis": "horizontal",
-            "offset": 15.0
+            "offset": 25.0
           }
         ],
         "texts": [],

@@ -1,4 +1,4 @@
-LOAD_MS: 0.1
+LOAD_MS: 0.5
 GPU: Apple M5 · Metal; project=Новый проект objects=0
 SCRIPT: step 1 Wait(40)
 SCRIPT: step 2 Note("Балка 1 по оси Б: 0…18000")
@@ -8,17 +8,17 @@ SCRIPT: step 5 Text("инструмент балка")
 SCRIPT: step 6 Wait(4)
 SCRIPT: step 7 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 8 Wait(6)
-SCRIPT: world [0.0, 6000.0, 0.0] → screen [361.92606, 521.9435]
-SCRIPT: step 9 Hover([361.92606, 521.9435])
+SCRIPT: world [0.0, 6000.0, 0.0] → screen [363.46573, 525.06213]
+SCRIPT: step 9 Hover([363.46573, 525.06213])
 SCRIPT: step 10 Wait(4)
-SCRIPT: world [0.0, 6000.0, 0.0] → screen [361.92606, 521.9435]
-SCRIPT: step 11 Click([361.92606, 521.9435])
+SCRIPT: world [0.0, 6000.0, 0.0] → screen [363.46573, 525.06213]
+SCRIPT: step 11 Click([363.46573, 525.06213])
 SCRIPT: step 12 Wait(6)
-SCRIPT: world [18000.0, 6000.0, 0.0] → screen [532.3575, 428.2972]
-SCRIPT: step 13 Hover([532.3575, 428.2972])
+SCRIPT: world [18000.0, 6000.0, 0.0] → screen [531.1152, 432.94443]
+SCRIPT: step 13 Hover([531.1152, 432.94443])
 SCRIPT: step 14 Wait(4)
-SCRIPT: world [18000.0, 6000.0, 0.0] → screen [532.3575, 428.2972]
-SCRIPT: step 15 Click([532.3575, 428.2972])
+SCRIPT: world [18000.0, 6000.0, 0.0] → screen [531.1152, 432.94443]
+SCRIPT: step 15 Click([531.1152, 432.94443])
 SCRIPT: step 16 Wait(6)
 SCRIPT: step 17 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 18 Wait(4)
@@ -29,17 +29,17 @@ SCRIPT: step 22 Text("инструмент балка")
 SCRIPT: step 23 Wait(4)
 SCRIPT: step 24 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 25 Wait(6)
-SCRIPT: world [0.0, 12000.0, 0.0] → screen [311.24908, 485.0138]
-SCRIPT: step 26 Hover([311.24908, 485.0138])
+SCRIPT: world [0.0, 12000.0, 0.0] → screen [313.6159, 488.73523]
+SCRIPT: step 26 Hover([313.6159, 488.73523])
 SCRIPT: step 27 Wait(4)
-SCRIPT: world [0.0, 12000.0, 0.0] → screen [311.24908, 485.0138]
-SCRIPT: step 28 Click([311.24908, 485.0138])
+SCRIPT: world [0.0, 12000.0, 0.0] → screen [313.6159, 488.73523]
+SCRIPT: step 28 Click([313.6159, 488.73523])
 SCRIPT: step 29 Wait(6)
-SCRIPT: world [18000.0, 12000.0, 0.0] → screen [480.51563, 403.37375]
-SCRIPT: step 30 Hover([480.51563, 403.37375])
+SCRIPT: world [18000.0, 12000.0, 0.0] → screen [480.11957, 408.4278]
+SCRIPT: step 30 Hover([480.11957, 408.4278])
 SCRIPT: step 31 Wait(4)
-SCRIPT: world [18000.0, 12000.0, 0.0] → screen [480.51563, 403.37375]
-SCRIPT: step 32 Click([480.51563, 403.37375])
+SCRIPT: world [18000.0, 12000.0, 0.0] → screen [480.11957, 408.4278]
+SCRIPT: step 32 Click([480.11957, 408.4278])
 SCRIPT: step 33 Wait(6)
 SCRIPT: step 34 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 35 Wait(4)
@@ -50,11 +50,11 @@ SCRIPT: step 39 Text("инструмент колонна")
 SCRIPT: step 40 Wait(4)
 SCRIPT: step 41 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 42 Wait(6)
-SCRIPT: world [6000.0, 12000.0, 0.0] → screen [375.146, 454.19525]
-SCRIPT: step 43 Hover([375.146, 454.19525])
+SCRIPT: world [6000.0, 12000.0, 0.0] → screen [376.46988, 458.41974]
+SCRIPT: step 43 Hover([376.46988, 458.41974])
 SCRIPT: step 44 Wait(4)
-SCRIPT: world [6000.0, 12000.0, 0.0] → screen [375.146, 454.19525]
-SCRIPT: step 45 Click([375.146, 454.19525])
+SCRIPT: world [6000.0, 12000.0, 0.0] → screen [376.46988, 458.41974]
+SCRIPT: step 45 Click([376.46988, 458.41974])
 SCRIPT: step 46 Wait(6)
 SCRIPT: step 47 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 48 Wait(4)
@@ -87,23 +87,23 @@ SCRIPT: step 73 Text("подогнать торец")
 SCRIPT: step 74 Wait(4)
 SCRIPT: step 75 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 76 Wait(6)
-SCRIPT: world [9000.0, 6000.0, 0.0] → screen [455.904, 469.46075]
-SCRIPT: step 77 Hover([455.904, 469.46075])
+SCRIPT: world [9000.0, 6000.0, 0.0] → screen [455.90967, 473.43604]
+SCRIPT: step 77 Hover([455.90967, 473.43604])
 SCRIPT: step 78 Wait(4)
-SCRIPT: world [9000.0, 6000.0, 0.0] → screen [455.904, 469.46075]
-SCRIPT: step 79 Click([455.904, 469.46075])
+SCRIPT: world [9000.0, 6000.0, 0.0] → screen [455.90967, 473.43604]
+SCRIPT: step 79 Click([455.90967, 473.43604])
 SCRIPT: step 80 Wait(6)
-SCRIPT: world [13000.0, 0.0, 0.0] → screen [551.1281, 480.38245]
-SCRIPT: step 81 Hover([551.1281, 480.38245])
+SCRIPT: world [13000.0, 0.0, 0.0] → screen [549.5794, 484.17947]
+SCRIPT: step 81 Hover([549.5794, 484.17947])
 SCRIPT: step 82 Wait(4)
-SCRIPT: world [13000.0, 0.0, 0.0] → screen [551.1281, 480.38245]
-SCRIPT: step 83 Click([551.1281, 480.38245])
+SCRIPT: world [13000.0, 0.0, 0.0] → screen [549.5794, 484.17947]
+SCRIPT: step 83 Click([549.5794, 484.17947])
 SCRIPT: step 84 Wait(6)
-SCRIPT: world [13000.0, 12000.0, 0.0] → screen [439.7611, 423.03033]
-SCRIPT: step 85 Hover([439.7611, 423.03033])
+SCRIPT: world [13000.0, 12000.0, 0.0] → screen [440.03024, 427.76352]
+SCRIPT: step 85 Hover([440.03024, 427.76352])
 SCRIPT: step 86 Wait(4)
-SCRIPT: world [13000.0, 12000.0, 0.0] → screen [439.7611, 423.03033]
-SCRIPT: step 87 Click([439.7611, 423.03033])
+SCRIPT: world [13000.0, 12000.0, 0.0] → screen [440.03024, 427.76352]
+SCRIPT: step 87 Click([440.03024, 427.76352])
 SCRIPT: step 88 Wait(6)
 SCRIPT: step 89 Wait(8)
 SCRIPT: step 90 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
@@ -115,17 +115,17 @@ SCRIPT: step 95 Text("размер в модели")
 SCRIPT: step 96 Wait(4)
 SCRIPT: step 97 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 98 Wait(6)
-SCRIPT: world [0.0, 6000.0, 0.0] → screen [361.90024, 521.01575]
-SCRIPT: step 99 Hover([361.90024, 521.01575])
+SCRIPT: world [0.0, 6000.0, 0.0] → screen [363.44034, 524.14954]
+SCRIPT: step 99 Hover([363.44034, 524.14954])
 SCRIPT: step 100 Wait(4)
-SCRIPT: world [0.0, 6000.0, 0.0] → screen [361.90024, 521.01575]
-SCRIPT: step 101 Click([361.90024, 521.01575])
+SCRIPT: world [0.0, 6000.0, 0.0] → screen [363.44034, 524.14954]
+SCRIPT: step 101 Click([363.44034, 524.14954])
 SCRIPT: step 102 Wait(6)
-SCRIPT: world [13000.0, 6000.0, 0.0] → screen [491.74792, 449.80267]
-SCRIPT: step 103 Hover([491.74792, 449.80267])
+SCRIPT: world [13000.0, 6000.0, 0.0] → screen [491.1685, 454.09885]
+SCRIPT: step 103 Hover([491.1685, 454.09885])
 SCRIPT: step 104 Wait(4)
-SCRIPT: world [13000.0, 6000.0, 0.0] → screen [491.74792, 449.80267]
-SCRIPT: step 105 Click([491.74792, 449.80267])
+SCRIPT: world [13000.0, 6000.0, 0.0] → screen [491.1685, 454.09885]
+SCRIPT: step 105 Click([491.1685, 454.09885])
 SCRIPT: step 106 Wait(6)
 SCRIPT: step 107 Wait(6)
 SCRIPT: step 108 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
@@ -139,11 +139,11 @@ SCRIPT: step 114 Text("разрезать линией")
 SCRIPT: step 115 Wait(4)
 SCRIPT: step 116 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 117 Wait(6)
-SCRIPT: world [4000.0, 6000.0, 0.0] → screen [406.2116, 496.71384]
-SCRIPT: step 118 Hover([406.2116, 496.71384])
+SCRIPT: world [4000.0, 6000.0, 0.0] → screen [407.02838, 500.24426]
+SCRIPT: step 118 Hover([407.02838, 500.24426])
 SCRIPT: step 119 Wait(4)
-SCRIPT: world [4000.0, 6000.0, 0.0] → screen [406.2116, 496.71384]
-SCRIPT: step 120 Click([406.2116, 496.71384])
+SCRIPT: world [4000.0, 6000.0, 0.0] → screen [407.02838, 500.24426]
+SCRIPT: step 120 Click([407.02838, 500.24426])
 SCRIPT: step 121 Wait(6)
 SCRIPT: step 122 Text("!")
 SCRIPT: step 123 Text("10000,3000,0")
@@ -170,17 +170,17 @@ SCRIPT: step 143 Text("разрезать деталью")
 SCRIPT: step 144 Wait(4)
 SCRIPT: step 145 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 146 Wait(6)
-SCRIPT: world [12000.0, 12000.0, 0.0] → screen [431.10385, 427.20587]
-SCRIPT: step 147 Hover([431.10385, 427.20587])
+SCRIPT: world [12000.0, 12000.0, 0.0] → screen [431.5143, 431.8709]
+SCRIPT: step 147 Hover([431.5143, 431.8709])
 SCRIPT: step 148 Wait(4)
-SCRIPT: world [12000.0, 12000.0, 0.0] → screen [431.10385, 427.20587]
-SCRIPT: step 149 Click([431.10385, 427.20587])
+SCRIPT: world [12000.0, 12000.0, 0.0] → screen [431.5143, 431.8709]
+SCRIPT: step 149 Click([431.5143, 431.8709])
 SCRIPT: step 150 Wait(6)
-SCRIPT: world [6000.0, 12000.0, 1800.0] → screen [373.81122, 434.5313]
-SCRIPT: step 151 Hover([373.81122, 434.5313])
+SCRIPT: world [6000.0, 12000.0, 1800.0] → screen [375.15686, 439.07675]
+SCRIPT: step 151 Hover([375.15686, 439.07675])
 SCRIPT: step 152 Wait(4)
-SCRIPT: world [6000.0, 12000.0, 1800.0] → screen [373.81122, 434.5313]
-SCRIPT: step 153 Click([373.81122, 434.5313])
+SCRIPT: world [6000.0, 12000.0, 1800.0] → screen [375.15686, 439.07675]
+SCRIPT: step 153 Click([375.15686, 439.07675])
 SCRIPT: step 154 Wait(6)
 SCRIPT: step 155 Wait(8)
 SCRIPT: step 156 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
@@ -191,23 +191,23 @@ SCRIPT: step 160 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/op
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/construction-trim/03-cuts-transparent.png 2560x1600
 SCRIPT: step 161 Key { name: "4", command: false, shift: false, alt: false, ctrl: true }
 SCRIPT: step 162 Wait(5)
-SCRIPT: step 163 Scroll([375.146, 454.19525, 120.0])
+SCRIPT: step 163 Scroll([376.46988, 458.41974, 120.0])
 SCRIPT: step 164 Wait(3)
-SCRIPT: step 165 Scroll([375.146, 454.19525, 120.0])
+SCRIPT: step 165 Scroll([376.46988, 458.41974, 120.0])
 SCRIPT: step 166 Wait(3)
-SCRIPT: step 167 Scroll([375.146, 454.19525, 120.0])
+SCRIPT: step 167 Scroll([376.46988, 458.41974, 120.0])
 SCRIPT: step 168 Wait(3)
-SCRIPT: step 169 Scroll([375.146, 454.19525, 120.0])
+SCRIPT: step 169 Scroll([376.46988, 458.41974, 120.0])
 SCRIPT: step 170 Wait(3)
-SCRIPT: step 171 Scroll([375.146, 454.19525, 120.0])
+SCRIPT: step 171 Scroll([376.46988, 458.41974, 120.0])
 SCRIPT: step 172 Wait(3)
-SCRIPT: step 173 Scroll([375.146, 454.19525, 120.0])
+SCRIPT: step 173 Scroll([376.46988, 458.41974, 120.0])
 SCRIPT: step 174 Wait(3)
-SCRIPT: step 175 Scroll([375.14603, 454.19525, 120.0])
+SCRIPT: step 175 Scroll([376.46988, 458.41974, 120.0])
 SCRIPT: step 176 Wait(3)
-SCRIPT: step 177 Scroll([375.146, 454.19525, 120.0])
+SCRIPT: step 177 Scroll([376.46988, 458.41974, 120.0])
 SCRIPT: step 178 Wait(3)
-SCRIPT: step 179 Scroll([375.14603, 454.19525, 120.0])
+SCRIPT: step 179 Scroll([376.46988, 458.41974, 120.0])
 SCRIPT: step 180 Wait(3)
 SCRIPT: step 181 Wait(10)
 SCRIPT: step 182 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/construction-trim/04-cut-by-part-zoom.png")

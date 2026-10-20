@@ -3,54 +3,54 @@ GPU: Apple M5 · Metal; project=Новый проект objects=0
 SCRIPT: step 1 Wait(40)
 SCRIPT: step 2 Click([160.0, 78.0])
 SCRIPT: step 3 Wait(10)
-SCRIPT: world [0.0, 0.0, 0.0] → screen [421.05814, 564.0498]
-SCRIPT: step 4 Hover([421.05814, 564.0498])
+SCRIPT: world [0.0, 0.0, 0.0] → screen [421.63257, 566.4811]
+SCRIPT: step 4 Hover([421.63257, 566.4811])
 SCRIPT: step 5 Wait(5)
-SCRIPT: world [0.0, 0.0, 0.0] → screen [421.05814, 564.0498]
-SCRIPT: step 6 Click([421.05814, 564.0498])
+SCRIPT: world [0.0, 0.0, 0.0] → screen [421.63257, 566.4811]
+SCRIPT: step 6 Click([421.63257, 566.4811])
 SCRIPT: step 7 Wait(8)
-SCRIPT: world [12000.0, 0.0, 0.0] → screen [542.52216, 486.70975]
-SCRIPT: step 8 Hover([542.52216, 486.70975])
+SCRIPT: world [12000.0, 0.0, 0.0] → screen [541.1139, 490.4035]
+SCRIPT: step 8 Hover([541.1139, 490.4035])
 SCRIPT: step 9 Wait(5)
-SCRIPT: world [12000.0, 0.0, 0.0] → screen [542.52216, 486.70975]
-SCRIPT: step 10 Click([542.52216, 486.70975])
+SCRIPT: world [12000.0, 0.0, 0.0] → screen [541.1139, 490.4035]
+SCRIPT: step 10 Click([541.1139, 490.4035])
 SCRIPT: step 11 Wait(8)
-SCRIPT: world [12000.0, 6000.0, 0.0] → screen [483.07764, 455.37485]
-SCRIPT: step 12 Hover([483.07764, 455.37485])
+SCRIPT: world [12000.0, 6000.0, 0.0] → screen [482.63968, 459.58008]
+SCRIPT: step 12 Hover([482.63968, 459.58008])
 SCRIPT: step 13 Wait(5)
-SCRIPT: world [12000.0, 6000.0, 0.0] → screen [483.07764, 455.37485]
-SCRIPT: step 14 Click([483.07764, 455.37485])
+SCRIPT: world [12000.0, 6000.0, 0.0] → screen [482.63968, 459.58008]
+SCRIPT: step 14 Click([482.63968, 459.58008])
 SCRIPT: step 15 Wait(8)
-SCRIPT: world [6000.0, 12000.0, 0.0] → screen [375.16525, 455.01523]
-SCRIPT: step 16 Hover([375.16525, 455.01523])
+SCRIPT: world [6000.0, 12000.0, 0.0] → screen [376.4888, 459.22632]
+SCRIPT: step 16 Hover([376.4888, 459.22632])
 SCRIPT: step 17 Wait(15)
 SCRIPT: step 18 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/plate-creation/01-preview-numbers-lengths.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/plate-creation/01-preview-numbers-lengths.png 2560x1600
-SCRIPT: world [6000.0, -3000.0, 0.0] → screen [519.8541, 542.6677]
-SCRIPT: step 19 Hover([519.8541, 542.6677])
+SCRIPT: world [6000.0, -3000.0, 0.0] → screen [518.8159, 545.448]
+SCRIPT: step 19 Hover([518.8159, 545.448])
 SCRIPT: step 20 Wait(5)
-SCRIPT: world [6000.0, -3000.0, 0.0] → screen [519.8541, 542.6677]
-SCRIPT: step 21 Click([519.8541, 542.6677])
+SCRIPT: world [6000.0, -3000.0, 0.0] → screen [518.8159, 545.448]
+SCRIPT: step 21 Click([518.8159, 545.448])
 SCRIPT: step 22 Wait(15)
 SCRIPT: step 23 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/plate-creation/02-crossing-refused.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/plate-creation/02-crossing-refused.png 2560x1600
-SCRIPT: world [6000.0, 6000.0, 0.0] → screen [426.80173, 486.29657]
-SCRIPT: step 24 Hover([426.80173, 486.29657])
+SCRIPT: world [6000.0, 6000.0, 0.0] → screen [427.28238, 489.99704]
+SCRIPT: step 24 Hover([427.28238, 489.99704])
 SCRIPT: step 25 Wait(5)
-SCRIPT: world [6000.0, 6000.0, 0.0] → screen [426.80173, 486.29657]
-SCRIPT: step 26 Click([426.80173, 486.29657])
+SCRIPT: world [6000.0, 6000.0, 0.0] → screen [427.28238, 489.99704]
+SCRIPT: step 26 Click([427.28238, 489.99704])
 SCRIPT: step 27 Wait(8)
-SCRIPT: world [6000.0, 12000.0, 0.0] → screen [375.16525, 455.01523]
-SCRIPT: step 28 Hover([375.16525, 455.01523])
+SCRIPT: world [6000.0, 12000.0, 0.0] → screen [376.4888, 459.22632]
+SCRIPT: step 28 Hover([376.4888, 459.22632])
 SCRIPT: step 29 Wait(5)
-SCRIPT: world [6000.0, 12000.0, 0.0] → screen [375.16525, 455.01523]
-SCRIPT: step 30 Click([375.16525, 455.01523])
+SCRIPT: world [6000.0, 12000.0, 0.0] → screen [376.4888, 459.22632]
+SCRIPT: step 30 Click([376.4888, 459.22632])
 SCRIPT: step 31 Wait(8)
-SCRIPT: world [0.0, 12000.0, 0.0] → screen [311.2859, 485.88406]
-SCRIPT: step 32 Hover([311.2859, 485.88406])
+SCRIPT: world [0.0, 12000.0, 0.0] → screen [313.65216, 489.59128]
+SCRIPT: step 32 Hover([313.65216, 489.59128])
 SCRIPT: step 33 Wait(5)
-SCRIPT: world [0.0, 12000.0, 0.0] → screen [311.2859, 485.88406]
-SCRIPT: step 34 Click([311.2859, 485.88406])
+SCRIPT: world [0.0, 12000.0, 0.0] → screen [313.65216, 489.59128]
+SCRIPT: step 34 Click([313.65216, 489.59128])
 SCRIPT: step 35 Wait(8)
 SCRIPT: step 36 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 37 Wait(15)

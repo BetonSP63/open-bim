@@ -1,7 +1,7 @@
 {
   "magic": "open-bim-project",
   "format_version": 1,
-  "payload_sha256": "548dbd4d625c2ec7ca57a7c933f9d73c313f5790190c946efd92ca64f0940844",
+  "payload_sha256": "250e3ee9da45a93ec7d2000df835dd393229db6160534d0b81199da236c267a3",
   "project": {
     "name": "Контрольный стальной каркас",
     "units": "millimetres",
@@ -10,7 +10,7 @@
       0.0,
       0.0
     ],
-    "revision": 2,
+    "revision": 1,
     "next_id": 21,
     "materials": {
       "1": {
@@ -488,33 +488,8 @@
         "fingerprints": {
           "8": "9c207a473eb9106a524e735dced387fa6a417ac6f4b51cf36256cc82b843a35b"
         },
-        "generated_revision": 1
+        "generated_revision": 0
       }
-    },
-    "document": {
-      "base_designation": "2345",
-      "object": "Производственный корпус",
-      "building": "Каркас пролёта 1-2",
-      "organisation": "ООО «Проект»",
-      "customer": "АО «Заказчик»",
-      "developer": {
-        "name": "Иванов",
-        "date": "19.10.26"
-      },
-      "checker": {
-        "name": "Смирнов",
-        "date": "19.10.26"
-      },
-      "norm_control": {
-        "name": "Петров",
-        "date": "20.10.26"
-      },
-      "approver": {
-        "position": "ГИП",
-        "name": "Сидоров",
-        "date": "21.10.26"
-      },
-      "inventory_number": "1234"
     }
   }
 }

@@ -377,3 +377,75 @@ pub(crate) fn section_traces(
         }
     }
 }
+
+/// Keep the lines of a node view inside its region (`graphic.bounds`),
+/// clipping segments, and the texts placed inside it; the title stays.
+pub(crate) fn keep_inside(graphic: &mut ViewGraphic) {
+    let [lo, hi] = graphic.bounds;
+    let mut lines = Vec::new();
+    for l in &graphic.lines {
+        let mut run: Vec<[f64; 2]> = Vec::new();
+        for w in l.points.windows(2) {
+            match clip(w[0], w[1], [lo, hi]) {
+                Some((a, b)) => {
+                    if run
+                        .last()
+                        .is_none_or(|p| (p[0] - a[0]).hypot(p[1] - a[1]) > 1e-9)
+                    {
+                        if run.len() >= 2 {
+                            lines.push(Polyline {
+                                points: std::mem::take(&mut run),
+                                ..l.clone()
+                            });
+                        }
+                        run = vec![a];
+                    }
+                    run.push(b);
+                }
+                None => {
+                    if run.len() >= 2 {
+                        lines.push(Polyline {
+                            points: std::mem::take(&mut run),
+                            ..l.clone()
+                        });
+                    }
+                    run.clear();
+                }
+            }
+        }
+        if run.len() >= 2 {
+            lines.push(Polyline {
+                points: run,
+                ..l.clone()
+            });
+        }
+    }
+    graphic.lines = lines;
+    let inside = |p: [f64; 2]| p[0] >= lo[0] && p[0] <= hi[0] && p[1] >= lo[1] && p[1] <= hi[1];
+    let title = graphic.labels.first().cloned();
+    graphic.labels.retain(|l| inside(l.position));
+    if let Some(t) = title
+        && graphic.labels.first() != Some(&t)
+    {
+        graphic.labels.insert(0, t);
+    }
+}
+
+/// Place of a node on the main view: a thin circle and the number above a
+/// leader shelf (5.5.4).
+pub(crate) fn node_mark(graphic: &mut ViewGraphic, centre: [f64; 2], radius: f64, number: usize) {
+    graphic.lines.push(circle(centre, radius, LineStyle::Thin));
+    let d = std::f64::consts::FRAC_1_SQRT_2;
+    let p0 = [centre[0] + radius * d, centre[1] + radius * d];
+    let p1 = [p0[0] + 6., p0[1] + 6.];
+    let shelf = 1.2 * MARK_TEXT * crate::conventions::CAP_RATIO;
+    graphic
+        .lines
+        .push(line(vec![p0, p1, [p1[0] + shelf, p1[1]]], LineStyle::Thin));
+    graphic.labels.push(label(
+        [p1[0] + shelf / 2., p1[1] + 0.8],
+        number.to_string(),
+        MARK_TEXT,
+        Align::Middle,
+    ));
+}

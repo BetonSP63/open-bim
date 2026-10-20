@@ -9,7 +9,7 @@ this directory so the PDF lands in `drawings/`:
 Steps: ⌘N → ⌥C, «А/1» Enter, «Б/2» Enter → Esc → ⌥B, «А/1/+3,600» Enter,
 Alt+→ ×2, Space → Esc → ⌥P, «В/3», «В/4», «Г/4», «Г/3», Enter → Esc →
 Alt+→, Space (select the first part) → F6 ×3 (first field of the property
-pane) → Tab ×5, «К-1», Enter → F6 ×3 (back to the view) → ⌘D → ⇧⌘P → ⌘S.
+pane) → Tab ×7, «К-1», Enter → F6 ×3 (back to the view) → ⌘D → ⇧⌘P → ⌘S.
 
 `check_keyboard_only.py` (run with the verify venv) checks the script has no
 pointer steps, the journal order, part coordinates against the grid, the saved

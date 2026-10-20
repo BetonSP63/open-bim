@@ -1,4 +1,4 @@
-LOAD_MS: 0.9
+LOAD_MS: 1.8
 GPU: Apple M5 · Metal; project=Контрольный стальной каркас objects=7
 SCRIPT: step 1 Wait(30)
 SCRIPT: step 2 Note("⌘P «сведения о документе» — окно граф основной надписи")

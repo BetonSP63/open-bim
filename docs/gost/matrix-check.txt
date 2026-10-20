@@ -1,0 +1,5 @@
+by applicability: не применяется 78, поле/процедура 22, применяется 121, справочно 55
+missing: 0 []
+extra rows: 0 []
+row problems: 0 []
+MATRIX_OK (final)

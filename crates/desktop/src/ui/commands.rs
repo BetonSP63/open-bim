@@ -40,6 +40,7 @@ pub enum Cmd {
     DrawHatch,
     DrawWipeout,
     DrawText,
+    DrawNode,
     AssemblyCreate,
     AssemblyAdd,
     AssemblyRemove,
@@ -865,6 +866,13 @@ pub const ALL: &[Spec] = &[
         category: "Чертежи",
         shortcut: None,
         keywords: "текст надпись примечание",
+    },
+    Spec {
+        cmd: Cmd::DrawNode,
+        label: "Чертёж: узел",
+        category: "Чертежи",
+        shortcut: None,
+        keywords: "узел выносной элемент фрагмент",
     },
     Spec {
         cmd: Cmd::DocumentInfo,

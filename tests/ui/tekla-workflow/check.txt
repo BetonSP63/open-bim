@@ -1,1 +1,1 @@
-OK: 3 columns at В4/В5/Г4, beam В4→Г4 at +3600 (handle-dragged, class 2), base plate node, drawing PDF «КМД-1», release 5 PDF + CSV, IFC4 {'IfcColumn': 3, 'IfcBeam': 1, 'IfcPlate': 1}, journal 17 events, reopened
+OK: 3 columns at В4/В5/Г4, beam В4→Г4 at +3600 (handle-dragged, class 2), base plate node, drawing PDF «-КМД», release 5 PDF + CSV, IFC4 {'IfcColumn': 3, 'IfcBeam': 1, 'IfcPlate': 1}, journal 17 events, reopened

@@ -31,6 +31,9 @@ struct Options {
     load_delay_ms: u64,
     bench: Option<PathBuf>,
     bench_frames: usize,
+    /// Present without waiting for the display refresh, so a benchmark
+    /// measures the frame work rather than the panel's refresh rate.
+    no_vsync: bool,
 }
 impl Options {
     fn parse() -> Result<Self, String> {
@@ -89,6 +92,7 @@ impl Options {
                         .ok_or("--load-delay-ms требует миллисекунды")?
                 }
                 "--gpu-error-test" => options.gpu_error_test = true,
+                "--no-vsync" => options.no_vsync = true,
                 "--display" => {
                     use open_bim_renderer::RenderMode;
                     options.display = Some(match args.next().as_deref() {
@@ -1252,6 +1256,17 @@ fn main() -> eframe::Result {
                 .with_inner_size(size)
                 .with_min_inner_size([1000.0, 600.0]),
             renderer: eframe::Renderer::Wgpu,
+            wgpu_options: eframe::egui_wgpu::WgpuConfiguration {
+                surface: eframe::egui_wgpu::SurfaceConfig {
+                    present_mode: if options.no_vsync {
+                        eframe::wgpu::PresentMode::AutoNoVsync
+                    } else {
+                        eframe::wgpu::PresentMode::AutoVsync
+                    },
+                    ..eframe::egui_wgpu::WgpuConfiguration::default().surface
+                },
+                ..Default::default()
+            },
             ..Default::default()
         },
         Box::new(move |cc| Ok(Box::new(Desktop::new(cc, options)?))),

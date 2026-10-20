@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<package name="Контрольное здание" designation="2345-26" issued="20.10.26 12:45">
+<package name="Контрольное здание" designation="2345-26" issued="20.10.26 13:12">
   <folder name="КМ" title="Конструкции металлические. Основной комплект рабочих чертежей">
     <document guid="b38e3fa3-7cc7-5c1a-990f-0b3c0b36a05b" designation="2345-26-КМ" title="Конструкции металлические. Основной комплект рабочих чертежей" version="2">
       <file path="КМ/2345-26-КМ.pdf" size="189120" sha256="d811646f0e4a2d3353bb5a614e614bd139b32a52f695a02b878b274eca06e523"/>
@@ -20,7 +20,7 @@
       <file path="КМ/Разрешение-15-26.pdf" size="175951" sha256="ef6a240a33b364d1bedaf1894c2c794f7325b44915a31625a3601d41161d5a4a"/>
     </document>
     <document guid="b1e72c92-9688-5f8c-9088-20c922ccefe3" designation="2345-26-КМ-УЛ" title="Удостоверяющий лист" version="2">
-      <file path="КМ/2345-26-КМ-УЛ.pdf" size="179758" sha256="4557d912c9e21f37fea7778f54b981be05a67a814bf52eed3fcee7c47af708e0"/>
+      <file path="КМ/2345-26-КМ-УЛ.pdf" size="179760" sha256="57c4d9b72c5084cbcac83a1c9e27d6335036effd23eeb47461b42d599afa8fa8"/>
     </document>
   </folder>
   <folder name="КМД" title="Конструкции металлические деталировочные. Основной комплект рабочих чертежей">
@@ -43,7 +43,7 @@
       <file path="КМД/Разрешение-15-26.pdf" size="175953" sha256="ee1baf4723ae429243aa683c34145ffdbd7bc64f3b5f54d4352159d9f2d41e0d"/>
     </document>
     <document guid="07f4744d-3694-5cf4-a32d-bf16a7aff9c1" designation="2345-26-КМД-УЛ" title="Удостоверяющий лист" version="2">
-      <file path="КМД/2345-26-КМД-УЛ.pdf" size="179784" sha256="eeda8d676b68b39a6ed3b71530cf8c4501d6baa594ea7ff7d531442c31dae218"/>
+      <file path="КМД/2345-26-КМД-УЛ.pdf" size="179783" sha256="fc8089c69dc973ce129287b1a94b5c6b1837b358f18b5b58518cb1aa1f8e995f"/>
     </document>
   </folder>
 </package>

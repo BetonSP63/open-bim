@@ -44,7 +44,8 @@ assert len(plates) == 1, "generated base plate"
 pdf = PdfReader(root / "drawings" / "КМД-1.pdf")
 assert len(pdf.pages) == 1
 text = pdf.pages[0].extract_text()
-assert "КМД-1" in text, text[:200]
+# Graph 1: set designation «<base>-КМД» (ГОСТ Р 21.101, 4.2.4).
+assert "-КМД" in text, text[:200]
 
 release = json.loads((root / "release" / "release.json").read_text(encoding="utf-8"))
 pdfs = sorted(f.name for f in (root / "release").glob("*.pdf"))
@@ -65,4 +66,4 @@ for needed in ["Соединение", "Нумерация и проверка �
     assert needed in actions, needed
 assert actions[-1].startswith("Открыть"), actions[-1]
 print(f"OK: 3 columns at В4/В5/Г4, beam В4→Г4 at +3600 (handle-dragged, class 2), base plate node, "
-      f"drawing PDF «КМД-1», release {len(pdfs)} PDF + CSV, IFC4 {counts}, journal {len(actions)} events, reopened")
+      f"drawing PDF «-КМД», release {len(pdfs)} PDF + CSV, IFC4 {counts}, journal {len(actions)} events, reopened")

@@ -134,12 +134,18 @@ check(
 
 # Axis bubbles.
 bubbles = []
+nodes = []
 for s in thin:
     if len(s) < 40 or length(s[0], s[-1]) > EPS:
         continue
     xs, ys = [p[0] for p in s], [p[1] for p in s]
     c = ((max(xs) + min(xs)) / 2, (max(ys) + min(ys)) / 2)
-    bubbles.append((c, max(xs) - min(xs)))
+    dia = max(xs) - min(xs)
+    # Circles with the node number on a shelf outside mark nodes (5.5.4).
+    if not any(length(c, (t[1], t[2])) < dia / 2 for t in texts):
+        nodes.append((c, dia))
+        continue
+    bubbles.append((c, dia))
 check(len(bubbles) >= 9, f"КМ-1: кружков осей {len(bubbles)} < 9")
 names = set()
 axis_heights = set()
@@ -157,6 +163,12 @@ for h in axis_heights:
 layer = doc.layers.get("OB_DASHDOT")
 check(layer.dxf.linetype.upper() == "DASHDOT", f"КМ-1: тип линии осей {layer.dxf.linetype}")
 check(len(segments(msp, "OB_DASHDOT")) >= 9, "КМ-1: осевых линий < 9")
+
+# Node: a thin circle on the elevation and the view «Узел 1».
+check(len(nodes) == 1, f"КМ-1: окружностей узла {len(nodes)} вместо 1")
+check(any(t[0] == "Узел 1" for t in texts), "КМ-1: нет вида «Узел 1»")
+for c, dia in nodes:
+    check(any(t[0] == "1" and 0 < t[2] - c[1] < 25 and abs(t[1] - c[0]) < 25 for t in texts), "КМ-1: номер узла у окружности")
 
 # View titles, not underlined; section strokes with the number.
 for title in ("Фасад 1-5", "План на отм. +3,600", "Разрез 1-1"):

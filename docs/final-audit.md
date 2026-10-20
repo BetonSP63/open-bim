@@ -7,6 +7,56 @@ parity rows remain open (below). Phases 15 (concrete) and 16 (rebar) of the
 approved 18-phase plan were **not implemented**: the user decided on 2026-10-18 to
 skip them and continue with phases 17–18.
 
+## User complaints and ГОСТ Р 21.101-2026 run (2026-10-20)
+
+**Verdict unchanged:** Open BIM is not a full equivalent of Tekla Structures.
+Three parity rows are new and verified: gost-documentation, keyboard-control and
+drawing-changes. The 13 open rows are unchanged.
+
+This run fixed the user's complaints:
+- the model disappearing on zoom;
+- rippling surfaces;
+- axes that could not be selected;
+- unclear plate creation with no reaction to a crossing contour;
+- no keyboard-only control.
+
+It also handled the 16 remarks of the second list:
+- dimensions, grid and level editing, bolts, welds, assemblies;
+- member length, display modes, trackpad, construction lines and trimming;
+- editable drawings.
+
+It implemented ГОСТ Р 21.101-2026 for the КМ/КМД documentation:
+- title blocks and frames;
+- drawing conventions and nodes;
+- specifications (form 7, ГОСТ 21.502);
+- «Общие данные»;
+- changes, permissions, the registration table and journal;
+- the cover, title page and certifying sheet;
+- the electronic package with info.xml.
+
+| Check (final tree) | Result |
+|---|---|
+| 4 mandatory commands | exit 0; 225 tests |
+| ГОСТ matrix, 276 clauses (`docs/gost/check_matrix.py --final`) | MATRIX_OK (final): 121 applies (every one with evidence), 22 field/procedure, 78 not applicable with reasons, 55 reference |
+| Independent checks (pypdf, ezdxf, OpenCV, IfcOpenShell, hashlib) | 11/11 pass. Phases 6, 10–14: TITLE_BLOCKS, CONVENTIONS, SPECIFICATIONS, RELEASE (reference and GUI package), SHEETS, DRAWING_EDITING. Earlier phases: KEYBOARD_ONLY, IFC_VOLUMES, exports verify.py, tekla-workflow, create-by-picks, selection-editing |
+| Earlier native scenarios re-run on the final UI | 16 scenarios; journals equal to the stored ones (plate, picks, selection, members, construction, bolts, drawing editing); keyboard-only and tekla-workflow scripts updated for the property pane rows added in phase 7 |
+| User complaints | `tests/ui/user-complaints/README.md`: ripple 0.02 % (user's image 2.56 %), 64–90 % model pixels after 40 zoom steps (1 % before) |
+| 100 000 objects, all selected | `--no-vsync`: frame p95 17.2–17.4 ms in shaded, transparent and wireframe; pick p95 ≤ 0.024 ms. With vsync on battery the display ran at 30 Hz, so frames read 33.3 ms (documented in docs/performance.md) |
+| Snap query on 100 000 objects | p95 4.87 ms (limit 5 ms) |
+| Packaged `.app` | end-to-end tekla-workflow passes (`tests/ui/tekla-workflow/check-packaged.txt`) |
+
+Found and fixed during the run:
+1. **Undo.** Undo did not restore document attributes, construction objects or model dimensions, because the history patch lacked them. It now does, with a regression test.
+2. **Stale checks.** Some older independent checks still expected the drawing number «КМД-1» and the designation «ОБ-». Since phase 6 the set designation is «<base>-КМД», so the checks failed. They were updated.
+3. **Abbreviation.** Outdated sheets carried the program mark «рев.», which is not a ГОСТ abbreviation. It is now written out as «ревизия».
+4. **Font sizes.** Drawing label heights were em sizes, so DXF digits were 1.75 mm. Sizes now follow ГОСТ 2.304 (capital height).
+5. **Weld signs.** Weld signs could overlap marks or leave the frame. They are now placed clear of both.
+
+Known limits:
+- **Not reproduced.** The text of ГОСТ 21.502 and the сортамент standards is not reproduced. The rolled-steel table widths are this program's layout, and the built-in catalogue is synthetic.
+- **Form 2 widths.** Form 2 uses the graph «Обозначение» 60 mm (Б.9), because the 2026 drawing repeats form 1.
+- **Signatures and ЭП.** Signatures and electronic signatures (ЭП) are put by people or external tools. The program lays out names and dates and computes SHA-256 checksums.
+
 ## Tekla-style interaction run (2026-10-19)
 
 **Verdict unchanged:** Open BIM is still not a full equivalent of Tekla Structures.

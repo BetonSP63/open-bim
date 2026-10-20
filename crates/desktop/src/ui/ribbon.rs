@@ -242,6 +242,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     small(Cmd::DrawHatch, Icon::Drawing, "Штриховка"),
                     small(Cmd::DrawWipeout, Icon::Drawing, "Маскировка"),
                     small(Cmd::DrawText, Icon::Drawing, "Текст"),
+                    small(Cmd::DrawNode, Icon::Drawing, "Узел"),
                 ],
             ),
             (

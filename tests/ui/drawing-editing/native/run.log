@@ -1,4 +1,4 @@
-LOAD_MS: 1.0
+LOAD_MS: 2.4
 GPU: Apple M5 · Metal; project=Контрольный стальной каркас objects=7
 SCRIPT: step 1 Wait(40)
 SCRIPT: world [3000.0, 0.0, 3000.0] → screen [535.8463, 396.4775]

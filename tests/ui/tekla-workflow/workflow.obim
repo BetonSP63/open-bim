@@ -1,7 +1,7 @@
 {
   "magic": "open-bim-project",
   "format_version": 1,
-  "payload_sha256": "39bb73cee2283c723b7522393465b574df1e8aa77357c52dd8897d9e5f8c4cef",
+  "payload_sha256": "e3addb4ec3dc1c9a5502ef6882a3dfc98ff66006261ef3add598c723f7fce533",
   "project": {
     "name": "Новый проект",
     "units": "millimetres",
@@ -422,12 +422,12 @@
     "levels": {
       "17": {
         "id": 17,
-        "name": "0.000",
+        "name": "0,000",
         "elevation_mm": 0.0
       },
       "18": {
         "id": 18,
-        "name": "+3.600",
+        "name": "+3,600",
         "elevation_mm": 3600.0
       }
     },
@@ -801,17 +801,17 @@
           "objects": []
         },
         "number": "КМ-1",
-        "title": "Общий вид · Новый проект",
+        "title": "Схема расположения элементов · Новый проект",
         "sheet": "a1",
-        "scale": 25.0,
+        "scale": 40.0,
         "views": [
           {
             "id": 1,
             "name": "Фасад",
             "direction": "front",
             "position": [
-              159.4,
-              478.6
+              132.75,
+              506.875
             ]
           },
           {
@@ -819,12 +819,33 @@
             "name": "План",
             "direction": "top",
             "position": [
-              159.4,
-              245.80000000000004
+              132.75,
+              320.125
             ]
           }
         ],
-        "dimensions": [],
+        "dimensions": [
+          {
+            "id": 1,
+            "view": 1,
+            "anchors": [
+              {
+                "object": 19,
+                "point": {
+                  "kind": "start"
+                }
+              },
+              {
+                "object": 20,
+                "point": {
+                  "kind": "start"
+                }
+              }
+            ],
+            "axis": "horizontal",
+            "offset": -20.0
+          }
+        ],
         "texts": [],
         "fingerprints": {
           "19": "3af40e4c4553e6824675b28bb1afaab3223c8406544428ebfad6c03c2b7dc9d6",

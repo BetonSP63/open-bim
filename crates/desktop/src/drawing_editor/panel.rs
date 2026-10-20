@@ -466,6 +466,7 @@ impl DrawingEditor {
                 DrawTool::Hatch,
                 DrawTool::Wipeout,
                 DrawTool::Text,
+                DrawTool::Node,
             ] {
                 if ui
                     .selectable_label(self.tool.tool == Some(tool), tool.label())

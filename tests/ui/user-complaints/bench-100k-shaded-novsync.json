@@ -1,0 +1,19 @@
+{
+  "objects": 100000,
+  "window_points": [
+    1920.0,
+    1080.0
+  ],
+  "pixels_per_point": 1.5,
+  "gpu": "Apple M5 · Metal",
+  "load_ms": 263.078292,
+  "warmup_frames": 120,
+  "frames": 600,
+  "frame_ms_p50": 16.644583,
+  "frame_ms_p95": 17.204375000000002,
+  "frame_ms_max": 17.701208,
+  "picks": 200,
+  "pick_ms_p95": 0.023584,
+  "pick_ms_max": 0.060125,
+  "peak_rss_mb": 278.640625
+}

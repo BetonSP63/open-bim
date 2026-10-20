@@ -1,17 +1,17 @@
-LOAD_MS: 0.9
+LOAD_MS: 1.1
 GPU: Apple M5 · Metal; project=Новый проект objects=0
 SCRIPT: step 1 Wait(40)
-SCRIPT: world [6000.0, 9000.0, 0.0] → screen [400.08792, 470.11334]
-SCRIPT: step 2 Hover([400.08792, 470.11334])
+SCRIPT: world [6000.0, 9000.0, 0.0] → screen [401.00464, 474.07797]
+SCRIPT: step 2 Hover([401.00464, 474.07797])
 SCRIPT: step 3 Wait(5)
-SCRIPT: world [6000.0, 9000.0, 0.0] → screen [400.08792, 470.11334]
-SCRIPT: step 4 Click([400.08792, 470.11334])
+SCRIPT: world [6000.0, 9000.0, 0.0] → screen [401.00464, 474.07797]
+SCRIPT: step 4 Click([401.00464, 474.07797])
 SCRIPT: step 5 Wait(15)
 SCRIPT: step 6 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/grid-selection/01-axis-selected.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/grid-selection/01-axis-selected.png 2560x1600
 SCRIPT: step 7 Key { name: "Escape", command: false, shift: false, alt: false, ctrl: false }
 SCRIPT: step 8 Wait(5)
-SCRIPT: step 9 Drag([503.35324, 445.90137, 476.1111, 515.93994])
+SCRIPT: step 9 Drag([502.92307, 450.26123, 476.12564, 519.15656])
 SCRIPT: step 10 Wait(15)
 SCRIPT: step 11 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/grid-selection/02-crossing-axes.png")
 CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/grid-selection/02-crossing-axes.png 2560x1600
