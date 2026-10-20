@@ -1,4 +1,4 @@
-//! Profile and material lists like Tekla's «Выбрать профиль»: the project's
+//! Profile and material lists («Выбрать профиль»): the project's
 //! own profiles first, then the built-in ГОСТ catalogue grouped by family,
 //! with a search field. Picking a catalogue entry copies it into the project.
 use eframe::egui;

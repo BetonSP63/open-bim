@@ -61,8 +61,8 @@ pub enum Command {
     CreateLevel {
         level: open_bim_model::Level,
     },
-    /// A profile copied from the catalogue into the project (Tekla: the
-    /// model keeps the profiles it uses).
+    /// A profile copied from the catalogue into the project (the model
+    /// keeps only the profiles it uses).
     CreateProfile {
         profile: open_bim_model::Profile,
     },

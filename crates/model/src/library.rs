@@ -1,6 +1,6 @@
 //! Built-in catalogue of Russian rolled steel sections and steel grades.
 //!
-//! Like Tekla's profile catalogue, the library lives outside the project: a
+//! The library lives outside the project: a
 //! project stores only the profiles it uses, copied from here when the user
 //! picks one. Sections are modelled with sharp corners (the geometry kernel
 //! has no fillets); the mass uses the catalogue area `A`, so specifications
