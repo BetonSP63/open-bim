@@ -4,6 +4,7 @@
 pub mod catalog_picker;
 pub mod chrome;
 pub mod commands;
+pub mod components;
 pub mod icons;
 pub mod jobs;
 pub mod keytips;
@@ -136,6 +137,8 @@ pub struct Workbench {
     pub search: String,
     /// Bolt (two points) and weld (two parts) pick commands.
     pub detail: crate::interaction::tools::DetailPicker,
+    /// Component catalogue (Ctrl+F) and the armed component.
+    pub components: components::ComponentState,
     /// Open grid dialog («Сетка осей…»).
     pub grid: Option<crate::interaction::tools::GridSpec>,
     /// Fitting, cutting and construction commands in progress.
@@ -156,7 +159,7 @@ pub struct Workbench {
     pub keytips: keytips::KeyTips,
     pub alt_down: bool,
     pub alt_clean: bool,
-    /// F6 / Ctrl+F: area of the window that takes keyboard focus next frame.
+    /// F6 / ⌘F: area of the window that takes keyboard focus next frame.
     pub focus_target: Option<FocusArea>,
     pub focus_area: FocusArea,
     /// Edit buffer of the selected grid line in the property pane.
@@ -229,6 +232,7 @@ impl Workbench {
             light_theme: true,
             work_area: true,
             detail: Default::default(),
+            components: Default::default(),
             grid: None,
             trim: Default::default(),
             display: Default::default(),
@@ -647,7 +651,11 @@ impl Workbench {
                 } else if self.measure.take().is_some() {
                     self.measured = None;
                     self.message("Измерение завершено");
-                } else if self.trim.cancel() || self.detail.cancel() || self.edit_pick.cancel() {
+                } else if self.trim.cancel()
+                    || self.detail.cancel()
+                    || self.edit_pick.cancel()
+                    || self.components.cancel()
+                {
                     self.message("Команда прервана");
                 } else if self.delete_confirm.take().is_some() {
                     self.message("Удаление отменено");
@@ -814,6 +822,13 @@ impl Workbench {
                 self.focus_area = self.focus_area.next();
                 self.focus_target = Some(self.focus_area);
                 self.message(format!("Фокус: {}", self.focus_area.label()));
+            }
+            Cmd::ComponentCatalog => {
+                self.trim.cancel();
+                self.detail.cancel();
+                self.components.cancel();
+                self.components.window = true;
+                self.message("Каталог компонентов: выберите узел");
             }
             Cmd::FocusSearch => {
                 self.focus_area = FocusArea::Search;
@@ -1132,6 +1147,7 @@ impl Workbench {
     /// fitting and cutting) instead of a point.
     pub fn picks_objects(&self) -> bool {
         self.detail.picks_objects()
+            || self.components.picks_objects()
             || self.trim.need() == Some(crate::interaction::trim::Need::Part)
     }
 
@@ -1211,6 +1227,9 @@ impl Workbench {
             self.message("Укажите деталь модели");
             return None;
         };
+        if self.components.armed.is_some() {
+            return self.pick_component_part(id);
+        }
         if self.trim.need() == Some(crate::interaction::trim::Need::Part) {
             self.trim.parts.push(id);
             if self.trim.complete() {
@@ -1733,6 +1752,7 @@ impl Workbench {
         }
         self.job_window(&ctx, &mut requests);
         self.grid_window(&ctx, &mut requests);
+        self.components_window(&ctx);
         self.document_window(&ctx, &mut requests);
         self.delete_window(&ctx, &mut requests);
         self.chrome(ui, &mut requests);

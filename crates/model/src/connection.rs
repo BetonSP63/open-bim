@@ -18,6 +18,9 @@ impl ConnectionInstance {
     pub(crate) fn validate_child_roles(&self, p: &crate::Project) -> Result<(), ModelError> {
         let error =
             || ModelError::InvalidValue("Состав соединения не соответствует шаблону".into());
+        if let TemplateKind::FinPlate { rows, .. } = self.template.kind {
+            return self.validate_fin_plate(p, rows);
+        }
         let roles: &[&str] = match self.template.kind {
             TemplateKind::BasePlate { .. } => &[
                 "plate", "hole-0", "hole-1", "hole-2", "hole-3", "bolts", "weld",
@@ -49,6 +52,7 @@ impl ConnectionInstance {
                 "primary-bolts",
                 "support-bolts",
             ],
+            TemplateKind::FinPlate { .. } => unreachable!(),
         };
         if self.children.len() != roles.len()
             || roles.iter().any(|r| !self.children.contains_key(*r))
@@ -138,6 +142,72 @@ impl ConnectionInstance {
     }
 }
 
+impl ConnectionInstance {
+    /// Fin plate: the plate, one hole per bolt in the plate and in the web,
+    /// the bolt group joining both, and the weld to the support.
+    fn validate_fin_plate(&self, p: &crate::Project, rows: u32) -> Result<(), ModelError> {
+        let error =
+            || ModelError::InvalidValue("Состав соединения не соответствует шаблону".into());
+        let mut roles = vec!["plate".to_string(), "bolts".into(), "weld".into()];
+        for i in 0..rows {
+            roles.push(format!("plate-hole-{i}"));
+            roles.push(format!("web-hole-{i}"));
+        }
+        if self.children.len() != roles.len()
+            || roles.iter().any(|r| !self.children.contains_key(r))
+        {
+            return Err(error());
+        }
+        let plate = self.children["plate"];
+        if !matches!(
+            p.elements.get(&plate).map(|e| &e.shape),
+            Some(crate::ElementShape::Plate { .. })
+        ) {
+            return Err(error());
+        }
+        for (role, id) in &self.children {
+            if role.contains("hole-")
+                && !matches!(
+                    p.details.get(id).map(|d| &d.kind),
+                    Some(crate::DetailKind::Hole { .. })
+                )
+            {
+                return Err(error());
+            }
+        }
+        let Some(crate::DetailKind::BoltGroup {
+            parts,
+            diameter,
+            clearance,
+            standard,
+            grade,
+            ..
+        }) = p.details.get(&self.children["bolts"]).map(|d| &d.kind)
+        else {
+            return Err(error());
+        };
+        if *parts != std::collections::BTreeSet::from([plate, self.primary])
+            || *diameter != self.template.bolt_diameter
+            || *clearance != self.template.clearance
+            || *standard != self.template.bolt_standard
+            || *grade != self.template.bolt_grade
+        {
+            return Err(error());
+        }
+        let support = self.secondary.ok_or_else(error)?;
+        let Some(crate::DetailKind::Weld { parts, size, .. }) =
+            p.details.get(&self.children["weld"]).map(|d| &d.kind)
+        else {
+            return Err(error());
+        };
+        if !parts.contains(&plate) || !parts.contains(&support) || *size != self.template.weld_size
+        {
+            return Err(error());
+        }
+        Ok(())
+    }
+}
+
 /// Dimensions use millimetres. This contract makes no capacity calculation.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -157,9 +227,27 @@ pub struct ConnectionTemplate {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum TemplateKind {
-    BasePlate { overhang: f64 },
-    EndPlate { overhang: f64 },
-    ClipAngle { leg: f64, height: f64, pitch: f64 },
+    BasePlate {
+        overhang: f64,
+    },
+    EndPlate {
+        overhang: f64,
+    },
+    ClipAngle {
+        leg: f64,
+        height: f64,
+        pitch: f64,
+    },
+    /// Plate welded to the support and bolted to the beam web: plate
+    /// height, lap on the beam, gap between beam end and support, bolt
+    /// pitch and number of bolts in the row.
+    FinPlate {
+        height: f64,
+        lap: f64,
+        gap: f64,
+        pitch: f64,
+        rows: u32,
+    },
 }
 
 impl ConnectionTemplate {
@@ -192,6 +280,24 @@ impl ConnectionTemplate {
         match self.kind {
             TemplateKind::BasePlate { overhang } | TemplateKind::EndPlate { overhang } => {
                 if !positive(overhang) || overhang <= self.edge_distance + self.bolt_diameter / 2.0
+                {
+                    return Err(invalid());
+                }
+            }
+            TemplateKind::FinPlate {
+                height,
+                lap,
+                gap,
+                pitch,
+                rows,
+            } => {
+                let hole = self.bolt_diameter + self.clearance;
+                if ![height, lap, pitch].into_iter().all(positive)
+                    || !(0.0..=100.0).contains(&gap)
+                    || !(1..=12).contains(&rows)
+                    || (rows > 1 && pitch <= hole)
+                    || height < 2.0 * self.edge_distance + pitch * (rows - 1) as f64
+                    || lap < 2.0 * self.edge_distance
                 {
                     return Err(invalid());
                 }
