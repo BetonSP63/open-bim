@@ -1,0 +1,63 @@
+designation,profile_number,B,b,t,r,r2,area_cm2,mass_kg_m,Ix_cm4,Wx_cm3,ix_cm,Iy_cm4,Wy_cm3,iy_cm,Iu_cm4,Wu_cm3,iu_cm,x0_cm,y0_cm,tan_alpha,on_request,source,notes
+L25x16x3,2.5/1.6,25,16,3,3.5,1.2,1.16,0.91,0.7,0.43,0.78,0.22,0.19,0.44,0.13,0.16,0.34,0.42,0.86,0.392,,GOST8510-T1,R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes)
+L30x20x3,3/2,30,20,3,3.5,1.2,1.43,1.12,1.27,0.62,0.94,0.45,0.3,0.56,0.26,0.25,0.43,0.51,1,0.427,yes,GOST8510-T1,
+L30x20x4,3/2,30,20,4,3.5,1.2,1.86,1.46,1.61,0.82,0.93,0.56,0.39,0.55,0.34,0.32,0.43,0.54,1.04,,yes,GOST8510-T1,"tan_alpha printed 3,421 (misprint, inconsistent with Ix, Iy, Ixy) - left blank"
+L32x20x3,3.2/2,32,20,3,3.5,1.2,1.49,1.17,1.52,0.72,1.01,0.46,0.3,0.55,0.28,0.25,0.43,0.49,1.08,0.382,,GOST8510-T1,R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes)
+L32x20x4,3.2/2,32,20,4,3.5,1.2,1.94,1.52,1.93,0.93,1,0.57,0.39,0.54,0.35,0.33,0.43,0.53,1.12,0.374,,GOST8510-T1,R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes)
+L40x25x3,4/2.5,40,25,3,4,1.3,1.89,1.48,3.06,1.14,1.27,0.93,0.49,0.7,0.56,0.41,0.54,0.59,1.32,0.385,,GOST8510-T1,R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes)
+L40x25x4,4/2.5,40,25,4,4,1.3,2.47,1.94,3.93,1.49,1.26,1.18,0.63,0.69,0.71,0.52,0.54,0.63,1.37,,,GOST8510-T1,"R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes); Wy: web copy prints 0,68; 0,63 per gdl_macro and Iy/(b-x0); tan_alpha printed 0,281 (misprint, inconsistent with Ix, Iy, Ixy) - left blank"
+L40x25x5,4/2.5,40,25,5,4,1.3,3.03,2.37,4.73,1.82,1.25,1.41,0.77,0.68,0.86,0.64,0.53,0.66,1.41,0.374,,GOST8510-T1,R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes)
+L40x30x4,4/3,40,30,4,4,1.3,2.67,2.26,4.18,1.54,1.25,2.01,0.91,0.87,1.09,0.75,0.64,0.78,1.28,,yes,GOST8510-T1,"R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes); tan_alpha printed 9,544 (misprint, inconsistent with Ix, Iy, Ixy) - left blank; mass 2,26 printed (also in gdl_macro) but A*0.785=2.10 - FAILS mass check"
+L40x30x5,4/3,40,30,5,4,1.3,3.28,2.46,5.04,1.88,1.24,2.41,1.11,0.86,1.33,0.91,0.64,0.82,1.32,0.539,yes,GOST8510-T1,"R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes); mass 2,46 printed (also in gdl_macro) but A*0.785=2.57 - FAILS mass check"
+L45x28x3,4.5/2.8,45,28,3,5,1.7,2.14,1.68,4.41,1.45,1.48,1.32,0.61,0.79,0.79,0.52,0.61,0.64,1.47,0.382,,GOST8510-T1,"ix 1,48 vs sqrt(Ix/A)=1.44"
+L45x28x4,4.5/2.8,45,28,4,5,1.7,2.8,2.2,5.68,1.9,1.42,1.69,0.8,0.78,1.02,0.67,0.6,0.68,1.51,0.379,,GOST8510-T1,
+L50x32x3,5/3.2,50,32,3,5.5,1.8,2.42,1.9,6.18,1.82,1.6,1.99,0.81,0.91,1.18,0.68,0.7,0.72,1.6,0.403,,GOST8510-T1,
+L50x32x4,5/3.2,50,32,4,5.5,1.8,3.17,2.4,7.98,2.38,1.59,2.56,1.05,0.9,1.52,0.88,0.69,0.76,1.65,0.401,,GOST8510-T1,"mass printed 2,4 (A*0.785=2.49) - FAILS mass check, probably truncated"
+L56x36x4,5.6/3.6,56,36,4,6,2,3.58,2.81,11.37,3.01,1.78,3.7,1.34,1.02,2.19,1.13,0.78,0.84,1.82,0.406,,GOST8510-T1,
+L56x36x5,5.6/3.6,56,36,5,6,2,4.41,3.46,13.82,3.7,1.77,4.48,1.65,1.01,2.65,1.37,0.78,0.88,1.87,0.404,,GOST8510-T1,
+L63x40x4,6.3/4.0,63,40,4,7,2.3,4.04,3.17,16.33,3.83,2.01,5.16,1.67,1.13,3.07,1.41,0.87,0.91,2.03,,,GOST8510-T1,"R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes); tan_alpha printed 0,307 (misprint, inconsistent with Ix, Iy, Ixy) - left blank"
+L63x40x5,6.3/4.0,63,40,5,7,2.3,4.98,3.91,19.91,4.72,2,6.26,2.05,1.12,3.73,1.72,0.86,0.95,2.08,0.396,,GOST8510-T1,R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes)
+L63x40x6,6.3/4.0,63,40,6,7,2.3,5.9,4.63,23.31,5.58,1.99,7.29,2.42,1.11,4.36,2.02,0.86,0.99,2.12,0.393,,GOST8510-T1,R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes)
+L63x40x8,6.3/4.0,63,40,8,7,2.3,7.68,6.03,29.6,7.22,1.96,9.15,3.12,1.09,5.58,2.6,0.85,1.07,2.2,0.386,,GOST8510-T1,R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes)
+L65x50x5,6.5/5,65,50,5,6,2,5.56,4.36,23.41,5.2,2.05,12.08,3.23,1.47,6.41,2.68,1.07,1.26,2,0.576,yes,GOST8510-T1,
+L65x50x6,6.5/5,65,50,6,6,2,6.6,5.18,27.46,6.16,2.04,14.12,3.82,1.46,7.52,3.15,1.07,1.3,2.04,0.575,yes,GOST8510-T1,"iy: printed ""l,46"" (OCR letter l); 1,46 per gdl_macro and sqrt(Iy/A)"
+L65x50x7,6.5/5,65,50,7,6,2,7.62,5.98,31.32,7.08,2.03,16.05,4.38,1.45,8.6,3.59,1.06,1.34,2.08,0.571,yes,GOST8510-T1,
+L65x50x8,6.5/5,65,50,8,6,2,8.62,6.77,35,7.99,2.02,18.88,4.93,1.44,9.65,4.02,1.06,1.37,2.12,0.57,yes,GOST8510-T1,"Iy 18,88 inconsistent with iy=1,44 and Wy=4,93 (both imply ~17,88); Iu also inconsistent - Iy suspect"
+L70x45x5,7/4.5,70,45,5,7.5,2.5,5.59,4.39,27.76,5.88,2.23,9.05,2.62,1.27,5.34,2.2,0.98,1.05,2.28,0.406,,GOST8510-T1,
+L75x50x5,7.5/5,75,50,5,8,2.7,6.11,4.79,34.81,6.81,2.39,12.47,3.25,1.43,7.24,2.73,1.09,1.17,2.39,0.436,,GOST8510-T1,b printed 60 in web copy; 50 from the designation (area check confirms)
+L75x50x6,7.5/5,75,50,6,8,2.7,7.25,5.69,40.92,8.08,2.38,14.6,3.85,1.42,8.48,3.21,1.08,1.21,2.44,0.435,,GOST8510-T1,b printed 60 in web copy; 50 from the designation (area check confirms)
+L75x50x7,7.5/5,75,50,7,8,2.7,8.37,6.57,46.77,9.31,2.36,16.61,4.43,1.41,9.69,3.69,1.08,1.25,2.48,0.435,yes,GOST8510-T1,b printed 60 in web copy; 50 from the designation (area check confirms)
+L75x50x8,7.5/5,75,50,8,8,2.7,9.47,7.43,52.38,10.52,2.35,18.52,4.88,1.4,10.87,4.14,1.07,1.29,2.52,0.43,,GOST8510-T1,"b printed 60 in web copy; 50 from the designation (area check confirms); Wy 4,88 vs Iy/(b-x0)=4.99"
+L80x50x5,8/5,80,50,5,8,2.7,6.36,4.49,41.64,7.71,2.56,12.68,3.28,1.41,7.57,2.75,1,1.13,2.6,0.387,,GOST8510-T1,"R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes); Wy: printed ""328"" (decimal comma lost in web copy); 3,28 per gdl_macro and Iy/(b-x0); mass 4,49 printed but A*0.785=4.99 - FAILS mass check; iu 1,00 vs sqrt(Iu/A)=1.09"
+L80x50x6,8/5,80,50,6,8,2.7,7.55,5.92,48.98,9.15,2.55,14.85,3.88,1.4,8.88,3.24,1.08,1.17,2.65,0.386,,GOST8510-T1,"R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes); Ix: web copy prints 46,98; 48,98 per gdl_macro and consistent with Wx=9,15 and ix=2,55"
+L80x60x6,8/6,80,60,6,8,2.7,8.15,6.39,52.06,9.42,2.53,25.18,5.58,1.76,13.61,4.66,1.29,1.49,2.47,0.547,yes,GOST8510-T1,
+L80x60x7,8/6,80,60,7,8,2.7,9.42,7.39,59.61,10.87,2.52,28.74,6.43,1.75,15.58,5.34,1.29,1.53,2.52,0.546,yes,GOST8510-T1,
+L80x60x8,8/6,80,60,8,8,2.7,10.67,8.37,66.88,12.38,2.5,32.15,7.26,1.74,17.49,5.99,1.28,1.57,2.56,0.544,yes,GOST8510-T1,
+L90x56x5.5,9/5.6,90,56,5.5,9,3,7.86,6.17,65.28,10.74,2.88,19.67,4.53,1.58,11.77,3.81,1.22,1.26,2.92,0.384,,GOST8510-T1,R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes)
+L90x56x6,9/5.6,90,56,6,9,3,8.54,6.7,70.58,11.66,2.88,21.22,4.91,1.58,12.7,4.12,1.22,1.28,2.95,0.384,,GOST8510-T1,R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes)
+L90x56x8,9/5.6,90,56,8,9,3,11.18,8.77,90.87,15.24,2.85,27.08,6.39,1.56,16.29,5.32,1.21,1.36,3.04,0.38,,GOST8510-T1,R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes)
+L100x63x6,10/6.3,100,63,6,10,3.3,9.58,7.53,98.29,14.52,3.2,30.58,6.27,1.79,18.2,5.27,1.38,1.42,3.23,0.393,,GOST8510-T1,R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes)
+L100x63x7,10/6.3,100,63,7,10,3.3,11.09,8.7,112.86,16.78,3.19,34.99,7.23,1.78,20.83,6.06,1.37,1.46,3.28,0.392,,GOST8510-T1,R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes)
+L100x63x8,10/6.3,100,63,8,10,3.3,12.57,9.87,126.96,19.01,3.18,39.21,8.17,1.77,23.38,6.82,1.36,1.5,3.32,0.391,,GOST8510-T1,R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes)
+L100x63x10,10/6.3,100,63,10,10,3.3,15.47,12.14,153.95,23.32,3.15,47.18,9.99,1.75,28.34,8.31,1.35,1.58,3.4,0.387,,GOST8510-T1,"R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes); Ix: printed ""l53,95"" (OCR letter l); 153,95 per gdl_macro and Wx, ix"
+L100x65x7,10/6.5,100,65,7,10,3.3,11.23,8.81,114.05,16.87,3.19,38.32,7.7,1.85,22.77,6.43,1.41,1.52,3.24,0.415,yes,GOST8510-T1,
+L100x65x8,10/6.5,100,65,8,10,3.3,12.73,9.99,128.31,19.11,3.18,42.96,8.7,1.84,25.24,7.26,1.41,1.56,3.28,0.414,yes,GOST8510-T1,
+L100x65x10,10/6.5,100,65,10,10,3.3,15.67,12.3,155.52,23.45,3.15,51.68,10.64,1.82,30.6,8.83,1.4,1.64,3.37,0.41,yes,GOST8510-T1,
+L110x70x6.5,11/7,110,70,6.5,10,3.3,11.45,8.98,142.42,19.11,3.53,45.61,8.42,2,26.94,7.05,1.53,1.58,3.55,0.402,,GOST8510-T1,R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes)
+L110x70x8,11/7,110,70,8,10,3.3,13.93,10.93,171.54,23.22,3.51,54.64,10.2,1.98,32.31,8.5,1.52,1.64,3.61,0.4,,GOST8510-T1,R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes)
+L125x80x7,12.5/8,125,80,7,11,3.7,14.06,11.04,226.53,26.67,4.01,73.73,11.89,2.29,43.4,9.96,1.76,1.8,4.01,0.407,,GOST8510-T1,b printed 60 in web copy; 80 from the designation (area check confirms)
+L125x80x8,12.5/8,125,80,8,11,3.7,15.98,12.53,225.62,30.26,4,80.95,13.47,2.28,48.82,11.25,1.75,1.84,4.05,0.406,,GOST8510-T1,"b printed 60 in web copy; 80 from the designation (area check confirms); Ix 225,62 printed (also lower than t=7 row); ix=4,00 implies ~255.7 - Ix suspect"
+L125x80x10,12.5/8,125,80,10,11,3.7,19.7,15.47,311.61,37.27,3.98,100.47,16.52,2.26,59.33,13.74,1.74,1.92,4.14,0.404,,GOST8510-T1,b printed 60 in web copy; 80 from the designation (area check confirms)
+L125x80x12,12.5/8,125,80,12,11,3.7,23.36,18.34,364.79,44.07,3.95,116.84,19.46,2.24,69.47,16.11,1.72,2,4.22,0.4,,GOST8510-T1,b printed 60 in web copy; 80 from the designation (area check confirms)
+L140x90x8,14/9,140,90,8,12,4,18,14.13,363.68,38.25,4.49,119.79,17.19,2.58,70.27,14.39,1.58,2.03,4.49,0.411,,GOST8510-T1,"mass: web copy prints 4,13; 14,13 per gdl_macro and A*0.785; iu 1,58 vs sqrt(Iu/A)=1.98 - iu suspect"
+L140x90x10,14/9,140,90,10,12,4,22.24,17.46,444.45,47.19,4.47,145.54,21.14,2.58,85.51,17.58,1.96,2.12,4.58,0.4,,GOST8510-T1,
+L160x100x9,16/10,160,100,9,13,4.3,22.87,17.96,605.97,56.04,5.15,186.03,23.96,2.85,110.4,20.01,2.2,2.24,5.19,0.391,,GOST8510-T1,
+L160x100x10,16/10,160,100,10,13,4.3,25.28,19.85,666.59,61.91,5.13,204.09,26.42,2.84,121.16,22.02,2.19,2.28,5.23,0.39,,GOST8510-T1,
+L160x100x12,16/10,160,100,12,13,4.3,30.04,23.58,784.22,73.42,5.11,238.75,31.23,2.82,142.14,25.93,2.18,2.36,5.32,0.388,,GOST8510-T1,
+L160x100x14,16/10,160,100,14,13,4.3,34.72,27.26,897.19,84.65,5.08,271.6,35.89,2.8,162.49,29.75,2.16,2.43,5.4,0.385,,GOST8510-T1,
+L180x110x10,18/11,180,110,10,14,4.7,28.33,22.2,952.28,78.59,5.8,276.37,32.27,3.12,165.44,26.96,2.42,2.44,5.83,0.376,,GOST8510-T1,R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes)
+L180x110x12,18/11,180,110,12,14,4.7,33.69,26.4,1122.56,93.33,5.77,324.09,38.2,3.1,194.28,31.83,2.4,2.52,5.97,0.374,,GOST8510-T1,R/r: merged cells unreadable in web copy; taken from gdl_macro (area check passes)
+L200x125x11,20/12.5,200,125,11,14,4.7,34.87,27.37,1449.02,107.31,6.45,446.36,45.98,3.58,263.84,38.27,2.75,2.79,6.5,0.392,,GOST8510-T1,
+L200x125x12,20/12.5,200,125,12,14,4.7,37.89,29.74,1568.19,116.51,6.43,481.93,49.85,3.57,285.04,41.45,2.74,2.83,6.54,0.392,,GOST8510-T1,
+L200x125x14,20/12.5,200,125,14,14,4.7,43.87,34.43,1800.83,134.64,6.41,550.77,57.43,3.54,326.54,47.57,2.73,2.91,6.62,0.39,,GOST8510-T1,
+L200x125x16,20/12.5,200,125,16,14,4.7,49.77,39.07,2026.08,152.41,6.38,616.66,64.83,3.52,366.99,53.56,2.72,2.99,6.71,0.388,,GOST8510-T1,

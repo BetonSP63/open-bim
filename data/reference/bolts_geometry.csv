@@ -1,0 +1,10 @@
+d,designation,not_recommended,bolt_S,bolt_S_alt,bolt_k,bolt_e_min,nut_S,nut_S_alt,nut_m,nut_e_min,washer_d1_C,washer_d1_A,washer_d2,washer_s,hole_row1,hole_row2,hole_row3,source,notes
+12,M12,,18,19|22,7.5,19.9,18,19,10.8,19.9,13.5,13,24,2.5,13,14,15,GOST7798;GOST5915;GOST11371;GOST11284,
+14,M14,yes,21,,8.8,22.8,21,22,12.8,22.8,15.5,15,28,,15,16,17,GOST7798;GOST5915;GOST11371;GOST11284,washer_s merged cell in web copy (gdl_macro gives 2.5)
+16,M16,,24,,10,26.2,24,,14.8,26.2,17.5,17,30,3,17,18,19,GOST7798;GOST5915;GOST11371;GOST11284,
+18,M18,yes,27,,12,29.6,27,,16.4,29.6,20,19,34,,19,20,21,GOST7798;GOST5915;GOST11371;GOST11284,washer_s merged cell in web copy (gdl_macro gives 3)
+20,M20,,30,,12.5,33,30,,18,33,22,21,37,,21,22,24,GOST7798;GOST5915;GOST11371;GOST11284,washer_s merged cell in web copy (gdl_macro gives 3)
+22,M22,yes,34,32,14,37.3,34,32,19.8,37.3,24,23,39,,23,24,26,GOST7798;GOST5915;GOST11371;GOST11284,washer_s merged cell in web copy (gdl_macro gives 3)
+24,M24,,36,,15,39.6,36,,21.5,39.6,26,25,44,4,25,26,28,GOST7798;GOST5915;GOST11371;GOST11284,
+27,M27,yes,41,,17,45.2,41,,23.6,45.2,30,28,50,,28,30,32,GOST7798;GOST5915;GOST11371;GOST11284,washer_s merged cell in web copy (gdl_macro gives 4)
+30,M30,,46,,18.7,50.9,46,,25.6,50.9,33,31,56,,31,33,35,GOST7798;GOST5915;GOST11371;GOST11284,washer_s merged cell in web copy (gdl_macro gives 4)
