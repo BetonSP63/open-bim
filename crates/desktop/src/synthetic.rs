@@ -58,6 +58,7 @@ pub fn corpus(count: usize) -> Result<Project, String> {
                     profile: profiles[i % profiles.len()],
                     length: LengthMm::new(length).map_err(|e| e.to_string())?,
                     frame,
+                    position: Default::default(),
                 },
                 properties: BTreeMap::new(),
             },

@@ -301,6 +301,7 @@ pub fn rebuild_clip_angles(project: &mut Project, previous: &Project) -> Result<
                 origin: recipe.corner.world(Point3([leg / 2., leg / 2., 0.])),
                 ..recipe.corner
             },
+            position: Default::default(),
         };
         project.elements.insert(
             angle,

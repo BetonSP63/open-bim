@@ -4,7 +4,7 @@
 //! mirror/rotate by picked points.
 use crate::tools::Edit;
 use open_bim_commands::{Command, DeletePolicy, Document};
-use open_bim_model::{DetailKind, ElementShape, Frame, ObjectId, Point3, Project};
+use open_bim_model::{DetailKind, ElementShape, ObjectId, Point3, Project};
 use open_bim_renderer::DVec3;
 use open_bim_renderer::overlay::{Handle, HandleKind, Projector};
 use std::collections::BTreeSet;
@@ -327,39 +327,20 @@ pub fn move_handle(
         .ok_or("Объект удалён")?
         .clone();
     element.shape = match (element.shape.clone(), handle.kind) {
-        (
-            ElementShape::Member {
-                member_kind,
-                profile,
-                length,
-                frame,
-            },
-            HandleKind::Start | HandleKind::End,
-        ) => {
-            let start = v(frame.origin);
-            let end = v(frame.world(Point3([0., 0., length.value()])));
-            let (a, b) = if handle.kind == HandleKind::Start {
-                (target, end)
+        (shape @ ElementShape::Member { .. }, HandleKind::Start | HandleKind::End) => {
+            // Handles sit on the reference line (Tekla); the position is kept.
+            let (start, end, _) = project
+                .member_reference_line(&shape)
+                .ok_or("Нет профиля детали")?;
+            let p = Point3(target.to_array());
+            let line = if handle.kind == HandleKind::Start {
+                (p, end)
             } else {
-                (start, target)
+                (start, p)
             };
-            let (moved, length) = Frame::along(Point3(a.to_array()), Point3(b.to_array()))
-                .map_err(|e| e.to_string())?;
-            // Keep the profile rotation when the direction does not change.
-            let frame = if (v(Point3(moved.axes[2])) - v(Point3(frame.axes[2]))).length() < 1e-9 {
-                Frame {
-                    origin: moved.origin,
-                    axes: frame.axes,
-                }
-            } else {
-                moved
-            };
-            ElementShape::Member {
-                member_kind,
-                profile,
-                length,
-                frame,
-            }
+            project
+                .replace_member(&shape, Some(line), None, None)
+                .map_err(|e| e.to_string())?
         }
         (
             ElementShape::Plate {

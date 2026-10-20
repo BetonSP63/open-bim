@@ -1367,6 +1367,16 @@ impl Workbench {
                     ui.end_row();
                 }
             });
+        if c.position.is_some() {
+            egui::CollapsingHeader::new("Положение")
+                .default_open(true)
+                .show(ui, |ui| {
+                    super::property_pane::position_grid(ui, "pane", &mut self.pane.position);
+                    ui.small(
+                        "Ручки — на опорной линии; профиль и положение меняются относительно неё",
+                    );
+                });
+        }
         ui.separator();
         if let Some(a) = self.tools.user_property(ui, &mut self.editor) {
             requests.push(Request::Action(a));
@@ -1375,7 +1385,11 @@ impl Workbench {
         let project = self.editor.document.project();
         ui.horizontal(|ui| {
             if ui.button("Изменить").clicked() || apply_length {
-                match modify(project, &c.parts, &self.pane.changes(&c)) {
+                match self
+                    .pane
+                    .changes(&c)
+                    .and_then(|changes| modify(project, &c.parts, &changes))
+                {
                     Ok(commands) => requests.push(Request::Action(Action::Commit(
                         format!("Изменить свойства ({})", c.parts.len()),
                         commands,

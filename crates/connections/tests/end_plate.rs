@@ -19,6 +19,7 @@ fn fixture(at_end: bool) -> Project {
                 profile: ObjectId(2),
                 length: LengthMm::new(3000.).unwrap(),
                 frame: Frame::default(),
+                position: Default::default(),
             },
         },
     );

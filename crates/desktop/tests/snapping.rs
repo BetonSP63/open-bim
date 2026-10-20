@@ -25,6 +25,7 @@ fn fixture() -> (Project, Arc<Scene>) {
                 profile: ObjectId(2),
                 length,
                 frame,
+                position: Default::default(),
             },
             properties: BTreeMap::new(),
         },

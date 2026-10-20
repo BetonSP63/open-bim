@@ -2,8 +2,11 @@
 //! «— разные —» where they differ, and «Изменить» that applies the edited
 //! fields to every selected part in one transaction.
 use crate::interaction::member_edit::{LengthMode, length_text, resize};
+use eframe::egui;
 use open_bim_commands::Command;
-use open_bim_model::{ElementShape, ObjectId, Project, PropertyValue};
+use open_bim_model::{
+    AtDepth, ElementShape, ObjectId, OnPlane, PartPosition, Project, PropertyValue, Rotation,
+};
 use std::collections::BTreeSet;
 
 pub const VARIES: &str = "— разные —";
@@ -47,6 +50,46 @@ pub struct Common {
     pub size: Shared<String>,
     /// Members only: length in mm as shown («6000»).
     pub length: Option<Shared<String>>,
+    /// Members only: Tekla «Положение».
+    pub position: Option<PositionShared>,
+}
+
+/// Position fields of the selected members, each shared or «— разные —».
+#[derive(Clone, Debug, PartialEq)]
+pub struct PositionShared {
+    pub plane: Shared<OnPlane>,
+    pub plane_offset: Shared<String>,
+    pub rotation: Shared<Rotation>,
+    pub rotation_angle: Shared<String>,
+    pub depth: Shared<AtDepth>,
+    pub depth_offset: Shared<String>,
+    pub start_dx: Shared<String>,
+    pub end_dx: Shared<String>,
+}
+
+/// A position value as shown: «0», «12.5».
+pub fn number_text(v: f64) -> String {
+    let rounded = (v * 1000.).round() / 1000.;
+    if rounded == 0. {
+        "0".into()
+    } else {
+        format!("{rounded}")
+    }
+}
+
+fn position_shared(positions: &[PartPosition]) -> Option<PositionShared> {
+    let text =
+        |f: fn(&PartPosition) -> f64| Shared::of(positions.iter().map(|p| number_text(f(p))));
+    Some(PositionShared {
+        plane: Shared::of(positions.iter().map(|p| p.plane))?,
+        plane_offset: text(|p| p.plane_offset)?,
+        rotation: Shared::of(positions.iter().map(|p| p.rotation))?,
+        rotation_angle: text(|p| p.rotation_angle)?,
+        depth: Shared::of(positions.iter().map(|p| p.depth))?,
+        depth_offset: text(|p| p.depth_offset)?,
+        start_dx: text(|p| p.start_dx)?,
+        end_dx: text(|p| p.end_dx)?,
+    })
 }
 
 fn class_of(e: &open_bim_model::Element) -> String {
@@ -93,6 +136,15 @@ pub fn common(project: &Project, selected: &BTreeSet<ObjectId>) -> Option<Common
             ElementShape::Member { length, .. } => Some(length_text(length.value())),
             ElementShape::Plate { .. } => None,
         })),
+        position: position_shared(
+            &parts
+                .iter()
+                .filter_map(|e| match &e.shape {
+                    ElementShape::Member { position, .. } => Some(*position),
+                    ElementShape::Plate { .. } => None,
+                })
+                .collect::<Vec<_>>(),
+        ),
         size: Shared::of(parts.iter().map(|e| match &e.shape {
             ElementShape::Member { length, .. } => format!("L = {:.0} мм", length.value()),
             ElementShape::Plate { thickness, .. } => format!("t = {:.0} мм", thickness.value()),
@@ -110,6 +162,39 @@ pub struct Changes {
     pub class: Option<String>,
     /// New member length (mm) and which end moves.
     pub length: Option<(f64, LengthMode)>,
+    pub position: PositionChanges,
+}
+
+/// Edited position fields; `None` keeps each member's own value.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct PositionChanges {
+    pub plane: Option<OnPlane>,
+    pub plane_offset: Option<f64>,
+    pub rotation: Option<Rotation>,
+    pub rotation_angle: Option<f64>,
+    pub depth: Option<AtDepth>,
+    pub depth_offset: Option<f64>,
+    pub start_dx: Option<f64>,
+    pub end_dx: Option<f64>,
+}
+
+impl PositionChanges {
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
+
+    pub fn apply(&self, p: &PartPosition) -> PartPosition {
+        PartPosition {
+            plane: self.plane.unwrap_or(p.plane),
+            plane_offset: self.plane_offset.unwrap_or(p.plane_offset),
+            rotation: self.rotation.unwrap_or(p.rotation),
+            rotation_angle: self.rotation_angle.unwrap_or(p.rotation_angle),
+            depth: self.depth.unwrap_or(p.depth),
+            depth_offset: self.depth_offset.unwrap_or(p.depth_offset),
+            start_dx: self.start_dx.unwrap_or(p.start_dx),
+            end_dx: self.end_dx.unwrap_or(p.end_dx),
+        }
+    }
 }
 
 /// One transaction changing every selected part.
@@ -142,8 +227,15 @@ pub fn modify(
         if let Some(m) = changes.material {
             e.material = m;
         }
-        if let (Some(p), ElementShape::Member { profile, .. }) = (changes.profile, &mut e.shape) {
-            *profile = p;
+        // Profile and position are placed again on the same reference line,
+        // so a beam «Сзади» keeps its top flange on the line (Tekla).
+        if let ElementShape::Member { position, .. } = &e.shape
+            && (changes.profile.is_some() || !changes.position.is_empty())
+        {
+            let position = changes.position.apply(position);
+            e.shape = project
+                .replace_member(&e.shape, None, changes.profile, Some(position))
+                .map_err(|err| format!("{}: {err}", e.name))?;
         }
         if let Some(class) = &changes.class {
             if class.trim().is_empty() {
@@ -197,6 +289,75 @@ pub struct PropertyPane {
     pub length: String,
     /// Which end the length field moves; kept between selections.
     pub length_mode: LengthMode,
+    pub position: PositionBuffer,
+}
+
+/// Edit buffer of the position fields; `None` = «— разные —».
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PositionBuffer {
+    pub plane: Option<OnPlane>,
+    pub plane_offset: String,
+    pub rotation: Option<Rotation>,
+    pub rotation_angle: String,
+    pub depth: Option<AtDepth>,
+    pub depth_offset: String,
+    pub start_dx: String,
+    pub end_dx: String,
+}
+
+fn shown(s: &Shared<String>) -> String {
+    s.value().cloned().unwrap_or_else(|| VARIES.into())
+}
+
+impl PositionBuffer {
+    pub fn fill(&mut self, p: &PositionShared) {
+        *self = Self {
+            plane: p.plane.value().copied(),
+            plane_offset: shown(&p.plane_offset),
+            rotation: p.rotation.value().copied(),
+            rotation_angle: shown(&p.rotation_angle),
+            depth: p.depth.value().copied(),
+            depth_offset: shown(&p.depth_offset),
+            start_dx: shown(&p.start_dx),
+            end_dx: shown(&p.end_dx),
+        };
+    }
+
+    /// Fields edited relative to what the selection shows; an unparsable
+    /// number is an error rather than silently ignored.
+    pub fn changes(&self, shown: &PositionShared) -> Result<PositionChanges, String> {
+        fn pick<T: Copy + PartialEq>(buffer: Option<T>, shown: &Shared<T>) -> Option<T> {
+            buffer.filter(|b| shown.value() != Some(b))
+        }
+        let num =
+            |buffer: &str, shown: &Shared<String>, label: &str| -> Result<Option<f64>, String> {
+                let was = shown.value().map(String::as_str).unwrap_or(VARIES);
+                if buffer == was || buffer == VARIES {
+                    return Ok(None);
+                }
+                crate::tools::number(&buffer.replace(',', "."))
+                    .map(Some)
+                    .map_err(|_| format!("{label}: введите число"))
+            };
+        Ok(PositionChanges {
+            plane: pick(self.plane, &shown.plane),
+            plane_offset: num(
+                &self.plane_offset,
+                &shown.plane_offset,
+                "Смещение в плоскости",
+            )?,
+            rotation: pick(self.rotation, &shown.rotation),
+            rotation_angle: num(&self.rotation_angle, &shown.rotation_angle, "Угол поворота")?,
+            depth: pick(self.depth, &shown.depth),
+            depth_offset: num(
+                &self.depth_offset,
+                &shown.depth_offset,
+                "Смещение по глубине",
+            )?,
+            start_dx: num(&self.start_dx, &shown.start_dx, "Dx начала")?,
+            end_dx: num(&self.end_dx, &shown.end_dx, "Dx конца")?,
+        })
+    }
 }
 
 impl PropertyPane {
@@ -215,15 +376,23 @@ impl PropertyPane {
             .as_ref()
             .map(|l| l.value().cloned().unwrap_or_else(|| VARIES.into()))
             .unwrap_or_default();
+        match &c.position {
+            Some(p) => self.position.fill(p),
+            None => self.position = PositionBuffer::default(),
+        }
     }
 
     /// Fields edited relative to what the selection shows.
-    pub fn changes(&self, c: &Common) -> Changes {
+    pub fn changes(&self, c: &Common) -> Result<Changes, String> {
         let edited = |buffer: &str, shown: &Shared<String>| {
             let shown = shown.value().map(String::as_str).unwrap_or(VARIES);
             (buffer != shown && buffer != VARIES).then(|| buffer.to_string())
         };
-        Changes {
+        Ok(Changes {
+            position: match &c.position {
+                Some(shown) => self.position.changes(shown)?,
+                None => PositionChanges::default(),
+            },
             name: edited(&self.name, &c.name),
             class: edited(&self.class, &c.class),
             profile: self
@@ -237,6 +406,113 @@ impl PropertyPane {
                     .flatten()
                     .map(|l| (l, self.length_mode))
             }),
-        }
+        })
     }
+}
+
+/// Tekla «Положение» fields: three lists with an offset each, and Dx at
+/// both ends. `None` in a list shows «— разные —».
+pub fn position_grid(ui: &mut egui::Ui, salt: &str, b: &mut PositionBuffer) {
+    fn list<T: Copy + PartialEq>(
+        ui: &mut egui::Ui,
+        id: String,
+        label: &str,
+        value: &mut Option<T>,
+        all: &[T],
+        name: fn(T) -> &'static str,
+    ) {
+        let l = ui.label(label);
+        egui::ComboBox::new(id, "")
+            .selected_text(value.map_or(VARIES, name))
+            .show_ui(ui, |ui| {
+                for v in all {
+                    ui.selectable_value(value, Some(*v), name(*v));
+                }
+            })
+            .response
+            .labelled_by(l.id);
+    }
+    fn field(ui: &mut egui::Ui, id: String, label: &str, text: &mut String) {
+        let l = ui.label(label);
+        ui.add(
+            egui::TextEdit::singleline(text)
+                .id(egui::Id::new(id))
+                .desired_width(60.),
+        )
+        .labelled_by(l.id);
+    }
+    egui::Grid::new(format!("{salt} position"))
+        .num_columns(4)
+        .show(ui, |ui| {
+            list(
+                ui,
+                format!("{salt} plane"),
+                "В плоскости",
+                &mut b.plane,
+                &OnPlane::ALL,
+                OnPlane::label,
+            );
+            field(
+                ui,
+                format!("{salt} plane offset"),
+                "мм",
+                &mut b.plane_offset,
+            );
+            ui.end_row();
+            list(
+                ui,
+                format!("{salt} rotation"),
+                "Поворот",
+                &mut b.rotation,
+                &Rotation::ALL,
+                Rotation::label,
+            );
+            field(
+                ui,
+                format!("{salt} rotation angle"),
+                "°",
+                &mut b.rotation_angle,
+            );
+            ui.end_row();
+            list(
+                ui,
+                format!("{salt} depth"),
+                "По глубине",
+                &mut b.depth,
+                &AtDepth::ALL,
+                AtDepth::label,
+            );
+            field(
+                ui,
+                format!("{salt} depth offset"),
+                "мм",
+                &mut b.depth_offset,
+            );
+            ui.end_row();
+            field(
+                ui,
+                format!("{salt} start dx"),
+                "Dx начала, мм",
+                &mut b.start_dx,
+            );
+            field(ui, format!("{salt} end dx"), "Dx конца, мм", &mut b.end_dx);
+            ui.end_row();
+        });
+}
+
+/// The same fields over one position (the create dialog): edits apply
+/// at once and a bad number keeps the previous value.
+pub fn position_editor(ui: &mut egui::Ui, salt: &str, position: &mut PartPosition) {
+    let shown = position_shared(std::slice::from_ref(position)).expect("one position");
+    let id = egui::Id::new((salt, "position buffer"));
+    let mut b: PositionBuffer = ui.data_mut(|d| d.get_temp(id)).unwrap_or_else(|| {
+        let mut b = PositionBuffer::default();
+        b.fill(&shown);
+        b
+    });
+    position_grid(ui, salt, &mut b);
+    if let Ok(changes) = b.changes(&shown) {
+        *position = changes.apply(position);
+    }
+    ui.data_mut(|d| d.insert_temp(id, b));
 }

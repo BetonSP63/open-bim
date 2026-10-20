@@ -237,13 +237,19 @@ pub fn handles(project: &Project, selected: &BTreeSet<ObjectId>, p: &Projector) 
         };
         let frame = e.shape.frame();
         let points: Vec<(HandleKind, DVec3)> = match &e.shape {
-            ElementShape::Member { length, .. } => vec![
-                (HandleKind::Start, v(frame.origin)),
-                (
-                    HandleKind::End,
-                    v(frame.world(Point3([0., 0., length.value()]))),
-                ),
-            ],
+            ElementShape::Member { length, .. } => match project.member_reference_line(&e.shape) {
+                // Handles sit on the reference line, like Tekla.
+                Some((start, end, _)) => {
+                    vec![(HandleKind::Start, v(start)), (HandleKind::End, v(end))]
+                }
+                None => vec![
+                    (HandleKind::Start, v(frame.origin)),
+                    (
+                        HandleKind::End,
+                        v(frame.world(Point3([0., 0., length.value()]))),
+                    ),
+                ],
+            },
             ElementShape::Plate { contour, .. } => contour
                 .iter()
                 .enumerate()

@@ -221,6 +221,15 @@ impl ToolsUi {
                     vector_fields(ui, "end", &mut editor.draft.end);
                 }
                 if matches!(editor.draft.kind, ToolKind::Beam | ToolKind::Column) {
+                    egui::CollapsingHeader::new("Положение")
+                        .default_open(true)
+                        .show(ui, |ui| {
+                            crate::ui::property_pane::position_editor(
+                                ui,
+                                "draft",
+                                &mut editor.draft.position,
+                            );
+                        });
                     let project = editor.document.project();
                     egui::ComboBox::new("profile", "Профиль")
                         .selected_text(

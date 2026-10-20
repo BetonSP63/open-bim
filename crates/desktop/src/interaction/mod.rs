@@ -299,22 +299,20 @@ pub fn commands(
             } else {
                 (points[0], points[1])
             };
-            let (frame, length) = Frame::along(p(start), p(end)).map_err(|e| e.to_string())?;
+            let member_kind = if kind == ToolKind::Beam {
+                MemberKind::Beam
+            } else {
+                MemberKind::Column
+            };
+            let shape = project
+                .new_member(member_kind, draft.profile, p(start), p(end), draft.position)
+                .map_err(|e| e.to_string())?;
             Ok(vec![Command::Create {
                 element: Element {
                     id,
                     name: draft.name.clone(),
                     material: draft.material,
-                    shape: ElementShape::Member {
-                        member_kind: if kind == ToolKind::Beam {
-                            MemberKind::Beam
-                        } else {
-                            MemberKind::Column
-                        },
-                        profile: draft.profile,
-                        length,
-                        frame,
-                    },
+                    shape,
                     properties: Default::default(),
                 },
             }])

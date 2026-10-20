@@ -36,6 +36,7 @@ fn fixture(end_plate: bool) -> Project {
                     origin: Point3([0., if end_plate { -3320. } else { -3300. }, 1500.]),
                     axes: [[-1., 0., 0.], [0., 0., 1.], [0., 1., 0.]],
                 },
+                position: Default::default(),
             },
         },
     );
@@ -51,6 +52,7 @@ fn fixture(end_plate: bool) -> Project {
                 profile: ObjectId(30),
                 length: LengthMm::new(3000.).unwrap(),
                 frame: Frame::default(),
+                position: Default::default(),
             },
         },
     );

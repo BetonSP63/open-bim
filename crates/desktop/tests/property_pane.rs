@@ -64,7 +64,7 @@ fn mixed_profiles_show_varies_and_modify_is_one_undoable_transaction() {
     pane.sync(&c);
     assert_eq!(pane.profile, None, "«— разные —» shown");
     pane.profile = Some(channel);
-    let changes = pane.changes(&c);
+    let changes = pane.changes(&c).unwrap();
     assert_eq!(
         changes,
         Changes {

@@ -130,6 +130,7 @@ fn hollow_display_mesh_is_closed_and_preserves_void() {
                     profile,
                     length: LengthMm::new(100.0).unwrap(),
                     frame: Frame::default(),
+                    position: Default::default(),
                 },
                 properties: Default::default(),
             },
