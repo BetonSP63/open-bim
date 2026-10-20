@@ -1,4 +1,4 @@
-//! Property pane like Tekla: the common properties of the selected parts,
+//! Property pane: the common properties of the selected parts,
 //! «— разные —» where they differ, and «Изменить» that applies the edited
 //! fields to every selected part in one transaction.
 use crate::interaction::member_edit::{LengthMode, length_text, resize};
@@ -50,7 +50,7 @@ pub struct Common {
     pub size: Shared<String>,
     /// Members only: length in mm as shown («6000»).
     pub length: Option<Shared<String>>,
-    /// Members only: Tekla «Положение».
+    /// Members only: «Положение».
     pub position: Option<PositionShared>,
 }
 
@@ -152,7 +152,7 @@ pub fn common(project: &Project, selected: &BTreeSet<ObjectId>) -> Option<Common
     })
 }
 
-/// Edited fields: `None` keeps each part's own value (Tekla: only checked /
+/// Edited fields: `None` keeps each part's own value (only checked /
 /// changed fields are applied by «Изменить»).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Changes {
@@ -264,7 +264,7 @@ pub fn modify(
             e.material = m;
         }
         // Profile and position are placed again on the same reference line,
-        // so a beam «Сзади» keeps its top flange on the line (Tekla).
+        // so a beam «Сзади» keeps its top flange on the line.
         if let ElementShape::Member { position, .. } = &e.shape
             && (changes.profile.is_some() || !changes.position.is_empty())
         {
@@ -499,7 +499,7 @@ impl PropertyPane {
     }
 }
 
-/// Tekla «Положение» fields: three lists with an offset each, and Dx at
+/// «Положение» fields: three lists with an offset each, and Dx at
 /// both ends. `None` in a list shows «— разные —».
 pub fn position_grid(ui: &mut egui::Ui, salt: &str, b: &mut PositionBuffer) {
     fn list<T: Copy + PartialEq>(

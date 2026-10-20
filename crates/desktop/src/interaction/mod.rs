@@ -1,4 +1,4 @@
-//! Pick-command engine (Tekla-style): a command declares its picks and a
+//! Pick-command engine: a command declares its picks and a
 //! Russian prompt per step; picks are projected onto the work plane; the
 //! object is created after the last pick and the command re-arms until Esc.
 pub mod assembly_edit;
@@ -106,7 +106,7 @@ pub struct Engine {
     pub error: Option<String>,
     /// How plate contours are picked (polygon, rectangle by 2 or 3 points).
     pub plate_mode: polygon::PlateMode,
-    /// Temporary snap reference point (Tekla Ctrl+pick): numeric input,
+    /// Temporary snap reference point (Ctrl+pick): numeric input,
     /// ortho and perpendicular snapping work from it until the next pick.
     pub reference: Option<DVec3>,
 }

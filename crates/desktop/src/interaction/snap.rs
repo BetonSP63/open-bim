@@ -1,4 +1,4 @@
-//! Screen-space snapping to model geometry (Tekla «Привязки»). Candidates come
+//! Screen-space snapping to model geometry («Привязки»). Candidates come
 //! from the scene BVH near the cursor ray; hits are ranked by snap priority,
 //! then by distance in pixels.
 use super::workplane::Workplane;
@@ -21,8 +21,8 @@ pub enum SnapKind {
 }
 
 impl SnapKind {
-    /// Snap priority class (lower wins; ties go to the nearer point). Like
-    /// Tekla, reference points and grid/reference-line intersections («Points»)
+    /// Snap priority class (lower wins; ties go to the nearer point).
+    /// Reference points and grid/reference-line intersections («Points»)
     /// share the highest class, so the closer of the two is taken.
     pub fn priority(self) -> u8 {
         match self {
@@ -47,14 +47,14 @@ impl SnapKind {
     }
 }
 
-/// Snap switches (bottom toolbar). Defaults follow Tekla: reference and
+/// Snap switches (bottom toolbar). Defaults: reference and
 /// geometry points, mid points and intersections on; nearest and
 /// perpendicular off.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Switches {
-    /// Tekla main switch «Reference lines and points».
+    /// Main switch «Reference lines and points».
     pub reference: bool,
-    /// Tekla main switch «Geometry lines and points»: solid corners and edges.
+    /// Main switch «Geometry lines and points»: solid corners and edges.
     pub geometry: bool,
     pub end: bool,
     pub mid: bool,
@@ -320,7 +320,7 @@ impl Snapper {
         .next()
     }
 
-    /// All distinct snap points under the cursor, best first (Tekla Tab /
+    /// All distinct snap points under the cursor, best first (Tab /
     /// Shift+Tab cycles through them); a free work plane point when none.
     #[allow(clippy::too_many_arguments)]
     pub fn candidates(
@@ -372,7 +372,7 @@ impl Snapper {
             };
         // Reference lines (member axes, grid lines) and geometry edges.
         let mut lines: Vec<Segment> = Vec::new();
-        // Grid lines exist at every level (Tekla grids are drawn per elevation).
+        // Grid lines exist at every level (grids are drawn per elevation).
         for axis in project.axes.values() {
             let (a, b) = (
                 DVec3::from_array(axis.start.0),

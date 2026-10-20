@@ -73,7 +73,7 @@ fn plate(b: &mut Workbench, z: f64) -> ObjectId {
 }
 
 #[test]
-fn bolt_group_by_parts_and_points_with_tekla_spacing() {
+fn bolt_group_by_parts_and_points_with_spacing_notation() {
     assert_eq!(spacings("3*80").unwrap(), [80., 80., 80.]);
     assert_eq!(spacings("50 2*70;40").unwrap(), [50., 70., 70., 40.]);
     assert!(spacings("0*80").is_err() && spacings("-5").is_err());

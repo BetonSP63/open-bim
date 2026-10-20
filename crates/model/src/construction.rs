@@ -1,4 +1,4 @@
-//! Construction objects of the model (Tekla «Вспомогательные линии и
+//! Construction objects of the model («Вспомогательные линии и
 //! окружности») and model dimensions. They help to place parts, are snap
 //! targets and are never shown on drawings.
 use crate::{ElementShape, ModelError, ObjectId, Point3, Project};

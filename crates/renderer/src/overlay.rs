@@ -1,4 +1,4 @@
-//! Tekla-like viewport cues computed as screen-space marks: background
+//! Viewport cues computed as screen-space marks: background
 //! gradient colours, model origin symbol, axis gizmo, work area box, dashed
 //! grid with bubble labels and level labels, snap symbol, rubber band with a
 //! live length label, and selection handles. Pure geometry: the desktop app
@@ -16,11 +16,11 @@ pub const SNAP: Rgba = [230, 120, 0, 255];
 pub const RUBBER: Rgba = [200, 30, 160, 255];
 pub const START_HANDLE: Rgba = [240, 200, 0, 255];
 pub const END_HANDLE: Rgba = [210, 0, 200, 255];
-/// Direct modification handles (Tekla: blue).
+/// Direct modification handles (blue).
 pub const DIRECT_HANDLE: Rgba = [30, 110, 230, 255];
 /// Selected grid line.
 pub const SELECTED_AXIS: Rgba = [255, 107, 20, 255];
-/// Line the snapped point belongs to (Tekla: turquoise).
+/// Line the snapped point belongs to (turquoise).
 pub const SNAP_LINE: Rgba = [0, 185, 195, 255];
 pub const AXIS_COLORS: [Rgba; 3] = [[210, 40, 40, 255], [20, 150, 50, 255], [30, 80, 220, 255]];
 /// Light theme background: grey-blue at the top fading to near white.
@@ -135,7 +135,7 @@ pub fn gizmo_directions(camera: &Camera) -> [[f64; 2]; 3] {
     [DVec3::X, DVec3::Y, DVec3::Z].map(|a| [a.dot(right), -a.dot(up)])
 }
 
-/// Model extent like Tekla's work area: parts plus grid lines and levels.
+/// Model extent as the work area: parts plus grid lines and levels.
 /// `None` for an empty model without a grid.
 pub fn model_bounds(scene: &crate::Scene, project: &Project) -> Option<Bounds> {
     let mut points: Vec<DVec3> = project
@@ -238,7 +238,7 @@ pub fn handles(project: &Project, selected: &BTreeSet<ObjectId>, p: &Projector) 
         let frame = e.shape.frame();
         let points: Vec<(HandleKind, DVec3)> = match &e.shape {
             ElementShape::Member { length, .. } => match project.member_reference_line(&e.shape) {
-                // Handles sit on the reference line, like Tekla.
+                // Handles sit on the reference line.
                 Some((start, end, _)) => {
                     vec![(HandleKind::Start, v(start)), (HandleKind::End, v(end))]
                 }
@@ -287,7 +287,7 @@ pub struct Input<'a> {
     pub picks: &'a [DVec3],
     pub polygon: bool,
     pub cursor: Option<(DVec3, Glyph)>,
-    /// Snap kind name shown next to the cursor (Tekla snap tooltip).
+    /// Snap kind name shown next to the cursor (snap tooltip).
     pub snap_label: Option<String>,
     /// Reference line or edge of the snapped point, highlighted.
     pub highlight: Option<(DVec3, DVec3)>,
@@ -432,7 +432,7 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
             marks.push(text(c, axis.name.clone(), label, [0, 0], 12.));
         }
     }
-    // Construction lines and circles: dashed magenta (Tekla style).
+    // Construction lines and circles: dashed magenta (style).
     let construction: Rgba = if input.light {
         [190, 30, 150, 255]
     } else {
@@ -648,7 +648,7 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
             DIRECT_HANDLE
         } else {
             match h.kind {
-                // Tekla: the start handle is yellow, all others magenta.
+                // The start handle is yellow, all others magenta.
                 HandleKind::Start | HandleKind::Vertex(0) => START_HANDLE,
                 HandleKind::End | HandleKind::Vertex(_) => END_HANDLE,
             }

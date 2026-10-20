@@ -1,4 +1,4 @@
-//! Assembly commands like Tekla «Сборка»: create an assembly from the
+//! Assembly commands like «Сборка»: create an assembly from the
 //! selected parts, add parts, remove parts, set the main part, explode;
 //! a shop weld joins its two parts into one assembly.
 use open_bim_commands::Command;
@@ -25,7 +25,7 @@ fn parts_only(project: &Project, ids: &BTreeSet<ObjectId>) -> Result<Vec<ObjectI
     Ok(parts)
 }
 
-/// The heaviest member (else the heaviest part) is the main part, as in Tekla.
+/// The heaviest member (else the heaviest part) is the main part.
 fn heaviest(project: &Project, parts: &[ObjectId]) -> ObjectId {
     *parts
         .iter()

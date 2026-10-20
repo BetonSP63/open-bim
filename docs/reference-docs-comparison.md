@@ -1,11 +1,11 @@
-# Open BIM vs Tekla Structures 2026 documentation
+# Open BIM vs reference documentation (2026)
 
-Sources: Tekla Structures 2026 user guides (GEF «Get familiar», MOD «Create models»,
+Sources: 2026 user guides of a commercial steel detailing package (GEF «Get familiar», MOD «Create models»,
 DRA «Create drawings», MGE, SHA, keyboard shortcuts flyer), read 2026-10-18.
 Status: ✅ same logic · ⚠ partly / differs · ❌ missing.
 
 ## Interface (GEF 4)
-| Tekla | Open BIM | |
+| Reference | Open BIM | |
 |---|---|---|
 | 15 UI areas: model, global origin cube, work area, local coordinate symbol with clickable navigation axes, File menu, ribbon, Quick Access, user/help, Quick Launch, side pane, work plane handler, model search, snap switches, selection switches, status bar | all present; gizmo axes are clickable (plane views) | ✅ |
 | Command runs until Esc / another command; Enter repeats last command; middle button/Enter/space completes | same | ✅ |
@@ -16,10 +16,10 @@ Status: ✅ same logic · ⚠ partly / differs · ❌ missing.
 | Property pane: Object type list starts a create command; double-click opens properties; Modify button | «Тип объекта» list starts the command; double click opens the pane; «Изменить» applies the edited fields in one transaction; «— разные —» | ✅ |
 
 Final status after phases 5–8: the rows above reflect the implemented state;
-everything still ⚠/❌ is listed in `docs/tekla-interaction.md` → «not implemented».
+everything still ⚠/❌ is listed in `docs/interaction.md` → «not implemented».
 
 ## Selecting (GEF 4.6, MOD 1.7)
-| Tekla | Open BIM | |
+| Reference | Open BIM | |
 |---|---|---|
 | Main switches: components / component objects / assemblies / objects in assemblies; type switches (parts, grids, grid lines, welds, bolt groups, single bolts, cuts…) | parts / whole assemblies only | ⚠ |
 | Shift adds, Ctrl toggles, Alt+click selects assembly, area selection, Ctrl+A, F2/F3 switches | Shift adds, Ctrl toggles, Alt+click selects the assembly, window/crossing area selection, Ctrl+A; F2/F3 are mode keys here (deviation) | ⚠ |
@@ -27,7 +27,7 @@ everything still ⚠/❌ is listed in `docs/tekla-interaction.md` → «not impl
 | Direct modification (D) with blue handles | D switches it; blue handles for member ends and plate vertices, dragged with snapping | ✅ |
 
 ## Snapping (GEF 4.7, MOD 1.3)
-| Tekla | Open BIM | |
+| Reference | Open BIM | |
 |---|---|---|
 | Main switches Reference lines/points and Geometry lines/points (highest priority; both off = no snap) | both main switches («Опорные», «Геометрия») | ✅ |
 | Points (incl. grid intersections), End, Centers, Mid, Intersections, Perpendicular, Parallel, Line extensions, Any position, Nearest, Lines | end, mid, intersection, perpendicular, nearest, free | ⚠ (no centers, parallel, extensions, lines) |
@@ -38,7 +38,7 @@ everything still ⚠/❌ is listed in `docs/tekla-interaction.md` → «not impl
 | Numeric input on typing: **default relative**, `@` relative, `$` absolute (work plane), `!` global, polar `d<a<b`, one value = distance along the pointer direction, R/A/G keys | same modes and prefixes (fixed in phase 5); no R/A/G keys | ✅ |
 
 ## Navigation (MOD 1.2, shortcuts)
-| Tekla | Open BIM | |
+| Reference | Open BIM | |
 |---|---|---|
 | Wheel zoom about the pointer, PgUp/PgDn, Home zoom original, Shift+Space zoom selected | wheel about the pointer, PgUp/PgDn, Home, Shift+Space zoom selected | ✅ |
 | Middle drag pans; Ctrl+middle rotates about the view point (V sets it); right button = context menu | same, plus a context menu; no V view point | ⚠ |
@@ -46,7 +46,7 @@ everything still ⚠/❌ is listed in `docs/tekla-interaction.md` → «not impl
 | Ctrl+P plane/3D, Ctrl+1…4 rendering, Shift+X clip plane, F measure | Ctrl+P plane/3D, views by grid lines with depth, F measure; no Ctrl+1…4 rendering modes, no clip planes by pick | ⚠ |
 
 ## Modelling (MOD 1.1, 2.1, 2.2)
-| Tekla | Open BIM | |
+| Reference | Open BIM | |
 |---|---|---|
 | New model creates a rectangular grid + view from standard properties | phase 5: default grid 1–5 × А–Г | ✅ |
 | Grid: X/Y relative («0 2*4000»), **Z absolute**, labels, extensions; pick an origin or middle click; lines at every level | dialog with X/Y relative and Z absolute; origin fixed at 0; lines at the lowest level, levels as labels | ⚠ |
@@ -59,10 +59,10 @@ everything still ⚠/❌ is listed in `docs/tekla-interaction.md` → «not impl
 | Shift+ribbon button opens properties first | same | ✅ |
 
 ## Drawings, management, sharing (DRA, MGE, SHA)
-Tekla drawings come from the model with Document manager, Master drawing catalog,
+Reference drawings come from the model with Document manager, Master drawing catalog,
 layouts and templates, and AutoDrawings. Open BIM has GA, part and assembly
 drawings, revisions, and PDF/DXF export, with no Document manager, catalog or
-templates. Tekla also has multi-user mode, model sharing, Trimble Connect, many
+templates. The reference package also has multi-user mode, model sharing, cloud sharing, many
 formats and environments/firm folders. Open BIM has IFC4 import/export, PDF/DXF/CSV
 and a single user.
 
@@ -73,7 +73,7 @@ Phase 5 fixed: numeric input modes, arrows and keys, context menu, grid Z,
 column Top/Bottom, the bolt pick sequence, Shift+ribbon, handle colours, and snap
 priority between grid nodes and reference points.
 
-Conclusion (before phase 5): the core interaction logic matches Tekla: a command, picks with prompts
+Conclusion (before phase 5): the core interaction logic matches the reference workflow: a command, picks with prompts
 in the status bar, snap switches, the work plane, Esc, Enter to repeat, the middle
 button, Quick Launch, the side pane and handles. The main differences to fix are
 the default numeric input mode, the arrow keys, the right mouse button, Z

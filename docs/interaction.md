@@ -1,15 +1,15 @@
-# Tekla-style interaction
+# Interaction
 
-Reference: the Tekla Structures 2026 user guides (GEF, MOD and the shortcuts
-flyer) and the annotated screenshot of its main window. Open BIM reproduces how
-Tekla works. It does not copy Tekla artwork and does not claim parity. Differences
-are listed in `docs/tekla-docs-comparison.md`.
+Reference: the 2026 user guides of a commercial steel detailing package (GEF, MOD and the shortcuts
+flyer) and the annotated screenshot of its main window. Open BIM follows the
+standard detailing workflow. It does not copy third-party artwork and does not claim parity. Differences
+are listed in `docs/reference-docs-comparison.md`.
 
 ## Mouse and keyboard
 
-| Tekla | Open BIM | Evidence |
+| Reference workflow | Open BIM | Evidence |
 |---|---|---|
-| Wheel zooms about the pointer; Page Up/Down zoom; Home zooms to the original view | wheel zooms about the cursor (`Camera::zoom_at`); PgUp/PgDn; Home fits the model and the grid (F is now measure, like Tekla) | wheel_zoom_keeps_the_point_under_the_cursor; `tests/ui/navigation/05-pageup-zoom.png`, `07-home-fit.png` |
+| Wheel zooms about the pointer; Page Up/Down zoom; Home zooms to the original view | wheel zooms about the cursor (`Camera::zoom_at`); PgUp/PgDn; Home fits the model and the grid (F is now measure) | wheel_zoom_keeps_the_point_under_the_cursor; `tests/ui/navigation/05-pageup-zoom.png`, `07-home-fit.png` |
 | Middle drag pans | same | `tests/ui/navigation/06-middle-drag-pan.png` |
 | Ctrl + middle drag rotates | Ctrl/⌘ + middle drag rotates (same orbit as Ctrl+arrows) | `tests/ui/navigation/03-ctrl-arrow-rotate-15.png` |
 | Arrows move the view; Ctrl+arrows rotate 15°, Shift+arrows rotate 5° | same | `tests/ui/navigation/02…04-*.png` |
@@ -25,10 +25,10 @@ are listed in `docs/tekla-docs-comparison.md`.
 
 ## Creating objects (MOD 2.1–2.2)
 
-| Tekla | Open BIM | Evidence |
+| Reference workflow | Open BIM | Evidence |
 |---|---|---|
 | A new model comes with a rectangular grid | grid 1–5 × А–Г at 6000 mm, levels 0.000 and +3.600 | new_model_has_the_default_grid |
-| Grid: X/Y relative («0 4*6000»), Z absolute, labels, line extension | ribbon «Сетка» dialog, one transaction; labels continue (А→Б, 1→2, letters per ГОСТ 21.101) | grid_coordinate_strings_like_tekla, grid_labels_continue_and_map_to_lines |
+| Grid: X/Y relative («0 4*6000»), Z absolute, labels, line extension | ribbon «Сетка» dialog, one transaction; labels continue (А→Б, 1→2, letters per ГОСТ 21.101) | grid_coordinate_strings_relative_and_absolute, grid_labels_continue_and_map_to_lines |
 | Column: one pick, Top/Bottom as global Z | «Низ»/«Верх» in the properties | column_uses_bottom_and_top_and_plate_contour_equals_picks |
 | Beam: two picks; contour plate: polygon + middle click | same, one undo step per object; the first pick is the yellow start handle | column_uses_bottom_and_top_and_plate_contour_equals_picks |
 | Bolt «by parts and points»: main part, secondary parts, middle click, origin, X direction | same; the bolt axis is the work plane normal, holes go through all selected parts | bolt_by_parts_and_points_drills_both_plates_as_allowed_holes |
@@ -40,7 +40,7 @@ are listed in `docs/tekla-docs-comparison.md`.
 
 ## Selection and editing (MOD 1.6–1.8)
 
-| Tekla | Open BIM | Evidence |
+| Reference workflow | Open BIM | Evidence |
 |---|---|---|
 | Click selects; Shift adds; Ctrl toggles; Alt+click selects the assembly; Esc clears | same (⌘ also adds) | window_selects_inside_crossing_selects_touching_and_switches_filter |
 | Area: left→right = objects fully inside, right→left = touching (dashed box) | same | window_selects_inside_crossing_selects_touching_and_switches_filter, `tests/ui/selection-editing/02-window-select.png` |
@@ -53,12 +53,12 @@ are listed in `docs/tekla-docs-comparison.md`.
 
 ## Properties and views (GEF 5, MOD 1.1)
 
-| Tekla | Open BIM | Evidence |
+| Reference workflow | Open BIM | Evidence |
 |---|---|---|
 | Property pane: common properties of the selection, «Varies», «Modify» applies the edited fields | «— разные —»; «Изменить» = one transaction for all selected; «Получить» rereads | mixed_profiles_show_varies_and_modify_is_one_undoable_transaction |
-| Nothing selected: object type list starts a create command | «Тип объекта» list (beam, column, plate, bolt, weld, axis, grid) | `tests/ui/tekla-workflow/12-reopened.png` |
+| Nothing selected: object type list starts a create command | «Тип объекта» list (beam, column, plate, bolt, weld, axis, grid) | `tests/ui/modeling-workflow/12-reopened.png` |
 | Double click opens properties; contextual toolbar next to the pointer (Ctrl+K) | same; the contextual toolbar changes profile and material immediately | `tests/ui/property-views/01-…` |
-| Class colours | classes 1–14 with an approximate Tekla-like palette | `tests/ui/property-views/01-…` |
+| Class colours | classes 1–14 with an approximate industry-standard palette | `tests/ui/property-views/01-…` |
 | Create views along grid lines: a plan per level, elevations per grid line, view depth | same (plan ±1000 mm, elevation ±500 mm); work plane kept per view; Ctrl+I views pane, Ctrl+P 3D/plane | grid_views_have_plan_per_level_and_elevation_per_grid_line, switching_views_keeps_the_work_plane_per_view |
 | Model search toolbar | name / profile / material / #ID | search_selects_exactly_the_beams_with_the_profile |
 | Measure (F); Home zooms to the original view | F = measure with ΔX/ΔY/ΔZ; Home = fit | measure_two_points_reports_distance_and_components |
@@ -75,10 +75,10 @@ nodes and column tops, plus Enter, Esc and ⌘S. It builds:
 `check_model.py` checks the saved `.obim` against the grid values independently
 (`check.txt`). Separate coordinates with commas; use a dot for decimals.
 
-## Tekla mechanics not implemented (open)
+## Reference mechanics not implemented (open)
 
-These come from the Tekla 2026 manuals and are not in Open BIM yet. None of them
-is claimed. See `docs/tekla-docs-comparison.md` for each row's status.
+These come from the 2026 reference manuals and are not in Open BIM yet. None of them
+is claimed. See `docs/reference-docs-comparison.md` for each row's status.
 
 - **Snapping:**
   - snap switches centres, parallel, line extensions and lines;
@@ -106,7 +106,7 @@ is claimed. See `docs/tekla-docs-comparison.md` for each row's status.
   - copy special (linear, rotate, mirror, to another plane);
   - swap handles.
 - **Property pane:** UDA dialogs, copying properties from another object; levels of a column cannot be changed after creation (only by recreating it).
-- **Other Tekla features:**
+- **Other reference features:**
   - Applications & components catalog;
   - custom components;
   - Organizer;
@@ -114,11 +114,11 @@ is claimed. See `docs/tekla-docs-comparison.md` for each row's status.
   - Document manager;
   - Master drawing catalog;
   - multi-user mode;
-  - Trimble Connect.
+  - cloud model sharing.
 - **Not part of this release:** concrete and rebar (their ribbon tabs are visible but disabled).
 
 Shortcut deviations (macOS):
 - ⌘ replaces Ctrl for the application commands: ⌘S, ⌘Z, ⌘N, ⌘O, ⌘P palette.
-- Tekla's own Ctrl commands use the Control key: Ctrl+M, Ctrl+C, Ctrl+A, Ctrl+P, Ctrl+I, Ctrl+K.
-- F2/F3/F4 switch the model, drawings and lists modes here. In Tekla they are selection and snap switches; here those are toolbar buttons.
+- The usual detailing Ctrl commands use the Control key: Ctrl+M, Ctrl+C, Ctrl+A, Ctrl+P, Ctrl+I, Ctrl+K.
+- F2/F3/F4 switch the model, drawings and lists modes here. In the reference workflow they are selection and snap switches; here those are toolbar buttons.
 - Redo is ⇧⌘Z instead of Ctrl+Y.

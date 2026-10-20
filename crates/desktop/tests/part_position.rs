@@ -1,4 +1,4 @@
-//! Tekla «Положение» of beams and columns: the profile is placed relative to
+//! «Положение» of beams and columns: the profile is placed relative to
 //! the picked reference line, handles stay on that line, and changing the
 //! profile or the position keeps the line.
 use open_bim_desktop::interaction::selection::move_handle;

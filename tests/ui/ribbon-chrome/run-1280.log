@@ -1,0 +1,30 @@
+LOAD_MS: 1.3
+GPU: Apple M5 · Metal; project=Контрольный стальной каркас objects=7
+SCRIPT: step 1 Wait(30)
+SCRIPT: step 2 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/ribbon-chrome/chrome-1280x800.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/ribbon-chrome/chrome-1280x800.png 2560x1600
+SCRIPT: step 3 Hover([155.0, 80.0])
+SCRIPT: step 4 Wait(300)
+SCRIPT: step 5 Click([160.0, 40.0])
+SCRIPT: step 6 Wait(120)
+SCRIPT: step 7 Hover([90.0, 60.0])
+SCRIPT: step 8 Wait(30)
+SCRIPT: step 9 Hover([90.0, 80.0])
+SCRIPT: step 10 Wait(300)
+SCRIPT: step 11 Click([30.0, 40.0])
+SCRIPT: step 12 Wait(300)
+SCRIPT: step 13 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/ribbon-chrome/file-menu-1280x800.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/ribbon-chrome/file-menu-1280x800.png 2560x1600
+SCRIPT: step 14 Key { name: "Escape", command: false, shift: false, alt: false }
+SCRIPT: step 15 Wait(10)
+SCRIPT: step 16 Click([1150.0, 13.0])
+SCRIPT: step 17 Text("балка")
+SCRIPT: step 18 Wait(60)
+SCRIPT: step 19 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/ribbon-chrome/quick-launch-1280x800.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/ribbon-chrome/quick-launch-1280x800.png 2560x1600
+SCRIPT: step 20 Key { name: "Enter", command: false, shift: false, alt: false }
+SCRIPT: step 21 Wait(10)
+SCRIPT: step 22 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/ribbon-chrome/beam-prompt-1280x800.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/ribbon-chrome/beam-prompt-1280x800.png 2560x1600
+SCRIPT: step 23 Quit
+SCRIPT: finished

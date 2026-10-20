@@ -1,4 +1,4 @@
-//! Tekla-style selection and direct editing: click modes (replace, Shift add,
+//! Selection and direct editing: click modes (replace, Shift add,
 //! Ctrl toggle), area selection (left→right window = fully inside, right→left
 //! crossing = touching), selection switches, handle dragging, and move/copy/
 //! mirror/rotate by picked points.
@@ -9,7 +9,7 @@ use open_bim_renderer::DVec3;
 use open_bim_renderer::overlay::{Handle, HandleKind, Projector};
 use std::collections::BTreeSet;
 
-/// Selection switches (Tekla «Selecting» toolbar).
+/// Selection switches («Selecting» toolbar).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Filter {
     pub parts: bool,
@@ -328,7 +328,7 @@ pub fn move_handle(
         .clone();
     element.shape = match (element.shape.clone(), handle.kind) {
         (shape @ ElementShape::Member { .. }, HandleKind::Start | HandleKind::End) => {
-            // Handles sit on the reference line (Tekla); the position is kept.
+            // Handles sit on the reference line; the position is kept.
             let (start, end, _) = project
                 .member_reference_line(&shape)
                 .ok_or("Нет профиля детали")?;
@@ -366,7 +366,7 @@ pub fn move_handle(
     Ok(vec![Command::ReplaceElement { element }])
 }
 
-/// Objects removed by deleting `ids` with their dependants (Tekla asks first).
+/// Objects removed by deleting `ids` with their dependants (the user is asked first).
 pub fn delete_count(project: &Project, ids: &BTreeSet<ObjectId>) -> Result<usize, String> {
     let mut doc = Document::new(project.clone()).map_err(|e| e.to_string())?;
     let commands: Vec<Command> = ids

@@ -45,7 +45,7 @@ fn beam_needs_two_picks_creates_once_and_rearms() {
         panic!()
     };
     assert!((length.value() - 6000.).abs() < 1e-9 && frame.origin.0 == [0.; 3]);
-    // Command stays active (Tekla repeats until Esc): two more beams.
+    // Command stays active until Esc: two more beams.
     assert!(b.engine.active() && b.engine.picks.is_empty());
     for x in [6000., 12000.] {
         pick(&mut b, DVec3::new(x, 0., 0.));
@@ -156,7 +156,7 @@ fn every_tool_has_russian_prompts_per_step() {
 fn numeric_location_forms_and_errors() {
     let wp = Workplane::default();
     let prev = Some(DVec3::new(100., 0., 0.));
-    // Tekla default mode is relative; without a previous pick it starts at the origin.
+    // The default mode is relative; without a previous pick it starts at the origin.
     assert_eq!(
         numeric::parse("1000,2000,300", &wp, None, None).unwrap(),
         DVec3::new(1000., 2000., 300.)
