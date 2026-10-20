@@ -1149,11 +1149,23 @@ impl Workbench {
                                 .map_or(VARIES, |p| p.name.as_str());
                             egui::ComboBox::new("ctx profile", "")
                                 .selected_text(shown)
+                                .height(420.)
+                                .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                                 .show_ui(ui, |ui| {
-                                    for p in project.profiles.values() {
-                                        if ui.selectable_label(false, &p.name).clicked() {
-                                            change.profile = Some(p.id);
+                                    match super::catalog_picker::profile_menu(
+                                        ui,
+                                        "ctx",
+                                        project,
+                                        profile.value().copied(),
+                                    ) {
+                                        Some(super::catalog_picker::Pick::Project(id)) => {
+                                            change.profile = Some(id)
                                         }
+                                        Some(super::catalog_picker::Pick::New(p)) => {
+                                            change.profile = Some(p.id);
+                                            change.new_profile = Some(p);
+                                        }
+                                        None => {}
                                     }
                                 })
                                 .response
@@ -1173,10 +1185,19 @@ impl Workbench {
                         egui::ComboBox::new("ctx material", "")
                             .selected_text(shown)
                             .show_ui(ui, |ui| {
-                                for m in project.materials.values() {
-                                    if ui.selectable_label(false, &m.name).clicked() {
-                                        change.material = Some(m.id);
+                                match super::catalog_picker::material_menu(
+                                    ui,
+                                    project,
+                                    c.material.value().copied(),
+                                ) {
+                                    Some(super::catalog_picker::Pick::Project(id)) => {
+                                        change.material = Some(id)
                                     }
+                                    Some(super::catalog_picker::Pick::New(m)) => {
+                                        change.material = Some(m.id);
+                                        change.new_material = Some(m);
+                                    }
+                                    None => {}
                                 }
                             })
                             .response
@@ -1279,16 +1300,32 @@ impl Workbench {
                 ui.end_row();
                 if let Some(profile) = &c.profile {
                     ui.label("Профиль");
-                    let shown = self
-                        .pane
-                        .profile
-                        .and_then(|id| project.profiles.get(&id))
-                        .map_or(VARIES, |p| p.name.as_str());
+                    let shown = super::catalog_picker::profile_name(
+                        project,
+                        self.pane.pending_profile.as_ref(),
+                        self.pane.profile,
+                    )
+                    .unwrap_or(VARIES)
+                    .to_string();
                     egui::ComboBox::new("pane profile", "")
                         .selected_text(shown)
+                        .height(420.)
+                        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                         .show_ui(ui, |ui| {
-                            for p in project.profiles.values() {
-                                ui.selectable_value(&mut self.pane.profile, Some(p.id), &p.name);
+                            match super::catalog_picker::profile_menu(
+                                ui,
+                                "pane",
+                                project,
+                                self.pane.profile,
+                            ) {
+                                Some(super::catalog_picker::Pick::Project(id)) => {
+                                    self.pane.profile = Some(id)
+                                }
+                                Some(super::catalog_picker::Pick::New(p)) => {
+                                    self.pane.profile = Some(p.id);
+                                    self.pane.pending_profile = Some(p);
+                                }
+                                None => {}
                             }
                         })
                         .response
@@ -1301,16 +1338,26 @@ impl Workbench {
                     ui.end_row();
                 }
                 ui.label("Материал");
-                let shown = self
-                    .pane
-                    .material
-                    .and_then(|id| project.materials.get(&id))
-                    .map_or(VARIES, |m| m.name.as_str());
+                let shown = super::catalog_picker::material_name(
+                    project,
+                    self.pane.pending_material.as_ref(),
+                    self.pane.material,
+                )
+                .unwrap_or(VARIES)
+                .to_string();
                 egui::ComboBox::new("pane material", "")
                     .selected_text(shown)
                     .show_ui(ui, |ui| {
-                        for m in project.materials.values() {
-                            ui.selectable_value(&mut self.pane.material, Some(m.id), &m.name);
+                        match super::catalog_picker::material_menu(ui, project, self.pane.material)
+                        {
+                            Some(super::catalog_picker::Pick::Project(id)) => {
+                                self.pane.material = Some(id)
+                            }
+                            Some(super::catalog_picker::Pick::New(m)) => {
+                                self.pane.material = Some(m.id);
+                                self.pane.pending_material = Some(m);
+                            }
+                            None => {}
                         }
                     })
                     .response

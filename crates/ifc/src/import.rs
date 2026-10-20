@@ -723,6 +723,8 @@ pub fn import(text: &str) -> Result<(Project, ImportReport), String> {
                                     name: profile_name.unwrap_or_else(|| "Профиль IFC".into()),
                                     shape: profile_shape,
                                     source: "Импорт IFC4".into(),
+                                    standard: None,
+                                    area_mm2: None,
                                 },
                             );
                             pid

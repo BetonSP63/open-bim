@@ -646,7 +646,12 @@ pub fn assortment(project: &Project, id: ObjectId) -> (String, String) {
                 ProfileShape::RectangularHollow { .. } => "Трубы профильные",
                 ProfileShape::Rectangle { .. } => "Прокат прямоугольный",
             };
-            (kind.into(), p.name.clone())
+            // ГОСТ 21.502: «Наименование профиля, ГОСТ, ТУ».
+            let kind = match &p.standard {
+                Some(standard) => format!("{kind} {standard}"),
+                None => kind.into(),
+            };
+            (kind, p.name.clone())
         }
         ElementShape::Plate { thickness, .. } => (
             "Прокат листовой".into(),

@@ -19,6 +19,8 @@ fn fixture(end_plate: bool) -> Project {
                 flange: 20.,
             },
             source: "Independent sharp-corner dimensions".into(),
+            standard: None,
+            area_mm2: None,
         },
     );
     p.elements.insert(

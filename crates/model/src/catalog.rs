@@ -16,6 +16,28 @@ pub struct Profile {
     pub name: String,
     pub shape: ProfileShape,
     pub source: String,
+    /// Standard of a catalogue section («ГОСТ 26020-83»), shown in the
+    /// rolled-steel specification.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub standard: Option<String>,
+    /// Catalogue area with fillets, mm²; the mass uses it instead of the
+    /// sharp-corner section.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub area_mm2: Option<f64>,
+}
+
+impl Profile {
+    /// Area used for the mass: the catalogue area, else the section's own.
+    pub fn area_mm2(&self) -> Result<f64, ModelError> {
+        let own = self.shape.area_mm2()?;
+        match self.area_mm2 {
+            Some(a) if a.is_finite() && a > 0.0 && a <= 1e7 => Ok(a),
+            Some(_) => Err(ModelError::InvalidValue(
+                "Площадь профиля из каталога".into(),
+            )),
+            None => Ok(own),
+        }
+    }
 }
 
 /// Sharp-corner analytical sections; fillets require separately verified geometry.
@@ -246,7 +268,6 @@ pub(crate) fn builtins() -> (Vec<Material>, Vec<Profile>) {
     ];
     let profiles = shapes.into_iter().enumerate().map(|(i, (name, shape))| Profile {
         id: ObjectId(i as u64 + 2), name: name.into(), shape,
-        source: "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ".into(),
-    }).collect();
+        source: "Аналитическое сечение без скруглений; синтетический тестовый каталог Open BIM, не сортамент ГОСТ".into(), standard: None, area_mm2: None }).collect();
     (vec![material], profiles)
 }
