@@ -286,11 +286,14 @@ impl Workbench {
                 files::apply_to_bolts(&mut self.tools.detailing, &values);
                 files::loaded_message(STANDARD, &[])
             }
-            Ok(values) => {
-                let project = self.editor.document.project();
-                let warnings = files::apply_to_draft(project, &mut self.editor.draft, &values);
-                files::loaded_message(STANDARD, &warnings)
-            }
+            Ok(values) => match files::import_catalogue(&mut self.editor, &values) {
+                Ok(()) => {
+                    let project = self.editor.document.project();
+                    let warnings = files::apply_to_draft(project, &mut self.editor.draft, &values);
+                    files::loaded_message(STANDARD, &warnings)
+                }
+                Err(e) => e,
+            },
             Err(e) => e,
         };
         let prompt = self.tools.message.take().unwrap_or_default();
@@ -493,10 +496,12 @@ impl Workbench {
                 });
                 self.mode = mode;
                 self.detail.cancel();
-                self.editor.begin(kind);
+                let first = self.editor.begin(kind);
                 self.engine.start(kind);
                 self.message(self.engine.prompt());
-                self.load_standard(crate::tools::property_files::FileKind::of_tool(kind));
+                if first {
+                    self.load_standard(crate::tools::property_files::FileKind::of_tool(kind));
+                }
             }
             Cmd::ToolBolt | Cmd::ToolWeld => {
                 self.engine.cancel();
@@ -511,7 +516,7 @@ impl Workbench {
                 // The command's properties show in the side pane (Tekla dialog).
                 self.side_panel = Some(chrome::SidePanel::Properties);
                 self.message(self.prompt());
-                if cmd == Cmd::ToolBolt {
+                if cmd == Cmd::ToolBolt && !std::mem::replace(&mut self.tools.bolts_used, true) {
                     self.load_standard(Some(crate::tools::property_files::FileKind::Bolt));
                 }
             }
@@ -948,7 +953,7 @@ impl Workbench {
                 if let Some(kind) = self.engine.tool
                     && !self.editor.active
                 {
-                    self.editor.begin(kind);
+                    let _ = self.editor.begin(kind);
                 }
                 return self.outcome(outcome);
             }

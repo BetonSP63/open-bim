@@ -7,7 +7,7 @@ fn coords(v: [f64; 3]) -> [String; 3] {
     v.map(|x| x.to_string())
 }
 fn create(editor: &mut Editor, kind: ToolKind, start: [f64; 3], end: [f64; 3]) -> ObjectId {
-    editor.begin(kind);
+    let _ = editor.begin(kind);
     editor.draft.start = coords(start);
     editor.draft.end = coords(end);
     editor.create().unwrap();
@@ -244,12 +244,12 @@ fn invalid_and_cancelled_tools_preserve_document_and_redo() {
     editor.history(false).unwrap();
     let before = project_hash(editor.document.project()).unwrap();
     let history = editor.document.history_depth();
-    editor.begin(ToolKind::Beam);
+    let _ = editor.begin(ToolKind::Beam);
     editor.draft.end[0] = "NaN".into();
     assert!(editor.create().is_err());
     assert_eq!(project_hash(editor.document.project()).unwrap(), before);
     assert_eq!(editor.document.history_depth(), history);
-    editor.begin(ToolKind::Plate);
+    let _ = editor.begin(ToolKind::Plate);
     editor.draft.thickness = "-20".into();
     assert!(editor.create().is_err());
     editor.draft.thickness = "20".into();

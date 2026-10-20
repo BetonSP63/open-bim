@@ -86,7 +86,11 @@ fn saved_beam_file_loads_into_the_dialog_by_names() {
 
     b.execute(Cmd::CancelTool);
     b.execute(Cmd::ToolBeam);
-    assert_ne!(b.editor.draft.name, "Б1", "a new command starts clean");
+    assert_eq!(
+        b.editor.draft.name, "Б1",
+        "the dialog keeps its last values"
+    );
+    b.editor.draft = Default::default();
     let loaded = files::load(&dir, FileKind::Beam, "Б-перекрытие").unwrap();
     assert_eq!(loaded, saved);
     let warnings = files::apply_to_draft(&project, &mut b.editor.draft, &loaded);
@@ -391,4 +395,71 @@ fn property_pane_loads_a_file_and_modify_applies_it() {
         }
         _ => panic!(),
     }
+}
+
+#[test]
+fn each_tool_keeps_its_own_properties() {
+    let (mut b, dir) = bench("per-tool");
+    // «standard» is loaded on the first start only.
+    files::save(
+        &dir,
+        files::STANDARD,
+        &Values::Beam(MemberValues {
+            name: Some("Б-стандарт".into()),
+            ..Default::default()
+        }),
+    )
+    .unwrap();
+    b.execute(Cmd::ToolBeam);
+    assert_eq!(b.editor.draft.name, "Б-стандарт");
+    b.editor.draft.name = "Б1".into();
+    b.editor.draft.position.depth = AtDepth::Behind;
+    b.execute(Cmd::CancelTool);
+    b.execute(Cmd::ToolColumn);
+    assert_eq!(b.editor.draft.name, "Колонна");
+    b.editor.draft.name = "К1".into();
+    b.editor.draft.position = PartPosition::default();
+    b.execute(Cmd::CancelTool);
+    b.execute(Cmd::ToolBeam);
+    assert_eq!(b.editor.draft.name, "Б1");
+    assert_eq!(b.editor.draft.position.depth, AtDepth::Behind);
+    b.execute(Cmd::CancelTool);
+    b.execute(Cmd::ToolColumn);
+    assert_eq!(b.editor.draft.name, "К1");
+    assert_eq!(b.editor.draft.position.depth, AtDepth::Middle);
+}
+
+#[test]
+fn catalogue_profile_and_steel_are_copied_into_the_project_on_load() {
+    let (mut b, dir) = bench("catalogue");
+    let project = b.editor.document.project().clone();
+    assert!(files::find_profile(&project, "30Б1").is_none());
+    let steel = open_bim_model::library::steel(ObjectId(0), "С345")
+        .unwrap()
+        .name;
+    assert!(files::find_material(&project, &steel).is_none());
+    let values = Values::Beam(MemberValues {
+        profile: Some("30Б1".into()),
+        material: Some(steel.clone()),
+        ..Default::default()
+    });
+    files::save(&dir, "Б-30", &values).unwrap();
+    b.execute(Cmd::ToolBeam);
+    let loaded = files::load(&dir, FileKind::Beam, "Б-30").unwrap();
+    files::import_catalogue(&mut b.editor, &loaded).unwrap();
+    let project = b.editor.document.project().clone();
+    let warnings = files::apply_to_draft(&project, &mut b.editor.draft, &loaded);
+    assert!(warnings.is_empty(), "{warnings:?}");
+    assert_eq!(project.profiles[&b.editor.draft.profile].name, "30Б1");
+    assert_eq!(project.materials[&b.editor.draft.material].name, steel);
+    // Loading again copies nothing more.
+    assert!(files::catalogue_commands(&project, &loaded).is_empty());
+    // The new beam uses them.
+    let id = create(
+        &mut b,
+        Cmd::ToolBeam,
+        &[DVec3::new(0., 0., 3600.), DVec3::new(6000., 0., 3600.)],
+    );
+    let after = b.editor.document.project();
+    assert_eq!(after.elements[&id].material, b.editor.draft.material);
 }

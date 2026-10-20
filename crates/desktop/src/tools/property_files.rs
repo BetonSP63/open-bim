@@ -10,6 +10,7 @@ use super::Draft;
 use super::column_levels::Height;
 use super::detailing_ui::DetailingUi;
 use crate::interaction::polygon::PlatePosition;
+use open_bim_commands::Command;
 use open_bim_model::{ObjectId, PartPosition, Project};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -186,6 +187,44 @@ pub fn standard(dir: &Path, kind: FileKind) -> Option<Result<Values, String>> {
     path(dir, kind, STANDARD)
         .exists()
         .then(|| load(dir, kind, STANDARD))
+}
+
+/// Commands copying into the project the profile and steel a file names
+/// when the project lacks them but the ГОСТ catalogue has them.
+pub fn catalogue_commands(project: &Project, values: &Values) -> Vec<Command> {
+    use crate::ui::catalog_picker::{Pick, material_by_grade, profile_by_name};
+    let (profile, material) = match values {
+        Values::Beam(v) | Values::Column(v) => (v.profile.as_deref(), v.material.as_deref()),
+        Values::Plate(v) => (None, v.material.as_deref()),
+        Values::Bolt(_) => (None, None),
+    };
+    let mut next = project.next_id;
+    let mut commands = Vec::new();
+    if let Some(Pick::New(mut p)) = profile.and_then(|n| profile_by_name(project, n)) {
+        p.id = ObjectId(next);
+        next += 1;
+        commands.push(Command::CreateProfile { profile: p });
+    }
+    if let Some(name) = material
+        && find_material(project, name).is_none()
+        && let Some(Pick::New(mut m)) =
+            material_by_grade(project, name.split(" · ").next().unwrap_or_default())
+        && m.name == name
+    {
+        m.id = ObjectId(next);
+        commands.push(Command::CreateMaterial { material: m });
+    }
+    commands
+}
+
+/// Copy the catalogue profile and steel a file needs into the model (one
+/// undo step), so loading it can then find them by name.
+pub fn import_catalogue(editor: &mut super::Editor, values: &Values) -> Result<(), String> {
+    let commands = catalogue_commands(editor.document.project(), values);
+    if commands.is_empty() {
+        return Ok(());
+    }
+    editor.commit_data("Профиль и сталь из каталога", &commands)
 }
 
 fn profile_name(project: &Project, id: ObjectId) -> Option<String> {

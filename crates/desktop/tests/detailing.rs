@@ -16,7 +16,7 @@ fn detailing_ui_commands_render_persist_and_undo() {
     ] {
         let mut editor = Editor::new(Project::default()).unwrap();
         for z in [0, 20] {
-            editor.begin(ToolKind::Plate);
+            let _ = editor.begin(ToolKind::Plate);
             editor.draft.start = ["0".into(), "0".into(), z.to_string()];
             editor.create().unwrap();
         }

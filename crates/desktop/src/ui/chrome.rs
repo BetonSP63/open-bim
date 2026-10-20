@@ -1328,11 +1328,21 @@ impl Workbench {
         };
         use crate::tools::property_files::{self as files, FileRequest};
         let dir = files::folder(&self.tools.path);
-        let project = self.editor.document.project();
         if let Some(request) = self.tools.files.row(ui, &dir, kind) {
+            let project = self.editor.document.project();
+            let saved = match parts {
+                [id] => project
+                    .elements
+                    .get(id)
+                    .and_then(|e| files::from_element(project, e)),
+                _ => None,
+            };
             self.tools.message = Some(match request {
-                FileRequest::Load(name) => match files::load(&dir, kind, &name) {
+                FileRequest::Load(name) => match files::load(&dir, kind, &name)
+                    .and_then(|v| files::import_catalogue(&mut self.editor, &v).map(|()| v))
+                {
                     Ok(values) => {
+                        let project = self.editor.document.project();
                         let warnings = self.pane.apply_file(project, &values);
                         format!(
                             "{} — нажмите «Изменить»",
@@ -1341,22 +1351,17 @@ impl Workbench {
                     }
                     Err(e) => e,
                 },
-                FileRequest::Save(name) => match parts {
-                    [id] => match project
-                        .elements
-                        .get(id)
-                        .and_then(|e| files::from_element(project, e))
-                    {
-                        Some(values) => match files::save(&dir, &name, &values) {
-                            Ok(path) => format!("Свойства сохранены: {}", path.display()),
-                            Err(e) => e,
-                        },
-                        None => "Сохраняются свойства балки или колонны".into(),
+                FileRequest::Save(name) => match (parts, saved) {
+                    (_, Some(values)) => match files::save(&dir, &name, &values) {
+                        Ok(path) => format!("Свойства сохранены: {}", path.display()),
+                        Err(e) => e,
                     },
+                    ([_], None) => "Сохраняются свойства балки или колонны".into(),
                     _ => "Для «Сохранить как» выберите одну деталь".into(),
                 },
             });
         }
+        let project = self.editor.document.project();
         if let [id] = parts
             && let Some(e) = project.elements.get(id)
         {

@@ -46,6 +46,8 @@ pub struct ToolsUi {
     pub detailing: super::detailing_ui::DetailingUi,
     /// Property file row of the create and bolt dialogs.
     pub files: super::property_files::FilesUi,
+    /// The bolt command ran in this session («standard» is loaded once).
+    pub bolts_used: bool,
     pub plate_contour: String,
     pub plate_thickness: String,
     pub delta: [String; 3],
@@ -72,6 +74,7 @@ impl Default for ToolsUi {
             coordination: Default::default(),
             detailing: Default::default(),
             files: Default::default(),
+            bolts_used: false,
             plate_contour: String::new(),
             plate_thickness: "20".into(),
             delta: ["1000".into(), "0".into(), "0".into()],
@@ -169,7 +172,7 @@ impl ToolsUi {
                         .selectable_label(editor.active && editor.draft.kind == kind, kind.label())
                         .clicked()
                     {
-                        editor.begin(kind);
+                        let _ = editor.begin(kind);
                     }
                 }
             });
@@ -490,17 +493,20 @@ pub fn draft_file(
     request: super::property_files::FileRequest,
 ) -> String {
     use super::property_files::{
-        FileRequest, apply_to_draft, from_draft, load, loaded_message, save,
+        FileRequest, apply_to_draft, from_draft, import_catalogue, load, loaded_message, save,
     };
-    let project = editor.document.project();
     match request {
-        FileRequest::Load(name) => match load(dir, kind, &name) {
-            Ok(values) => {
-                loaded_message(&name, &apply_to_draft(project, &mut editor.draft, &values))
+        FileRequest::Load(name) => {
+            match load(dir, kind, &name).and_then(|v| import_catalogue(editor, &v).map(|()| v)) {
+                Ok(values) => {
+                    let project = editor.document.project();
+                    loaded_message(&name, &apply_to_draft(project, &mut editor.draft, &values))
+                }
+                Err(e) => e,
             }
-            Err(e) => e,
-        },
+        }
         FileRequest::Save(name) => {
+            let project = editor.document.project();
             match save(dir, &name, &from_draft(project, &editor.draft, kind)) {
                 Ok(path) => format!("Свойства сохранены: {}", path.display()),
                 Err(e) => e,
