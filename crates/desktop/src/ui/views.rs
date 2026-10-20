@@ -1,4 +1,4 @@
-//! Model views like Tekla «Создать виды по линиям сетки»: a plan per level
+//! Model views like «Создать виды по линиям сетки»: a plan per level
 //! and an elevation per grid line, each with its camera direction, view depth
 //! (two clip planes) and its own work plane.
 use crate::interaction::Workplane;

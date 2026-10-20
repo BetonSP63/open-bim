@@ -1,4 +1,4 @@
-//! Tekla-style window chrome: title row with quick access and quick launch,
+//! Window chrome: title row with quick access and quick launch,
 //! side pane strip with panels (the ribbon is in `ribbon.rs`), two bottom
 //! toolbars (work plane, model search, snap and selection switches) and the
 //! blue status bar with the current prompt.
@@ -951,7 +951,7 @@ impl Workbench {
     }
 
     /// Properties of the running bolt, weld, gusset or stiffener command
-    /// (Tekla opens the command's dialog the same way) with its steps.
+    /// (like opening the command's dialog) with its steps.
     fn tool_pane(&mut self, ui: &mut egui::Ui) {
         use crate::interaction::tools::DetailTool;
         use crate::interaction::trim::TrimTool;
@@ -1113,7 +1113,7 @@ impl Workbench {
         }
     }
 
-    /// Tekla contextual toolbar next to the pointer after a selecting click:
+    /// Contextual toolbar next to the pointer after a selecting click:
     /// profile and material apply at once; «Свойства…» opens the pane.
     fn contextual_toolbar(&mut self, ctx: &egui::Context, requests: &mut Vec<Request>) {
         use super::property_pane::{Changes, VARIES, modify};
@@ -1207,7 +1207,7 @@ impl Workbench {
         }
     }
 
-    /// Tekla property pane with nothing selected: the object type list starts
+    /// Property pane with nothing selected: the object type list starts
     /// a create command; the tool's default properties follow.
     fn object_type(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
         let tools = [
@@ -1343,7 +1343,7 @@ impl Workbench {
                                 .desired_width(90.),
                         )
                         .labelled_by(l.id);
-                    // Enter in the field applies at once, like Tekla's «Изменить».
+                    // Enter in the field applies at once, like «Изменить».
                     apply_length =
                         field.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
                     ui.end_row();

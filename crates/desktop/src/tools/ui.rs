@@ -117,7 +117,7 @@ impl ToolsUi {
             value: PropertyValue::Text(self.value.clone()),
         }))
     }
-    /// User-defined property of the selected objects (Tekla UDA), ⌘L focuses it.
+    /// User-defined property of the selected objects (UDA), ⌘L focuses it.
     pub fn user_property(&mut self, ui: &mut egui::Ui, editor: &mut Editor) -> Option<Action> {
         let mut action = None;
         ui.label("Свойство выбранных · ⌘L");

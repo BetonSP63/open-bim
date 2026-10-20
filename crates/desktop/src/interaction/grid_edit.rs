@@ -1,4 +1,4 @@
-//! Grid lines as selectable, editable objects (Tekla «Grids» / «Grid lines»
+//! Grid lines as selectable, editable objects («Grids» / «Grid lines»
 //! selection switches): screen-space picking, axis name rules of ГОСТ Р
 //! 21.101-2026 5.3.2, reading the grid back into the dialog and rebuilding it
 //! in one transaction.

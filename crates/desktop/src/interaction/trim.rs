@@ -1,4 +1,4 @@
-//! Tekla-like fitting and cutting, construction objects and model
+//! Fitting and cutting, construction objects and model
 //! dimensions. Lines are picked in the work plane; fitting and line cuts use
 //! the plane through the picked line that contains the work plane normal.
 use open_bim_commands::{Command, DeletePolicy};
@@ -16,7 +16,7 @@ fn p3(v: DVec3) -> Point3 {
     Point3(v.to_array())
 }
 
-/// Commands in Tekla «Подгонка и резка» and «Построения».
+/// Commands in «Подгонка и резка» and «Построения».
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TrimTool {
     ConstructionLine,

@@ -1,4 +1,4 @@
-//! Property pane, model views and related Tekla mechanics: «— разные —» for
+//! Property pane, model views and related mechanics: «— разные —» for
 //! mixed values, one-transaction modify with undo, grid views with camera
 //! direction and view depth, per-view work plane, model search, measuring,
 //! the geometry snap switch and grid nodes at every level.
@@ -88,7 +88,7 @@ fn mixed_profiles_show_varies_and_modify_is_one_undoable_transaction() {
         [i300, angle, i300],
         "undo restores all three"
     );
-    // Class: Tekla colour palette.
+    // Class colour palette.
     assert_eq!(
         open_bim_renderer::class_color("2"),
         Some([0.85, 0.15, 0.15, 1.0])

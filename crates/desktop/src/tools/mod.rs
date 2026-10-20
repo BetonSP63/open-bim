@@ -53,10 +53,10 @@ pub struct Draft {
     /// Plate contour picking mode and position across the thickness.
     pub plate_mode: crate::interaction::polygon::PlateMode,
     pub plate_position: crate::interaction::polygon::PlatePosition,
-    /// Beam/column position on the reference line (Tekla «Положение»).
+    /// Beam/column position on the reference line («Положение»).
     pub position: open_bim_model::PartPosition,
     pub contour: String,
-    /// Column bottom and top, global Z in mm (Tekla «Низ»/«Верх»).
+    /// Column bottom and top, global Z in mm («Низ»/«Верх»).
     pub bottom: String,
     pub top: String,
 }

@@ -42,7 +42,7 @@ pub enum Request {
     /// A project finished loading in the background.
     Loaded(Arc<Scene>),
     ToggleProjection,
-    /// Zoom to the selected objects (Tekla Shift+Space).
+    /// Zoom to the selected objects (Shift+Space).
     FitSelected,
     /// Switch the camera and view depth to a model view.
     ApplyView(Box<views::ModelView>),
@@ -128,7 +128,7 @@ pub struct Workbench {
     /// Ribbon tab and the side panel opened from the side pane strip.
     pub ribbon_tab: chrome::RibbonTab,
     pub side_panel: Option<chrome::SidePanel>,
-    /// Light (Tekla-like) or dark theme; applied on the next frame.
+    /// Light or dark theme; applied on the next frame.
     pub light_theme: bool,
     pub theme_applied: Option<bool>,
     pub quick_launch: String,
@@ -139,7 +139,7 @@ pub struct Workbench {
     pub grid: Option<crate::interaction::tools::GridSpec>,
     /// Fitting, cutting and construction commands in progress.
     pub trim: crate::interaction::trim::TrimPicker,
-    /// Part display mode and transparency (Tekla «Отображение»).
+    /// Part display mode and transparency («Отображение»).
     pub display: open_bim_renderer::Display,
     /// «Сведения о документе» being edited (main inscription attributes).
     pub document_info: Option<open_bim_model::DocumentInfo>,
@@ -170,7 +170,7 @@ pub struct Workbench {
     pub select: crate::interaction::selection::Filter,
     /// Move/copy/mirror/rotate by picked points.
     pub edit_pick: crate::interaction::selection::EditPicker,
-    /// Tekla direct modification (D): drag handles of selected parts.
+    /// Direct modification (D): drag handles of selected parts.
     pub direct_modification: bool,
     /// Delete waiting for confirmation: ids and the total number removed.
     pub delete_confirm: Option<(BTreeSet<ObjectId>, usize)>,
@@ -195,7 +195,7 @@ pub struct Workbench {
     pub snapper: crate::interaction::snap::Snapper,
     pub switches: crate::interaction::snap::Switches,
     pub snap_tolerance_px: f64,
-    /// Pick-command engine (Tekla-style creation by points).
+    /// Pick-command engine (creation by points).
     pub engine: crate::interaction::Engine,
     /// World point under the cursor on the work plane (set by the viewport).
     pub cursor: Option<open_bim_renderer::DVec3>,
@@ -482,7 +482,7 @@ impl Workbench {
                     crate::interaction::tools::DetailTool::Weld
                 };
                 self.detail = crate::interaction::tools::DetailPicker::start(tool);
-                // The command's properties show in the side pane (Tekla dialog).
+                // The command's properties show in the side pane.
                 self.side_panel = Some(chrome::SidePanel::Properties);
                 self.message(self.prompt());
             }
@@ -533,7 +533,7 @@ impl Workbench {
                     Cmd::AssemblyAdd => TrimTool::AddToAssembly,
                     _ => unreachable!("matched above"),
                 });
-                // A selected part is taken as the first part, like Tekla.
+                // A selected part is taken as the first part.
                 if self.trim.need() == Some(crate::interaction::trim::Need::Part)
                     && self.trim.tool != Some(TrimTool::AddToAssembly)
                     && let [id] = self.editor.selected.iter().copied().collect::<Vec<_>>()[..]
@@ -573,7 +573,7 @@ impl Workbench {
                 };
             }
             Cmd::GridDialog => {
-                // An existing grid opens prefilled for editing (Tekla: double-click a grid).
+                // An existing grid opens prefilled for editing (by double-clicking a grid).
                 let existing = crate::interaction::grid_edit::spec_from_project(
                     self.editor.document.project(),
                 );
@@ -697,7 +697,7 @@ impl Workbench {
                     return None;
                 }
                 match crate::interaction::selection::delete_count(project, &ids) {
-                    // Dependants (holes, bolts, welds, connections): ask first, like Tekla.
+                    // Dependants (holes, bolts, welds, connections): ask first.
                     Ok(total) if total > ids.len() => {
                         self.message(format!(
                             "Подтвердите удаление: связанных объектов {}",
@@ -1185,7 +1185,7 @@ impl Workbench {
             }
             _ => return None,
         };
-        // The command stays armed for the next object (Tekla repeats it).
+        // The command stays armed for the next object.
         self.trim = crate::interaction::trim::TrimPicker::start(tool);
         match result {
             Ok(commands) => {
@@ -1251,7 +1251,7 @@ impl Workbench {
     }
 
     /// Activate a model view: remember the work plane of the current one,
-    /// switch camera, view depth and work plane (Tekla keeps them per view).
+    /// switch camera, view depth and work plane (each view keeps its own).
     pub fn apply_view(&mut self, index: usize) -> Option<Request> {
         let view = self.views.get(index)?.clone();
         if let Some(current) = self.views.get_mut(self.active_view) {

@@ -1,4 +1,4 @@
-//! Member length editing (Tekla: length in the property pane and start/end
+//! Member length editing (length in the property pane and start/end
 //! handles): a new length moves the start point, the end point or both ends
 //! symmetrically along the member axis; dragging a handle in «both» mode
 //! moves the whole member.

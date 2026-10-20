@@ -247,7 +247,7 @@ fn switches_remove_their_hits_and_priority_prefers_points() {
 fn perpendicular_foot_from_previous_pick() {
     let (p, scene) = fixture();
     let cam = camera(&scene, NamedView::Top);
-    // Tekla main switch «Reference» stays on (the foot lies on the beam's
+    // Main switch «Reference» stays on (the foot lies on the beam's
     // reference line); only the perpendicular kind is enabled.
     let only = Switches {
         reference: true,

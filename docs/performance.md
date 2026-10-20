@@ -21,7 +21,7 @@ Peak memory: `/usr/bin/time -l` maximum resident set size.
 |---|---|---|---|---|---|
 | synthetic-100k-run1 | 100 000 | 0.26 s | 16.7 / 17.25 / 17.9 ms | 0.037 ms | 344 MiB |
 | synthetic-100k-run2 | 100 000 | 0.26 s | 16.7 / 17.27 / — ms | 0.031 ms | 344 MiB |
-| synthetic-100k, Tekla UI, all selected (2026-10-19) | 100 000 | 0.45 s | 16.67 / 16.78 / 33.5 ms | 0.015 ms | 345 MiB |
+| synthetic-100k, ribbon UI, all selected (2026-10-19) | 100 000 | 0.45 s | 16.67 / 16.78 / 33.5 ms | 0.015 ms | 345 MiB |
 | synthetic-100k, all selected, shaded / transparent / wireframe, `--no-vsync` (2026-10-20, GOST run) | 100 000 | 0.33 s | 16.6 / 17.2–17.4 / 17.7 ms | 0.013–0.024 ms | 279 MiB |
 | same with vsync, on battery (display refresh lowered to 30 Hz by macOS) | 100 000 | 0.33 s | 33.3 / 33.8–41.1 / 44 ms | 0.025–0.039 ms | 166–285 MiB |
 | connections-16 (complex) | 16 drilled parts, 6 nodes | 0.64 s | — / 17.1 ms | 0.001 ms | 137 MiB |

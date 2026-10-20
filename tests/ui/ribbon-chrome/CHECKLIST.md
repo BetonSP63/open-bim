@@ -1,4 +1,4 @@
-# Tekla-style chrome — 15 areas of the reference screenshot
+# Ribbon chrome — 15 areas of the reference screenshot
 
 Native captures (real app, `--script`, Metal): `chrome-1280x800.png` (window
 1280×800 pt), `chrome-1920x1080.png` and `edit-tab-1920x1080.png` (1920×1080-pt
@@ -6,7 +6,7 @@ layout: 1440×810 window with `--zoom 0.75`, the host display is 1470×956 pt),
 `file-menu-1280x800.png`, `quick-launch-1280x800.png`, `beam-prompt-1280x800.png`,
 `steel-tooltip-1280x800.png`, `concrete-disabled-1280x800.png`.
 Scripts: `script-1280.json`, `script-1920.json`, `script-tooltip.json`; logs `run-*.log`.
-Icons are original vector drawings (`ui/icons.rs`), no Tekla artwork.
+Icons are original vector drawings (`ui/icons.rs`), no third-party artwork.
 
 | # | Area (reference) | Open BIM | Evidence |
 |---|---|---|---|

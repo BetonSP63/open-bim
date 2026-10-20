@@ -28,7 +28,7 @@ pub enum Step {
     ScrollWorld([f64; 4]),
     /// Primary-button drag in logical points: [x0, y0, x1, y1].
     Drag([f32; 4]),
-    /// Middle-button drag (Tekla pan) in logical points: [x0, y0, x1, y1].
+    /// Middle-button drag (pan) in logical points: [x0, y0, x1, y1].
     MiddleDrag([f32; 4]),
     /// Scroll by the given logical delta at a point: [x, y, dy].
     Scroll([f32; 3]),
@@ -47,7 +47,7 @@ pub enum Step {
         shift: bool,
         #[serde(default)]
         alt: bool,
-        /// The Control key (Tekla's Ctrl shortcuts; distinct from ⌘ on macOS).
+        /// The Control key (Ctrl shortcuts; distinct from ⌘ on macOS).
         #[serde(default)]
         ctrl: bool,
     },

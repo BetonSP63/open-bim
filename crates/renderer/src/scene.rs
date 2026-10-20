@@ -130,12 +130,12 @@ pub struct ViewState {
     /// large selection.
     pub selected_ids: Arc<BTreeSet<ObjectId>>,
     pub section: Option<ClipPlane>,
-    /// Second clip plane: the depth of a plan or elevation view (Tekla view depth).
+    /// Second clip plane: the depth of a plan or elevation view (view depth).
     pub depth: Option<ClipPlane>,
     pub display: Display,
 }
 
-/// How parts are drawn (Tekla «Отображение»).
+/// How parts are drawn («Отображение»).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum RenderMode {
     /// Feature edges only.
@@ -255,7 +255,7 @@ pub fn feature_edges(mesh: &DisplayMesh, angle_deg: f64) -> Vec<[DVec3; 2]> {
     out
 }
 
-/// Tekla-like class colour palette (class 1…14; approximate, not Tekla's
+/// Class colour palette (class 1…14; approximate, not any vendor's
 /// exact values). Other classes keep the default colour by part type.
 pub fn class_color(class: &str) -> Option<[f32; 4]> {
     const PALETTE: [[f32; 3]; 14] = [
