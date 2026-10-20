@@ -313,6 +313,22 @@ fn line_segment_intersection(line: (DVec3, DVec3), b: (DVec3, DVec3), eps: f64) 
     (p.distance(q) <= eps).then_some((p + q) * 0.5)
 }
 
+/// Reference line of a member (picked points, where handles sit). With a
+/// part position it differs from the body axis the frame stores; the body
+/// axis is the fallback when the profile is unknown.
+pub fn member_line(project: &Project, shape: &ElementShape) -> Option<(DVec3, DVec3)> {
+    let ElementShape::Member { length, frame, .. } = shape else {
+        return None;
+    };
+    Some(match project.member_reference_line(shape) {
+        Some((a, b, _)) => (DVec3::from_array(a.0), DVec3::from_array(b.0)),
+        None => (
+            DVec3::from_array(frame.origin.0),
+            DVec3::from_array(frame.world(Point3([0., 0., length.value()])).0),
+        ),
+    })
+}
+
 /// Bolt centres («Привязка к центрам»); bolt frames are world coordinates.
 fn detail_centres(project: &Project) -> Vec<(ObjectId, DVec3)> {
     use open_bim_model::DetailKind;
@@ -400,10 +416,8 @@ pub fn construction_points(project: &Project) -> Vec<DVec3> {
         }
     }
     for e in project.elements.values() {
-        if let ElementShape::Member { length, frame, .. } = &e.shape {
-            let a = DVec3::from_array(frame.origin.0);
-            let b = DVec3::from_array(frame.world(Point3([0., 0., length.value()])).0);
-            others.push((a, b));
+        if let Some(line) = member_line(project, &e.shape) {
+            others.push(line);
         }
     }
     let mut out: Vec<DVec3> = construction_marks(project)
@@ -582,10 +596,10 @@ impl Snapper {
             if let Some(element) = project.elements.get(&id) {
                 match &element.shape {
                     ElementShape::Member { length, .. } => {
-                        let (a, b) = (
+                        let (a, b) = member_line(project, &element.shape).unwrap_or((
                             world(DVec3::ZERO),
                             world(DVec3::new(0., 0., length.value())),
-                        );
+                        ));
                         offer(SnapKind::Reference, a, Some(id), true, None);
                         offer(SnapKind::Reference, b, Some(id), true, None);
                         offer(SnapKind::MidPoint, (a + b) * 0.5, Some(id), true, None);

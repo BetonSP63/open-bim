@@ -1050,17 +1050,10 @@ impl eframe::App for Desktop {
                         DVec3::from_array(axis.end.0),
                     ));
                 }
-                match &project.elements.get(&id)?.shape {
-                    open_bim_model::ElementShape::Member { length, frame, .. } => Some((
-                        DVec3::from_array(frame.origin.0),
-                        DVec3::from_array(
-                            frame
-                                .world(open_bim_model::Point3([0., 0., length.value()]))
-                                .0,
-                        ),
-                    )),
-                    _ => None,
-                }
+                open_bim_desktop::interaction::snap::member_line(
+                    project,
+                    &project.elements.get(&id)?.shape,
+                )
             });
             let polygon = self.bench.engine.tool.is_some_and(|k| {
                 matches!(

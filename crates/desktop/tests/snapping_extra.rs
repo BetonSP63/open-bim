@@ -364,3 +364,50 @@ fn numeric_modes_r_a_g_on_both_layouts() {
     assert_eq!(mode_prefix("Б2"), None);
     assert_eq!(mode_prefix("К1000,0"), Some(('@', "1000,0")));
 }
+
+#[test]
+fn member_points_lie_on_the_reference_line_not_the_body_axis() {
+    use open_bim_desktop::interaction::tools::default_project;
+    use open_bim_desktop::tools::{Editor, ui::Action};
+    use open_bim_desktop::ui::{Request, Workbench, commands::Cmd};
+    use open_bim_model::{AtDepth, PartPosition};
+    let mut b = Workbench::new(Editor::new(default_project().unwrap()).unwrap());
+    b.execute(Cmd::ToolBeam);
+    b.editor.draft.profile = ObjectId(2);
+    b.editor.draft.position = PartPosition {
+        depth: AtDepth::Behind,
+        ..Default::default()
+    };
+    b.pick(DVec3::new(0., 0., 3600.));
+    match b.pick(DVec3::new(6000., 0., 3600.)) {
+        Some(Request::Action(Action::Commit(label, commands))) => {
+            b.editor.commit(&label, &commands).unwrap();
+        }
+        _ => panic!("no beam"),
+    }
+    let p = b.editor.document.project().clone();
+    let scene = Arc::new(Scene::from_project(&p).unwrap());
+    let mut cam = Camera::default();
+    cam.set_view(NamedView::Front);
+    cam.fit(open_bim_renderer::Bounds {
+        min: DVec3::new(-500., -500., 3000.),
+        max: DVec3::new(6500., 500., 4000.),
+    });
+    let mut probe = Probe {
+        p: &p,
+        scene: &scene,
+        cam,
+        snapper: Snapper::default(),
+    };
+    let only_reference = Switches {
+        geometry: false,
+        ..Switches::default()
+    };
+    for (target, expected) in [
+        (DVec3::new(6000., 0., 3600.), DVec3::new(6000., 0., 3600.)),
+        (DVec3::new(3000., 0., 3600.), DVec3::new(3000., 0., 3600.)),
+    ] {
+        let hit = probe.at(target, [2., 2.], only_reference, None);
+        assert!(hit.point.distance(expected) < 1e-6, "{:?}", hit);
+    }
+}
