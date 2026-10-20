@@ -272,6 +272,30 @@ impl Workbench {
         self.tools.message = Some(text.into());
     }
 
+    /// The «standard» property file is loaded when a command starts.
+    fn load_standard(&mut self, kind: Option<crate::tools::property_files::FileKind>) {
+        use crate::tools::property_files::{self as files, FileKind, STANDARD};
+        let Some(kind) = kind else { return };
+        let dir = files::folder(&self.tools.path);
+        let Some(loaded) = files::standard(&dir, kind) else {
+            return;
+        };
+        let note = match loaded {
+            Ok(values) if kind == FileKind::Bolt => {
+                files::apply_to_bolts(&mut self.tools.detailing, &values);
+                files::loaded_message(STANDARD, &[])
+            }
+            Ok(values) => {
+                let project = self.editor.document.project();
+                let warnings = files::apply_to_draft(project, &mut self.editor.draft, &values);
+                files::loaded_message(STANDARD, &warnings)
+            }
+            Err(e) => e,
+        };
+        let prompt = self.tools.message.take().unwrap_or_default();
+        self.message(format!("{prompt}\n{note}").trim().to_string());
+    }
+
     pub fn busy(&self) -> bool {
         self.job.is_some()
     }
@@ -471,6 +495,7 @@ impl Workbench {
                 self.editor.begin(kind);
                 self.engine.start(kind);
                 self.message(self.engine.prompt());
+                self.load_standard(crate::tools::property_files::FileKind::of_tool(kind));
             }
             Cmd::ToolBolt | Cmd::ToolWeld => {
                 self.engine.cancel();
@@ -485,6 +510,9 @@ impl Workbench {
                 // The command's properties show in the side pane (Tekla dialog).
                 self.side_panel = Some(chrome::SidePanel::Properties);
                 self.message(self.prompt());
+                if cmd == Cmd::ToolBolt {
+                    self.load_standard(Some(crate::tools::property_files::FileKind::Bolt));
+                }
             }
             Cmd::DocumentInfo => {
                 self.document_info = Some(self.editor.document.project().document.clone());

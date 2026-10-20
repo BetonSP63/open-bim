@@ -273,23 +273,44 @@ pub fn update_commands(project: &Project, spec: &GridSpec) -> Result<Vec<Command
             policy: DeletePolicy::Cascade,
         });
     }
-    // Levels: replace by delete + create (they carry no dependants).
-    for level in project.levels.values() {
+    // Levels keep their IDs from the bottom up, so columns bound to a level
+    // follow its new elevation.
+    let mut levels_old: Vec<&Level> = project.levels.values().collect();
+    levels_old.sort_by(|a, b| a.elevation_mm.total_cmp(&b.elevation_mm));
+    let mut elevations = std::collections::BTreeMap::new();
+    for (i, (z, name)) in zs.iter().zip(lz).enumerate() {
+        match levels_old.get(i) {
+            Some(old) => {
+                let level = Level {
+                    id: old.id,
+                    name,
+                    elevation_mm: *z,
+                };
+                if &level != *old {
+                    elevations.insert(old.id, *z);
+                    commands.push(Command::ReplaceLevel { level });
+                }
+            }
+            None => {
+                commands.push(Command::CreateLevel {
+                    level: Level {
+                        id: ObjectId(next),
+                        name,
+                        elevation_mm: *z,
+                    },
+                });
+                next += 1;
+            }
+        }
+    }
+    for extra in levels_old.iter().skip(zs.len()) {
         commands.push(Command::Delete {
-            id: level.id,
+            id: extra.id,
             policy: DeletePolicy::Cascade,
         });
     }
-    for (z, name) in zs.iter().zip(lz) {
-        commands.push(Command::CreateLevel {
-            level: Level {
-                id: ObjectId(next),
-                name,
-                elevation_mm: *z,
-            },
-        });
-        next += 1;
-    }
+    elevations.retain(|id, z| project.levels.get(id).is_some_and(|l| l.elevation_mm != *z));
+    commands.extend(crate::tools::column_levels::follow(project, &elevations)?);
     Ok(commands)
 }
 

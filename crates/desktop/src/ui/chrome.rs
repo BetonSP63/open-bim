@@ -995,6 +995,28 @@ impl Workbench {
             ui.label(*s);
         }
         ui.separator();
+        if self.detail.tool == Some(DetailTool::Bolt) {
+            use crate::tools::property_files::{self as files, FileKind, FileRequest};
+            let dir = files::folder(&self.tools.path);
+            if let Some(request) = self.tools.files.row(ui, &dir, FileKind::Bolt) {
+                self.tools.message = Some(match request {
+                    FileRequest::Load(name) => match files::load(&dir, FileKind::Bolt, &name) {
+                        Ok(values) => {
+                            files::apply_to_bolts(&mut self.tools.detailing, &values);
+                            files::loaded_message(&name, &[])
+                        }
+                        Err(e) => e,
+                    },
+                    FileRequest::Save(name) => {
+                        match files::save(&dir, &name, &files::from_bolts(&self.tools.detailing)) {
+                            Ok(path) => format!("Свойства сохранены: {}", path.display()),
+                            Err(e) => e,
+                        }
+                    }
+                });
+            }
+            ui.separator();
+        }
         let d = &mut self.tools.detailing;
         match (self.detail.tool, self.trim.tool) {
             (Some(DetailTool::Bolt), _) => d.bolt_fields(ui),
@@ -1081,11 +1103,23 @@ impl Workbench {
                         } else if edited == level {
                             self.tools.message = Some("Нет изменений".into());
                         } else {
-                            requests.push(Request::Action(Action::Commit(
-                                format!("Изменить уровень {}", edited.name),
-                                vec![open_bim_commands::Command::ReplaceLevel { level: edited }],
-                            )));
-                            self.level_buffer = None;
+                            // Columns bound to the level follow its new mark.
+                            let elevations = std::collections::BTreeMap::from([(edited.id, z)]);
+                            match crate::tools::column_levels::follow(project, &elevations) {
+                                Ok(columns) => {
+                                    let mut commands =
+                                        vec![open_bim_commands::Command::ReplaceLevel {
+                                            level: edited.clone(),
+                                        }];
+                                    commands.extend(columns);
+                                    requests.push(Request::Action(Action::Commit(
+                                        format!("Изменить уровень {}", edited.name),
+                                        commands,
+                                    )));
+                                    self.level_buffer = None;
+                                }
+                                Err(e) => self.tools.message = Some(e),
+                            }
                         }
                     }
                     None => self.tools.message = Some(format!("Отметка «{mark}»: число в метрах")),
@@ -1259,16 +1293,90 @@ impl Workbench {
         }
     }
 
+    /// Property file row of the selection pane: «Загрузить» fills the fields
+    /// (applied by «Изменить»), «Сохранить как» stores one selected part.
+    /// A column bound to levels shows them.
+    fn selection_files(
+        &mut self,
+        ui: &mut egui::Ui,
+        kind: crate::tools::property_files::FileKind,
+        parts: &[open_bim_model::ObjectId],
+    ) {
+        use crate::tools::column_levels::{
+            BOTTOM_LEVEL, BOTTOM_OFFSET, TOP_LEVEL, TOP_OFFSET, bound,
+        };
+        use crate::tools::property_files::{self as files, FileRequest};
+        let dir = files::folder(&self.tools.path);
+        let project = self.editor.document.project();
+        if let Some(request) = self.tools.files.row(ui, &dir, kind) {
+            self.tools.message = Some(match request {
+                FileRequest::Load(name) => match files::load(&dir, kind, &name) {
+                    Ok(values) => {
+                        let warnings = self.pane.apply_file(project, &values);
+                        format!(
+                            "{} — нажмите «Изменить»",
+                            files::loaded_message(&name, &warnings)
+                        )
+                    }
+                    Err(e) => e,
+                },
+                FileRequest::Save(name) => match parts {
+                    [id] => match project
+                        .elements
+                        .get(id)
+                        .and_then(|e| files::from_element(project, e))
+                    {
+                        Some(values) => match files::save(&dir, &name, &values) {
+                            Ok(path) => format!("Свойства сохранены: {}", path.display()),
+                            Err(e) => e,
+                        },
+                        None => "Сохраняются свойства балки или колонны".into(),
+                    },
+                    _ => "Для «Сохранить как» выберите одну деталь".into(),
+                },
+            });
+        }
+        if let [id] = parts
+            && let Some(e) = project.elements.get(id)
+        {
+            use open_bim_model::numbering_rules::level_mark;
+            for (caption, level, offset) in [
+                ("Низ", BOTTOM_LEVEL, BOTTOM_OFFSET),
+                ("Верх", TOP_LEVEL, TOP_OFFSET),
+            ] {
+                if let Some((level, offset)) = bound(&e.properties, level, offset)
+                    && let Some(level) = project.levels.get(&level)
+                {
+                    ui.small(format!(
+                        "{caption}: уровень {} ({}), смещение {} мм",
+                        level.name,
+                        level_mark(level.elevation_mm),
+                        super::property_pane::number_text(offset)
+                    ));
+                }
+            }
+        }
+        ui.separator();
+    }
+
     /// Common properties of the selected parts; «Изменить» applies the edits.
     fn selection_pane(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
         use super::property_pane::{Shared, VARIES, modify};
         let Some(c) = self.selection_common() else {
             return;
         };
-        let project = self.editor.document.project();
         self.pane.sync(&c);
         let kind = c.kind.value().cloned().unwrap_or_else(|| "Детали".into());
         ui.heading(format!("Свойства: {kind} ({})", c.parts.len()));
+        let file_kind = match kind.as_str() {
+            "Балка" => Some(crate::tools::property_files::FileKind::Beam),
+            "Колонна" => Some(crate::tools::property_files::FileKind::Column),
+            _ => None,
+        };
+        if let Some(file_kind) = file_kind {
+            self.selection_files(ui, file_kind, &c.parts);
+        }
+        let project = self.editor.document.project();
         let mut apply_length = false;
         egui::Grid::new("selection properties")
             .num_columns(2)

@@ -1,7 +1,9 @@
 //! Model tools commit only validated documents and renderable geometry.
+pub mod column_levels;
 pub mod connection_ui;
 pub mod coordination_ui;
 pub mod detailing_ui;
+pub mod property_files;
 mod snap;
 pub mod ui;
 use open_bim_commands::{Command, Document, project_hash};
@@ -56,9 +58,12 @@ pub struct Draft {
     /// Beam/column position on the reference line (Tekla «Положение»).
     pub position: open_bim_model::PartPosition,
     pub contour: String,
-    /// Column bottom and top, global Z in mm (Tekla «Низ»/«Верх»).
+    /// Column bottom and top, mm («Низ»/«Верх»): global Z, or an
+    /// offset from the chosen level.
     pub bottom: String,
     pub top: String,
+    pub bottom_level: Option<ObjectId>,
+    pub top_level: Option<ObjectId>,
 }
 impl Default for Draft {
     fn default() -> Self {
@@ -76,6 +81,8 @@ impl Default for Draft {
             position: Default::default(),
             bottom: "0".into(),
             top: "3600".into(),
+            bottom_level: None,
+            top_level: None,
         }
     }
 }
@@ -110,6 +117,20 @@ pub fn parse_contour(text: &str) -> Result<Vec<[f64; 2]>, String> {
     contour
 }
 impl Draft {
+    /// Column bottom and top as entered: a level and an offset, or global Z.
+    pub fn column_ends(&self) -> Result<(column_levels::Height, column_levels::Height), String> {
+        let h = |level, text: &str| -> Result<column_levels::Height, String> {
+            Ok(column_levels::Height {
+                level,
+                value: number(&text.replace(',', "."))?,
+            })
+        };
+        Ok((
+            h(self.bottom_level, &self.bottom)?,
+            h(self.top_level, &self.top)?,
+        ))
+    }
+
     pub fn commands(&self, project: &Project) -> Result<Vec<Command>, String> {
         let id = ObjectId(project.next_id);
         let start = point(&self.start)?;

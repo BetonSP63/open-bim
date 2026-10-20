@@ -35,6 +35,8 @@ are listed in `docs/tekla-docs-comparison.md`.
 | Weld between parts: the part to weld to, then the part to be welded | same; the weld path is the nearest edge of the secondary part | weld_between_main_and_secondary_part |
 | Snap priority: highest class wins, then the nearest point | reference points and grid intersections share the highest class | nearer_grid_intersection_beats_a_reference_point_a_few_pixels_away |
 | Part position: On plane, Rotation, At depth with offsets, end offsets Dx; handles on the reference line; changing the profile keeps the line | «Положение» in the create dialog and the property pane: «В плоскости» (Посередине/Слева/Справа), «Поворот» (Спереди/Сверху/Сзади/Снизу + угол), «По глубине» (Посередине/Спереди/Сзади), offsets in mm, Dx at both ends. «Слева» and «Спереди» are +x and +y of the member's local axes (for a beam: left looking from start to end, and up). The default keeps the old placement (centred) | crates/model/src/position.rs tests; crates/desktop/tests/part_position.rs |
+| Property files: «Сохранить как» / «Загрузить» in the beam, column, plate and bolt dialogs; «standard» loaded when the command starts; load into the property pane and «Modify» | «Файл свойств» row at the top of the create dialog, the bolt dialog and the property pane of beams/columns. Files are JSON in `attributes/` next to the project file (`<имя>.beam.json`, `.column.json`, `.plate.json`, `.bolt.json`). Profiles, materials and levels are stored by name; a name missing in the project keeps the current value and is reported | crates/desktop/tests/property_files.rs |
+| Column bottom and top from a level with an offset | «Низ»/«Верх»: level (or «Абс. отметка») plus offset in mm. The column remembers its levels and follows when a level mark changes in the grid dialog or the level properties (one undo); a column moved off its level stays put. Grid dialog keeps level IDs from the bottom up | crates/desktop/tests/property_files.rs |
 
 ## Selection and editing (MOD 1.6–1.8)
 
@@ -103,7 +105,7 @@ is claimed. See `docs/tekla-docs-comparison.md` for each row's status.
   - drag & drop;
   - copy special (linear, rotate, mirror, to another plane);
   - swap handles.
-- **Property pane:** saving and loading property files, UDA dialogs, copying properties from another object.
+- **Property pane:** UDA dialogs, copying properties from another object; levels of a column cannot be changed after creation (only by recreating it).
 - **Other Tekla features:**
   - Applications & components catalog;
   - custom components;

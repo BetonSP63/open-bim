@@ -410,6 +410,45 @@ impl PropertyPane {
     }
 }
 
+impl PropertyPane {
+    /// Fill the edit buffer from a beam or column property file; «Изменить»
+    /// then applies it to the selection. Returns what could not be applied.
+    pub fn apply_file(
+        &mut self,
+        project: &Project,
+        values: &crate::tools::property_files::Values,
+    ) -> Vec<String> {
+        use crate::tools::property_files::{Values, find_material, find_profile};
+        let (Values::Beam(v) | Values::Column(v)) = values else {
+            return vec!["файл не для балки или колонны".into()];
+        };
+        let mut warnings = Vec::new();
+        if let Some(name) = &v.name {
+            self.name = name.clone();
+        }
+        if let Some(name) = &v.profile {
+            match find_profile(project, name) {
+                Some(id) => self.profile = Some(id),
+                None => warnings.push(format!("нет профиля «{name}»")),
+            }
+        }
+        if let Some(name) = &v.material {
+            match find_material(project, name) {
+                Some(id) => self.material = Some(id),
+                None => warnings.push(format!("нет материала «{name}»")),
+            }
+        }
+        if let Some(p) = &v.position {
+            self.position
+                .fill(&position_shared(std::slice::from_ref(p)).expect("one position"));
+        }
+        if v.bottom.is_some() || v.top.is_some() {
+            warnings.push("низ и верх применяются только при создании колонны".into());
+        }
+        warnings
+    }
+}
+
 /// Tekla «Положение» fields: three lists with an offset each, and Dx at
 /// both ends. `None` in a list shows «— разные —».
 pub fn position_grid(ui: &mut egui::Ui, salt: &str, b: &mut PositionBuffer) {
