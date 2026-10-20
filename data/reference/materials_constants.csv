@@ -1,0 +1,10 @@
+name,description,value,unit,source,notes
+E,"modulus of elasticity, rolled steel",206000,MPa,SNIP-II-23-81-T63,"printed 2,06·10^5 МПа; SP 16.13330.2017 table Б.1 not retrievable from a public copy - verify"
+G,"shear modulus, rolled steel",78000,MPa,SNIP-II-23-81-T63,"printed 0,78·10^5 МПа; verify against SP 16 table Б.1"
+nu,Poisson ratio,0.3,-,SNIP-II-23-81-T63,verify against SP 16 table Б.1
+alpha_t,linear thermal expansion coefficient,0.000012,1/°C,SNIP-II-23-81-T63,"printed 0,12·10^-4"
+density,density of rolled steel,7850,kg/m3,SNIP-II-23-81-T63;PROFILE-NOTES,"also stated in ГОСТ 8240-97 2.3.1, ГОСТ 8509-93 and ГОСТ 8510-86 table notes and ГОСТ 30245-2003 note 2 (7,85 г/см3)"
+gamma_m_stat,"γm, rolled steel with statistical control of properties",1.025,-,SP16-IZM3-T3,
+gamma_m_other,"γm, other rolled steel and tubes meeting SP 16",1.05,-,SP16-IZM3-T3,
+gamma_m_380,"γm, rolled steel without statistical control with yield > 380 MPa; hot-formed tubes; foreign products",1.1,-,SP16-IZM3-T3,
+gamma_m_KS1,"γm, class КС-1 structures with limited service life",1.0,-,SP16-2017-ED2024-T3,"consolidated text (ред. 09.12.2024) shows 1,000; the Изм.3 text (2021) shows 1,200 - a later amendment appears to have changed it; verify"
