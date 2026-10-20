@@ -1,4 +1,4 @@
-"""Independent checks of the Tekla-style end-to-end GUI run outputs.
+"""Independent checks of the end-to-end GUI run outputs.
 
 Uses only the saved files: workflow.obim (JSON), drawings/*.pdf and the release
 set (pypdf), workflow.ifc (IfcOpenShell) and the CSV lists.

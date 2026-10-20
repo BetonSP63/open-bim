@@ -33,7 +33,7 @@ pub enum ElementShape {
         profile: ObjectId,
         length: LengthMm,
         frame: Frame,
-        /// Tekla «Положение»; `frame`/`length` are the resulting body axis.
+        /// «Положение»; `frame`/`length` are the resulting body axis.
         #[serde(default, skip_serializing_if = "crate::PartPosition::is_default")]
         position: crate::PartPosition,
     },
@@ -217,7 +217,6 @@ impl Project {
                 .profiles
                 .get(profile)
                 .ok_or(ModelError::MissingReference(*profile))?
-                .shape
                 .area_mm2()?
                 * length.value()),
             ElementShape::Plate {

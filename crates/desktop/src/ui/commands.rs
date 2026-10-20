@@ -120,7 +120,7 @@ const SHIFT_CMD: Modifiers = Modifiers {
     ..Modifiers::COMMAND
 };
 const ALT: Modifiers = Modifiers::ALT;
-/// Tekla uses Ctrl for its own commands; on macOS this is the Control key,
+/// The usual detailing shortcuts use Ctrl; on macOS this is the Control key,
 /// distinct from ⌘ (system clipboard, window commands).
 const CTRL: Modifiers = Modifiers::CTRL;
 const SHIFT: Modifiers = Modifiers::SHIFT;

@@ -46,7 +46,7 @@ pub struct DetailingUi {
     /// Bolt group shift along its X and Y from the picked start point, mm.
     pub shift_x: String,
     pub shift_y: String,
-    /// Swap the X and Y spacings (Tekla «Повернуть» by 90°).
+    /// Swap the X and Y spacings («Повернуть» by 90°).
     pub rotate: bool,
     /// Gusset legs and corner chamfer, stiffener corner snips, mm.
     pub gusset_leg: String,
@@ -255,7 +255,7 @@ impl DetailingUi {
         action
     }
 }
-/// Spacings «80 80», «80;80» or «3*80» (Tekla notation) → [80, 80, 80].
+/// Spacings «80 80», «80;80» or «3*80» → [80, 80, 80].
 pub fn spacings(text: &str) -> Result<Vec<f64>, String> {
     let mut out = Vec::new();
     for token in text.split([';', ' ', ',']).filter(|t| !t.trim().is_empty()) {

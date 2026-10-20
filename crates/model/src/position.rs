@@ -1,4 +1,4 @@
-//! Part position like Tekla «Положение»: the profile is placed relative to
+//! Part position like «Положение»: the profile is placed relative to
 //! the reference line (the picked points) by «В плоскости», «Поворот» and
 //! «По глубине», and the ends are extended or shortened by Dx.
 //!
@@ -8,7 +8,7 @@
 use crate::{Frame, LengthMm, ModelError, Point3, ProfileShape};
 use serde::{Deserialize, Serialize};
 
-/// Tekla «В плоскости» (local x of the reference line).
+/// «В плоскости» (local x of the reference line).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum OnPlane {
@@ -18,7 +18,7 @@ pub enum OnPlane {
     Right,
 }
 
-/// Tekla «Поворот» about the member axis in 90° steps.
+/// «Поворот» about the member axis in 90° steps.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Rotation {
@@ -29,7 +29,7 @@ pub enum Rotation {
     Below,
 }
 
-/// Tekla «По глубине» (local y of the reference line).
+/// «По глубине» (local y of the reference line).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AtDepth {
@@ -97,7 +97,7 @@ pub struct PartPosition {
     /// Extra shift along local y, mm (positive towards «Спереди»).
     pub depth_offset: f64,
     /// Dx at the start, mm: positive shortens the part (moves the start
-    /// towards the end), like Tekla.
+    /// Towards the end).
     pub start_dx: f64,
     /// Dx at the end, mm: positive lengthens the part.
     pub end_dx: f64,

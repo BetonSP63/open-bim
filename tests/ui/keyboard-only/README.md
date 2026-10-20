@@ -16,6 +16,6 @@ pointer steps, the journal order, part coordinates against the grid, the saved
 file against the journal and the PDF; output in `check.txt`.
 
 Keys that differ from the first plan: the keyboard cursor uses Alt+arrows
-because plain arrows pan the view (Tekla); Space picks or selects, Alt+Space
+because plain arrows pan the view; Space picks or selects, Alt+Space
 adds/removes from the selection (Shift+Space fits the selection), Enter closes
 a contour.

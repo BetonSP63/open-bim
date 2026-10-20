@@ -7,7 +7,7 @@ use open_bim_model::{
     Anchor, DimensionAxis, DimensionDef, HatchPattern, LineType, SheetObject, SheetObjectKind,
 };
 
-/// Drawing editor tools (Tekla «Чертёж → Размеры / Графика»).
+/// Drawing editor tools («Чертёж → Размеры / Графика»).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DrawTool {
     Dimension,

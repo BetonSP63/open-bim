@@ -1,4 +1,4 @@
-//! Tekla-style selection and direct editing: click modes, window/crossing
+//! Selection and direct editing: click modes, window/crossing
 //! area selection with selection switches, handle dragging, move/copy/mirror/
 //! rotate by picks, delete with a dependency prompt, context menu commands,
 //! Tab snap cycling and the temporary reference point.

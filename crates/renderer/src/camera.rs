@@ -150,7 +150,7 @@ impl Camera {
             self.pitch = (self.pitch + dy * 0.008).clamp(-1.55, 1.55);
         }
     }
-    /// Orbit about a world point (Tekla: the rotation centre under the
+    /// Orbit about a world point (the rotation centre under the
     /// cursor): yaw about the vertical through `pivot`, pitch about the
     /// horizontal axis across the view; the pivot keeps its place on screen.
     pub fn orbit_about(&mut self, pivot: DVec3, dx: f64, dy: f64) {
@@ -177,7 +177,7 @@ impl Camera {
         self.distance = (self.distance * factor).clamp(MIN_DISTANCE, 1e9);
         self.ortho_height = (self.ortho_height * factor).clamp(MIN_DISTANCE, 1e9);
     }
-    /// Zoom keeping the world point under the cursor fixed (Tekla wheel zoom):
+    /// Zoom keeping the world point under the cursor fixed (wheel zoom):
     /// a homothety of eye and target about that point. `hit` is the model
     /// surface under the cursor; without it the point is where the cursor ray
     /// meets the plane through the target. The eye never gets closer than

@@ -1,4 +1,4 @@
-# Tekla-style end-to-end workflow (phase 8)
+# End-to-end modeling workflow (phase 8)
 
 The script `script.json` drives the real app (and the packaged `.app`) through:
 - **Model:** a new model with the default grid; 3 columns at В4/В5/Г4 picked on snapped grid nodes; a beam on the column tops; its end handle dragged to the Г4 top (direct modification).

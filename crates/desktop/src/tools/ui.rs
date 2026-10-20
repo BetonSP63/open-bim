@@ -117,7 +117,7 @@ impl ToolsUi {
             value: PropertyValue::Text(self.value.clone()),
         }))
     }
-    /// User-defined property of the selected objects (Tekla UDA), ⌘L focuses it.
+    /// User-defined property of the selected objects (UDA), ⌘L focuses it.
     pub fn user_property(&mut self, ui: &mut egui::Ui, editor: &mut Editor) -> Option<Action> {
         let mut action = None;
         ui.label("Свойство выбранных · ⌘L");
@@ -238,13 +238,24 @@ impl ToolsUi {
                                 .get(&editor.draft.profile)
                                 .map_or("Выберите профиль", |p| p.name.as_str()),
                         )
+                        .height(420.)
+                        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                         .show_ui(ui, |ui| {
-                            for profile in project.profiles.values() {
-                                ui.selectable_value(
-                                    &mut editor.draft.profile,
-                                    profile.id,
-                                    &profile.name,
-                                );
+                            use crate::ui::catalog_picker::{Pick, profile_menu};
+                            match profile_menu(ui, "draft", project, Some(editor.draft.profile)) {
+                                Some(Pick::Project(id)) => editor.draft.profile = id,
+                                // A catalogue profile is copied into the project
+                                // first (one undo step), then used.
+                                Some(Pick::New(p)) => {
+                                    editor.draft.profile = p.id;
+                                    action = Some(Action::Commit(
+                                        format!("Профиль из каталога: {}", p.name),
+                                        vec![open_bim_commands::Command::CreateProfile {
+                                            profile: p,
+                                        }],
+                                    ));
+                                }
+                                None => {}
                             }
                         });
                 }
@@ -258,12 +269,19 @@ impl ToolsUi {
                                 .map_or("Выберите материал", |m| m.name.as_str()),
                         )
                         .show_ui(ui, |ui| {
-                            for material in project.materials.values() {
-                                ui.selectable_value(
-                                    &mut editor.draft.material,
-                                    material.id,
-                                    &material.name,
-                                );
+                            use crate::ui::catalog_picker::{Pick, material_menu};
+                            match material_menu(ui, project, Some(editor.draft.material)) {
+                                Some(Pick::Project(id)) => editor.draft.material = id,
+                                Some(Pick::New(m)) => {
+                                    editor.draft.material = m.id;
+                                    action = Some(Action::Commit(
+                                        format!("Сталь из каталога: {}", m.name),
+                                        vec![open_bim_commands::Command::CreateMaterial {
+                                            material: m,
+                                        }],
+                                    ));
+                                }
+                                None => {}
                             }
                         });
                 }

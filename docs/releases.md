@@ -17,8 +17,8 @@ status), drawing editor, PDF/SVG/DXF export, steel lists and CSV, IFC4 subset
 exchange, keyboard/command palette UI, background jobs, 100k-object viewport.
 
 Not included: concrete (phase 15) and rebar (phase 16) — deferred by the user's
-decision of 2026-10-18; IFC4.3, DWG, NC/DSTV, native Tekla formats,
+decision of 2026-10-18; IFC4.3, DWG, NC/DSTV, proprietary native formats,
 collaboration, API, Windows/Linux, full section catalogues, capacity design.
-This release is **not** a full equivalent of Tekla Structures.
+This release is **not** a full equivalent of commercial steel detailing software.
 
 Final regression on the packaged app: `tests/final/VERIFICATION.md`.

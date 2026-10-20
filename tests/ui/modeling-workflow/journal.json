@@ -99,7 +99,7 @@
       "sha256": "e3addb4ec3dc1c9a5502ef6882a3dfc98ff66006261ef3add598c723f7fce533"
     },
     {
-      "action": "Экспорт IFC /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/workflow.ifc",
+      "action": "Экспорт IFC /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/modeling-workflow/workflow.ifc",
       "revision": 9,
       "objects": 5,
       "axes": 9,
@@ -113,7 +113,7 @@
       "sha256": "e3addb4ec3dc1c9a5502ef6882a3dfc98ff66006261ef3add598c723f7fce533"
     },
     {
-      "action": "Открыть /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/tekla-workflow/workflow.obim",
+      "action": "Открыть /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/modeling-workflow/workflow.obim",
       "revision": 9,
       "objects": 5,
       "axes": 9,

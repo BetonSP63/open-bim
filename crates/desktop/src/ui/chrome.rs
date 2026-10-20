@@ -1,4 +1,4 @@
-//! Tekla-style window chrome: title row with quick access and quick launch,
+//! Window chrome: title row with quick access and quick launch,
 //! side pane strip with panels (the ribbon is in `ribbon.rs`), two bottom
 //! toolbars (work plane, model search, snap and selection switches) and the
 //! blue status bar with the current prompt.
@@ -952,7 +952,7 @@ impl Workbench {
     }
 
     /// Properties of the running bolt, weld, gusset or stiffener command
-    /// (Tekla opens the command's dialog the same way) with its steps.
+    /// (like opening the command's dialog) with its steps.
     fn tool_pane(&mut self, ui: &mut egui::Ui) {
         use crate::interaction::tools::DetailTool;
         use crate::interaction::trim::TrimTool;
@@ -1114,7 +1114,7 @@ impl Workbench {
         }
     }
 
-    /// Tekla contextual toolbar next to the pointer after a selecting click:
+    /// Contextual toolbar next to the pointer after a selecting click:
     /// profile and material apply at once; «Свойства…» opens the pane.
     fn contextual_toolbar(&mut self, ctx: &egui::Context, requests: &mut Vec<Request>) {
         use super::property_pane::{Changes, VARIES, modify};
@@ -1150,11 +1150,23 @@ impl Workbench {
                                 .map_or(VARIES, |p| p.name.as_str());
                             egui::ComboBox::new("ctx profile", "")
                                 .selected_text(shown)
+                                .height(420.)
+                                .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                                 .show_ui(ui, |ui| {
-                                    for p in project.profiles.values() {
-                                        if ui.selectable_label(false, &p.name).clicked() {
-                                            change.profile = Some(p.id);
+                                    match super::catalog_picker::profile_menu(
+                                        ui,
+                                        "ctx",
+                                        project,
+                                        profile.value().copied(),
+                                    ) {
+                                        Some(super::catalog_picker::Pick::Project(id)) => {
+                                            change.profile = Some(id)
                                         }
+                                        Some(super::catalog_picker::Pick::New(p)) => {
+                                            change.profile = Some(p.id);
+                                            change.new_profile = Some(p);
+                                        }
+                                        None => {}
                                     }
                                 })
                                 .response
@@ -1174,10 +1186,19 @@ impl Workbench {
                         egui::ComboBox::new("ctx material", "")
                             .selected_text(shown)
                             .show_ui(ui, |ui| {
-                                for m in project.materials.values() {
-                                    if ui.selectable_label(false, &m.name).clicked() {
-                                        change.material = Some(m.id);
+                                match super::catalog_picker::material_menu(
+                                    ui,
+                                    project,
+                                    c.material.value().copied(),
+                                ) {
+                                    Some(super::catalog_picker::Pick::Project(id)) => {
+                                        change.material = Some(id)
                                     }
+                                    Some(super::catalog_picker::Pick::New(m)) => {
+                                        change.material = Some(m.id);
+                                        change.new_material = Some(m);
+                                    }
+                                    None => {}
                                 }
                             })
                             .response
@@ -1208,7 +1229,7 @@ impl Workbench {
         }
     }
 
-    /// Tekla property pane with nothing selected: the object type list starts
+    /// Property pane with nothing selected: the object type list starts
     /// a create command; the tool's default properties follow.
     fn object_type(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
         let tools = [
@@ -1280,16 +1301,32 @@ impl Workbench {
                 ui.end_row();
                 if let Some(profile) = &c.profile {
                     ui.label("Профиль");
-                    let shown = self
-                        .pane
-                        .profile
-                        .and_then(|id| project.profiles.get(&id))
-                        .map_or(VARIES, |p| p.name.as_str());
+                    let shown = super::catalog_picker::profile_name(
+                        project,
+                        self.pane.pending_profile.as_ref(),
+                        self.pane.profile,
+                    )
+                    .unwrap_or(VARIES)
+                    .to_string();
                     egui::ComboBox::new("pane profile", "")
                         .selected_text(shown)
+                        .height(420.)
+                        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                         .show_ui(ui, |ui| {
-                            for p in project.profiles.values() {
-                                ui.selectable_value(&mut self.pane.profile, Some(p.id), &p.name);
+                            match super::catalog_picker::profile_menu(
+                                ui,
+                                "pane",
+                                project,
+                                self.pane.profile,
+                            ) {
+                                Some(super::catalog_picker::Pick::Project(id)) => {
+                                    self.pane.profile = Some(id)
+                                }
+                                Some(super::catalog_picker::Pick::New(p)) => {
+                                    self.pane.profile = Some(p.id);
+                                    self.pane.pending_profile = Some(p);
+                                }
+                                None => {}
                             }
                         })
                         .response
@@ -1302,16 +1339,26 @@ impl Workbench {
                     ui.end_row();
                 }
                 ui.label("Материал");
-                let shown = self
-                    .pane
-                    .material
-                    .and_then(|id| project.materials.get(&id))
-                    .map_or(VARIES, |m| m.name.as_str());
+                let shown = super::catalog_picker::material_name(
+                    project,
+                    self.pane.pending_material.as_ref(),
+                    self.pane.material,
+                )
+                .unwrap_or(VARIES)
+                .to_string();
                 egui::ComboBox::new("pane material", "")
                     .selected_text(shown)
                     .show_ui(ui, |ui| {
-                        for m in project.materials.values() {
-                            ui.selectable_value(&mut self.pane.material, Some(m.id), &m.name);
+                        match super::catalog_picker::material_menu(ui, project, self.pane.material)
+                        {
+                            Some(super::catalog_picker::Pick::Project(id)) => {
+                                self.pane.material = Some(id)
+                            }
+                            Some(super::catalog_picker::Pick::New(m)) => {
+                                self.pane.material = Some(m.id);
+                                self.pane.pending_material = Some(m);
+                            }
+                            None => {}
                         }
                     })
                     .response
@@ -1344,7 +1391,7 @@ impl Workbench {
                                 .desired_width(90.),
                         )
                         .labelled_by(l.id);
-                    // Enter in the field applies at once, like Tekla's «Изменить».
+                    // Enter in the field applies at once, like «Изменить».
                     apply_length =
                         field.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
                     ui.end_row();

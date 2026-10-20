@@ -171,7 +171,7 @@ impl Desktop {
         } else if options.example {
             example_steel_frame()?
         } else {
-            // Like a new Tekla model: default grid and levels.
+            // New model: default grid and levels.
             open_bim_desktop::interaction::tools::default_project()?
         };
         let script = match &options.script {
@@ -345,7 +345,7 @@ impl Desktop {
             Err(error) => self.bench.tools.message = Some(error),
         }
     }
-    /// Zoom to the model extent including the grid (Tekla «Вписать»).
+    /// Zoom to the model extent including the grid («Вписать»).
     fn fit(&mut self) {
         let bounds = overlay::model_bounds(&self.scene, self.bench.editor.document.project())
             .unwrap_or(self.scene.bounds);
@@ -605,7 +605,7 @@ impl eframe::App for Desktop {
             });
             if viewport_hovered {
                 ctx.input(|input| {
-                    // Tekla keys: arrows move the view, Ctrl+arrows rotate 15°,
+                    // Keys: arrows move the view, Ctrl+arrows rotate 15°,
                     // Shift+arrows 5°, Page Up/Down zoom, Home fits the model.
                     let arrow = |k| input.key_pressed(k);
                     let (dx, dy) = (
@@ -638,7 +638,7 @@ impl eframe::App for Desktop {
                     if input.key_pressed(egui::Key::Home) {
                         fit_home = true;
                     }
-                    // Tekla mouse: wheel zooms about the cursor, middle drag pans,
+                    // Mouse: wheel zooms about the cursor, middle drag pans,
                     // Ctrl + middle drag rotates; the right button opens the context menu.
                     // Trackpad: pinch zooms about the cursor, two-finger scroll
                     // rotates (Shift: pans), the rotate gesture turns about the
@@ -655,7 +655,7 @@ impl eframe::App for Desktop {
                     let pinch = input.zoom_delta() as f64;
                     let now = input.time;
                     if scroll.wheel != 0.0 {
-                        // Zoom towards the model surface under the cursor (Tekla).
+                        // Zoom towards the model surface under the cursor.
                         self.camera.zoom_to(scroll.wheel, hover, surface());
                     }
                     if (pinch - 1.0).abs() > 1e-6 && pinch > 0.0 {
@@ -800,7 +800,7 @@ impl eframe::App for Desktop {
                 .map(|p| (p, open_bim_renderer::overlay::Glyph::Reference));
             self.bench.cursor = hit.map(|h| h.point);
             self.bench.last_snap = hit.map(|h| h.kind);
-            // Tekla right button: context menu.
+            // Right button: context menu.
             let mut menu_cmd = None;
             let picking = self.bench.picking();
             let mut override_kind = None;
@@ -881,7 +881,7 @@ impl eframe::App for Desktop {
                     if let Some((point, _)) = cursor {
                         let point = DVec3::from_array(point.0);
                         if modifiers.ctrl && !modifiers.mac_cmd {
-                            // Tekla Ctrl+pick: temporary reference point, not a pick.
+                            // Ctrl+pick: temporary reference point, not a pick.
                             self.bench.engine.reference = Some(point);
                             self.bench.tools.message =
                                 Some("Временная опорная точка задана".into());
@@ -893,7 +893,7 @@ impl eframe::App for Desktop {
                     .interact_pointer_pos()
                     .and_then(|p| gizmo_axis_at(&self.camera, rect, p))
                 {
-                    // Tekla navigation control: click an axis for that plane view.
+                    // Navigation control: click an axis for that plane view.
                     self.pending.push(Request::View(view));
                     self.pending.push(Request::Fit);
                 } else {
@@ -905,7 +905,7 @@ impl eframe::App for Desktop {
                             p.y.min(rect.max.y - 60.).max(rect.min.y),
                         )
                     });
-                    // Alt+click selects the whole assembly once (Tekla).
+                    // Alt+click selects the whole assembly once.
                     let saved = self.bench.select;
                     self.bench.select.assemblies |= modifiers.alt;
                     // Level labels and level lines win over the grid line copies.
@@ -926,7 +926,7 @@ impl eframe::App for Desktop {
                     self.bench.select = saved;
                 }
             }
-            // Double click opens the properties of the clicked part (Tekla).
+            // Double click opens the properties of the clicked part.
             // On a grid line (no part under the cursor) it opens the grid dialog.
             if response.double_clicked() && !self.bench.picking() {
                 let on_grid = hover
@@ -1120,7 +1120,7 @@ impl eframe::App for Desktop {
                     ink,
                 );
             }
-            // Bolt group preview while the X direction is picked (Tekla shows
+            // Bolt group preview while the X direction is picked (it shows
             // the bolts before the second point).
             if self.bench.detail.picks_points()
                 && let [a] = self.bench.detail.points[..]

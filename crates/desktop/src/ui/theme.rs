@@ -25,7 +25,7 @@ pub const WARNING: Color32 = Color32::from_rgb(255, 196, 0);
 pub const ERROR: Color32 = Color32::from_rgb(255, 120, 120);
 pub const OK: Color32 = Color32::from_rgb(90, 200, 120);
 
-/// Tekla-like light palette: light grey chrome, white panels, blue accents.
+/// Light palette: light grey chrome, white panels, blue accents.
 pub const LIGHT_FOCUS: Color32 = Color32::from_rgb(31, 95, 173);
 /// Status bar (blue band at the bottom of the window).
 pub const STATUS_BG: Color32 = Color32::from_rgb(30, 90, 168);
@@ -33,7 +33,7 @@ pub const STATUS_TEXT: Color32 = Color32::WHITE;
 /// Ribbon background in the light theme.
 pub const RIBBON_BG: Color32 = Color32::from_rgb(247, 248, 250);
 
-/// Ribbon background: Tekla-like light band, or the faint panel colour in dark theme.
+/// Ribbon background: light band, or the faint panel colour in dark theme.
 pub fn ribbon_bg(v: &egui::Visuals) -> Color32 {
     if v.dark_mode {
         v.faint_bg_color
@@ -168,7 +168,7 @@ pub fn fonts() -> egui::FontDefinitions {
     fonts
 }
 
-/// Fonts plus the chosen theme (light Tekla-like by default).
+/// Fonts plus the chosen theme (light by default).
 pub fn apply(ctx: &egui::Context) {
     ctx.set_fonts(fonts());
     set_theme(ctx, true);

@@ -291,6 +291,8 @@ pub fn rebuild_clip_angles(project: &mut Project, previous: &Project) -> Result<
                     thickness: template.thickness,
                 },
                 source: "Open BIM connection template v1".into(),
+                standard: None,
+                area_mm2: None,
             },
         );
         let shape = ElementShape::Member {

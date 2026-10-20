@@ -1,6 +1,6 @@
 # Final audit — Open BIM 0.1.0 (2026-10-18)
 
-**Verdict: Open BIM is not a full functional equivalent of Tekla Structures.**
+**Verdict: Open BIM is not a full functional equivalent of commercial steel detailing software.**
 The verified scope is a first steel workflow on macOS ARM64 (model → connections
 → numbering/clashes → drawings → lists → IFC4 subset) with a hardened UI. 14 of 34
 parity rows remain open (below). Phases 15 (concrete) and 16 (rebar) of the
@@ -9,7 +9,7 @@ skip them and continue with phases 17–18.
 
 ## User complaints and ГОСТ Р 21.101-2026 run (2026-10-20)
 
-**Verdict unchanged:** Open BIM is not a full equivalent of Tekla Structures.
+**Verdict unchanged:** Open BIM is not a full equivalent of commercial steel detailing software.
 Three parity rows are new and verified: gost-documentation, keyboard-control and
 drawing-changes. The 13 open rows are unchanged.
 
@@ -38,12 +38,12 @@ It implemented ГОСТ Р 21.101-2026 for the КМ/КМД documentation:
 |---|---|
 | 4 mandatory commands | exit 0; 225 tests |
 | ГОСТ matrix, 276 clauses (`docs/gost/check_matrix.py --final`) | MATRIX_OK (final): 121 applies (every one with evidence), 22 field/procedure, 78 not applicable with reasons, 55 reference |
-| Independent checks (pypdf, ezdxf, OpenCV, IfcOpenShell, hashlib) | 11/11 pass. Phases 6, 10–14: TITLE_BLOCKS, CONVENTIONS, SPECIFICATIONS, RELEASE (reference and GUI package), SHEETS, DRAWING_EDITING. Earlier phases: KEYBOARD_ONLY, IFC_VOLUMES, exports verify.py, tekla-workflow, create-by-picks, selection-editing |
-| Earlier native scenarios re-run on the final UI | 16 scenarios; journals equal to the stored ones (plate, picks, selection, members, construction, bolts, drawing editing); keyboard-only and tekla-workflow scripts updated for the property pane rows added in phase 7 |
+| Independent checks (pypdf, ezdxf, OpenCV, IfcOpenShell, hashlib) | 11/11 pass. Phases 6, 10–14: TITLE_BLOCKS, CONVENTIONS, SPECIFICATIONS, RELEASE (reference and GUI package), SHEETS, DRAWING_EDITING. Earlier phases: KEYBOARD_ONLY, IFC_VOLUMES, exports verify.py, modeling-workflow, create-by-picks, selection-editing |
+| Earlier native scenarios re-run on the final UI | 16 scenarios; journals equal to the stored ones (plate, picks, selection, members, construction, bolts, drawing editing); keyboard-only and modeling-workflow scripts updated for the property pane rows added in phase 7 |
 | User complaints | `tests/ui/user-complaints/README.md`: ripple 0.02 % (user's image 2.56 %), 64–90 % model pixels after 40 zoom steps (1 % before) |
 | 100 000 objects, all selected | `--no-vsync`: frame p95 17.2–17.4 ms in shaded, transparent and wireframe; pick p95 ≤ 0.024 ms. With vsync on battery the display ran at 30 Hz, so frames read 33.3 ms (documented in docs/performance.md) |
 | Snap query on 100 000 objects | p95 4.87 ms (limit 5 ms) |
-| Packaged `.app` | end-to-end tekla-workflow passes (`tests/ui/tekla-workflow/check-packaged.txt`) |
+| Packaged `.app` | end-to-end modeling-workflow passes (`tests/ui/modeling-workflow/check-packaged.txt`) |
 
 Final audit (round 1, against the original ROADMAP):
 - **Phases:** 14 of 14 complete, one commit each, from `c3780de` to `df10f53`.
@@ -64,28 +64,28 @@ Known limits:
 - **Form 2 widths.** Form 2 uses the graph «Обозначение» 60 mm (Б.9), because the 2026 drawing repeats form 1.
 - **Signatures and ЭП.** Signatures and electronic signatures (ЭП) are put by people or external tools. The program lays out names and dates and computes SHA-256 checksums.
 
-## Tekla-style interaction run (2026-10-19)
+## Interaction run (2026-10-19)
 
-**Verdict unchanged:** Open BIM is still not a full equivalent of Tekla Structures.
+**Verdict unchanged:** Open BIM is still not a full equivalent of commercial steel detailing software.
 13 of 35 parity rows are open (grid-levels is now verified; the new
-row «tekla-interaction» is verified).
-This run makes the way of working and the interface Tekla-like:
+row «interaction» is verified).
+This run makes the way of working and the interface follow the standard steel detailing workflow:
 - **Window:** light chrome with ribbon, quick launch, side pane, toolbars and the blue prompt.
 - **Viewport:** gradient, origin symbol, gizmo, work area, grid bubbles, snap symbols, rubber band and handles.
 - **Creating:** objects by picks; grid strings; columns with bottom/top; bolts by parts and points; welds between parts.
 - **Editing:** window/crossing selection with switches; direct modification; move, copy, mirror and rotate by picks.
 - **Properties and views:** property pane with «— разные —», contextual toolbar, views along grid lines with view depth, measuring.
 
-It was checked against the user-supplied Tekla 2026 manuals (`docs/tekla-docs-comparison.md`). The mechanics still missing are listed in `docs/tekla-interaction.md`.
+It was checked against the user-supplied 2026 reference manuals (`docs/reference-docs-comparison.md`). The mechanics still missing are listed in `docs/interaction.md`.
 
 | Check (final tree) | Result |
 |---|---|
 | 4 mandatory commands | exit 0, 0 warnings; 151 tests passed, 2 ignored release benchmarks (run separately below) |
-| End-to-end GUI scenario `tests/ui/tekla-workflow` (dev build and packaged `.app`) | 17 journal events; JSON/pypdf/IfcOpenShell checks pass (`check.txt`, `check-packaged.txt`) |
+| End-to-end GUI scenario `tests/ui/modeling-workflow` (dev build and packaged `.app`) | 17 journal events; JSON/pypdf/IfcOpenShell checks pass (`check.txt`, `check-packaged.txt`) |
 | GUI runs of phases 5 and 6 (only picks and drags) re-run | Python coordinate checks pass |
 | Earlier keyboard/screens/focus/jobs scenarios re-run on the new chrome | same journals; captures updated |
-| 100 000 objects, all selected, packaged app | frame p95 16.78 ms, pick p95 0.015 ms, open 0.45 s, peak RSS 345 MiB (`tests/ui/tekla-workflow/bench-100k.json`) |
-| Snap query on 100 000 objects (release) | p95 2.9 ms (`work/tekla-audit-snap-bench.txt`), limit 5 ms |
+| 100 000 objects, all selected, packaged app | frame p95 16.78 ms, pick p95 0.015 ms, open 0.45 s, peak RSS 345 MiB (`tests/ui/modeling-workflow/bench-100k.json`) |
+| Snap query on 100 000 objects (release) | p95 2.9 ms (benchmark log outside the repo), limit 5 ms |
 | Deliverables vs baseline `b31b406` | 22/22 present |
 
 The audit found these gaps and fixed them in round 1:
@@ -159,6 +159,6 @@ Totals for implemented phases: 81 criteria, 73 re-verified, 8 trust-prior
 ## Open parity rows
 
 concrete, rebar, advanced-rebar,
-pour-management, nc-dstv, ifc43, reference-models, dwg, native-tekla, catalogs,
+pour-management, nc-dstv, ifc43, reference-models, dwg, native-formats, catalogs,
 collaboration, api, windows-linux. Each needs an executable scenario and
 reference before it may be marked verified.

@@ -1,4 +1,4 @@
-//! Work plane: the plane picks are projected onto (Tekla «Рабочая плоскость»).
+//! Work plane: the plane picks are projected onto («Рабочая плоскость»).
 use open_bim_renderer::DVec3;
 
 #[derive(Clone, Copy, Debug, PartialEq)]

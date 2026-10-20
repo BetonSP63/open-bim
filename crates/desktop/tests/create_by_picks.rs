@@ -1,4 +1,4 @@
-//! Creating objects by picking points, Tekla style: snapped beam picks, a
+//! Creating objects by picking points: snapped beam picks, a
 //! continuous beam command, column bottom/top, contour plates, the grid
 //! coordinate strings, bolts «by parts and points» and welds between parts.
 use open_bim_coordination::{ConflictKind, check};
@@ -58,7 +58,7 @@ fn axis_y(b: &Workbench, name: &str) -> f64 {
 }
 
 #[test]
-fn grid_coordinate_strings_like_tekla() {
+fn grid_coordinate_strings_relative_and_absolute() {
     assert_eq!(
         coordinates("0 4*6000").unwrap(),
         vec![0., 6000., 12000., 18000., 24000.]
@@ -72,7 +72,7 @@ fn grid_coordinate_strings_like_tekla() {
     for bad in ["", "0 a", "0 0*6000", "0 -3000", "0 x*6000", "0 1000*6000"] {
         assert!(coordinates(bad).is_err(), "{bad:?} must be rejected");
     }
-    // Z values are absolute (Tekla): «0 3600 7200» are elevations, not spacings.
+    // Z values are absolute: «0 3600 7200» are elevations, not spacings.
     assert_eq!(elevations("0 3600 7200").unwrap(), vec![0., 3600., 7200.]);
     assert!(elevations("0 3600 3600").is_err());
     assert!(elevations("").is_err());

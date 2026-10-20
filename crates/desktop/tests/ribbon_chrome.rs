@@ -1,4 +1,4 @@
-//! Tekla-style chrome driven headlessly through real pointer and keyboard
+//! Chrome driven headlessly through real pointer and keyboard
 //! events: every ribbon button runs a registry command, unavailable concrete
 //! and rebar tools explain themselves, quick launch runs commands and the
 //! light theme keeps WCAG contrast.
@@ -169,7 +169,7 @@ fn every_ribbon_button_runs_its_registry_command_by_mouse() {
     }
     assert!(rows.len() >= 45, "ribbon buttons: {}", rows.len());
     let dir =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/ui/tekla-chrome");
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/ui/ribbon-chrome");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
         dir.join("ribbon-commands.json"),
@@ -288,7 +288,7 @@ fn light_theme_contrast_and_focus_ring() {
     assert!(v.widgets.active.bg_stroke.width >= 2.0);
     assert!(!v.dark_mode);
     let dir =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/ui/tekla-chrome");
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/ui/ribbon-chrome");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
         dir.join("contrast-light.json"),

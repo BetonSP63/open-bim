@@ -756,7 +756,7 @@ pub fn paint(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32, en
     }
 }
 
-/// Small ribbon button: 16 px icon and the caption on one line (Tekla
+/// Small ribbon button: 16 px icon and the caption on one line (the ribbon
 /// stacks three of them in a column).
 pub fn small_button(
     ui: &mut egui::Ui,
