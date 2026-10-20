@@ -45,6 +45,13 @@ It implemented ГОСТ Р 21.101-2026 for the КМ/КМД documentation:
 | Snap query on 100 000 objects | p95 4.87 ms (limit 5 ms) |
 | Packaged `.app` | end-to-end tekla-workflow passes (`tests/ui/tekla-workflow/check-packaged.txt`) |
 
+Final audit (round 1, against the original ROADMAP):
+- **Phases:** 14 of 14 complete, one commit each, from `c3780de` to `df10f53`.
+- **Mandatory commands:** re-run on the final tree, all exit 0 (`work/check_phase.py 323`).
+- **Deliverables:** 47 of 47 present against the baseline `f74b717` (`repo-state.sh`).
+- **Criteria:** 78 of 85 re-verified by tests, independent scripts, metrics or benchmarks. The other 7 are visual captures of phases 6–12: their scenarios were re-run with the same journals, but the images were not re-inspected (trust-prior).
+- **Coverage:** with the deliverables, audit coverage is 94.7 %.
+
 Found and fixed during the run:
 1. **Undo.** Undo did not restore document attributes, construction objects or model dimensions, because the history patch lacked them. It now does, with a regression test.
 2. **Stale checks.** Some older independent checks still expected the drawing number «КМД-1» and the designation «ОБ-». Since phase 6 the set designation is «<base>-КМД», so the checks failed. They were updated.
