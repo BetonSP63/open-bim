@@ -61,6 +61,9 @@ pub struct ToolsUi {
     pub message: Option<String>,
     /// Keyboard command ⌘L: focus the property name field on the next frame.
     pub focus_property: bool,
+    /// Property sets of the create dialogs, read on first use.
+    pub presets: Option<super::presets::PresetStore>,
+    pub preset_name: String,
 }
 impl Default for ToolsUi {
     fn default() -> Self {
@@ -85,6 +88,8 @@ impl Default for ToolsUi {
             snap_tolerance: 40.0,
             message: None,
             focus_property: false,
+            presets: None,
+            preset_name: String::new(),
         }
     }
 }
@@ -173,6 +178,11 @@ impl ToolsUi {
             if editor.active {
                 ui.separator();
                 ui.strong(format!("Создать: {}", editor.draft.kind.label()));
+                if editor.draft.kind != ToolKind::Axis
+                    && let Some(a) = self.preset_row(ui, editor)
+                {
+                    action = Some(a);
+                }
                 let name_label = ui.label("Имя");
                 ui.text_edit_singleline(&mut editor.draft.name)
                     .labelled_by(name_label.id);
@@ -210,11 +220,23 @@ impl ToolsUi {
                             egui::TextEdit::singleline(&mut editor.draft.bottom).desired_width(70.),
                         )
                         .labelled_by(b.id);
+                        level_menu(
+                            ui,
+                            "bottom level",
+                            editor.document.project(),
+                            &mut editor.draft.bottom,
+                        );
                         let t = ui.label("Верх, мм");
                         ui.add(
                             egui::TextEdit::singleline(&mut editor.draft.top).desired_width(70.),
                         )
                         .labelled_by(t.id);
+                        level_menu(
+                            ui,
+                            "top level",
+                            editor.document.project(),
+                            &mut editor.draft.top,
+                        );
                     });
                 } else {
                     ui.label("Конец, мм");
@@ -503,5 +525,109 @@ pub fn select(
         } else {
             selected.insert(id);
         }
+    }
+}
+
+/// «▾» next to a column's bottom or top: puts a level's elevation into the
+/// field (columns are usually bound to levels).
+fn level_menu(
+    ui: &mut egui::Ui,
+    salt: &str,
+    project: &open_bim_model::Project,
+    field: &mut String,
+) {
+    if project.levels.is_empty() {
+        return;
+    }
+    egui::ComboBox::from_id_salt(salt)
+        .selected_text("▾")
+        .width(24.)
+        .show_ui(ui, |ui| {
+            let mut levels: Vec<_> = project.levels.values().collect();
+            levels.sort_by(|a, b| a.elevation_mm.total_cmp(&b.elevation_mm));
+            for level in levels {
+                let text = format!("{} ({:+.3})", level.name, level.elevation_mm / 1000.);
+                if ui.selectable_label(false, text).clicked() {
+                    *field = format!("{}", level.elevation_mm);
+                }
+            }
+        })
+        .response
+        .on_hover_text("Взять отметку уровня");
+}
+
+impl ToolsUi {
+    /// «Сохранить как» / «Загрузить» row of the create dialog.
+    fn preset_row(&mut self, ui: &mut egui::Ui, editor: &mut Editor) -> Option<Action> {
+        use super::presets::{Preset, PresetStore, store_path};
+        let path = store_path();
+        if self.presets.is_none() {
+            let loaded = path
+                .as_deref()
+                .map(PresetStore::load)
+                .unwrap_or(Ok(Default::default()));
+            match loaded {
+                Ok(store) => self.presets = Some(store),
+                Err(e) => {
+                    self.message = Some(e);
+                    self.presets = Some(Default::default());
+                }
+            }
+        }
+        let mut action = None;
+        ui.horizontal(|ui| {
+            let store = self.presets.as_ref().expect("loaded above");
+            let mut chosen = None;
+            egui::ComboBox::from_id_salt("preset load")
+                .selected_text("Загрузить")
+                .show_ui(ui, |ui| {
+                    let mut any = false;
+                    for p in store.for_tool(editor.draft.kind) {
+                        any = true;
+                        if ui.selectable_label(false, &p.name).clicked() {
+                            chosen = Some(p.clone());
+                        }
+                    }
+                    if !any {
+                        ui.weak("Нет сохранённых наборов");
+                    }
+                });
+            if let Some(p) = chosen {
+                match p.apply(&mut editor.draft, editor.document.project()) {
+                    Ok(commands) => {
+                        self.preset_name = p.name.clone();
+                        if !commands.is_empty() {
+                            action = Some(Action::Commit(
+                                format!("Свойства «{}» из каталога", p.name),
+                                commands,
+                            ));
+                        }
+                    }
+                    Err(e) => self.message = Some(e),
+                }
+            }
+            ui.add(
+                egui::TextEdit::singleline(&mut self.preset_name)
+                    .hint_text("имя набора")
+                    .desired_width(110.),
+            );
+            if ui.button("Сохранить как").clicked() {
+                let saved =
+                    Preset::from_draft(&self.preset_name, &editor.draft, editor.document.project())
+                        .and_then(|preset| {
+                            let path = path
+                                .clone()
+                                .ok_or("Не найдена папка настроек пользователя")?;
+                            let store = self.presets.as_mut().expect("loaded above");
+                            store.put(preset);
+                            store.save(&path)
+                        });
+                self.message = Some(match saved {
+                    Ok(()) => format!("Набор свойств «{}» сохранён", self.preset_name.trim()),
+                    Err(e) => e,
+                });
+            }
+        });
+        action
     }
 }

@@ -2,6 +2,7 @@
 pub mod connection_ui;
 pub mod coordination_ui;
 pub mod detailing_ui;
+pub mod presets;
 mod snap;
 pub mod ui;
 use open_bim_commands::{Command, Document, project_hash};
@@ -563,6 +564,10 @@ pub struct Editor {
     pub events: Vec<FlowEvent>,
     pub record_path: Option<PathBuf>,
     pub record_warning: Option<String>,
+    /// Each tool keeps its own properties, like separate beam and column
+    /// dialogs: switching tools stores the current draft and restores the
+    /// draft last used with the new tool.
+    pub saved_drafts: Vec<Draft>,
 }
 impl Editor {
     pub fn new(project: Project) -> Result<Self, String> {
@@ -577,11 +582,23 @@ impl Editor {
             events: Vec::new(),
             record_path: None,
             record_warning: None,
+            saved_drafts: Vec::new(),
         })
     }
     pub fn begin(&mut self, kind: ToolKind) {
         self.active = true;
         self.picked.clear();
+        if self.draft.kind == kind {
+            return;
+        }
+        let old = self.draft.kind;
+        self.saved_drafts.retain(|d| d.kind != old);
+        self.saved_drafts.push(self.draft.clone());
+        if let Some(i) = self.saved_drafts.iter().position(|d| d.kind == kind) {
+            self.draft = self.saved_drafts.remove(i);
+            return;
+        }
+        // First use of this tool: start from the current draft.
         self.draft.kind = kind;
         self.draft.name = kind.label().into();
         if kind == ToolKind::Gusset {
