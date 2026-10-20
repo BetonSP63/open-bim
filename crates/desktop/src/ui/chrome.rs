@@ -478,6 +478,12 @@ impl Workbench {
                         if let Some(kind) = self.last_snap.filter(|_| self.picking()) {
                             ui.label(white(kind.label().to_string()));
                         }
+                        if let Some(kind) = self.snap_override.filter(|_| self.picking()) {
+                            ui.label(white(format!("Только: {}", kind.label().to_lowercase())));
+                        }
+                        if let Some(locks) = self.locks.describe().filter(|_| self.picking()) {
+                            ui.label(white(locks));
+                        }
                         // The prompt takes the remaining width and is cut, never
                         // overlapping the counters on the right.
                         ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
@@ -647,31 +653,26 @@ impl Workbench {
                 ui.separator();
                 ui.label("Привязки:");
                 let sw = &mut self.switches;
-                for (icon, name, flag) in [
-                    (
-                        Icon::SnapReference,
-                        SnapKind::Reference.label(),
-                        &mut sw.reference,
-                    ),
-                    (Icon::SnapNearest, "Геометрия", &mut sw.geometry),
-                    (Icon::SnapEnd, SnapKind::EndPoint.label(), &mut sw.end),
-                    (Icon::SnapMid, SnapKind::MidPoint.label(), &mut sw.mid),
-                    (
-                        Icon::SnapIntersection,
-                        SnapKind::Intersection.label(),
-                        &mut sw.intersection,
-                    ),
-                    (
-                        Icon::SnapPerpendicular,
-                        SnapKind::Perpendicular.label(),
-                        &mut sw.perpendicular,
-                    ),
-                    (
-                        Icon::SnapNearest,
-                        SnapKind::Nearest.label(),
-                        &mut sw.nearest,
-                    ),
+                let geometry: (Icon, &str, &mut bool) =
+                    (Icon::SnapNearest, "Геометрия", &mut sw.geometry);
+                let mut kinds = vec![geometry];
+                for (kind, flag) in [
+                    (SnapKind::Reference, &mut sw.reference),
+                    (SnapKind::EndPoint, &mut sw.end),
+                    (SnapKind::Center, &mut sw.center),
+                    (SnapKind::MidPoint, &mut sw.mid),
+                    (SnapKind::Intersection, &mut sw.intersection),
+                    (SnapKind::Perpendicular, &mut sw.perpendicular),
+                    (SnapKind::Parallel, &mut sw.parallel),
+                    (SnapKind::Extension, &mut sw.extension),
+                    (SnapKind::Line, &mut sw.line),
+                    (SnapKind::Nearest, &mut sw.nearest),
                 ] {
+                    kinds.push((icons::snap(kind), kind.label(), flag));
+                }
+                // The two main switches first.
+                kinds.swap(0, 1);
+                for (icon, name, flag) in kinds {
                     if icons::button(
                         ui,
                         icon,

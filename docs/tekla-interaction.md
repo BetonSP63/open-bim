@@ -62,6 +62,10 @@ are listed in `docs/tekla-docs-comparison.md`.
 | Measure (F); Home zooms to the original view | F = measure with ΔX/ΔY/ΔZ; Home = fit | measure_two_points_reports_distance_and_components |
 | Navigation axes clickable | click X/Y/Z on the gizmo → right / front / top view | gizmo_matches_the_camera_matrix_in_named_views (axis tips) |
 | Main snap switches «Reference» and «Geometry»; grid at every level | both switches; grid nodes snap at every level | geometry_switch_and_grid_nodes_at_every_level |
+| Snap switches «Centres», «Parallel», «Line extensions», «Lines» | «Центр» (bolt and circle centres, on by default); «Параллельно» and «Продолжение линии» use the line the pointer last passed over (the last four are kept), grid and construction lines extend without that; the extension meets other lines at exact intersections; «Линия» = any point on a grid, axis or construction line. Dashed guide line for extension and parallel | centres_of_bolts_and_circles, line_extension_after_passing_over_the_beam_axis, parallel_to_the_line_passed_over, lines_snap_anywhere_on_grid_lines |
+| Right-click snap override for the next pick | context menu «Переопределение привязки» while picking; the status bar shows «Только: …» until the pick; «Любая точка» = free | right_click_override_takes_only_one_kind |
+| Shift locks the direction; X, Y, Z lock coordinates | hold Shift: points move along the direction from the previous pick (dashed guide); X/Y/Z lock that work plane coordinate at the point under the pointer, the same key releases; Russian layout works (Ч, Н, Я); locks end with the command; shown in the status bar | shift_and_coordinate_locks |
+| Numeric input R / A / G | «R x,y,z» relative, «A x,y,z» absolute in the work plane, «G x,y,z» global; also К/Ф/П on the Russian layout; grid nodes («К/2», «Ф2») still win | numeric_modes_r_a_g_on_both_layouts |
 
 The native run `tests/ui/create-by-picks/` uses only mouse clicks on snapped grid
 nodes and column tops, plus Enter, Esc and ⌘S. It builds:
@@ -79,12 +83,8 @@ These come from the Tekla 2026 manuals and are not in Open BIM yet. None of them
 is claimed. See `docs/tekla-docs-comparison.md` for each row's status.
 
 - **Snapping:**
-  - snap switches centres, parallel, line extensions and lines;
   - snap depth Plane/Auto/3D and the plane type list;
-  - right-click snap override;
-  - Shift direction lock;
-  - X/Y/Z coordinate lock;
-  - R/A/G keys for the numeric input mode.
+  - centres of holes and arcs on part geometry (bolts and construction circles are done).
 - **Navigation:** view rotation point (V), rotate continuously (Shift+T), fly (Shift+F), Ctrl+R mouse rotate, F8.
 - **Rendering:** wireframe/shaded/grayscale/rendered modes (Ctrl+1…4, Shift+1…4), «show only selected» rendering modes.
 - **Columns:** binding to levels.

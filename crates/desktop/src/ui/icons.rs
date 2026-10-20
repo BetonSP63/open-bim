@@ -47,6 +47,10 @@ pub enum Icon {
     SnapPerpendicular,
     SnapNearest,
     SnapReference,
+    SnapCenter,
+    SnapParallel,
+    SnapExtension,
+    SnapLine,
     Ortho,
     SelectParts,
     SelectAssemblies,
@@ -54,6 +58,23 @@ pub enum Icon {
     SelectWelds,
     SelectGrid,
     SelectLevels,
+}
+
+/// Toolbar icon of a snap switch.
+pub fn snap(kind: crate::interaction::snap::SnapKind) -> Icon {
+    use crate::interaction::snap::SnapKind::*;
+    match kind {
+        Reference => Icon::SnapReference,
+        EndPoint => Icon::SnapEnd,
+        Center => Icon::SnapCenter,
+        MidPoint => Icon::SnapMid,
+        Intersection => Icon::SnapIntersection,
+        Perpendicular => Icon::SnapPerpendicular,
+        Parallel => Icon::SnapParallel,
+        Extension => Icon::SnapExtension,
+        Line => Icon::SnapLine,
+        Nearest | Free => Icon::SnapNearest,
+    }
 }
 
 /// Map a unit-square point (0..1) into the icon rect.
@@ -644,6 +665,25 @@ pub fn paint(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32, en
             p.circle_stroke(at(r, 0.5, 0.5), r.width() * 0.32, s);
             line(p, r, (0.5, 0.05), (0.5, 0.95), thin);
             line(p, r, (0.05, 0.5), (0.95, 0.5), thin);
+        }
+        Icon::SnapCenter => {
+            p.circle_stroke(at(r, 0.5, 0.5), r.width() * 0.35, s);
+            p.circle_filled(at(r, 0.5, 0.5), r.width() * 0.08, ink);
+        }
+        Icon::SnapParallel => {
+            line(p, r, (0.1, 0.65), (0.6, 0.15), s);
+            line(p, r, (0.4, 0.85), (0.9, 0.35), s);
+        }
+        Icon::SnapExtension => {
+            line(p, r, (0.1, 0.9), (0.45, 0.55), s);
+            for k in 0..3 {
+                let a = 0.55 + k as f32 * 0.13;
+                line(p, r, (a, 1. - a), (a + 0.07, 0.93 - a), thin);
+            }
+        }
+        Icon::SnapLine => {
+            line(p, r, (0.05, 0.5), (0.95, 0.5), s);
+            line(p, r, (0.5, 0.3), (0.5, 0.7), thin);
         }
         Icon::Ortho => {
             line(p, r, (0.15, 0.85), (0.85, 0.85), s);

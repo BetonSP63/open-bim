@@ -4,6 +4,8 @@
 //! `@` relative, `$` absolute in work plane coordinates, `!` global; polar
 //! `d<a` / `d<a<b` (distance, angle on the XY plane, angle from the plane, in
 //! degrees, counter-clockwise); a single value is a distance along the pointer.
+//! Mode letters work too: `R` relative, `A` absolute (work plane),
+//! `G` global, also typed on the Russian layout (`К`, `Ф`, `П`).
 use super::workplane::Workplane;
 use open_bim_renderer::DVec3;
 
@@ -28,6 +30,24 @@ fn numbers(text: &str) -> Result<Vec<f64>, String> {
         .collect()
 }
 
+/// Mode letter at the start of the input (R, A, G or the same keys on
+/// the Russian layout) followed by a coordinate: the matching prefix
+/// (`@`, `$`, `!`) and the rest. «К/2» or «Ф2» are grid nodes, not modes:
+/// the caller tries grid nodes first.
+pub fn mode_prefix(text: &str) -> Option<(char, &str)> {
+    let text = text.trim_start();
+    let first = text.chars().next()?;
+    let mode = match first {
+        'R' | 'r' | 'К' | 'к' => '@',
+        'A' | 'a' | 'Ф' | 'ф' => '$',
+        'G' | 'g' | 'П' | 'п' => '!',
+        _ => return None,
+    };
+    let rest = text[first.len_utf8()..].trim_start();
+    rest.starts_with(|c: char| c.is_ascii_digit() || matches!(c, '-' | '+' | '.' | '<'))
+        .then_some((mode, rest))
+}
+
 /// Resolve typed text to a world point.
 pub fn parse(
     text: &str,
@@ -39,8 +59,11 @@ pub fn parse(
     if text.is_empty() || text.len() > MAX_INPUT {
         return Err("Пустой или слишком длинный ввод".into());
     }
-    let (mode, body) = match text.chars().next() {
-        Some(c @ ('@' | '$' | '!')) => (c, text[1..].trim()),
+    let (mode, body) = match (mode_prefix(text), text.chars().next()) {
+        // R keeps the default: relative, or absolute before the first pick.
+        (Some(('@', rest)), _) => ('r', rest.trim()),
+        (Some((c, rest)), _) => (c, rest.trim()),
+        (None, Some(c @ ('@' | '$' | '!'))) => (c, text[1..].trim()),
         _ => ('r', text),
     };
     let local = |v: &[f64]| DVec3::new(v[0], *v.get(1).unwrap_or(&0.), *v.get(2).unwrap_or(&0.));

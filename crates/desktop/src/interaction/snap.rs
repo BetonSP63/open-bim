@@ -13,9 +13,17 @@ pub enum SnapKind {
     Reference,
     /// Geometry corners of the displayed solid.
     EndPoint,
+    /// Centres of circles, bolts and holes.
+    Center,
     MidPoint,
     Intersection,
     Perpendicular,
+    /// Parallel to a line the pointer passed over, through the previous pick.
+    Parallel,
+    /// A point on the extension of a line beyond its ends.
+    Extension,
+    /// Any point on a reference line (grid, part axis, construction line).
+    Line,
     Nearest,
     Free,
 }
@@ -27,39 +35,66 @@ impl SnapKind {
     pub fn priority(self) -> u8 {
         match self {
             Self::Reference | Self::Intersection => 0,
-            Self::EndPoint => 1,
+            Self::EndPoint | Self::Center => 1,
             Self::MidPoint => 2,
             Self::Perpendicular => 3,
-            Self::Nearest => 4,
-            Self::Free => 5,
+            Self::Parallel | Self::Extension => 4,
+            Self::Line | Self::Nearest => 5,
+            Self::Free => 6,
         }
     }
     pub fn label(self) -> &'static str {
         match self {
             Self::Reference => "Опорная точка",
             Self::EndPoint => "Конечная точка",
+            Self::Center => "Центр",
             Self::MidPoint => "Середина",
             Self::Intersection => "Пересечение",
             Self::Perpendicular => "Перпендикуляр",
+            Self::Parallel => "Параллельно",
+            Self::Extension => "Продолжение линии",
+            Self::Line => "Линия",
             Self::Nearest => "Ближайшая точка",
             Self::Free => "Свободная точка",
         }
     }
+
+    /// Every kind, in the order of the snap toolbar and the override menu.
+    pub const ALL: [SnapKind; 11] = [
+        Self::Reference,
+        Self::EndPoint,
+        Self::Center,
+        Self::MidPoint,
+        Self::Intersection,
+        Self::Perpendicular,
+        Self::Parallel,
+        Self::Extension,
+        Self::Line,
+        Self::Nearest,
+        Self::Free,
+    ];
 }
 
 /// Snap switches (bottom toolbar). Defaults follow Tekla: reference and
-/// geometry points, mid points and intersections on; nearest and
-/// perpendicular off.
+/// geometry points, end points, centres, mid points and intersections on;
+/// perpendicular, parallel, line extensions, lines and nearest off.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Switches {
     /// Tekla main switch «Reference lines and points».
     pub reference: bool,
     /// Tekla main switch «Geometry lines and points»: solid corners and edges.
     pub geometry: bool,
+    /// Reference points themselves (member ends, plate corners, grid ends);
+    /// only the snap override turns them off.
+    pub points: bool,
     pub end: bool,
+    pub center: bool,
     pub mid: bool,
     pub intersection: bool,
     pub perpendicular: bool,
+    pub parallel: bool,
+    pub extension: bool,
+    pub line: bool,
     pub nearest: bool,
     pub ortho: bool,
 }
@@ -69,10 +104,15 @@ impl Default for Switches {
         Self {
             reference: true,
             geometry: true,
+            points: true,
             end: true,
+            center: true,
             mid: true,
             intersection: true,
             perpendicular: false,
+            parallel: false,
+            extension: false,
+            line: false,
             nearest: false,
             ortho: false,
         }
@@ -82,14 +122,68 @@ impl Default for Switches {
 impl Switches {
     pub fn enabled(&self, kind: SnapKind) -> bool {
         match kind {
-            SnapKind::Reference => self.reference,
+            SnapKind::Reference => self.reference && self.points,
             SnapKind::EndPoint => self.end,
+            SnapKind::Center => self.center,
             SnapKind::MidPoint => self.mid,
             SnapKind::Intersection => self.intersection,
             SnapKind::Perpendicular => self.perpendicular,
+            SnapKind::Parallel => self.parallel,
+            SnapKind::Extension => self.extension,
+            SnapKind::Line => self.line,
             SnapKind::Nearest => self.nearest,
             SnapKind::Free => true,
         }
+    }
+
+    pub fn flag(&mut self, kind: SnapKind) -> Option<&mut bool> {
+        Some(match kind {
+            SnapKind::Reference => &mut self.points,
+            SnapKind::EndPoint => &mut self.end,
+            SnapKind::Center => &mut self.center,
+            SnapKind::MidPoint => &mut self.mid,
+            SnapKind::Intersection => &mut self.intersection,
+            SnapKind::Perpendicular => &mut self.perpendicular,
+            SnapKind::Parallel => &mut self.parallel,
+            SnapKind::Extension => &mut self.extension,
+            SnapKind::Line => &mut self.line,
+            SnapKind::Nearest => &mut self.nearest,
+            SnapKind::Free => return None,
+        })
+    }
+
+    /// Every point switch off (the toolbar «Привязки» button off); ortho kept.
+    pub fn none(self) -> Self {
+        Self {
+            reference: false,
+            geometry: false,
+            points: false,
+            end: false,
+            center: false,
+            mid: false,
+            intersection: false,
+            perpendicular: false,
+            parallel: false,
+            extension: false,
+            line: false,
+            nearest: false,
+            ..self
+        }
+    }
+
+    /// Right-click «Переопределение привязки»: only `kind` for the next
+    /// pick, whatever the toolbar says. `Free` means any position.
+    pub fn only(self, kind: SnapKind) -> Self {
+        let mut out = Self {
+            reference: true,
+            geometry: true,
+            ..self.none()
+        };
+        match out.flag(kind) {
+            Some(flag) => *flag = true,
+            None => out = self.none(),
+        }
+        out
     }
 }
 
@@ -101,6 +195,8 @@ pub struct Hit {
     pub point: DVec3,
     pub object: Option<ObjectId>,
     pub pixels: f64,
+    /// Guide line drawn with the hit (extension, parallel direction).
+    pub guide: Option<(DVec3, DVec3)>,
 }
 
 /// Viewport mapping: camera, scene origin and size in pixels.
@@ -142,11 +238,17 @@ type Segment = (DVec3, DVec3, Option<ObjectId>, bool);
 /// Most snap candidates kept for Tab cycling.
 pub const MAX_CANDIDATES: usize = 32;
 
+/// Lines the pointer passed over, kept for parallel and extension snaps.
+pub const MAX_ACQUIRED: usize = 4;
+
 /// Feature edges per display mesh, cached across queries.
 #[derive(Default)]
 pub struct Snapper {
     edges: HashMap<usize, Arc<Vec<(DVec3, DVec3)>>>,
     scene: Option<usize>,
+    /// Lines the pointer recently passed over, newest first (kept
+    /// for «Параллельно» and «Продолжение линии»).
+    pub acquired: Vec<(DVec3, DVec3, Option<ObjectId>)>,
 }
 
 fn feature_edges(mesh: &open_bim_renderer::DisplayMesh) -> Vec<(DVec3, DVec3)> {
@@ -175,18 +277,72 @@ fn feature_edges(mesh: &open_bim_renderer::DisplayMesh) -> Vec<(DVec3, DVec3)> {
     edges
 }
 
-fn closest_on_segment_to_ray(a: DVec3, b: DVec3, ray: Ray) -> DVec3 {
+/// Parameter along `a + (b - a) t` of the point nearest to the ray (unclamped).
+fn line_parameter_to_ray(a: DVec3, b: DVec3, ray: Ray) -> f64 {
     let d = b - a;
     let r = ray.direction;
     let w = a - ray.origin;
     let (aa, bb, cc, dd, ee) = (d.dot(d), d.dot(r), r.dot(r), d.dot(w), r.dot(w));
     let denominator = aa * cc - bb * bb;
-    let t = if denominator.abs() < 1e-12 {
+    if denominator.abs() < 1e-12 {
         0.
     } else {
         (bb * ee - cc * dd) / denominator
-    };
-    a + d * t.clamp(0., 1.)
+    }
+}
+
+fn closest_on_segment_to_ray(a: DVec3, b: DVec3, ray: Ray) -> DVec3 {
+    a + (b - a) * line_parameter_to_ray(a, b, ray).clamp(0., 1.)
+}
+
+/// Intersection of an infinite line with a segment (closest points closer than `eps`).
+fn line_segment_intersection(line: (DVec3, DVec3), b: (DVec3, DVec3), eps: f64) -> Option<DVec3> {
+    let (d1, d2, r) = (line.1 - line.0, b.1 - b.0, line.0 - b.0);
+    let (aa, ee, f) = (d1.dot(d1), d2.dot(d2), d2.dot(r));
+    let (c, bb) = (d1.dot(r), d1.dot(d2));
+    let denominator = aa * ee - bb * bb;
+    if denominator.abs() < 1e-9 * aa.max(1.) * ee.max(1.) {
+        return None;
+    }
+    let s = (bb * f - c * ee) / denominator;
+    let t = (aa * f - bb * c) / denominator;
+    if !(-1e-9..=1. + 1e-9).contains(&t) {
+        return None;
+    }
+    let (p, q) = (line.0 + d1 * s, b.0 + d2 * t);
+    (p.distance(q) <= eps).then_some((p + q) * 0.5)
+}
+
+/// Bolt centres («Привязка к центрам»); bolt frames are world coordinates.
+fn detail_centres(project: &Project) -> Vec<(ObjectId, DVec3)> {
+    use open_bim_model::DetailKind;
+    let mut out = Vec::new();
+    for detail in project.details.values() {
+        let at = |frame: &open_bim_model::Frame, x: f64, y: f64| {
+            DVec3::from_array(frame.world(Point3([x, y, 0.])).0)
+        };
+        if let DetailKind::BoltGroup {
+            frame,
+            steps_x,
+            steps_y,
+            ..
+        } = &detail.kind
+        {
+            let prefix = |s: &[f64]| {
+                let mut v = vec![0.];
+                for x in s {
+                    v.push(v.last().unwrap() + x);
+                }
+                v
+            };
+            for x in prefix(steps_x) {
+                for y in prefix(steps_y) {
+                    out.push((detail.id, at(frame, x, y)));
+                }
+            }
+        }
+    }
+    out
 }
 
 /// Segments of construction objects (circles as 48-sided polygons).
@@ -216,7 +372,7 @@ fn construction_marks(project: &Project) -> Vec<(ObjectId, DVec3, SnapKind)> {
                 out.push((c.id, (a + b) * 0.5, SnapKind::MidPoint));
             }
             ConstructionKind::Circle { center, .. } => {
-                out.push((c.id, DVec3::from_array(center.0), SnapKind::Reference));
+                out.push((c.id, DVec3::from_array(center.0), SnapKind::Center));
                 let segments = c.segments();
                 for k in [0, 12, 24, 36] {
                     out.push((c.id, DVec3::from_array(segments[k].0), SnapKind::Reference));
@@ -348,30 +504,36 @@ impl Snapper {
                 .map(|s| ((s[0] - cursor[0]).powi(2) + (s[1] - cursor[1]).powi(2)).sqrt())
         };
         let mut found: Vec<Hit> = Vec::new();
-        let mut offer =
-            |kind: SnapKind, point: DVec3, object: Option<ObjectId>, reference: bool| {
-                if !switches.enabled(kind) || !point.is_finite() {
-                    return;
-                }
-                // Main switches: geometry points need «Геометрия», reference ones
-                // (member axes, grid lines, plate corners) need «Опорные».
-                if (reference && !switches.reference) || (!reference && !switches.geometry) {
-                    return;
-                }
-                let Some(px) = pixels(point) else { return };
-                if px > tolerance {
-                    return;
-                }
-                found.push(Hit {
-                    kind,
-                    reference,
-                    point,
-                    object,
-                    pixels: px,
-                });
-            };
+        let mut offer = |kind: SnapKind,
+                         point: DVec3,
+                         object: Option<ObjectId>,
+                         reference: bool,
+                         guide: Option<(DVec3, DVec3)>| {
+            if !switches.enabled(kind) || !point.is_finite() {
+                return;
+            }
+            // Main switches: geometry points need «Геометрия», reference ones
+            // (member axes, grid lines, plate corners) need «Опорные».
+            if (reference && !switches.reference) || (!reference && !switches.geometry) {
+                return;
+            }
+            let Some(px) = pixels(point) else { return };
+            if px > tolerance {
+                return;
+            }
+            found.push(Hit {
+                kind,
+                reference,
+                point,
+                object,
+                pixels: px,
+                guide,
+            });
+        };
         // Reference lines (member axes, grid lines) and geometry edges.
         let mut lines: Vec<Segment> = Vec::new();
+        // Long straight reference lines whose extensions snap anywhere in view.
+        let mut extendable: Vec<Segment> = Vec::new();
         // Grid lines exist at every level (Tekla grids are drawn per elevation).
         for axis in project.axes.values() {
             let (a, b) = (
@@ -388,17 +550,29 @@ impl Snapper {
             );
             for dz in shifts {
                 let (a, b) = (a + DVec3::Z * dz, b + DVec3::Z * dz);
-                offer(SnapKind::Reference, a, Some(axis.id), true);
-                offer(SnapKind::Reference, b, Some(axis.id), true);
+                offer(SnapKind::Reference, a, Some(axis.id), true, None);
+                offer(SnapKind::Reference, b, Some(axis.id), true, None);
                 lines.push((a, b, Some(axis.id), true));
+                extendable.push((a, b, Some(axis.id), true));
             }
         }
         // Construction lines and circles: reference geometry like grid lines.
+        for c in project.construction.values() {
+            if let open_bim_model::ConstructionKind::Line { a, b } = &c.kind {
+                let (a, b) = (DVec3::from_array(a.0), DVec3::from_array(b.0));
+                extendable.push((a, b, Some(c.id), true));
+            }
+        }
         for (id, (a, b)) in construction_segments(project) {
             lines.push((a, b, Some(id), true));
         }
         for (id, point, kind) in construction_marks(project) {
-            offer(kind, point, Some(id), true);
+            offer(kind, point, Some(id), true, None);
+        }
+        if switches.center {
+            for (id, point) in detail_centres(project) {
+                offer(SnapKind::Center, point, Some(id), true, None);
+            }
         }
         for index in &near {
             let instance = &scene.instances[*index];
@@ -412,9 +586,9 @@ impl Snapper {
                             world(DVec3::ZERO),
                             world(DVec3::new(0., 0., length.value())),
                         );
-                        offer(SnapKind::Reference, a, Some(id), true);
-                        offer(SnapKind::Reference, b, Some(id), true);
-                        offer(SnapKind::MidPoint, (a + b) * 0.5, Some(id), true);
+                        offer(SnapKind::Reference, a, Some(id), true, None);
+                        offer(SnapKind::Reference, b, Some(id), true, None);
+                        offer(SnapKind::MidPoint, (a + b) * 0.5, Some(id), true, None);
                         lines.push((a, b, Some(id), true));
                     }
                     ElementShape::Plate { contour, .. } => {
@@ -423,7 +597,7 @@ impl Snapper {
                             .map(|p| world(DVec3::new(p[0], p[1], 0.)))
                             .collect();
                         for (k, p) in points.iter().enumerate() {
-                            offer(SnapKind::Reference, *p, Some(id), true);
+                            offer(SnapKind::Reference, *p, Some(id), true, None);
                             lines.push((*p, points[(k + 1) % points.len()], Some(id), true));
                         }
                     }
@@ -442,9 +616,9 @@ impl Snapper {
                 if pixels(near_point).is_none_or(|px| px > tolerance) {
                     continue;
                 }
-                offer(SnapKind::EndPoint, a, Some(id), false);
-                offer(SnapKind::EndPoint, b, Some(id), false);
-                offer(SnapKind::MidPoint, (a + b) * 0.5, Some(id), false);
+                offer(SnapKind::EndPoint, a, Some(id), false, None);
+                offer(SnapKind::EndPoint, b, Some(id), false, None);
+                offer(SnapKind::MidPoint, (a + b) * 0.5, Some(id), false, None);
                 lines.push((a, b, Some(id), false));
             }
         }
@@ -454,17 +628,16 @@ impl Snapper {
         });
         lines.truncate(256);
         for (a, b, id, reference) in &lines {
-            offer(
-                SnapKind::Nearest,
-                closest_on_segment_to_ray(*a, *b, ray),
-                *id,
-                *reference,
-            );
+            let on = closest_on_segment_to_ray(*a, *b, ray);
+            offer(SnapKind::Nearest, on, *id, *reference, None);
+            if *reference {
+                offer(SnapKind::Line, on, *id, true, Some((*a, *b)));
+            }
             if let Some(p) = previous {
                 let d = *b - *a;
                 let t = (p - *a).dot(d) / d.dot(d).max(1e-12);
                 if (0. ..=1.).contains(&t) {
-                    offer(SnapKind::Perpendicular, *a + d * t, *id, *reference);
+                    offer(SnapKind::Perpendicular, *a + d * t, *id, *reference, None);
                 }
             }
         }
@@ -482,9 +655,83 @@ impl Snapper {
                 for y in references.iter().skip(i + 1) {
                     let scale = (x.1 - x.0).length().max((y.1 - y.0).length()).max(1.);
                     if let Some(p) = intersection((x.0, x.1), (y.0, y.1), 1e-9 * scale) {
-                        offer(SnapKind::Intersection, p, x.2, true);
+                        offer(SnapKind::Intersection, p, x.2, true, None);
                     }
                 }
+            }
+        }
+        // Track the lines the pointer passes over: the nearest one is
+        // remembered for parallel and extension snapping.
+        if let Some(line) = lines
+            .iter()
+            .filter(|l| (l.1 - l.0).length() > 1e-6)
+            .min_by(|x, y| {
+                let d = |l: &Segment| {
+                    pixels(closest_on_segment_to_ray(l.0, l.1, ray)).unwrap_or(f64::MAX)
+                };
+                d(x).partial_cmp(&d(y)).unwrap_or(std::cmp::Ordering::Equal)
+            })
+        {
+            let same = |l: &(DVec3, DVec3, Option<ObjectId>)| {
+                (l.0.distance(line.0) < 1e-6 && l.1.distance(line.1) < 1e-6)
+                    || (l.0.distance(line.1) < 1e-6 && l.1.distance(line.0) < 1e-6)
+            };
+            self.acquired.retain(|l| !same(l));
+            self.acquired.insert(0, (line.0, line.1, line.2));
+            self.acquired.truncate(MAX_ACQUIRED);
+        }
+        if switches.extension {
+            extendable.extend(self.acquired.iter().map(|l| (l.0, l.1, l.2, true)));
+            for (a, b, id, reference) in &extendable {
+                let t = line_parameter_to_ray(*a, *b, ray);
+                // Beyond either end only: inside the segment it is a line snap.
+                if (-1e-9..=1. + 1e-9).contains(&t) {
+                    continue;
+                }
+                let point = *a + (*b - *a) * t;
+                let end = if t < 0. { *a } else { *b };
+                offer(
+                    SnapKind::Extension,
+                    point,
+                    *id,
+                    *reference,
+                    Some((end, point)),
+                );
+                // Where the extension meets another line near the cursor.
+                if switches.intersection {
+                    let scale = (*b - *a).length().max(1.);
+                    for other in &lines {
+                        if other.2 == *id && other.2.is_some() {
+                            continue;
+                        }
+                        let eps = 1e-9 * scale.max((other.1 - other.0).length());
+                        if let Some(p) =
+                            line_segment_intersection((*a, *b), (other.0, other.1), eps)
+                        {
+                            let t = (p - *a).dot(*b - *a) / (*b - *a).length_squared();
+                            if !(0. ..=1.).contains(&t) {
+                                let end = if t < 0. { *a } else { *b };
+                                offer(SnapKind::Intersection, p, *id, true, Some((end, p)));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if switches.parallel
+            && let Some(from) = previous
+        {
+            for (a, b, id) in &self.acquired {
+                let Some(d) = (*b - *a).try_normalize() else {
+                    continue;
+                };
+                // Through the previous pick, along the remembered line.
+                let t = line_parameter_to_ray(from, from + d, ray);
+                if t.abs() < 1e-6 {
+                    continue;
+                }
+                let point = from + d * t;
+                offer(SnapKind::Parallel, point, *id, true, Some((from, point)));
             }
         }
         // Ranking: priority class, then reference before solid geometry, then pixels.
@@ -523,6 +770,67 @@ impl Snapper {
             point,
             object: None,
             pixels: 0.,
+            guide: None,
         }]
+    }
+}
+
+/// Pick locks: Shift holds the direction from the previous pick, and the
+/// X, Y, Z keys hold a work plane coordinate at the value it had when the key
+/// was pressed.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Locks {
+    /// World direction the next point is held on, through `previous`.
+    pub direction: Option<DVec3>,
+    /// Work plane coordinates x, y, z held fixed.
+    pub coordinates: [Option<f64>; 3],
+}
+
+impl Locks {
+    pub fn any(&self) -> bool {
+        self.direction.is_some() || self.coordinates.iter().any(Option::is_some)
+    }
+
+    /// Status bar text, e.g. «Фиксация: X, направление».
+    pub fn describe(&self) -> Option<String> {
+        let mut parts: Vec<&str> = ["X", "Y", "Z"]
+            .iter()
+            .zip(self.coordinates)
+            .filter_map(|(n, c)| c.map(|_| *n))
+            .collect();
+        if self.direction.is_some() {
+            parts.push("направление");
+        }
+        (!parts.is_empty()).then(|| format!("Фиксация: {}", parts.join(", ")))
+    }
+
+    /// X/Y/Z key: lock axis `k` at the coordinate of `at`, or release it.
+    pub fn toggle(&mut self, k: usize, at: DVec3, workplane: &Workplane) -> bool {
+        let slot = &mut self.coordinates[k];
+        *slot = match slot {
+            Some(_) => None,
+            None => Some(workplane.to_local(at)[k]),
+        };
+        slot.is_some()
+    }
+
+    /// The point a pick at `point` becomes under the locks. A locked direction
+    /// projects the point onto the line through `previous`; locked coordinates
+    /// replace the work plane coordinates of the result.
+    pub fn apply(&self, point: DVec3, previous: Option<DVec3>, workplane: &Workplane) -> DVec3 {
+        let mut p = point;
+        if let (Some(d), Some(from)) = (self.direction.and_then(|d| d.try_normalize()), previous) {
+            p = from + d * (p - from).dot(d);
+        }
+        if self.coordinates.iter().any(Option::is_some) {
+            let mut local = workplane.to_local(p);
+            for k in 0..3 {
+                if let Some(v) = self.coordinates[k] {
+                    local[k] = v;
+                }
+            }
+            p = workplane.to_world(local);
+        }
+        p
     }
 }
