@@ -61,6 +61,7 @@ impl Workbench {
             || self.workplane_picks.is_some()
             || self.detail.picks_points()
             || self.edit_pick.op.is_some()
+            || self.special.picking.is_some()
             || self.measure.is_some()
             || matches!(
                 self.trim.need(),
@@ -81,6 +82,8 @@ impl Workbench {
             p
         } else if let Some(p) = self.edit_pick.prompt() {
             p
+        } else if let Some(p) = self.special.prompt() {
+            p.into()
         } else if let Some(m) = &self.measure {
             if m.is_empty() {
                 "Укажите первую точку измерения".into()
@@ -104,6 +107,7 @@ impl Workbench {
         let mut ids: BTreeSet<ObjectId> = id
             .filter(|id| project.elements.contains_key(id))
             .filter(|_| self.select.parts || self.select.assemblies)
+            .filter(|id| self.filter.allows(project, *id))
             .into_iter()
             .collect();
         if self.select.assemblies {
@@ -113,6 +117,7 @@ impl Workbench {
             return;
         }
         apply(&mut self.editor.selected, &ids, mode);
+        self.sync_selection();
     }
 
     /// Give keyboard focus to a field when its area was chosen by F6/⌘F.
@@ -267,6 +272,7 @@ impl Workbench {
                     &BTreeSet::from([axis]),
                     mode,
                 );
+                self.sync_selection();
                 self.message(name);
             }
             _ => self.select_picked(part, mode),
@@ -289,7 +295,13 @@ impl Workbench {
             to,
             self.select,
         );
+        let project = self.editor.document.project();
+        let ids = ids
+            .into_iter()
+            .filter(|id| self.filter.allows(project, *id))
+            .collect();
         crate::interaction::selection::apply(&mut self.editor.selected, &ids, mode);
+        self.sync_selection();
         self.message(format!("Выбрано объектов: {}", self.editor.selected.len()));
     }
 
@@ -553,6 +565,19 @@ impl Workbench {
                 .clicked()
                 {
                     self.run(Cmd::ToggleDirectModification, requests);
+                }
+                for (cmd, name, on) in [
+                    (Cmd::ToggleDragDrop, "Перетаскивание", self.drag_drop),
+                    (Cmd::ToggleRollover, "Подсветка", self.rollover),
+                    (Cmd::SelectionFilter, "Фильтр", self.filter.active()),
+                ] {
+                    if ui
+                        .selectable_label(on, name)
+                        .on_hover_text(tooltip(cmd))
+                        .clicked()
+                    {
+                        self.run(cmd, requests);
+                    }
                 }
                 ui.checkbox(&mut self.extend_selection, "Добавлять к выбору");
                 ui.separator();

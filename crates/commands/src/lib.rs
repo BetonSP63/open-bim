@@ -293,6 +293,16 @@ impl<T> DependencyCache<T> {
     }
 }
 
+/// Apply commands to a scratch copy without rebuilding connections or
+/// validating: lets a caller derive later commands of one transaction from
+/// the state the earlier ones leave (copy special builds N copies this way).
+pub fn apply_staged(project: &mut Project, commands: &[Command]) -> Result<(), CommandError> {
+    for command in commands {
+        apply_command(project, command)?;
+    }
+    Ok(())
+}
+
 fn apply_command(project: &mut Project, command: &Command) -> Result<(), CommandError> {
     match command {
         Command::CreateConnection { connection } => {

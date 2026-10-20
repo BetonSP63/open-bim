@@ -176,6 +176,21 @@ pub struct Workbench {
     pub edit_pick: crate::interaction::selection::EditPicker,
     /// Direct modification (D): drag handles of selected parts.
     pub direct_modification: bool,
+    /// Drag and drop: dragging a selected part moves the selection (Ctrl copies).
+    pub drag_drop: bool,
+    /// «Копировать/Переместить — специальное»: the dialog fields and which
+    /// dialog is open (Some(true) copy, Some(false) move).
+    pub special: crate::interaction::special::Dialog,
+    pub special_open: Option<bool>,
+    /// Selection filter (Ctrl+G) and whether its dialog is open.
+    pub filter: crate::interaction::selection::PropertyFilter,
+    pub filter_open: bool,
+    /// Alt+P: the selection before the current one.
+    pub previous_selection: BTreeSet<ObjectId>,
+    selection_seen: BTreeSet<ObjectId>,
+    /// Rollover highlight (H) and the part under the cursor.
+    pub rollover: bool,
+    pub hovered: Option<ObjectId>,
     /// Delete waiting for confirmation: ids and the total number removed.
     pub delete_confirm: Option<(BTreeSet<ObjectId>, usize)>,
     /// Tab / Shift+Tab: index into the snap candidates under the cursor.
@@ -255,6 +270,15 @@ impl Workbench {
             select: Default::default(),
             edit_pick: Default::default(),
             direct_modification: true,
+            drag_drop: true,
+            special: Default::default(),
+            special_open: None,
+            filter: Default::default(),
+            filter_open: false,
+            previous_selection: BTreeSet::new(),
+            selection_seen: BTreeSet::new(),
+            rollover: true,
+            hovered: None,
             delete_confirm: None,
             snap_cycle: 0,
             pane: Default::default(),
@@ -440,6 +464,7 @@ impl Workbench {
 
     /// Run a command; model-changing commands are refused while a job runs.
     pub fn execute(&mut self, cmd: Cmd) -> Option<Request> {
+        self.sync_selection();
         let neutral = matches!(
             cmd,
             Cmd::CancelJob
@@ -688,6 +713,7 @@ impl Workbench {
                     || self.detail.cancel()
                     || self.edit_pick.cancel()
                     || self.components.cancel()
+                    || self.special.cancel_pick()
                 {
                     self.message("Команда прервана");
                 } else if self.delete_confirm.take().is_some() {
@@ -771,6 +797,65 @@ impl Workbench {
                 };
                 self.mode = Mode::Model;
                 self.message(self.prompt());
+            }
+            Cmd::CopySpecial | Cmd::MoveSpecial => {
+                let copy = cmd == Cmd::CopySpecial;
+                self.engine.cancel();
+                self.editor.cancel();
+                self.detail.cancel();
+                self.edit_pick.cancel();
+                self.special_open = Some(copy);
+                self.mode = Mode::Model;
+                self.message(if copy {
+                    "Копировать — специальное: выберите способ и нажмите «Копировать»"
+                } else {
+                    "Переместить — специальное: выберите способ и нажмите «Переместить»"
+                });
+            }
+            Cmd::SelectPrevious => {
+                self.sync_selection();
+                if self.previous_selection.is_empty() {
+                    self.message("Предыдущего выбора нет");
+                } else {
+                    let project = self.editor.document.project();
+                    let previous: BTreeSet<ObjectId> = self
+                        .previous_selection
+                        .iter()
+                        .copied()
+                        .filter(|id| project.contains_id(*id))
+                        .collect();
+                    self.editor.selected = previous;
+                    self.sync_selection();
+                    self.message(format!(
+                        "Предыдущий выбор: {} объектов",
+                        self.editor.selected.len()
+                    ));
+                }
+            }
+            Cmd::ToggleRollover => {
+                self.rollover = !self.rollover;
+                self.hovered = None;
+                self.message(if self.rollover {
+                    "Подсветка под курсором: включена"
+                } else {
+                    "Подсветка под курсором: выключена"
+                });
+            }
+            Cmd::SelectionFilter => {
+                self.filter_open = !self.filter_open;
+                self.message(if self.filter.active() {
+                    "Фильтр выбора включён"
+                } else {
+                    "Фильтр выбора: задайте поля и включите"
+                });
+            }
+            Cmd::ToggleDragDrop => {
+                self.drag_drop = !self.drag_drop;
+                self.message(if self.drag_drop {
+                    "Перетаскивание: включено (Ctrl — копировать)"
+                } else {
+                    "Перетаскивание: выключено"
+                });
             }
             Cmd::FitSelected => {
                 if self.editor.selected.is_empty() {
@@ -880,9 +965,10 @@ impl Workbench {
                 if self.select.levels {
                     all.extend(project.levels.keys());
                 }
-                all.retain(|id| !self.hidden.contains(id));
+                all.retain(|id| !self.hidden.contains(id) && self.filter.allows(project, *id));
                 self.message(format!("Выбрано объектов: {}", all.len()));
                 self.editor.selected = all;
+                self.sync_selection();
             }
             Cmd::ToggleProjection => return Some(Request::ToggleProjection),
             Cmd::ShowAll => {
@@ -946,6 +1032,8 @@ impl Workbench {
                     points.pop();
                 } else if self.edit_pick.op.is_some() {
                     self.edit_pick.points.pop();
+                } else if self.special.picking.is_some() {
+                    self.special.picks.pop();
                 } else if self.detail.picks_points() {
                     self.detail.points.pop();
                 } else if !self.engine.active() && !self.editor.selected.is_empty() {
@@ -1104,6 +1192,16 @@ impl Workbench {
             } else {
                 self.measured = None;
                 self.message(self.prompt());
+            }
+            return None;
+        }
+        if self.special.picking.is_some() {
+            match self.special.pick(point, &self.engine.workplane) {
+                Ok(true) => self.message(
+                    "Значения заданы — проверьте и нажмите «Копировать» или «Переместить»",
+                ),
+                Ok(false) => self.message(self.prompt()),
+                Err(e) => self.message(e),
             }
             return None;
         }
@@ -1318,6 +1416,240 @@ impl Workbench {
         self.clip = view.clip;
         self.message(format!("Вид: {}", view.name));
         Some(Request::ApplyView(Box::new(view)))
+    }
+
+    /// Remember the selection it replaces when the selection changed (Alt+P).
+    pub fn sync_selection(&mut self) {
+        if self.editor.selected != self.selection_seen {
+            self.previous_selection =
+                std::mem::replace(&mut self.selection_seen, self.editor.selected.clone());
+        }
+    }
+
+    /// Run the open special dialog: copy N times or move once.
+    pub fn run_special(&mut self, copy: bool) -> Option<Request> {
+        use crate::interaction::special;
+        let project = self.editor.document.project();
+        let result = self.special.special(&self.engine.workplane).and_then(|op| {
+            if copy {
+                let n = self.special.copies()?;
+                special::copy_commands(project, &self.editor.selected, &op, n).map(|(c, ids)| {
+                    (
+                        format!("Копировать {}", op.label()),
+                        c,
+                        format!("Создано копий: {n} ({} объектов)", ids.len()),
+                    )
+                })
+            } else {
+                special::move_commands(project, &self.editor.selected, &op).map(|c| {
+                    (
+                        format!("Переместить {}", op.label()),
+                        c,
+                        format!("Перемещено объектов: {}", self.editor.selected.len()),
+                    )
+                })
+            }
+        });
+        match result {
+            Ok((label, commands, text)) => {
+                self.message(text);
+                Some(Request::Action(Action::Commit(label, commands)))
+            }
+            Err(e) => {
+                self.message(e);
+                None
+            }
+        }
+    }
+
+    /// Drag and drop: move the selection by the drag vector, or copy it.
+    pub fn drop_selection(
+        &mut self,
+        from: open_bim_renderer::DVec3,
+        to: open_bim_renderer::DVec3,
+        copy: bool,
+    ) -> Option<Request> {
+        let delta = open_bim_model::Point3((to - from).to_array());
+        if (to - from).length() < 1e-6 || self.editor.selected.is_empty() {
+            return None;
+        }
+        self.message(if copy {
+            "Скопировано перетаскиванием"
+        } else {
+            "Перемещено перетаскиванием"
+        });
+        Some(Request::Action(Action::Edit(if copy {
+            crate::tools::Edit::Copy(delta)
+        } else {
+            crate::tools::Edit::Move(delta)
+        })))
+    }
+
+    fn special_window(&mut self, ctx: &egui::Context, requests: &mut Vec<Request>) {
+        use crate::interaction::special::{PickTarget, Tab};
+        let Some(copy) = self.special_open else {
+            return;
+        };
+        let mut open = true;
+        let mut run = false;
+        let mut pick = None;
+        let selected = self.editor.selected.len();
+        let d = &mut self.special;
+        let fields = |ui: &mut egui::Ui, id: &str, names: &[&str], values: &mut [String]| {
+            ui.horizontal(|ui| {
+                for (name, value) in names.iter().zip(values.iter_mut()) {
+                    let l = ui.label(*name);
+                    ui.add(
+                        egui::TextEdit::singleline(value)
+                            .id(egui::Id::new((id, *name)))
+                            .desired_width(70.),
+                    )
+                    .labelled_by(l.id);
+                }
+            });
+        };
+        egui::Window::new(if copy {
+            "Копировать — специальное"
+        } else {
+            "Переместить — специальное"
+        })
+        .open(&mut open)
+        .collapsible(false)
+        .resizable(false)
+        .default_width(380.)
+        .show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                for tab in Tab::ALL {
+                    ui.selectable_value(&mut d.tab, tab, tab.label());
+                }
+            });
+            ui.separator();
+            match d.tab {
+                Tab::Linear => {
+                    fields(ui, "lin", &["dX", "dY", "dZ"], &mut d.delta);
+                    if ui.button("Указать две точки").clicked() {
+                        pick = Some(PickTarget::Vector);
+                    }
+                }
+                Tab::Rotate => {
+                    ui.label("Центр поворота, мм");
+                    fields(ui, "rot", &["X0", "Y0", "Z0"], &mut d.pivot);
+                    ui.horizontal(|ui| {
+                        if ui.button("Указать центр").clicked() {
+                            pick = Some(PickTarget::Pivot);
+                        }
+                        ui.label("Ось");
+                        for (i, name) in ["X", "Y", "Z"].into_iter().enumerate() {
+                            ui.selectable_value(&mut d.axis, i, name);
+                        }
+                    });
+                    let mut pair = [d.angle.clone(), d.dz.clone()];
+                    fields(ui, "rot2", &["Угол, °", "dZ, мм"], &mut pair);
+                    [d.angle, d.dz] = pair;
+                }
+                Tab::Mirror => {
+                    ui.label("Линия зеркала на рабочей плоскости");
+                    let mut three = [
+                        d.mirror_origin[0].clone(),
+                        d.mirror_origin[1].clone(),
+                        d.mirror_angle.clone(),
+                    ];
+                    fields(ui, "mir", &["X0", "Y0", "Угол, °"], &mut three);
+                    let [x, y, a] = three;
+                    d.mirror_origin = [x, y];
+                    d.mirror_angle = a;
+                    if ui.button("Указать две точки").clicked() {
+                        pick = Some(PickTarget::MirrorLine);
+                    }
+                }
+                Tab::ToPlane => {
+                    ui.label(match d.planes {
+                        Some(_) => "Плоскости заданы",
+                        None => "Плоскости не заданы",
+                    });
+                    if ui
+                        .button("Указать: 3 точки исходной + 3 точки новой")
+                        .clicked()
+                    {
+                        pick = Some(PickTarget::Planes);
+                    }
+                }
+            }
+            if copy && matches!(d.tab, Tab::Linear | Tab::Rotate) {
+                fields(
+                    ui,
+                    "n",
+                    &["Количество копий"],
+                    std::slice::from_mut(&mut d.copies),
+                );
+            }
+            if let Some(prompt) = d.prompt() {
+                ui.colored_label(egui::Color32::from_rgb(0, 110, 200), prompt);
+            }
+            ui.separator();
+            ui.horizontal(|ui| {
+                ui.label(format!("Выбрано: {selected}"));
+                if ui
+                    .add_enabled(
+                        selected > 0,
+                        egui::Button::new(if copy {
+                            "Копировать"
+                        } else {
+                            "Переместить"
+                        }),
+                    )
+                    .clicked()
+                {
+                    run = true;
+                }
+            });
+        });
+        if let Some(target) = pick {
+            self.special.start_pick(target);
+            self.message(self.prompt());
+        }
+        if run && let Some(r) = self.run_special(copy) {
+            requests.push(r);
+        }
+        if !open {
+            self.special_open = None;
+            self.special.cancel_pick();
+        }
+    }
+
+    fn filter_window(&mut self, ctx: &egui::Context) {
+        if !self.filter_open {
+            return;
+        }
+        let mut open = true;
+        let f = &mut self.filter;
+        egui::Window::new("Фильтр выбора")
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .show(ctx, |ui| {
+                ui.checkbox(&mut f.enabled, "Фильтр включён");
+                egui::Grid::new("selection filter")
+                    .num_columns(2)
+                    .show(ui, |ui| {
+                        for (name, value) in [
+                            ("Имя", &mut f.name),
+                            ("Профиль", &mut f.profile),
+                            ("Материал", &mut f.material),
+                            ("Класс", &mut f.class),
+                        ] {
+                            let l = ui.label(name);
+                            ui.add(egui::TextEdit::singleline(value).desired_width(160.))
+                                .labelled_by(l.id);
+                            ui.end_row();
+                        }
+                    });
+                ui.label("Несколько значений — через пробел; * и ? — шаблоны (I20*).");
+                if ui.button("Очистить").clicked() {
+                    *f = Default::default();
+                }
+            });
+        self.filter_open = open;
     }
 
     fn delete_request(&mut self, ids: &BTreeSet<ObjectId>) -> Request {
@@ -1788,7 +2120,10 @@ impl Workbench {
         self.components_window(&ctx);
         self.document_window(&ctx, &mut requests);
         self.delete_window(&ctx, &mut requests);
+        self.special_window(&ctx, &mut requests);
+        self.filter_window(&ctx);
         self.chrome(ui, &mut requests);
+        self.sync_selection();
         if self.focus_target.take() == Some(FocusArea::Viewport) {
             // Viewport: no widget keeps focus, so keys drive the view and picks.
             ctx.memory_mut(|m| {

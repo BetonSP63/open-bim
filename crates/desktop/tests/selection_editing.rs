@@ -329,6 +329,8 @@ fn context_menu_commands_all_act() {
         Cmd::PanelProperties,
         Cmd::MoveByPicks,
         Cmd::CopyByPicks,
+        Cmd::CopySpecial,
+        Cmd::MoveSpecial,
         Cmd::DeleteSelected,
         Cmd::HideSelected,
         Cmd::ShowOnlySelected,
