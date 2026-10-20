@@ -217,7 +217,6 @@ impl Project {
                 .profiles
                 .get(profile)
                 .ok_or(ModelError::MissingReference(*profile))?
-                .shape
                 .area_mm2()?
                 * length.value()),
             ElementShape::Plate {

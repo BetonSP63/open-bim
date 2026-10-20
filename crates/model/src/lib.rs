@@ -9,6 +9,7 @@ mod document_info;
 mod drawing;
 mod drawing_objects;
 mod frame;
+pub mod library;
 pub mod numbering_rules;
 mod position;
 mod project;

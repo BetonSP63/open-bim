@@ -21,7 +21,7 @@ concrete,Монолитные и сборные бетонные элемент�
 rebar,Стержни и арматурные группы,detailing,https://support.tekla.com/tekla-2025/tekla-structures,open,initial,"Сверить защитный слой, формы, длины и обновление бетона",Не реализовано: этапы 15–16 отложены решением пользователя 2026-10-18
 advanced-rebar,Расширенное армирование и формы,detailing,https://support.tekla.com/tekla-2025/tekla-structures,open,later,Корпус гнутых форм и производственных ведомостей,
 pour-management,Захватки и управление бетонированием,fabrication,https://support.tekla.com/tekla-2025/tekla-structures,open,later,Обновить границы захватки и объём после правки,
-catalogs,Полные региональные каталоги,modeling,https://support.tekla.com/tekla-2025/tekla-structures,open,later,Сверить сортамент с открытым первоисточником,
+catalogs,Полные региональные каталоги,modeling,https://support.tekla.com/tekla-2025/tekla-structures,open,later,Сверить сортамент с открытым первоисточником,"Частично: crates/model/src/library.rs (ГОСТ 8239, 26020, 8240, 8509, 10704, 30245; площади сверены с размерами в тестах, сверка с первоисточником не выполнена)"
 collaboration,Совместная работа и разрешение конфликтов,collaboration,https://support.tekla.com/tekla-2025/tekla-structures,open,later,Два клиента одновременно правят связанные элементы,
 api,API и пользовательские компоненты,api,https://support.tekla.com/tekla-2025/tekla-structures,open,later,Создать компонент через публичный API и проверить обновление,
 windows-linux,Windows и Linux,platform,https://support.tekla.com/tekla-2025/tekla-structures,open,later,"Сборка, запуск и полный пользовательский сценарий на каждой ОС",
