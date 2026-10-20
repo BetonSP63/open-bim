@@ -1,6 +1,7 @@
 //! Application shell shared by the native app and headless UI tests: menus,
 //! panels, command registry, palette, help and background jobs. The 3D
 //! viewport (GPU) is drawn by the binary inside the central panel.
+pub mod catalog_picker;
 pub mod chrome;
 pub mod commands;
 pub mod icons;

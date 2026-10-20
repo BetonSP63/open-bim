@@ -52,6 +52,8 @@ fn fixture(at_end: bool) -> Project {
                 flange: 14.,
             },
             source: "Analytical test section".into(),
+            standard: None,
+            area_mm2: None,
         },
     );
     p.next_id = 31;

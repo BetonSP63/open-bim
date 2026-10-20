@@ -204,7 +204,7 @@ impl Project {
             register(*key, value.id)?;
             text(&value.name)?;
             text(&value.source)?;
-            value.shape.area_mm2()?;
+            value.area_mm2()?;
         }
         for (key, value) in &self.elements {
             register(*key, value.id)?;

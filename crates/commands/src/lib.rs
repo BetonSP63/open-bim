@@ -61,6 +61,15 @@ pub enum Command {
     CreateLevel {
         level: open_bim_model::Level,
     },
+    /// A profile copied from the catalogue into the project (the model
+    /// keeps only the profiles it uses).
+    CreateProfile {
+        profile: open_bim_model::Profile,
+    },
+    /// A steel grade copied from the catalogue into the project.
+    CreateMaterial {
+        material: open_bim_model::Material,
+    },
     Delete {
         id: ObjectId,
         policy: DeletePolicy,
@@ -439,6 +448,30 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
                     })?,
                 );
             project.levels.insert(level.id, level.clone());
+        }
+        Command::CreateProfile { profile } => {
+            if project.contains_id(profile.id) || profile.id.0 == 0 {
+                return Err(ModelError::DuplicateId(profile.id).into());
+            }
+            project.next_id =
+                project.next_id.max(
+                    profile.id.0.checked_add(1).ok_or_else(|| {
+                        CommandError::InvalidTransaction("Недопустимый ID".into())
+                    })?,
+                );
+            project.profiles.insert(profile.id, profile.clone());
+        }
+        Command::CreateMaterial { material } => {
+            if project.contains_id(material.id) || material.id.0 == 0 {
+                return Err(ModelError::DuplicateId(material.id).into());
+            }
+            project.next_id =
+                project.next_id.max(
+                    material.id.0.checked_add(1).ok_or_else(|| {
+                        CommandError::InvalidTransaction("Недопустимый ID".into())
+                    })?,
+                );
+            project.materials.insert(material.id, material.clone());
         }
         Command::ReplaceLevel { level } => {
             if !project.levels.contains_key(&level.id) {

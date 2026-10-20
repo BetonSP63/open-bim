@@ -163,6 +163,10 @@ pub struct Changes {
     /// New member length (mm) and which end moves.
     pub length: Option<(f64, LengthMode)>,
     pub position: PositionChanges,
+    /// Catalogue profile / steel picked for this change, stored in the same
+    /// transaction (`profile` / `material` hold their ids).
+    pub new_profile: Option<open_bim_model::Profile>,
+    pub new_material: Option<open_bim_model::Material>,
 }
 
 /// Edited position fields; `None` keeps each member's own value.
@@ -203,6 +207,38 @@ pub fn modify(
     parts: &[ObjectId],
     changes: &Changes,
 ) -> Result<Vec<Command>, String> {
+    // Catalogue records are added first, in the same transaction.
+    let mut added = Vec::new();
+    let mut changes = changes.clone();
+    let mut staged = None;
+    if changes.new_profile.is_some() || changes.new_material.is_some() {
+        let mut copy = project.clone();
+        let mut next = copy.next_id;
+        if let Some(mut p) = changes.new_profile.take() {
+            let picked = changes.profile == Some(p.id);
+            p.id = ObjectId(next);
+            next += 1;
+            if picked {
+                changes.profile = Some(p.id);
+            }
+            copy.profiles.insert(p.id, p.clone());
+            added.push(Command::CreateProfile { profile: p });
+        }
+        if let Some(mut m) = changes.new_material.take() {
+            let picked = changes.material == Some(m.id);
+            m.id = ObjectId(next);
+            next += 1;
+            if picked {
+                changes.material = Some(m.id);
+            }
+            copy.materials.insert(m.id, m.clone());
+            added.push(Command::CreateMaterial { material: m });
+        }
+        copy.next_id = next;
+        staged = Some(copy);
+    }
+    let project = staged.as_ref().unwrap_or(project);
+    let changes = &changes;
     if let Some(p) = changes.profile
         && !project.profiles.contains_key(&p)
     {
@@ -257,7 +293,8 @@ pub fn modify(
     if commands.is_empty() {
         return Err("Нет изменений".into());
     }
-    Ok(commands)
+    added.extend(commands);
+    Ok(added)
 }
 
 /// Cache key of `common`: project revision plus a fingerprint of the
@@ -290,6 +327,9 @@ pub struct PropertyPane {
     /// Which end the length field moves; kept between selections.
     pub length_mode: LengthMode,
     pub position: PositionBuffer,
+    /// Catalogue picks not yet in the project.
+    pub pending_profile: Option<open_bim_model::Profile>,
+    pub pending_material: Option<open_bim_model::Material>,
 }
 
 /// Edit buffer of the position fields; `None` = «— разные —».
@@ -367,6 +407,8 @@ impl PropertyPane {
             return;
         }
         self.source = c.parts.clone();
+        self.pending_profile = None;
+        self.pending_material = None;
         self.name = c.name.value().cloned().unwrap_or_else(|| VARIES.into());
         self.profile = c.profile.as_ref().and_then(|p| p.value().copied());
         self.material = c.material.value().copied();
@@ -389,6 +431,14 @@ impl PropertyPane {
             (buffer != shown && buffer != VARIES).then(|| buffer.to_string())
         };
         Ok(Changes {
+            new_profile: self
+                .pending_profile
+                .clone()
+                .filter(|p| self.profile == Some(p.id)),
+            new_material: self
+                .pending_material
+                .clone()
+                .filter(|m| self.material == Some(m.id)),
             position: match &c.position {
                 Some(shown) => self.position.changes(shown)?,
                 None => PositionChanges::default(),
