@@ -1,4 +1,4 @@
-//! KeyTips (Office/Tekla style): Alt pressed and released alone, or F10,
+//! KeyTips (Office style): Alt pressed and released alone, or F10,
 //! shows a letter on every ribbon tab; typing it opens the tab and shows
 //! letters on its buttons; typing a button's letter runs the command. Esc
 //! steps back. Letters are Russian; the Latin key at the same place on the

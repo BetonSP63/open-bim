@@ -1,4 +1,4 @@
-//! Construction lines/circles, model dimensions and the Tekla-like fitting
+//! Construction lines/circles, model dimensions and the fitting
 //! and cutting commands, checked against exact geometry.
 use open_bim_commands::Command;
 use open_bim_desktop::interaction::member_edit::ends;

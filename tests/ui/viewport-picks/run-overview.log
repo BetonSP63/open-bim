@@ -5,7 +5,7 @@ SCRIPT: step 2 Click([565.0, 385.0])
 SCRIPT: step 3 Wait(20)
 SCRIPT: step 4 Hover([900.0, 700.0])
 SCRIPT: step 5 Wait(20)
-SCRIPT: step 6 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/viewport-tekla/overview-1280x800.png")
-CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/viewport-tekla/overview-1280x800.png 2560x1600
+SCRIPT: step 6 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/viewport-picks/overview-1280x800.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/viewport-picks/overview-1280x800.png 2560x1600
 SCRIPT: step 7 Quit
 SCRIPT: finished

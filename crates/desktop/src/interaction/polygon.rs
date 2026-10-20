@@ -26,7 +26,7 @@ impl PlateMode {
 }
 
 /// Plate position across its thickness relative to the work plane
-/// (Tekla «At depth» for plates).
+/// («At depth» for plates).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum PlatePosition {
     /// Above the plane: z ∈ [0, t].

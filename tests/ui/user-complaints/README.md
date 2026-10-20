@@ -34,7 +34,7 @@ Run both from this directory:
 | Нет сборок на ленте | ../bolts-welds-assemblies (ribbon «Сборки и узлы») |
 | Сварка, выбор типа шва | ../bolts-welds-assemblies (types, sides, around; ГОСТ 5264-80) |
 | Центр вращения в курсоре; трекпад | ../edit-members-views/06-trackpad-orbit-pivot.png |
-| Линии в модели; подрезка как в Tekla | ../construction-trim (IFC_VOLUMES_OK) |
+| Линии в модели; подрезка по типовому рабочему процессу | ../construction-trim (IFC_VOLUMES_OK) |
 | Длина детали, начало/конец/оба | ../edit-members-views/01–02 |
 | Режимы отображения, прозрачность | ../edit-members-views/03–05 |
 | Маскировка, штриховка, линии, размеры на чертеже | ../drawing-editing/native/01–05 |

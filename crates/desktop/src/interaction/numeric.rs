@@ -1,5 +1,5 @@
-//! Numeric location input during picks (Tekla «Enter a Numeric Location»).
-//! Tekla's default mode is relative: `x,y,z` without a prefix is relative to
+//! Numeric location input during picks («Enter a Numeric Location»).
+//! The default mode is relative: `x,y,z` without a prefix is relative to
 //! the previous pick (absolute from the work plane origin when there is none);
 //! `@` relative, `$` absolute in work plane coordinates, `!` global; polar
 //! `d<a` / `d<a<b` (distance, angle on the XY plane, angle from the plane, in

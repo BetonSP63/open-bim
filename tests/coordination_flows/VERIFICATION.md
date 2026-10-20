@@ -23,4 +23,4 @@ holes and no intersections.
 
 Limits: bolt shafts are 32-gon prisms inscribed in the nominal diameter minus
 0.0002 mm; nuts/washers/heads are not modelled; the view is not zoomed to the
-selected row. No claim of full Tekla clash-check parity.
+selected row. No claim of full parity with commercial clash checking.

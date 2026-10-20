@@ -1,0 +1,19 @@
+LOAD_MS: 1.1
+GPU: Apple M5 · Metal; project=Контрольный стальной каркас objects=7
+SCRIPT: step 1 Wait(30)
+SCRIPT: step 2 Click([100.0, 40.0])
+SCRIPT: step 3 Wait(120)
+SCRIPT: step 4 Hover([155.0, 80.0])
+SCRIPT: step 5 Wait(300)
+SCRIPT: step 6 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/ribbon-chrome/steel-tooltip-1280x800.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/ribbon-chrome/steel-tooltip-1280x800.png 2560x1600
+SCRIPT: step 7 Click([160.0, 40.0])
+SCRIPT: step 8 Wait(120)
+SCRIPT: step 9 Hover([90.0, 60.0])
+SCRIPT: step 10 Wait(30)
+SCRIPT: step 11 Hover([90.0, 80.0])
+SCRIPT: step 12 Wait(300)
+SCRIPT: step 13 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/ribbon-chrome/concrete-disabled-1280x800.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/ui/ribbon-chrome/concrete-disabled-1280x800.png 2560x1600
+SCRIPT: step 14 Quit
+SCRIPT: finished

@@ -1,4 +1,4 @@
-//! Tekla-style creation tools beyond parts: grid from coordinate strings,
+//! Creation tools beyond parts: grid from coordinate strings,
 //! the default grid of a new model, bolts by two picks through the selected
 //! parts and welds by picking the main and the secondary part.
 use super::selection::corners;
@@ -12,7 +12,7 @@ use std::collections::BTreeSet;
 
 const MAX_LINES: usize = 500;
 
-/// Tekla grid X/Y string: the first value is absolute, each further value is
+/// Grid X/Y string: the first value is absolute, each further value is
 /// a spacing, `n*s` repeats a spacing: «0 4*6000» → 0, 6000, … 24000.
 pub fn coordinates(text: &str) -> Result<Vec<f64>, String> {
     let mut values: Vec<f64> = Vec::new();
@@ -56,7 +56,7 @@ pub fn coordinates(text: &str) -> Result<Vec<f64>, String> {
     Ok(values)
 }
 
-/// Tekla grid Z string: absolute elevations from the work plane origin
+/// Grid Z string: absolute elevations from the work plane origin
 /// («0 3600 7200»), unique values.
 pub fn elevations(text: &str) -> Result<Vec<f64>, String> {
     let values: Vec<f64> = text
@@ -122,7 +122,7 @@ pub fn level_labels(text: &str, elevations: &[f64]) -> Result<Vec<String>, Strin
     Ok(out)
 }
 
-/// Grid dialog contents (Tekla «Сетка»): X and Y lines (relative), Z levels
+/// Grid dialog contents («Сетка»): X and Y lines (relative), Z levels
 /// (absolute).
 #[derive(Clone, Debug, PartialEq)]
 pub struct GridSpec {
@@ -220,7 +220,7 @@ pub fn grid_commands(project: &Project, spec: &GridSpec) -> Result<Vec<Command>,
     Ok(commands)
 }
 
-/// A new model like a new Tekla model: default grid 1–5 × А–Г at 6000 mm,
+/// A new model with the usual defaults: default grid 1–5 × А–Г at 6000 mm,
 /// levels 0 and +3600, work plane at level 0.
 pub fn default_project() -> Result<Project, String> {
     let project = Project::default();
@@ -234,7 +234,7 @@ pub fn default_project() -> Result<Project, String> {
     Ok(project)
 }
 
-/// Bolt group through `parts` (Tekla «by parts and points»): the first
+/// Bolt group through `parts` («by parts and points»): the first
 /// point is the group origin, the second sets its X direction; the bolt axis
 /// is `axis` (work plane normal) and spans all parts, so every part gets a
 /// through hole. Spacings, shift and rotation come from the bolt properties.
@@ -356,7 +356,7 @@ pub fn weld_between(
     candidate.details.insert(id, detail.clone());
     candidate.validate().map_err(|e| e.to_string())?;
     let mut commands = vec![Command::CreateDetail { detail }];
-    // A shop weld makes one assembly of the two parts (Tekla).
+    // A shop weld makes one assembly of the two parts.
     if props.shop {
         commands.extend(super::assembly_edit::join(&candidate, main, secondary));
     }
@@ -369,7 +369,7 @@ pub enum DetailTool {
     Weld,
 }
 
-/// Pick state of the bolt and weld commands. Bolt (Tekla «by parts and
+/// Pick state of the bolt and weld commands. Bolt («by parts and
 /// points»): main part, secondary parts, middle click, origin, X direction.
 /// Weld: main part, then secondary part.
 #[derive(Clone, Debug, Default)]

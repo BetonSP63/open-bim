@@ -1,4 +1,4 @@
-//! Tekla-style ribbon: «Файл» menu, tabs (МЕТАЛЛ … УПРАВЛЕНИЕ; concrete and
+//! Ribbon: «Файл» menu, tabs (МЕТАЛЛ … УПРАВЛЕНИЕ; concrete and
 //! rebar shown but disabled) and button groups, each button running a command
 //! of the registry. Shift+click opens the tool's properties first.
 use super::chrome::{SidePanel, tooltip};
@@ -412,7 +412,7 @@ impl Workbench {
                                                         && let Some(cmd) = it.cmd
                                                     {
                                                         self.run(cmd, requests);
-                                                        // Tekla: Shift+click a tool opens its properties.
+                                                        // Shift+click a tool opens its properties.
                                                         if ui.input(|i| i.modifiers.shift) {
                                                             self.mode = Mode::Model;
                                                             self.side_panel = Some(match cmd {
