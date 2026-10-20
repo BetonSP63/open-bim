@@ -34,6 +34,7 @@ are listed in `docs/tekla-docs-comparison.md`.
 | Bolt «by parts and points»: main part, secondary parts, middle click, origin, X direction | same; the bolt axis is the work plane normal, holes go through all selected parts | bolt_by_parts_and_points_drills_both_plates_as_allowed_holes |
 | Weld between parts: the part to weld to, then the part to be welded | same; the weld path is the nearest edge of the secondary part | weld_between_main_and_secondary_part |
 | Snap priority: highest class wins, then the nearest point | reference points and grid intersections share the highest class | nearer_grid_intersection_beats_a_reference_point_a_few_pixels_away |
+| Part position: On plane, Rotation, At depth with offsets, end offsets Dx; handles on the reference line; changing the profile keeps the line | «Положение» in the create dialog and the property pane: «В плоскости» (Посередине/Слева/Справа), «Поворот» (Спереди/Сверху/Сзади/Снизу + угол), «По глубине» (Посередине/Спереди/Сзади), offsets in mm, Dx at both ends. «Слева» and «Спереди» are +x and +y of the member's local axes (for a beam: left looking from start to end, and up). The default keeps the old placement (centred) | crates/model/src/position.rs tests; crates/desktop/tests/part_position.rs |
 
 ## Selection and editing (MOD 1.6–1.8)
 
@@ -86,7 +87,6 @@ is claimed. See `docs/tekla-docs-comparison.md` for each row's status.
   - R/A/G keys for the numeric input mode.
 - **Navigation:** view rotation point (V), rotate continuously (Shift+T), fly (Shift+F), Ctrl+R mouse rotate, F8.
 - **Rendering:** wireframe/shaded/grayscale/rendered modes (Ctrl+1…4, Shift+1…4), «show only selected» rendering modes.
-- **Part position:** On plane, Rotation and At depth settings with end offsets. The profile is always centred on the reference line.
 - **Columns:** binding to levels.
 - **Grids:** radial grids, picking the grid origin, editing a single grid line, grid lines drawn at every level as objects. Today they are drawn and snapped but stored once.
 - **Bolts:** «by face» and «by parts and face»; circle/list shapes; slotted, oversized, tapped and blind holes; Auto bolt.

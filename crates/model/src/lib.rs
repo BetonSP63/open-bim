@@ -10,6 +10,7 @@ mod drawing;
 mod drawing_objects;
 mod frame;
 pub mod numbering_rules;
+mod position;
 mod project;
 mod validation;
 
@@ -30,6 +31,7 @@ pub use drawing::{
 pub use drawing_objects::{HatchPattern, LineType, SheetObject, SheetObjectKind};
 pub use frame::{Frame, GridAxis, Level};
 pub use open_bim_geometry::{GeometryError, LengthMm, Point3};
+pub use position::{AtDepth, OnPlane, PartPosition, Rotation, place, reference_line};
 pub use project::{
     Assembly, Element, ElementShape, MemberKind, ObjectId, Project, PropertyValue, Units,
     example_steel_frame,

@@ -216,8 +216,12 @@ impl Project {
             value.shape.frame().validate()?;
             match &value.shape {
                 ElementShape::Member {
-                    profile, length, ..
+                    profile,
+                    length,
+                    position,
+                    ..
                 } => {
+                    position.validate()?;
                     if generated.contains(profile) && !generated.contains(&value.id) {
                         return Err(ModelError::InvalidValue("Профиль принадлежит соединению; используйте самостоятельный профиль или копию шаблона узла".into()));
                     }

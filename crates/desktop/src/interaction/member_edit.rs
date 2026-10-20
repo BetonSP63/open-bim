@@ -52,6 +52,7 @@ pub fn resize(
         profile,
         length,
         frame,
+        position,
     } = shape
     else {
         return Err("Длина задаётся только у балок и колонн".into());
@@ -75,6 +76,7 @@ pub fn resize(
             origin: Point3(origin.to_array()),
             axes: frame.axes,
         },
+        position: *position,
     })
 }
 

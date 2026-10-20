@@ -33,6 +33,9 @@ pub enum ElementShape {
         profile: ObjectId,
         length: LengthMm,
         frame: Frame,
+        /// Tekla «Положение»; `frame`/`length` are the resulting body axis.
+        #[serde(default, skip_serializing_if = "crate::PartPosition::is_default")]
+        position: crate::PartPosition,
     },
     Plate {
         contour: Vec<[f64; 2]>,
@@ -311,6 +314,7 @@ pub fn example_steel_frame() -> Result<Project, ModelError> {
                         origin: Point3([x, y, 0.0]),
                         ..Default::default()
                     },
+                    position: Default::default(),
                 },
                 properties: BTreeMap::new(),
             },
@@ -330,6 +334,7 @@ pub fn example_steel_frame() -> Result<Project, ModelError> {
                     profile: ObjectId(2),
                     length,
                     frame,
+                    position: Default::default(),
                 },
                 properties: BTreeMap::new(),
             },

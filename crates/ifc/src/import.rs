@@ -733,6 +733,7 @@ pub fn import(text: &str) -> Result<(Project, ImportReport), String> {
                         profile,
                         length: LengthMm::new(depth).map_err(|e| e.to_string())?,
                         frame: world.frame(),
+                        position: Default::default(),
                     }
                 }
                 _ => return Err("сочетание сущности и профиля не поддерживается".into()),

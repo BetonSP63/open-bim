@@ -19,6 +19,7 @@ fn fixture(at_end: bool) -> Project {
                 profile: ObjectId(2),
                 length: LengthMm::new(3000.).unwrap(),
                 frame: Frame::default(),
+                position: Default::default(),
             },
         },
     );
@@ -297,6 +298,7 @@ fn bounding_box_contact_without_material_on_face_is_rejected_atomically() {
         profile: ObjectId(2),
         length: LengthMm::new(3000.).unwrap(),
         frame: Frame::default(),
+        position: Default::default(),
     };
     let before = project_hash(&p).unwrap();
     let mut doc = Document::new(p).unwrap();

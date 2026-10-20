@@ -51,7 +51,7 @@ everything still ⚠/❌ is listed in `docs/tekla-interaction.md` → «not impl
 | New model creates a rectangular grid + view from standard properties | phase 5: default grid 1–5 × А–Г | ✅ |
 | Grid: X/Y relative («0 2*4000»), **Z absolute**, labels, extensions; pick an origin or middle click; lines at every level | dialog with X/Y relative and Z absolute; origin fixed at 0; lines at the lowest level, levels as labels | ⚠ |
 | Column: one pick, **Top/Bottom levels** in properties (global z) | same; no binding to levels | ✅ |
-| Beam: two picks, continuous; Position On plane / Rotation / At depth relative to the reference line | two picks, profile centred on the line; no position settings | ⚠ |
+| Beam: two picks, continuous; Position On plane / Rotation / At depth relative to the reference line | two picks; «Положение» (В плоскости / Поворот / По глубине with offsets, Dx at the ends) relative to the reference line; handles on the line | ✓ |
 | Contour plate: polygon picks, middle click finishes | same | ✅ |
 | Bolt «by parts and points»: pick main part, secondary parts, middle click, origin point, X-direction point; group on the work plane; cut length from parts; Array/Circle/List; holes through/blind/special | same pick sequence, length through all parts, array, through holes; no circle/list, no special holes, no «by face» | ⚠ |
 | Weld between parts: main part, then secondary part; length from the contact | same pick order; path = nearest edge | ⚠ |

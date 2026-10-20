@@ -53,6 +53,8 @@ pub struct Draft {
     /// Plate contour picking mode and position across the thickness.
     pub plate_mode: crate::interaction::polygon::PlateMode,
     pub plate_position: crate::interaction::polygon::PlatePosition,
+    /// Beam/column position on the reference line (Tekla «Положение»).
+    pub position: open_bim_model::PartPosition,
     pub contour: String,
     /// Column bottom and top, global Z in mm (Tekla «Низ»/«Верх»).
     pub bottom: String,
@@ -71,6 +73,7 @@ impl Default for Draft {
             contour: "0,0; 400,0; 400,300; 0,300".into(),
             plate_mode: Default::default(),
             plate_position: Default::default(),
+            position: Default::default(),
             bottom: "0".into(),
             top: "3600".into(),
         }
@@ -143,18 +146,20 @@ impl Draft {
                 },
             }
         } else {
-            let (frame, length) =
-                Frame::along(start, point(&self.end)?).map_err(|e| e.to_string())?;
-            ElementShape::Member {
-                member_kind: if self.kind == ToolKind::Beam {
-                    MemberKind::Beam
-                } else {
-                    MemberKind::Column
-                },
-                profile: self.profile,
-                length,
-                frame,
-            }
+            let member_kind = if self.kind == ToolKind::Beam {
+                MemberKind::Beam
+            } else {
+                MemberKind::Column
+            };
+            project
+                .new_member(
+                    member_kind,
+                    self.profile,
+                    start,
+                    point(&self.end)?,
+                    self.position,
+                )
+                .map_err(|e| e.to_string())?
         };
         Ok(vec![Command::Create {
             element: Element {
