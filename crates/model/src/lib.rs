@@ -1,6 +1,7 @@
 //! Serializable BIM domain; no dependency on desktop, drawing or GPU libraries.
 mod body;
 mod catalog;
+mod changes;
 mod connection;
 mod construction;
 mod detailing;
@@ -13,6 +14,7 @@ mod project;
 mod validation;
 
 pub use catalog::{Material, Profile, ProfileShape};
+pub use changes::{Change, REASONS, SheetChange, SheetChangeKind};
 pub use connection::{ConnectionInstance, ConnectionTemplate, TemplateKind};
 pub use construction::{Construction, ConstructionKind, DimPoint, ModelDimension};
 pub use detailing::{Detail, DetailKind, WeldSides, WeldType, weld_mark};

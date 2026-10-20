@@ -866,8 +866,59 @@ pub fn sheet_number(project: &Project, drawing: &Drawing) -> (String, usize, usi
         !matches!(kind, Some(DrawingKind::GeneralData { .. }))
     };
     ids.sort_by_key(|id| (first(id), *id));
-    let no = ids.iter().position(|id| *id == drawing.id).unwrap_or(0) + 1;
+    // Numbers of annulled sheets stay taken (7.3.9): later sheets keep theirs.
+    let annulled = annulled_sheets(project, mark);
+    let mut no = 0;
+    let mut k = 0;
+    for id in &ids {
+        k += 1;
+        while annulled.iter().any(|(n, _, _)| *n == k) {
+            k += 1;
+        }
+        if *id == drawing.id {
+            no = k;
+        }
+    }
     (project.document.designation(mark), no, ids.len())
+}
+
+/// Annulled sheets of a set: (sheet number, title, change number).
+pub fn annulled_sheets(project: &Project, mark: &str) -> Vec<(usize, String, u32)> {
+    project
+        .changes
+        .iter()
+        .filter(|c| c.mark == mark)
+        .flat_map(|c| {
+            c.sheets.iter().filter_map(move |s| match &s.kind {
+                open_bim_model::SheetChangeKind::Annulled { sheet, title } => {
+                    Some((*sheet, title.clone(), c.number))
+                }
+                _ => None,
+            })
+        })
+        .collect()
+}
+
+/// Changes touching a drawing, oldest first.
+pub fn drawing_changes(
+    project: &Project,
+    drawing: ObjectId,
+) -> Vec<(&open_bim_model::Change, &open_bim_model::SheetChange)> {
+    project
+        .changes
+        .iter()
+        .flat_map(|c| {
+            c.sheets
+                .iter()
+                .filter(move |s| s.drawing == drawing)
+                .map(move |s| (c, s))
+        })
+        .collect()
+}
+
+/// Version of a set's documents: 1 for the original, +1 per change (7.3.2).
+pub fn set_version(project: &Project, mark: &str) -> u32 {
+    1 + project.changes.iter().filter(|c| c.mark == mark).count() as u32
 }
 
 /// Area of the main inscription with graph 27 and the QR code, kept free
@@ -914,7 +965,17 @@ fn title_block(
         material: None,
         mass_kg: None,
         scale: None,
-        version: 1,
+        version: set_version(project, set_mark(&drawing.kind)),
+        changes: drawing_changes(project, drawing.id)
+            .into_iter()
+            .map(|(c, s)| title_block::ChangeRow {
+                number: c.number.to_string(),
+                areas: s.areas_text(),
+                sheet: s.sheet_text().into(),
+                document: c.permission.clone(),
+                date: c.date.clone(),
+            })
+            .collect(),
     })?;
     // Model link state is a program mark, outside the inscription.
     if *status != Status::UpToDate {
@@ -1229,6 +1290,59 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
         let (lines, texts) = general_data::content(project, drawing, size, title_area)?;
         frame.extend(lines);
         labels.extend(texts);
+    }
+    // Changed areas (appendix Л): a thin closed contour, the designation
+    // «change.area» in a parallelogram outside it with a thin leader.
+    let metrics = font::Font::load().ok();
+    for (change, sheet_change) in drawing_changes(project, drawing.id) {
+        let open_bim_model::SheetChangeKind::Changed { areas } = &sheet_change.kind else {
+            continue;
+        };
+        for (k, a) in areas.iter().enumerate() {
+            let thin = |points: Vec<[f64; 2]>| Polyline {
+                points,
+                style: LineStyle::Thin,
+                object: None,
+            };
+            frame.push(thin(vec![
+                [a[0], a[1]],
+                [a[2], a[1]],
+                [a[2], a[3]],
+                [a[0], a[3]],
+                [a[0], a[1]],
+            ]));
+            let text = format!("{}.{}", change.number, k + 1);
+            let w = metrics
+                .as_ref()
+                .map_or(text.chars().count() as f64 * 2., |m| {
+                    m.width(&text, TEXT_HEIGHT)
+                })
+                + 4.;
+            let (x, y) = (a[0] - w - 4., a[3] + 4.);
+            let (x, y) = if x < MARGIN_LEFT + 1. {
+                (a[0], y)
+            } else {
+                (x, y)
+            };
+            let (h, slant) = (5., 1.5);
+            frame.push(thin(vec![
+                [x, y],
+                [x + w, y],
+                [x + w + slant, y + h],
+                [x + slant, y + h],
+                [x, y],
+            ]));
+            frame.push(thin(vec![[x + w / 2., y], [a[0], a[3]]]));
+            labels.push(Label {
+                position: [x + slant / 2. + w / 2., y + 1.5],
+                text,
+                height: TEXT_HEIGHT,
+                align: Align::Middle,
+                rotation: 0.,
+                object: None,
+                lost: false,
+            });
+        }
     }
     for note in &drawing.texts {
         labels.push(Label {

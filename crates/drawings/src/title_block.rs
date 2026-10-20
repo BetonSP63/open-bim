@@ -92,6 +92,19 @@ pub struct SheetInfo<'a> {
     pub scale: Option<f64>,
     /// Document version for the QR code.
     pub version: u32,
+    /// Rows of the change table, graphs 14–19, oldest first (7.3.13).
+    pub changes: Vec<ChangeRow>,
+}
+
+/// One row of the change table: «Изм.», «Кол.уч», «Лист», «№ док.», date;
+/// «Подп.» is signed by the person responsible.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ChangeRow {
+    pub number: String,
+    pub areas: String,
+    pub sheet: String,
+    pub document: String,
+    pub date: String,
 }
 
 /// A numbered graph and its rectangle on the sheet [x0, y0, x1, y1].
@@ -502,6 +515,44 @@ pub fn build(sheet: &SheetInfo) -> Result<TitleBlock, String> {
             0.,
         );
     }
+    // Change table rows above its header, continued upward over the
+    // inscription when the form's rows are used up.
+    let header = match sheet.form {
+        Form::F3 | Form::F4 => 40.,
+        Form::F5 => 30.,
+        Form::F6 => 0.,
+    };
+    let mut table_top = bh;
+    let mut change_cells = Vec::new();
+    for (i, row) in sheet.changes.iter().enumerate() {
+        let (r0, r1) = (header + 5. * (i + 1) as f64, header + 5. * (i + 2) as f64);
+        if r1 > bh + 1e-9 {
+            for x in [0., 10., 20., 30., 40., 55., 65.] {
+                tb.lines
+                    .push(line(at(x, r0.max(bh)), at(x, r1), LineStyle::Frame));
+            }
+            tb.lines
+                .push(line(at(0., r1), at(65., r1), LineStyle::Thin));
+            table_top = r1;
+        }
+        for (graph, (x0, x1), text) in [
+            (14u8, (0., 10.), &row.number),
+            (15, (10., 20.), &row.areas),
+            (16, (20., 30.), &row.sheet),
+            (17, (30., 40.), &row.document),
+            (19, (55., 65.), &row.date),
+        ] {
+            let (a, b) = (at(x0, r0), at(x1, r1));
+            let r = [a[0], a[1], b[0], b[1]];
+            change_cells.push(Cell { graph, rect: r });
+            place(&font, &mut labels, r, text, 2.5, Align::Middle, 0.);
+        }
+    }
+    if table_top > bh {
+        // The continued table's top edge is a main line.
+        let last = tb.lines.len() - 1;
+        tb.lines[last].style = LineStyle::Frame;
+    }
     let info = sheet.info;
     let mut texts = vec![
         Text {
@@ -786,7 +837,8 @@ pub fn build(sheet: &SheetInfo) -> Result<TitleBlock, String> {
             }
         }
     }
-    tb.reserved = [x0, y0, x0 + bw, qy + side + quiet];
+    tb.cells.extend(change_cells);
+    tb.reserved = [x0, y0, x0 + bw, (qy + side + quiet).max(y0 + table_top)];
     tb.labels = labels;
     Ok(tb)
 }

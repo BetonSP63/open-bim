@@ -1,0 +1,71 @@
+LOAD_MS: 2.7
+GPU: Apple M5 · Metal; project=Контрольное здание objects=37
+SCRIPT: step 1 Wait(30)
+SCRIPT: step 2 Note("F3 — чертежи; КМ, «Выдать комплект»; КМД, «Выдать комплект»")
+SCRIPT: step 3 Key { name: "F3", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 4 Wait(15)
+SCRIPT: step 5 Click([1159.8, 235.9])
+SCRIPT: step 6 Wait(6)
+SCRIPT: step 7 Click([1109.8, 380.0])
+SCRIPT: step 8 Wait(10)
+SCRIPT: step 9 Click([1203.9, 235.9])
+SCRIPT: step 10 Wait(6)
+SCRIPT: step 11 Click([1109.8, 380.0])
+SCRIPT: step 12 Wait(10)
+SCRIPT: step 13 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/gost/release/native/01-issued.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/gost/release/native/01-issued.png 2940x1654
+SCRIPT: step 14 Note("F2 — модель: балка А/1-2, поле «Длина» 6500, Enter")
+SCRIPT: step 15 Key { name: "F2", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 16 Wait(15)
+SCRIPT: world [3000.0, 0.0, 3600.0] → screen [520.961, 518.67236]
+SCRIPT: step 17 Click([520.961, 518.67236])
+SCRIPT: step 18 Wait(10)
+SCRIPT: step 19 Click([1168.7, 252.8])
+SCRIPT: step 20 Wait(4)
+SCRIPT: step 21 Key { name: "A", command: true, shift: false, alt: false, ctrl: false }
+SCRIPT: step 22 Text("6500")
+SCRIPT: step 23 Wait(3)
+SCRIPT: step 24 Key { name: "Enter", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 25 Wait(15)
+SCRIPT: step 26 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/gost/release/native/02-model-edit.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/gost/release/native/02-model-edit.png 2940x1654
+SCRIPT: step 27 Note("F3 — разрешение 15-26, содержание, «Записать изменение» для КМ и КМД")
+SCRIPT: step 28 Key { name: "F3", command: false, shift: false, alt: false, ctrl: false }
+SCRIPT: step 29 Wait(15)
+SCRIPT: step 30 Click([1221.6, 257.2])
+SCRIPT: step 31 Wait(3)
+SCRIPT: step 32 Text("15-26")
+SCRIPT: step 33 Wait(3)
+SCRIPT: step 34 Click([1271.5, 308.7])
+SCRIPT: step 35 Wait(3)
+SCRIPT: step 36 Text("Длина балки А/1-2 6500")
+SCRIPT: step 37 Wait(3)
+SCRIPT: step 38 Click([1159.8, 235.9])
+SCRIPT: step 39 Wait(6)
+SCRIPT: step 40 Click([1239.2, 380.0])
+SCRIPT: step 41 Wait(15)
+SCRIPT: step 42 Click([1203.9, 235.9])
+SCRIPT: step 43 Wait(6)
+SCRIPT: step 44 Click([1239.2, 380.0])
+SCRIPT: step 45 Wait(15)
+SCRIPT: step 46 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/gost/release/native/03-change-recorded.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/gost/release/native/03-change-recorded.png 2940x1654
+SCRIPT: step 47 Note("Лист КМД-2: участки изменения 1.k и строка Изм. 1")
+SCRIPT: step 48 Click([1113.5, 494.7])
+SCRIPT: step 49 Wait(25)
+SCRIPT: step 50 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/gost/release/native/04-part-change.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/gost/release/native/04-part-change.png 2940x1654
+SCRIPT: step 51 Note("КМД-ОД: «Изм. 1» в ведомости")
+SCRIPT: step 52 Click([1142.9, 536.5])
+SCRIPT: step 53 Wait(25)
+SCRIPT: step 54 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/gost/release/native/05-general-data-change.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/gost/release/native/05-general-data-change.png 2940x1654
+SCRIPT: step 55 Note("«Выпустить пакет ПДЭ» в папку package")
+SCRIPT: step 56 Click([1356.1, 422.6])
+SCRIPT: step 57 Wait(30)
+SCRIPT: step 58 Capture("/Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/gost/release/native/06-package.png")
+CAPTURE_SAVED: /Users/dmitrij/Documents/Codex/2026-10-12/s/outputs/open-bim/tests/gost/release/native/06-package.png 2940x1654
+SCRIPT: step 59 Key { name: "S", command: true, shift: false, alt: false, ctrl: false }
+SCRIPT: step 60 Wait(10)
+SCRIPT: step 61 Quit
+SCRIPT: finished

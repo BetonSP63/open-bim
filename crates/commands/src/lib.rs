@@ -91,6 +91,12 @@ pub enum Command {
     RenameProject {
         name: String,
     },
+    /// Next change of a set with the drawings it reissues (ГОСТ Р 21.101,
+    /// section 7): the change and the updated drawings in one step.
+    RecordChange {
+        change: Box<open_bim_model::Change>,
+        drawings: Vec<open_bim_model::Drawing>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -507,6 +513,30 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
         Command::SetDocumentInfo { info } => {
             info.validate()?;
             project.document = info.as_ref().clone();
+        }
+        Command::RecordChange { change, drawings } => {
+            let next = project
+                .changes
+                .iter()
+                .filter(|c| c.mark == change.mark)
+                .count() as u32
+                + 1;
+            if change.number != next {
+                return Err(ModelError::InvalidValue(format!(
+                    "Изменение {}: ожидается номер {next}",
+                    change.mark
+                ))
+                .into());
+            }
+            for d in drawings {
+                if !project.drawings.contains_key(&d.id) {
+                    return Err(ModelError::MissingReference(d.id).into());
+                }
+                d.validate()?;
+                project.drawings.insert(d.id, d.clone());
+            }
+            change.validate(|id| project.drawings.get(&id).map(|d| d.sheet_mm()))?;
+            project.changes.push(change.as_ref().clone());
         }
     }
     Ok(())

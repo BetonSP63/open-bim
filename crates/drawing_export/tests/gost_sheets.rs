@@ -65,6 +65,7 @@ fn blank(
         mass_kg: Some(123.4),
         scale: Some(10.),
         version: 1,
+        changes: Vec::new(),
     })
     .unwrap();
     Sheet {

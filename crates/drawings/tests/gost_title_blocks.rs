@@ -49,6 +49,7 @@ fn sheet(info: &DocumentInfo, size: [f64; 2], form: Form, no: usize, of: usize) 
         mass_kg: Some(123.456),
         scale: Some(10.),
         version: 1,
+        changes: Vec::new(),
     }
 }
 
@@ -179,6 +180,7 @@ fn three_sheet_set_counts_sheets_and_fills_graphs() {
                 mass_kg: None,
                 scale: None,
                 version: 1,
+                changes: Vec::new(),
             })
             .unwrap();
             text_in(&tb, cell(&tb, g))

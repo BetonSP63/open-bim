@@ -1,5 +1,6 @@
 //! Drawing editor: every change is a `ReplaceDrawing` transaction, so undo,
 //! redo, saving and the revision journal work exactly as for model edits.
+pub mod changes;
 mod panel;
 mod preview;
 pub mod tools;
@@ -47,7 +48,15 @@ pub struct DrawingEditor {
     pub export_dir: String,
     pub fields: panel::Fields,
     pub preview: PreviewState,
+    /// Change and release form (sections 7, 8).
+    pub change: changes::ChangeForm,
     cache: Option<(Drawing, u64, Sheet)>,
+}
+
+fn panel_report(editor: &mut DrawingEditor, result: Result<(), String>) {
+    if let Err(error) = result {
+        editor.message = Some(error);
+    }
 }
 
 fn next_id<T>(items: &[T], id: impl Fn(&T) -> u32) -> u32 {

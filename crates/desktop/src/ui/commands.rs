@@ -106,6 +106,9 @@ pub enum Cmd {
     RefreshReports,
     AutoAssemblies,
     ExportCsv,
+    IssueSet,
+    RecordChange,
+    ExportPackage,
     ReleaseSet,
     CancelJob,
 }
@@ -673,6 +676,27 @@ pub const ALL: &[Spec] = &[
         category: "Ведомости",
         shortcut: None,
         keywords: "сборка марка",
+    },
+    Spec {
+        cmd: Cmd::IssueSet,
+        label: "Выдать комплект",
+        category: "Чертежи",
+        shortcut: None,
+        keywords: "выпуск выдача комплект км кмд",
+    },
+    Spec {
+        cmd: Cmd::RecordChange,
+        label: "Записать изменение комплекта",
+        category: "Чертежи",
+        shortcut: None,
+        keywords: "изменение изм разрешение зам нов аннул",
+    },
+    Spec {
+        cmd: Cmd::ExportPackage,
+        label: "Выпустить пакет ПДЭ",
+        category: "Чертежи",
+        shortcut: None,
+        keywords: "пакет электронных документов удостоверяющий лист ул обложка титульный",
     },
     Spec {
         cmd: Cmd::ExportCsv,

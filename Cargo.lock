@@ -2384,6 +2384,7 @@ dependencies = [
  "open-bim-persistence",
  "serde",
  "serde_json",
+ "sha2",
 ]
 
 [[package]]

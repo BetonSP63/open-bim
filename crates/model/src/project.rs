@@ -137,6 +137,9 @@ pub struct Project {
     /// Main inscription attributes (ГОСТ Р 21.101-2026, appendix Е).
     #[serde(default, skip_serializing_if = "crate::DocumentInfo::is_empty")]
     pub document: crate::DocumentInfo,
+    /// Changes of the issued sets in order (ГОСТ Р 21.101-2026, section 7).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub changes: Vec<crate::Change>,
 }
 
 impl Default for Project {
@@ -160,6 +163,7 @@ impl Default for Project {
             construction: BTreeMap::new(),
             dimensions: BTreeMap::new(),
             document: crate::DocumentInfo::default(),
+            changes: Vec::new(),
         }
     }
 }

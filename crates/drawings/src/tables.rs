@@ -72,6 +72,12 @@ fn width(font: Option<&Font>, text: &str, height: f64) -> f64 {
     })
 }
 
+/// Lines of font-2.5 cell text no wider than `room` millimetres.
+pub fn wrap_text(text: &str, room: f64) -> Vec<String> {
+    let font = Font::load().ok();
+    wrap(font.as_ref(), text, room)
+}
+
 /// Greedy word wrap into lines no wider than `room`.
 fn wrap(font: Option<&Font>, text: &str, room: f64) -> Vec<String> {
     let mut lines = Vec::new();

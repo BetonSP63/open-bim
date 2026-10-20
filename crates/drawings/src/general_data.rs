@@ -79,7 +79,7 @@ pub fn elements(project: &Project, drawing: &Drawing) -> Result<Vec<Table>, Erro
         .filter(|d| d.id != drawing.id)
         .map(|d| {
             let note = match status(project, d) {
-                Status::UpToDate => String::new(),
+                Status::UpToDate => change_note(project, d.id),
                 Status::Outdated { .. } => "Устарел".into(),
                 Status::LostReferences { .. } => "Потеряны привязки".into(),
             };
@@ -89,8 +89,14 @@ pub fn elements(project: &Project, drawing: &Drawing) -> Result<Vec<Table>, Erro
     sheets.push((
         sheet_number(project, drawing).1,
         drawing.title.clone(),
-        String::new(),
+        change_note(project, drawing.id),
     ));
+    // Annulled sheets keep their number; the name graph stays empty (7.5.3).
+    sheets.extend(
+        crate::annulled_sheets(project, mark)
+            .into_iter()
+            .map(|(n, _, change)| (n, String::new(), format!("Изм. {change} (Аннул.)"))),
+    );
     sheets.sort_by_key(|s| s.0);
     out.push(form1(
         "Ведомость рабочих чертежей основного комплекта",
@@ -176,6 +182,22 @@ pub fn elements(project: &Project, drawing: &Drawing) -> Result<Vec<Table>, Erro
     }
     out.push(notes(project, mark)?);
     Ok(out)
+}
+
+/// Note of the sheet list for a changed sheet (7.4.4): «Изм. 1; 2»,
+/// «(Зам.)» or «(Нов.)» after the last number when so issued.
+pub fn change_note(project: &Project, drawing: ObjectId) -> String {
+    let changes = crate::drawing_changes(project, drawing);
+    let Some((_, last)) = changes.last() else {
+        return String::new();
+    };
+    let numbers: Vec<String> = changes.iter().map(|(c, _)| c.number.to_string()).collect();
+    let suffix = match last.kind {
+        open_bim_model::SheetChangeKind::Replaced => " (Зам.)",
+        open_bim_model::SheetChangeKind::New => " (Нов.)",
+        _ => "",
+    };
+    format!("Изм. {}{suffix}", numbers.join("; "))
 }
 
 /// General notes: the user's items, then the program's (masses, grades,

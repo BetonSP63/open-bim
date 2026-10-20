@@ -987,6 +987,21 @@ impl Workbench {
                 let r = self.reports.auto_assemblies(&mut self.editor).map(|_| ());
                 report(r, self);
             }
+            Cmd::IssueSet => {
+                self.mode = Mode::Drawings;
+                let r = self.drawings.issue_set(&mut self.editor);
+                report(r, self);
+            }
+            Cmd::RecordChange => {
+                self.mode = Mode::Drawings;
+                let r = self.drawings.record_change(&mut self.editor);
+                report(r, self);
+            }
+            Cmd::ExportPackage => {
+                self.mode = Mode::Drawings;
+                let r = self.drawings.export_package(&self.editor);
+                report(r, self);
+            }
             Cmd::ExportCsv => {
                 let r = self.reports.export_csv(&mut self.editor).map(|_| ());
                 report(r, self);

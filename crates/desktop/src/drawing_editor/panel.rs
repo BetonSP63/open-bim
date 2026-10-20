@@ -106,6 +106,8 @@ impl DrawingEditor {
             }
         });
         ui.separator();
+        self.changes_section(ui, editor);
+        ui.separator();
         let rows: Vec<(open_bim_model::ObjectId, String, Status)> = {
             let project = editor.document.project();
             project

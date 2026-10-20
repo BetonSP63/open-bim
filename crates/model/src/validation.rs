@@ -118,6 +118,26 @@ impl Project {
         text(&self.name)?;
         valid_point(self.origin)?;
         self.document.validate()?;
+        // Changes of each set are numbered 1, 2, 3… in order (7.3.1).
+        for mark in crate::SET_MARKS {
+            let numbers: Vec<u32> = self
+                .changes
+                .iter()
+                .filter(|c| c.mark == mark)
+                .map(|c| c.number)
+                .collect();
+            if numbers.iter().zip(1..).any(|(n, k)| *n != k) {
+                return Err(ModelError::InvalidValue(format!(
+                    "Изменения комплекта {mark}: номера не по порядку"
+                )));
+            }
+        }
+        if self.changes.len() > 10_000 {
+            return Err(ModelError::InvalidValue("Слишком много изменений".into()));
+        }
+        for change in &self.changes {
+            change.validate(|id| self.drawings.get(&id).map(|d| d.sheet_mm()))?;
+        }
         let mut ids = BTreeSet::new();
         let mut register = |key: ObjectId, id: ObjectId| {
             if key != id || id.0 == 0 || !ids.insert(id) {

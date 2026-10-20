@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package name="Контрольное здание" designation="2345-26" issued="22.10.26 12:00">
+  <folder name="КМ" title="Конструкции металлические. Основной комплект рабочих чертежей">
+    <document guid="b38e3fa3-7cc7-5c1a-990f-0b3c0b36a05b" designation="2345-26-КМ" title="Конструкции металлические. Основной комплект рабочих чертежей" version="3">
+      <file path="КМ/2345-26-КМ.pdf" size="189243" sha256="b18d3a726598f9914c2f45d8013dd642c68415d6c4835f88da5b70646e9cf843"/>
+    </document>
+    <document guid="d4fc589a-ff09-5504-a43b-bd3949f257d0" designation="2345-26-КМ" title="Обложка. Конструкции металлические. Основной комплект рабочих чертежей" version="3">
+      <file path="КМ/2345-26-КМ-Обложка.pdf" size="175478" sha256="4a6034aaa19680ca741be576bbf7483def25a4827b499c157cac3771061ab2f1"/>
+    </document>
+    <document guid="b7d5f0a6-12db-54b1-bf9d-8dcf57d4c3ec" designation="2345-26-КМ" title="Титульный лист. Конструкции металлические. Основной комплект рабочих чертежей" version="3">
+      <file path="КМ/2345-26-КМ-ТЛ.pdf" size="175697" sha256="0411ee77facca6cd32016eacec08aebd1d1fb2ba070cd4c3e5d967281c4fa04d"/>
+    </document>
+    <document guid="ab97f57f-6ba2-5167-93c7-7c6e391fca6c" designation="2345-26-КМ" title="Таблица регистрации изменений" version="3">
+      <file path="КМ/2345-26-КМ-ТРИ.pdf" size="175351" sha256="e4f6e9ec084f6aea43fe79b113ec239fd506922e94f3d75450c1a3da46d5be21"/>
+    </document>
+    <document guid="418e4933-8ebc-597c-b30c-ceb5a0c04b33" designation="2345-26-КМ" title="Журнал изменений" version="3">
+      <file path="КМ/2345-26-КМ-ЖИ.pdf" size="176004" sha256="d3d879237779af0dbabdddc1ef33945970c32679e9ba392fc39da1523ab41396"/>
+    </document>
+    <document guid="4fe54f12-7b1d-5674-8a3a-a469c593d487" designation="15-26" title="Разрешение на внесение изменений. Изм. 1" version="3">
+      <file path="КМ/Разрешение-15-26.pdf" size="175902" sha256="f75fdc6808c1842bcb842157d2e10034022c6c12874a36803f222af5caffae22"/>
+    </document>
+    <document guid="371c0f7c-784b-58d3-920a-68861c52132a" designation="16-26" title="Разрешение на внесение изменений. Изм. 2" version="3">
+      <file path="КМ/Разрешение-16-26.pdf" size="175926" sha256="5694bd345ac414a041394b03d64f3621bfccaed3039e8541c4ab0bb7eb408288"/>
+    </document>
+    <document guid="b1e72c92-9688-5f8c-9088-20c922ccefe3" designation="2345-26-КМ-УЛ" title="Удостоверяющий лист" version="3">
+      <file path="КМ/2345-26-КМ-УЛ.pdf" size="180148" sha256="f39a3306ad70e90d63b1ae853f9e7bb748ff553d648665d8763b0a0909d92234"/>
+    </document>
+  </folder>
+  <folder name="КМД" title="Конструкции металлические деталировочные. Основной комплект рабочих чертежей">
+    <document guid="677e20d5-5124-5b76-b73b-e3f9ca3b2a92" designation="2345-26-КМД" title="Конструкции металлические деталировочные. Основной комплект рабочих чертежей" version="3">
+      <file path="КМД/2345-26-КМД.pdf" size="183951" sha256="9c3701a435df99c24cbe0a880655aa63cd531179e7aa9fa89447bcc5d03e0392"/>
+    </document>
+    <document guid="a8320590-2954-5f37-8a7b-02ce18e195b2" designation="2345-26-КМД" title="Обложка. Конструкции металлические деталировочные. Основной комплект рабочих чертежей" version="3">
+      <file path="КМД/2345-26-КМД-Обложка.pdf" size="175543" sha256="3c313f7b13076a1cf4d50c10182c19ecd4a2cf16760f7e0b5e5f9ca91116698f"/>
+    </document>
+    <document guid="15f90075-8253-5219-8d39-4dcef77e0b0e" designation="2345-26-КМД" title="Титульный лист. Конструкции металлические деталировочные. Основной комплект рабочих чертежей" version="3">
+      <file path="КМД/2345-26-КМД-ТЛ.pdf" size="175735" sha256="9cdca5d6a0a2f40cca154868d44783b956cde363943266544ca8b49bfa700cf8"/>
+    </document>
+    <document guid="7b937876-4194-516e-8386-15744d6c72c7" designation="2345-26-КМД" title="Таблица регистрации изменений" version="3">
+      <file path="КМД/2345-26-КМД-ТРИ.pdf" size="175359" sha256="aa46838decbbc9ea14a186a1a1dff445ecf2c1f0ffebeee6de879f7b13bfcdcf"/>
+    </document>
+    <document guid="b8f0486c-f54b-5d6f-8342-ebc1f5c68373" designation="2345-26-КМД" title="Журнал изменений" version="3">
+      <file path="КМД/2345-26-КМД-ЖИ.pdf" size="176011" sha256="4253e7544862d1d62311dcd6a717070323fc7264d79a5fc421964d84f43b829b"/>
+    </document>
+    <document guid="71cfa1ac-26fc-5c22-a619-b91c88beaaa9" designation="15-26" title="Разрешение на внесение изменений. Изм. 1" version="3">
+      <file path="КМД/Разрешение-15-26.pdf" size="175903" sha256="218a2d704ae950fffaa30943aeda201da5d8ca6101e8ff8fba8c9fe34984f27e"/>
+    </document>
+    <document guid="32f398b8-1f4c-5f03-8df2-71b24425b072" designation="16-26" title="Разрешение на внесение изменений. Изм. 2" version="3">
+      <file path="КМД/Разрешение-16-26.pdf" size="175929" sha256="c3bf625e94db1974c22c1d6586a5cdfa5af55bebdd738ef905f16727092a62dd"/>
+    </document>
+    <document guid="07f4744d-3694-5cf4-a32d-bf16a7aff9c1" designation="2345-26-КМД-УЛ" title="Удостоверяющий лист" version="3">
+      <file path="КМД/2345-26-КМД-УЛ.pdf" size="180178" sha256="dba34bca4bbf7929d7a0d4f5e510b2612a1d056d0f3a5268e0959daa5786cd8b"/>
+    </document>
+  </folder>
+</package>

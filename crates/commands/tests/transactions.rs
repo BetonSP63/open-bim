@@ -229,3 +229,42 @@ fn material_delete_cascades_all_dependants_without_dangling_references() {
     document.undo().unwrap();
     assert_eq!(project_hash(document.project()).unwrap(), hash);
 }
+
+/// Undo restores document attributes and construction objects too (they
+/// were missing from the history patch before ГОСТ phase 13).
+#[test]
+fn undo_reverts_document_info_and_construction() {
+    let mut document = Document::new(example_steel_frame().unwrap()).unwrap();
+    let mut info = document.project().document.clone();
+    info.base_designation = "2345".into();
+    document
+        .transact(
+            "Сведения о документе",
+            &[Command::SetDocumentInfo {
+                info: Box::new(info),
+            }],
+        )
+        .unwrap();
+    let id = ObjectId(document.project().next_id);
+    document
+        .transact(
+            "Линия построения",
+            &[Command::CreateConstruction {
+                construction: Construction {
+                    id,
+                    kind: ConstructionKind::Line {
+                        a: Point3([0.; 3]),
+                        b: Point3([1000., 0., 0.]),
+                    },
+                },
+            }],
+        )
+        .unwrap();
+    assert!(document.project().construction.contains_key(&id));
+    document.undo().unwrap();
+    assert!(!document.project().construction.contains_key(&id));
+    document.undo().unwrap();
+    assert_eq!(document.project().document.base_designation, "");
+    document.redo().unwrap();
+    assert_eq!(document.project().document.base_designation, "2345");
+}

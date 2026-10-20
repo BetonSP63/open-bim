@@ -64,6 +64,10 @@ pub(crate) struct Patch {
     details: MapDelta<open_bim_model::Detail>,
     connections: MapDelta<open_bim_model::ConnectionInstance>,
     drawings: MapDelta<open_bim_model::Drawing>,
+    construction: MapDelta<open_bim_model::Construction>,
+    dimensions: MapDelta<open_bim_model::ModelDimension>,
+    /// Document attributes and changes before and after, when they differ.
+    document: Option<Delta<(open_bim_model::DocumentInfo, Vec<open_bim_model::Change>)>>,
     before_meta: (u64, u64, String),
     after_meta: (u64, u64, String),
     pub touched: BTreeSet<ObjectId>,
@@ -81,6 +85,13 @@ impl Patch {
         let details = differences(&before.details, &after.details);
         let connections = differences(&before.connections, &after.connections);
         let drawings = differences(&before.drawings, &after.drawings);
+        let construction = differences(&before.construction, &after.construction);
+        let dimensions = differences(&before.dimensions, &after.dimensions);
+        let document =
+            (before.document != after.document || before.changes != after.changes).then(|| Delta {
+                before: Some((before.document.clone(), before.changes.clone())),
+                after: Some((after.document.clone(), after.changes.clone())),
+            });
         let mut touched: BTreeSet<_> = elements
             .keys()
             .chain(assemblies.keys())
@@ -91,6 +102,8 @@ impl Patch {
             .chain(details.keys())
             .chain(connections.keys())
             .chain(drawings.keys())
+            .chain(construction.keys())
+            .chain(dimensions.keys())
             .copied()
             .collect();
         dependencies(before, &mut touched);
@@ -105,6 +118,9 @@ impl Patch {
             details,
             connections,
             drawings,
+            construction,
+            dimensions,
+            document,
             before_meta: (before.revision, before.next_id, before.name.clone()),
             after_meta: (after.revision, after.next_id, after.name.clone()),
             touched,
@@ -122,6 +138,15 @@ impl Patch {
         apply(&mut project.details, &self.details, forward);
         apply(&mut project.connections, &self.connections, forward);
         apply(&mut project.drawings, &self.drawings, forward);
+        apply(&mut project.construction, &self.construction, forward);
+        apply(&mut project.dimensions, &self.dimensions, forward);
+        if let Some(delta) = &self.document {
+            let side = if forward { &delta.after } else { &delta.before };
+            if let Some((document, changes)) = side {
+                project.document = document.clone();
+                project.changes = changes.clone();
+            }
+        }
         let metadata = if forward {
             &self.after_meta
         } else {
