@@ -194,6 +194,7 @@ impl Document {
         open_bim_connections::rebuild_stiffeners(&mut staged, &self.project)?;
         open_bim_connections::rebuild_beam_splices(&mut staged, &self.project)?;
         open_bim_connections::rebuild_haunches(&mut staged, &self.project)?;
+        open_bim_connections::rebuild_gussets(&mut staged, &self.project)?;
         staged.validate()?;
         staged.revision = staged
             .revision

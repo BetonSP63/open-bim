@@ -159,3 +159,47 @@ fn haunch_by_two_clicks_goes_under_the_column_end() {
         (beam, Some(column), false)
     );
 }
+
+#[test]
+fn gusset_by_two_clicks_goes_at_the_column_end_of_the_brace() {
+    let mut b = Workbench::new(Editor::new(default_project().unwrap()).unwrap());
+    let column = member(&mut b, MemberKind::Column, [0., 0., 0.], [0., 0., 3600.]);
+    let brace = member(
+        &mut b,
+        MemberKind::Beam,
+        [0., 400., 300.],
+        [0., 3000., 3000.],
+    );
+    // The brace is an angle L 100×75×8.
+    let mut element = b.editor.document.project().elements[&brace].clone();
+    if let ElementShape::Member { profile, .. } = &mut element.shape {
+        *profile = ObjectId(3);
+    }
+    b.editor
+        .commit(
+            "Уголок",
+            &[open_bim_commands::Command::ReplaceElement { element }],
+        )
+        .unwrap();
+    let gusset = search("фасонка").remove(0);
+    assert_eq!(gusset.name, "Фасонка связи");
+    b.arm_component(gusset);
+    assert!(
+        b.pick_object(Some(brace)).is_none(),
+        "waits for the support"
+    );
+    let r = b.pick_object(Some(column));
+    commit(&mut b, r);
+    let c = b
+        .editor
+        .document
+        .project()
+        .connections
+        .values()
+        .next()
+        .unwrap();
+    assert_eq!(
+        (c.primary, c.secondary, c.at_end),
+        (brace, Some(column), false)
+    );
+}
