@@ -57,6 +57,10 @@ everything still ⚠/❌ is listed in `docs/interaction.md` → «not implemente
 | Weld between parts: main part, then secondary part; length from the contact | same pick order; path = nearest edge | ⚠ |
 | Polygon weld, weld to part | «Сварной шов по ломаной» (main part, secondary part, points, middle click) and «Сварной шов на детали» (part, points, middle click) | ✅ |
 | Shift+ribbon button opens properties first | same | ✅ |
+| Twin profile: two members on one line, back to back / toes in / stacked, gap | «Сдвоенный профиль», mirrored second member, gap 0…1000 mm | ✅ |
+| Plate corner chamfers: line, rounding | «Фаски углов»: straight cut by two legs, rounding by radius, written into the contour (not editable later as a chamfer) | ⚠ |
+| Surface treatment on parts | treatment per part, area per treatment in the lists; not modelled as a layer on faces | ⚠ |
+| Curved beam, polybeam, bent plate | not yet | ❌ |
 
 ## Drawings, management, sharing (DRA, MGE, SHA)
 Reference drawings come from the model with Document manager, Master drawing catalog,
