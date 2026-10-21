@@ -12,6 +12,7 @@ pub mod jobs;
 pub mod keytips;
 pub mod palette;
 pub mod property_pane;
+pub mod representation;
 pub mod ribbon;
 pub mod theme;
 pub mod views;
@@ -253,6 +254,16 @@ pub struct Workbench {
     pub inquiry: Option<crate::interaction::inquire::Inquiry>,
     /// The next pick places the clip plane.
     pub clip_pick: bool,
+    /// Object groups, the object representation and its window.
+    pub groups: Vec<crate::interaction::object_groups::Group>,
+    pub representation: Vec<crate::interaction::object_groups::RepresentationRow>,
+    pub representation_open: bool,
+    /// The group edited in the window.
+    pub group_edited: usize,
+    /// Bumped on every change of groups or rows; with the scene it keys
+    /// the applied representation.
+    pub representation_version: u64,
+    applied: Option<((usize, u64), representation::Shared)>,
     /// Snap kind under the cursor (status bar).
     pub last_snap: Option<crate::interaction::snap::SnapKind>,
     /// Screen-space snapping and its switches (bottom toolbar).
@@ -350,6 +361,12 @@ impl Workbench {
             measured_angle: None,
             inquiry: None,
             clip_pick: false,
+            groups: crate::interaction::object_groups::default_groups(),
+            representation: Vec::new(),
+            representation_open: false,
+            group_edited: 0,
+            representation_version: 0,
+            applied: None,
             last_snap: None,
             snapper: Default::default(),
             switches: Default::default(),
@@ -1133,6 +1150,14 @@ impl Workbench {
                 self.angle_picks = Some(Vec::new());
                 self.mode = Mode::Model;
                 self.message(self.prompt());
+            }
+            Cmd::ObjectRepresentation => {
+                self.representation_open = !self.representation_open;
+                self.message(if self.representation_open {
+                    "Представление объектов: группы и их вид"
+                } else {
+                    "Окно представления объектов закрыто"
+                });
             }
             Cmd::ClipPlanePick => {
                 self.engine.cancel();
@@ -1984,6 +2009,22 @@ impl Workbench {
                         }
                     });
                 ui.label("Несколько значений — через пробел; * и ? — шаблоны (I20*).");
+                let groups = &self.groups;
+                egui::ComboBox::new("filter group", "Группа объектов")
+                    .selected_text(f.group.as_ref().map_or("—".into(), |g| g.name.clone()))
+                    .show_ui(ui, |ui| {
+                        if ui.selectable_label(f.group.is_none(), "—").clicked() {
+                            f.group = None;
+                        }
+                        for g in groups {
+                            if ui
+                                .selectable_label(f.group.as_ref() == Some(g), &g.name)
+                                .clicked()
+                            {
+                                f.group = Some(g.clone());
+                            }
+                        }
+                    });
                 if ui.button("Очистить").clicked() {
                     *f = Default::default();
                 }
@@ -2577,6 +2618,7 @@ impl Workbench {
         self.component_editor_window(&ctx);
         self.document_window(&ctx, &mut requests);
         self.inquiry_window(&ctx);
+        self.representation_window(&ctx);
         self.delete_window(&ctx, &mut requests);
         self.special_window(&ctx, &mut requests);
         self.filter_window(&ctx);

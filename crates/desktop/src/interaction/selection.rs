@@ -482,6 +482,8 @@ pub struct PropertyFilter {
     pub profile: String,
     pub material: String,
     pub class: String,
+    /// Only parts of this object group (rules with «И» / «ИЛИ»).
+    pub group: Option<super::object_groups::Group>,
 }
 
 /// `*` / `?` wildcard match (whole text), or substring without wildcards.
@@ -517,9 +519,10 @@ pub fn wildcard(pattern: &str, text: &str) -> bool {
 impl PropertyFilter {
     pub fn active(&self) -> bool {
         self.enabled
-            && [&self.name, &self.profile, &self.material, &self.class]
-                .iter()
-                .any(|f| !f.trim().is_empty())
+            && (self.group.is_some()
+                || [&self.name, &self.profile, &self.material, &self.class]
+                    .iter()
+                    .any(|f| !f.trim().is_empty()))
     }
 
     /// Whether the object passes; objects other than parts always pass.
@@ -530,6 +533,11 @@ impl PropertyFilter {
         let Some(e) = project.elements.get(&id) else {
             return true;
         };
+        if let Some(g) = &self.group
+            && !g.matches(project, id)
+        {
+            return false;
+        }
         let profile = match &e.shape {
             ElementShape::Member { profile, .. } => project
                 .profiles

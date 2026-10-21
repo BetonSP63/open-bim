@@ -351,7 +351,8 @@ impl GpuRenderer {
             let mesh = scene.lod_mesh(instance, pixels_per_mm);
             let selected =
                 state.selected == Some(instance.id) || state.selected_ids.contains(&instance.id);
-            let alpha = display.alpha(selected);
+            let look = state.appearance.get(&instance.id);
+            let alpha = display.alpha(selected).min(look.map_or(1.0, |a| a.alpha));
             let layer = usize::from(alpha < 1.0);
             let batch = &mut batches[mesh][layer];
             let frame = instance.frame;
@@ -367,6 +368,8 @@ impl GpuRenderer {
             batch.push(1.0);
             let [r, g, b, _] = if selected {
                 [1.0, 0.42, 0.08, 1.0]
+            } else if let Some(color) = look.and_then(|a| a.color) {
+                [color[0], color[1], color[2], 1.0]
             } else {
                 instance.color
             };

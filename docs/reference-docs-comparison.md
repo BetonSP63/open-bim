@@ -62,6 +62,7 @@ everything still ⚠/❌ is listed in `docs/interaction.md` → «not implemente
 | Surface treatment on parts | treatment per part, area per treatment in the lists; not modelled as a layer on faces | ⚠ |
 | Curved beam, polybeam, bent plate | not yet | ❌ |
 | Inquire object, compare parts | «Запросить объект» (part, bolt, weld, component, assembly), «Сравнить детали» by the numbering data | ✅ |
+| Object groups with AND/OR rules, object representation (colour, transparency, hidden), selection filter by group | same; groups and rows are kept for the session, not saved to the project or to files | ⚠ |
 | Measure angle; clip plane by pick | «Измерить угол» (vertex and two sides); «Секущая плоскость по точке» facing the viewer, one plane | ⚠ |
 
 ## Drawings, management, sharing (DRA, MGE, SHA)
