@@ -1209,6 +1209,7 @@ impl Workbench {
                 self.message(format!("Фокус: {}", self.focus_area.label()));
             }
             Cmd::AutoConnections => return self.auto_connections(),
+            Cmd::FitToProfile => return self.fit_to_profile(),
             Cmd::ComponentCatalog => {
                 self.trim.cancel();
                 self.detail.cancel();

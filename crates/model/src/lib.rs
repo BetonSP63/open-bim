@@ -18,8 +18,8 @@ mod validation;
 pub use catalog::{Material, Profile, ProfileShape};
 pub use changes::{Change, REASONS, SheetChange, SheetChangeKind};
 pub use connection::{
-    ComponentGeneral, ConnectionInstance, ConnectionTemplate, HAUNCH_ROLES, TemplateKind,
-    beam_splice_roles, gusset_roles,
+    ComponentGeneral, ConnectionInstance, ConnectionTemplate, HAUNCH_ROLES, SEAT_ROLES,
+    TemplateKind, beam_splice_roles, gusset_roles,
 };
 pub use construction::{Construction, ConstructionKind, DimPoint, ModelDimension};
 pub use detailing::{

@@ -72,7 +72,7 @@ pub fn catalog() -> Vec<Component> {
         Component {
             name: "Стык балок на накладках".into(),
             group: "Балка — балка".into(),
-            description: "Две балки встык на одной оси: накладки с двух сторон стенки и снаружи полок на болтах. Выберите одну балку, затем вторую.".into(),
+            description: "Две балки или две колонны встык на одной оси: накладки с двух сторон стенки и снаружи полок на болтах. Выберите одну деталь, затем вторую.".into(),
             needs_support: true,
             kind: TemplateKind::BeamSplice {
                 rows: 2,
@@ -91,6 +91,19 @@ pub fn catalog() -> Vec<Component> {
                 depth: 300.,
             },
             thickness: 10.,
+            template: None,
+        },
+        Component {
+            name: "Опорный столик".into(),
+            group: "Балка — колонна / балка".into(),
+            description: "Лист под нижней полкой конца балки с треугольным ребром снизу, приварен к опоре; балка крепится к столику двумя болтами. Выберите балку, затем опору.".into(),
+            needs_support: true,
+            kind: TemplateKind::Seat {
+                length: 150.,
+                width: 200.,
+                depth: 150.,
+            },
+            thickness: 16.,
             template: None,
         },
         Component {

@@ -57,6 +57,9 @@ impl ConnectionInstance {
         if let TemplateKind::Haunch { .. } = self.template.kind {
             return self.validate_haunch(p);
         }
+        if let TemplateKind::Seat { .. } = self.template.kind {
+            return self.validate_seat(p);
+        }
         if let TemplateKind::Gusset { bolts, .. } = self.template.kind {
             return self.validate_gusset(p, bolts);
         }
@@ -95,6 +98,7 @@ impl ConnectionInstance {
             | TemplateKind::ColumnStiffeners { .. }
             | TemplateKind::BeamSplice { .. }
             | TemplateKind::Haunch { .. }
+            | TemplateKind::Seat { .. }
             | TemplateKind::Gusset { .. } => unreachable!(),
         };
         if self.children.len() != roles.len()
@@ -449,6 +453,77 @@ impl ConnectionInstance {
     }
 }
 
+/// Child roles of a seat («опорный столик»).
+pub const SEAT_ROLES: [&str; 9] = [
+    "seat-plate",
+    "stiffener",
+    "seat-hole-0",
+    "seat-hole-1",
+    "beam-hole-0",
+    "beam-hole-1",
+    "bolts",
+    "weld-seat",
+    "weld-stiffener",
+];
+
+impl ConnectionInstance {
+    /// Seat: the seat plate and its stiffener welded to the support, two
+    /// bolts through the seat and the beam bottom flange.
+    fn validate_seat(&self, p: &crate::Project) -> Result<(), ModelError> {
+        let error =
+            || ModelError::InvalidValue("Состав соединения не соответствует шаблону".into());
+        let support = self.secondary.ok_or_else(error)?;
+        if self.children.len() != SEAT_ROLES.len()
+            || SEAT_ROLES.iter().any(|r| !self.children.contains_key(*r))
+        {
+            return Err(error());
+        }
+        let (seat, stiffener) = (self.children["seat-plate"], self.children["stiffener"]);
+        for id in [seat, stiffener] {
+            if !matches!(
+                p.elements.get(&id).map(|e| &e.shape),
+                Some(crate::ElementShape::Plate { .. })
+            ) {
+                return Err(error());
+            }
+        }
+        for (role, part) in [
+            ("seat-hole-0", seat),
+            ("seat-hole-1", seat),
+            ("beam-hole-0", self.primary),
+            ("beam-hole-1", self.primary),
+        ] {
+            if !matches!(
+                p.details.get(&self.children[role]).map(|d| &d.kind),
+                Some(crate::DetailKind::Hole { part: q, .. }) if *q == part
+            ) {
+                return Err(error());
+            }
+        }
+        if !matches!(
+            p.details.get(&self.children["bolts"]).map(|d| &d.kind),
+            Some(crate::DetailKind::BoltGroup { parts, .. })
+                if *parts == [seat, self.primary].into_iter().collect()
+        ) {
+            return Err(error());
+        }
+        for (role, expected) in [
+            ("weld-seat", vec![support, seat]),
+            ("weld-stiffener", vec![support, seat, stiffener]),
+        ] {
+            let Some(crate::DetailKind::Weld { parts, size, .. }) =
+                p.details.get(&self.children[role]).map(|d| &d.kind)
+            else {
+                return Err(error());
+            };
+            if *parts != expected.into_iter().collect() || *size != self.template.weld_size {
+                return Err(error());
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Child roles of a brace gusset with `bolts` bolts.
 pub fn gusset_roles(bolts: u32) -> Vec<String> {
     let mut roles = vec!["gusset".to_string(), "bolts".into(), "weld".into()];
@@ -588,6 +663,14 @@ pub enum TemplateKind {
         bolts: u32,
         pitch: f64,
     },
+    /// Seat under the beam end («опорный столик»): a horizontal plate
+    /// `length` along the beam and `width` across, welded to the support
+    /// face, a stiffener `depth` below it, two bolts into the bottom flange.
+    Seat {
+        length: f64,
+        width: f64,
+        depth: f64,
+    },
 }
 
 impl ConnectionTemplate {
@@ -652,6 +735,17 @@ impl ConnectionTemplate {
             }
             TemplateKind::Haunch { length, depth } => {
                 if !positive(length) || !positive(depth) {
+                    return Err(invalid());
+                }
+            }
+            TemplateKind::Seat {
+                length,
+                width,
+                depth,
+            } => {
+                if ![length, width, depth].into_iter().all(positive)
+                    || length < 2.0 * self.edge_distance
+                {
                     return Err(invalid());
                 }
             }
