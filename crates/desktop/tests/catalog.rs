@@ -59,7 +59,7 @@ fn catalogue_profile_and_steel_are_added_with_the_change_and_undone_with_it() {
     assert_eq!(project.profiles[profile].name, "20Б1");
     assert_eq!(
         project.materials[&e.material].name,
-        "С345 · ГОСТ 27772-2015"
+        "С345 · ГОСТ 27772-2021"
     );
     // 28.49 cm² × 6 m × 7850 kg/m³ = 134.2 kg (ГОСТ: 22.4 kg/m).
     let mass = project.element_mass_kg(id).unwrap();

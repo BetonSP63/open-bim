@@ -20,6 +20,9 @@ pub enum Family {
     IBeamNormal,
     IBeamWide,
     IBeamColumn,
+    IBeamNormal57837,
+    IBeamWide57837,
+    IBeamColumn57837,
     Channel,
     Angle,
     Pipe,
@@ -28,7 +31,10 @@ pub enum Family {
 }
 
 impl Family {
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 12] = [
+        Self::IBeamNormal57837,
+        Self::IBeamWide57837,
+        Self::IBeamColumn57837,
         Self::IBeamNormal,
         Self::IBeamWide,
         Self::IBeamColumn,
@@ -45,6 +51,9 @@ impl Family {
             Self::IBeamNormal => "Двутавры балочные Б (ГОСТ 26020)",
             Self::IBeamWide => "Двутавры широкополочные Ш (ГОСТ 26020)",
             Self::IBeamColumn => "Двутавры колонные К (ГОСТ 26020)",
+            Self::IBeamNormal57837 => "Двутавры балочные Б (ГОСТ Р 57837)",
+            Self::IBeamWide57837 => "Двутавры широкополочные Ш (ГОСТ Р 57837)",
+            Self::IBeamColumn57837 => "Двутавры колонные К (ГОСТ Р 57837)",
             Self::Channel => "Швеллеры У (ГОСТ 8240)",
             Self::Angle => "Уголки равнополочные (ГОСТ 8509)",
             Self::Pipe => "Трубы круглые (ГОСТ 10704)",
@@ -88,6 +97,10 @@ impl Entry {
 
 const GOST_8239: &str = "ГОСТ 8239-89";
 const GOST_26020: &str = "ГОСТ 26020-83";
+const GOST_57837: &str = "ГОСТ Р 57837-2017";
+/// Suffix that keeps ГОСТ Р 57837 names apart from the same names in
+/// ГОСТ 26020, whose sections differ.
+const SUFFIX_57837: &str = " (Р 57837)";
 const GOST_8240: &str = "ГОСТ 8240-97";
 const GOST_8509: &str = "ГОСТ 8509-93";
 const GOST_10704: &str = "ГОСТ 10704-91";
@@ -193,6 +206,26 @@ const CHANNELS: [(&str, f64, f64, f64, f64, f64, f64); 16] = [
     ("40У", 400., 115., 8.0, 13.5, 15.0, 61.5),
 ];
 
+/// ГОСТ Р 57837-2017 with Amendment 1, from the sourced reference table.
+const I_57837_CSV: &str = include_str!("../../../data/reference/i_beams_gost_r_57837_2017.csv");
+
+/// ГОСТ Р 57837-2017 rows: designation, h, b, tw, tf, r, A cm².
+fn i_57837() -> Vec<(&'static str, f64, f64, f64, f64, f64, f64)> {
+    I_57837_CSV
+        .lines()
+        .skip(1)
+        .filter(|l| !l.trim().is_empty())
+        .map(|line| {
+            let f: Vec<&str> = line.splitn(9, ',').collect();
+            let n = |i: usize| {
+                f[i].parse::<f64>()
+                    .expect("number in the ГОСТ Р 57837 table")
+            };
+            (f[0], n(2), n(3), n(4), n(5), n(6), n(7))
+        })
+        .collect()
+}
+
 /// ГОСТ 8509-93: b, t, R, A cm².
 const ANGLES: [(f64, f64, f64, f64); 23] = [
     (50., 4., 5.5, 3.89),
@@ -205,17 +238,17 @@ const ANGLES: [(f64, f64, f64, f64); 23] = [
     (75., 8., 9.0, 11.5),
     (80., 6., 9.0, 9.38),
     (80., 8., 9.0, 12.3),
-    (90., 7., 10.0, 12.3),
-    (90., 8., 10.0, 13.9),
+    (90., 7., 10.0, 12.28),
+    (90., 8., 10.0, 13.93),
     (100., 8., 12.0, 15.6),
-    (100., 10., 12.0, 19.2),
+    (100., 10., 12.0, 19.24),
     (110., 8., 12.0, 17.2),
-    (125., 8., 14.0, 19.7),
-    (125., 10., 14.0, 24.3),
-    (140., 10., 14.0, 27.3),
-    (160., 10., 16.0, 31.4),
-    (160., 12., 16.0, 37.4),
-    (180., 12., 16.0, 42.2),
+    (125., 8., 14.0, 19.69),
+    (125., 10., 14.0, 24.33),
+    (140., 10., 14.0, 27.33),
+    (160., 10., 16.0, 31.43),
+    (160., 12., 16.0, 37.39),
+    (180., 12., 16.0, 42.19),
     (200., 12., 18.0, 47.1),
     (200., 14., 18.0, 54.6),
 ];
@@ -238,26 +271,26 @@ const PIPES: [(f64, f64); 14] = [
     (426., 10.0),
 ];
 
-/// ГОСТ 30245-2003: H, B, t (common sizes).
-const TUBES: [(f64, f64, f64); 18] = [
-    (60., 60., 4.),
-    (80., 80., 4.),
-    (80., 80., 5.),
-    (100., 100., 5.),
-    (100., 100., 6.),
-    (120., 120., 6.),
-    (140., 140., 6.),
-    (160., 160., 6.),
-    (160., 160., 8.),
-    (180., 180., 8.),
-    (200., 200., 8.),
-    (80., 60., 4.),
-    (100., 60., 4.),
-    (120., 80., 5.),
-    (140., 100., 6.),
-    (160., 120., 6.),
-    (180., 120., 6.),
-    (200., 160., 8.),
+/// ГОСТ 30245-2003 (common sizes): H, B, t, outer corner radius R, A cm².
+const TUBES: [(f64, f64, f64, f64, f64); 18] = [
+    (60., 60., 4., 8., 8.55),
+    (80., 80., 4., 8., 11.75),
+    (80., 80., 5., 10., 14.36),
+    (100., 100., 5., 10., 18.36),
+    (100., 100., 6., 12., 21.63),
+    (120., 120., 6., 12., 26.43),
+    (140., 140., 6., 12., 31.23),
+    (160., 160., 6., 12., 36.03),
+    (160., 160., 8., 20., 46.44),
+    (180., 180., 8., 20., 52.84),
+    (200., 200., 8., 20., 59.24),
+    (80., 60., 4., 8., 10.15),
+    (100., 60., 4., 8., 11.75),
+    (120., 80., 5., 10., 18.36),
+    (140., 100., 6., 12., 26.43),
+    (160., 120., 6., 12., 31.23),
+    (180., 140., 6., 12., 36.03),
+    (200., 160., 8., 20., 52.84),
 ];
 
 fn fmt(v: f64) -> String {
@@ -266,12 +299,6 @@ fn fmt(v: f64) -> String {
     } else {
         format!("{v}").replace('.', ",")
     }
-}
-
-/// Area of a square or rectangular tube with outer corner radius 2t and
-/// inner radius t (ГОСТ 30245, t ≤ 6; the same rule is used above 6).
-fn tube_area(h: f64, b: f64, t: f64) -> f64 {
-    2.0 * t * (h + b - 2.0 * t) - (4.0 - std::f64::consts::PI) * (4.0 * t * t - t * t)
 }
 
 /// Every catalogue section, in picker order.
@@ -295,6 +322,28 @@ pub fn sections() -> Vec<Entry> {
                 flange: t,
             },
             standard: GOST_26020,
+            area_mm2: a * 100.0,
+            radius: r,
+        });
+    }
+    for (name, h, b, s, t, r, a) in i_57837() {
+        let family = if name.contains('Б') {
+            Family::IBeamNormal57837
+        } else if name.contains('Ш') {
+            Family::IBeamWide57837
+        } else {
+            Family::IBeamColumn57837
+        };
+        out.push(Entry {
+            name: format!("{name}{SUFFIX_57837}"),
+            family,
+            shape: ProfileShape::ISection {
+                height: h,
+                width: b,
+                web: s,
+                flange: t,
+            },
+            standard: GOST_57837,
             area_mm2: a * 100.0,
             radius: r,
         });
@@ -356,7 +405,7 @@ pub fn sections() -> Vec<Entry> {
             radius: 0.0,
         });
     }
-    for (h, b, t) in TUBES {
+    for (h, b, t, r, a) in TUBES {
         let family = if h == b {
             Family::SquareTube
         } else {
@@ -371,8 +420,8 @@ pub fn sections() -> Vec<Entry> {
                 thickness: t,
             },
             standard: GOST_30245,
-            area_mm2: tube_area(h, b, t),
-            radius: 2.0 * t,
+            area_mm2: a * 100.0,
+            radius: r,
         });
     }
     out
@@ -396,14 +445,14 @@ pub fn search(query: &str) -> Vec<Entry> {
         .collect()
 }
 
-/// Structural steel grades (ГОСТ 27772-2015, ГОСТ 19281-2014), ρ = 7850 kg/m³.
+/// Structural steel grades (ГОСТ 27772-2021, ГОСТ 19281-2014), ρ = 7850 kg/m³.
 pub fn steels() -> Vec<(&'static str, &'static str)> {
     vec![
-        ("С245", "ГОСТ 27772-2015"),
-        ("С255", "ГОСТ 27772-2015"),
-        ("С345", "ГОСТ 27772-2015"),
-        ("С355", "ГОСТ 27772-2015"),
-        ("С390", "ГОСТ 27772-2015"),
+        ("С245", "ГОСТ 27772-2021"),
+        ("С255", "ГОСТ 27772-2021"),
+        ("С345", "ГОСТ 27772-2021"),
+        ("С355", "ГОСТ 27772-2021"),
+        ("С390", "ГОСТ 27772-2021"),
         ("09Г2С", "ГОСТ 19281-2014"),
     ]
 }
@@ -442,6 +491,24 @@ mod tests {
     }
 
     #[test]
+    fn gost_57837_beams_match_their_areas_within_one_percent() {
+        let rows = i_57837();
+        assert_eq!(rows.len(), 171);
+        for (name, h, b, s, t, r, a) in rows {
+            let computed = i_area(h, b, s, t, r);
+            let listed = a * 100.0;
+            let err = (computed - listed).abs() / listed;
+            assert!(err < 0.01, "{name}: {computed:.0} vs {listed:.0} mm²");
+        }
+        // Same name, different section: 20Б1 is 100×5.5×8 here and 100×5.6×8.5
+        // in ГОСТ 26020.
+        let new = section("20Б1 (Р 57837)").unwrap();
+        assert_eq!(new.standard, "ГОСТ Р 57837-2017");
+        assert!((new.area_mm2 - 2716.0).abs() < 1.0);
+        assert_eq!(section("20Б1").unwrap().standard, "ГОСТ 26020-83");
+    }
+
+    #[test]
     fn sloped_flange_beams_and_channels_match_their_areas() {
         // Sloped flanges and toe radii: the mean-thickness formula agrees
         // within 3 %.
@@ -467,6 +534,17 @@ mod tests {
     }
 
     #[test]
+    fn tubes_match_their_areas_with_the_standard_corner_radii() {
+        for (h, b, t, r, a) in TUBES {
+            // ГОСТ 30245: R = 2t up to t = 6 and 2.5t above; inner radius R − t.
+            assert_eq!(r, if t <= 6.0 { 2.0 * t } else { 2.5 * t }, "{h}×{b}×{t}");
+            let computed = 2.0 * t * (h + b - 2.0 * t) - (4.0 - PI) * (r * r - (r - t) * (r - t));
+            let err = (computed - a * 100.0).abs() / (a * 100.0);
+            assert!(err < 0.005, "{h}×{b}×{t}: {err:.4}");
+        }
+    }
+
+    #[test]
     fn every_section_is_valid_named_once_and_findable() {
         let all = sections();
         let mut names = std::collections::BTreeSet::new();
@@ -483,7 +561,8 @@ mod tests {
             assert_eq!(section(&e.name).as_ref(), Some(e));
         }
         assert!(all.len() > 130);
-        assert_eq!(search("30б").len(), 2);
+        assert_eq!(search("30б").len(), 2 + 4);
+        assert_eq!(search("30б 57837").len(), 4);
         assert_eq!(search("Труба 219").len(), 2);
         assert!((section("20Б1").unwrap().mass_kg_m() - 22.4).abs() < 0.05);
         assert!((section("I20").unwrap().mass_kg_m() - 21.0).abs() < 0.05);
