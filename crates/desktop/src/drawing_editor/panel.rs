@@ -75,6 +75,13 @@ fn report(editor: &mut DrawingEditor, result: Result<(), String>) {
 impl DrawingEditor {
     pub fn show(&mut self, ui: &mut egui::Ui, editor: &mut Editor) {
         ui.heading("Чертежи");
+        if ui
+            .button("Менеджер документов · Ctrl+L")
+            .on_hover_text("Все чертежи в таблице: фильтры, обновление, выдача и экспорт")
+            .clicked()
+        {
+            self.manager.open = true;
+        }
         ui.horizontal_wrapped(|ui| {
             if ui
                 .button("Чертёж детали")
