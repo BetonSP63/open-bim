@@ -83,6 +83,9 @@ pub struct Advice {
 
 /// Whether the node has bolts (stiffeners and haunches are welded only).
 pub fn bolted(kind: &TemplateKind) -> bool {
+    if let TemplateKind::Custom { definition } = kind {
+        return !definition.bolts.is_empty();
+    }
     !matches!(
         kind,
         TemplateKind::ColumnStiffeners { .. } | TemplateKind::Haunch { .. }
@@ -91,6 +94,9 @@ pub fn bolted(kind: &TemplateKind) -> bool {
 
 /// Whether the node has a weld (the clip angle is bolted only).
 pub fn welded(kind: &TemplateKind) -> bool {
+    if let TemplateKind::Custom { definition } = kind {
+        return definition.plates.iter().any(|p| p.weld.is_some());
+    }
     !matches!(kind, TemplateKind::ClipAngle { .. })
 }
 

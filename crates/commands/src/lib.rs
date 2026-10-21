@@ -199,6 +199,7 @@ impl Document {
         open_bim_connections::rebuild_beam_splices(&mut staged, &self.project)?;
         open_bim_connections::rebuild_haunches(&mut staged, &self.project)?;
         open_bim_connections::rebuild_seats(&mut staged, &self.project)?;
+        open_bim_connections::rebuild_custom(&mut staged, &self.project)?;
         open_bim_connections::rebuild_gussets(&mut staged, &self.project)?;
         open_bim_connections::apply_component_classes(&mut staged);
         staged.validate()?;

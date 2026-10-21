@@ -4,10 +4,12 @@ mod catalog;
 mod changes;
 mod connection;
 mod construction;
+mod custom_component;
 mod detailing;
 mod document_info;
 mod drawing;
 mod drawing_objects;
+pub mod formula;
 mod frame;
 pub mod library;
 pub mod numbering_rules;
@@ -22,6 +24,10 @@ pub use connection::{
     TemplateKind, beam_splice_roles, gusset_roles,
 };
 pub use construction::{Construction, ConstructionKind, DimPoint, ModelDimension};
+pub use custom_component::{
+    BUILTIN_NAMES, CustomBolts, CustomDefinition, CustomPlate, PlatePlane, Variable, WeldTo,
+    example_definition,
+};
 pub use detailing::{
     Detail, DetailKind, LEG_SIGN, WeldProcess, WeldSides, WeldType, bolt_positions, bolt_set,
     circle_points, weld_mark,

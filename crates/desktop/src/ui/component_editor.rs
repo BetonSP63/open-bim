@@ -80,6 +80,8 @@ pub use open_bim_connections::norms::{bolted, welded};
 pub fn fields(kind: &TemplateKind) -> Vec<Field> {
     use Section::*;
     let mut list = match kind {
+        // Sizes of a custom component are its formulas («Свои компоненты»).
+        TemplateKind::Custom { .. } => vec![],
         TemplateKind::BasePlate { .. } => vec![field(
             "overhang",
             "Свес плиты",
@@ -483,6 +485,15 @@ pub fn check(t: &ConnectionTemplate) -> Vec<Issue> {
         })
     };
     match t.kind {
+        TemplateKind::Custom { ref definition } => {
+            if let Err(e) = definition.validate() {
+                issues.push(Issue {
+                    key: "definition",
+                    text: e.to_string(),
+                    fix: None,
+                });
+            }
+        }
         TemplateKind::BasePlate { overhang } | TemplateKind::EndPlate { overhang } => {
             if must_be_positive("overhang", &mut issues) && base_ok && overhang <= e + d / 2. {
                 issues.push(Issue {
@@ -964,7 +975,7 @@ fn sample_parts(
             };
             (beam_from(document, start)?, Some(c))
         }
-        TemplateKind::Haunch { .. } | TemplateKind::Seat { .. } => {
+        TemplateKind::Haunch { .. } | TemplateKind::Seat { .. } | TemplateKind::Custom { .. } => {
             let c = column(document)?;
             (beam_from(document, 150.)?, Some(c))
         }
@@ -1064,6 +1075,7 @@ pub fn preview(project: &Project, t: &ConnectionTemplate, view: View) -> Preview
             oc::rebuild_beam_splices,
             oc::rebuild_haunches,
             oc::rebuild_seats,
+            oc::rebuild_custom,
             oc::rebuild_gussets,
         ] {
             rebuild(&mut sample, &before).map_err(|e| e.to_string())?;
@@ -1585,6 +1597,7 @@ fn form(ui: &mut egui::Ui, draft: &mut Draft, issues: &[Issue], advice: &[Advice
             .desired_width(f32::INFINITY),
     )
     .labelled_by(label.id);
+    super::custom_form::definition_form(ui, &mut draft.template);
 
     let list = fields(&draft.template.kind);
     for (n, section) in [Section::Size, Section::Bolts, Section::Weld]
