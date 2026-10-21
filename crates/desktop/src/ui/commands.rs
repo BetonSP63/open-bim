@@ -75,6 +75,7 @@ pub enum Cmd {
     CycleFocus,
     FocusSearch,
     ComponentCatalog,
+    AutoConnections,
     GridViews,
     PanelViews,
     PlaneOr3d,
@@ -534,6 +535,13 @@ pub const ALL: &[Spec] = &[
         category: "Детали",
         shortcut: s(CTRL, Key::F),
         keywords: "компоненты узлы соединения каталог пластина шарнир база",
+    },
+    Spec {
+        cmd: Cmd::AutoConnections,
+        label: "Автосоединения",
+        category: "Детали",
+        shortcut: None,
+        keywords: "автосоединения автоматически узлы соединения правила все балки база",
     },
     Spec {
         cmd: Cmd::UndoPick,

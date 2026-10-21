@@ -1,6 +1,7 @@
 //! Application shell shared by the native app and headless UI tests: menus,
 //! panels, command registry, palette, help and background jobs. The 3D
 //! viewport (GPU) is drawn by the binary inside the central panel.
+pub mod auto_connections;
 pub mod catalog_picker;
 pub mod chrome;
 pub mod commands;
@@ -947,6 +948,7 @@ impl Workbench {
                 self.focus_target = Some(self.focus_area);
                 self.message(format!("Фокус: {}", self.focus_area.label()));
             }
+            Cmd::AutoConnections => return self.auto_connections(),
             Cmd::ComponentCatalog => {
                 self.trim.cancel();
                 self.detail.cancel();

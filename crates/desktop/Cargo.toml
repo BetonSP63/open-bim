@@ -16,6 +16,7 @@ open-bim-persistence.workspace = true
 egui-wgpu = { version = "=0.36.2", default-features = false }
 image = { version = "=0.25.10", default-features = false, features = ["png"] }
 open-bim-commands.workspace = true
+open-bim-connections.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 
