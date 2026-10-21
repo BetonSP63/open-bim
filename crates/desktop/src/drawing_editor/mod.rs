@@ -5,6 +5,7 @@ pub mod manager;
 mod panel;
 mod preview;
 pub mod tools;
+pub mod wizard;
 
 use crate::tools::Editor;
 use open_bim_commands::Command;
@@ -66,6 +67,8 @@ pub struct DrawingEditor {
     pub change: changes::ChangeForm,
     /// «Менеджер документов» window.
     pub manager: manager::Manager,
+    /// «Мастер чертежей» window.
+    pub wizard: wizard::Wizard,
     cache: Option<(Drawing, u64, Sheet)>,
 }
 

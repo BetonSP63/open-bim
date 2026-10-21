@@ -1179,6 +1179,15 @@ impl Workbench {
                 self.mode = Mode::Model;
                 self.start_check();
             }
+            Cmd::DrawingWizard => {
+                let wizard = &mut self.drawings.wizard;
+                wizard.open = !wizard.open;
+                self.message(if self.drawings.wizard.open {
+                    "Мастер чертежей: выберите правила и нажмите «Создать чертежи»"
+                } else {
+                    "Мастер чертежей закрыт"
+                });
+            }
             Cmd::DocumentManager => {
                 let manager = &mut self.drawings.manager;
                 manager.open = !manager.open;
@@ -2302,6 +2311,7 @@ impl Workbench {
         self.autosave_tick(std::time::Instant::now());
         self.job_window(&ctx, &mut requests);
         self.recovery_window(&ctx);
+        self.drawings.wizard.show(&ctx, &mut self.editor);
         let export_dir = self.drawings.export_dir.clone();
         if let Some(id) = self
             .drawings
