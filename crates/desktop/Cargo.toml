@@ -27,6 +27,8 @@ open-bim-drawings.workspace = true
 open-bim-drawing-export.workspace = true
 open-bim-reports.workspace = true
 open-bim-ifc.workspace = true
+# Native file picker for model import (MIT).
+rfd = { version = "=0.17.2", default-features = false, features = ["xdg-portal"] }
 
 [dev-dependencies]
 skrifa = "=0.44.0"

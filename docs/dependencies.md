@@ -27,3 +27,9 @@ Ubuntu Font Licence 1.0 — допускает встраивание в PDF), f
 Лицензия «Apache-2.0 OR GPL-2.0-only» используется по Apache-2.0. Средства
 независимой проверки (ezdxf, pypdf, IfcOpenShell, matplotlib) установлены только в
 `work/verify-venv` и не входят в поставку.
+
+## Импорт моделей
+
+rfd 0.17.2 (MIT) — системное окно выбора файла для импорта IFC. На macOS оно
+работает через AppKit (objc2 уже в графе), новых транзитивных зависимостей для
+aarch64-apple-darwin нет.

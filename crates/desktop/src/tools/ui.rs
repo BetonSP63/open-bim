@@ -464,7 +464,11 @@ impl ToolsUi {
                 {
                     action = Some(Action::ExportIfc);
                 }
-                if ui.button("Импорт IFC4").clicked() {
+                if ui
+                    .button("Импорт IFC")
+                    .on_hover_text("Выбрать файл IFC2x3 или IFC4; объекты добавляются в модель")
+                    .clicked()
+                {
                     action = Some(Action::ImportIfc);
                 }
             });

@@ -3,6 +3,8 @@
 //! property sets and openings. See docs/ifc-support.md.
 pub mod export;
 pub mod import;
+pub mod mapping;
+pub mod merge;
 pub mod step;
 
 pub use export::{ExportReport, export};

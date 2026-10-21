@@ -303,7 +303,20 @@ impl Desktop {
                 return;
             }
             Action::ImportIfc => {
-                let path = std::path::Path::new(&self.bench.tools.path).with_extension("ifc");
+                // Any IFC file on disk; the project folder is where to start.
+                let folder = std::path::Path::new(&self.bench.tools.path)
+                    .parent()
+                    .filter(|p| p.is_dir())
+                    .map(std::path::Path::to_path_buf);
+                let mut dialog = rfd::FileDialog::new()
+                    .set_title("Импорт модели IFC")
+                    .add_filter("IFC", &["ifc", "IFC"]);
+                if let Some(folder) = folder {
+                    dialog = dialog.set_directory(folder);
+                }
+                let Some(path) = dialog.pick_file() else {
+                    return;
+                };
                 match self.bench.editor.import_ifc(&path) {
                     Ok((scene, report)) => {
                         self.camera.fit(

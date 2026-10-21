@@ -210,8 +210,10 @@ fn unsupported_content_is_reported_not_silently_dropped() {
         Some(&1)
     );
     assert!(
-        import("ISO-10303-21;HEADER;FILE_SCHEMA(('IFC2X3'));ENDSEC;DATA;ENDSEC;END-ISO-10303-21;")
-            .is_err()
+        import(
+            "ISO-10303-21;HEADER;FILE_SCHEMA(('IFC2X2_FINAL'));ENDSEC;DATA;ENDSEC;END-ISO-10303-21;"
+        )
+        .is_err()
     );
 }
 
