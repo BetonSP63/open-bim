@@ -107,6 +107,8 @@ pub enum Cmd {
     NumberAndCheck,
     ExportIfc,
     ImportIfc,
+    DocumentManager,
+    DrawingWizard,
     PartDrawing,
     AssemblyDrawing,
     GeneralDrawing,
@@ -190,10 +192,10 @@ pub const ALL: &[Spec] = &[
     },
     Spec {
         cmd: Cmd::ImportIfc,
-        label: "Импорт IFC4",
+        label: "Импорт IFC (IFC2x3, IFC4)",
         category: "Файл",
         shortcut: s(CMD, Key::I),
-        keywords: "ifc обмен загрузить",
+        keywords: "ifc обмен загрузить импорт модели внешних программ ifc2x3",
     },
     Spec {
         cmd: Cmd::Undo,
@@ -698,6 +700,20 @@ pub const ALL: &[Spec] = &[
         category: "Проверка",
         shortcut: s(CMD, Key::K),
         keywords: "коллизии позиции марки clash",
+    },
+    Spec {
+        cmd: Cmd::DrawingWizard,
+        label: "Мастер чертежей",
+        category: "Чертежи",
+        shortcut: None,
+        keywords: "автоматически чертежи марки клонирование образец правила",
+    },
+    Spec {
+        cmd: Cmd::DocumentManager,
+        label: "Менеджер документов",
+        category: "Чертежи",
+        shortcut: s(CTRL, Key::L),
+        keywords: "список чертежей документы выдать обновить комплект",
     },
     Spec {
         cmd: Cmd::PartDrawing,

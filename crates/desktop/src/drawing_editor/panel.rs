@@ -77,6 +77,22 @@ impl DrawingEditor {
         ui.heading("Чертежи");
         ui.horizontal_wrapped(|ui| {
             if ui
+                .button("Менеджер документов · Ctrl+L")
+                .on_hover_text("Все чертежи в таблице: фильтры, обновление, выдача и экспорт")
+                .clicked()
+            {
+                self.manager.open = true;
+            }
+            if ui
+                .button("Мастер чертежей")
+                .on_hover_text("Чертежи сборок и деталей по правилам, по одному на марку")
+                .clicked()
+            {
+                self.wizard.open = true;
+            }
+        });
+        ui.horizontal_wrapped(|ui| {
+            if ui
                 .button("Чертёж детали")
                 .on_hover_text("По выбранной детали")
                 .clicked()

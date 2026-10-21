@@ -1190,6 +1190,25 @@ impl Workbench {
                 self.mode = Mode::Model;
                 self.start_check();
             }
+            Cmd::DrawingWizard => {
+                let wizard = &mut self.drawings.wizard;
+                wizard.open = !wizard.open;
+                self.message(if self.drawings.wizard.open {
+                    "Мастер чертежей: выберите правила и нажмите «Создать чертежи»"
+                } else {
+                    "Мастер чертежей закрыт"
+                });
+            }
+            Cmd::DocumentManager => {
+                let manager = &mut self.drawings.manager;
+                manager.open = !manager.open;
+                let count = self.editor.document.project().drawings.len();
+                self.message(if self.drawings.manager.open {
+                    format!("Менеджер документов: чертежей {count}")
+                } else {
+                    "Менеджер документов закрыт".into()
+                });
+            }
             Cmd::PartDrawing => {
                 self.mode = Mode::Drawings;
                 let r = self.drawings.create_part(&mut self.editor);
@@ -2318,6 +2337,16 @@ impl Workbench {
         self.autosave_tick(std::time::Instant::now());
         self.job_window(&ctx, &mut requests);
         self.recovery_window(&ctx);
+        self.drawings.wizard.show(&ctx, &mut self.editor);
+        let export_dir = self.drawings.export_dir.clone();
+        if let Some(id) = self
+            .drawings
+            .manager
+            .show(&ctx, &mut self.editor, &export_dir)
+        {
+            self.mode = Mode::Drawings;
+            self.drawings.select(self.editor.document.project(), id);
+        }
         self.grid_window(&ctx, &mut requests);
         self.components_window(&ctx);
         self.component_editor_window(&ctx);
