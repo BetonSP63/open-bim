@@ -26,10 +26,10 @@ impl Default for ConnectionUi {
                 name: "Соединение".into(),
                 kind: TemplateKind::BasePlate { overhang: 70. },
                 thickness: 20.,
-                edge_distance: 35.,
+                edge_distance: 45.,
                 bolt_diameter: 20.,
                 clearance: 2.,
-                bolt_standard: "ISO 4014".into(),
+                bolt_standard: open_bim_connections::norms::DEFAULT_BOLT_STANDARD.into(),
                 bolt_grade: "8.8".into(),
                 weld_size: 6.,
             },
@@ -195,10 +195,10 @@ impl ConnectionUi {
                 .unwrap_or(0);
             let mut kind = old;
             egui::ComboBox::new("connection-kind", "Тип узла")
-                .selected_text(catalog[kind].name)
+                .selected_text(catalog[kind].name.as_str())
                 .show_ui(ui, |ui| {
                     for (i, c) in catalog.iter().enumerate() {
-                        ui.selectable_value(&mut kind, i, c.name);
+                        ui.selectable_value(&mut kind, i, c.name.as_str());
                     }
                 });
             if old != kind {

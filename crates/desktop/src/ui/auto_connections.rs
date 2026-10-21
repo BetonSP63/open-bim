@@ -42,7 +42,7 @@ impl Default for AutoRules {
 pub struct Plan {
     pub commands: Vec<Command>,
     /// (component name, main part) per connection, in command order.
-    pub made: Vec<(&'static str, ObjectId)>,
+    pub made: Vec<(String, ObjectId)>,
     /// Joints found where no rule's component fits.
     pub skipped: usize,
 }
@@ -114,7 +114,7 @@ pub fn plan(
                 plan.commands.push(Command::CreateConnection {
                     connection: instance,
                 });
-                plan.made.push((c.name, main));
+                plan.made.push((c.name.clone(), main));
                 return true;
             }
         }
@@ -185,7 +185,10 @@ fn instance(
     let mut template = template.clone();
     template.kind = component.kind.clone();
     template.thickness = component.thickness;
-    template.name = component.name.into();
+    template.name = component.name.clone();
+    template.weld_size = template
+        .weld_size
+        .max(open_bim_connections::norms::min_weld(template.thickness));
     ConnectionInstance {
         id,
         primary: main,
