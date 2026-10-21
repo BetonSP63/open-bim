@@ -35,19 +35,19 @@
 <polyline class="Frame" points="13,564 20,564 20,529 13,529 13,564" fill="none" stroke="#000" stroke-width="0.7"/>
 <polyline class="Frame" points="8,529 13,529 13,504 8,504 8,529" fill="none" stroke="#000" stroke-width="0.7"/>
 <polyline class="Frame" points="13,529 20,529 20,504 13,504 13,529" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="770,414.5 818,414.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="665,404.5 836,404.5 836,516.5 665,516.5 665,404.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="665,424.5 836,424.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="700,404.5 700,516.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="730,404.5 730,516.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="760,404.5 760,516.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="770,404.5 770,516.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="786,414.5 786,516.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="802,414.5 802,516.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="818,404.5 818,516.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Thin" points="665,432.5 836,432.5" fill="none" stroke="#000" stroke-width="0.25"/>
-<polyline class="Thin" points="665,440.5 836,440.5" fill="none" stroke="#000" stroke-width="0.25"/>
-<polyline class="Thin" points="665,448.5 836,448.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Frame" points="770,412.5 818,412.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="665,402.5 836,402.5 836,516.5 665,516.5 665,402.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="665,422.5 836,422.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="700,402.5 700,516.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="730,402.5 730,516.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="760,402.5 760,516.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="770,402.5 770,516.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="786,412.5 786,516.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="802,412.5 802,516.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="818,402.5 818,516.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Thin" points="665,430.5 836,430.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="665,438.5 836,438.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="665,446.5 836,446.5" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline class="Thin" points="665,456.5 836,456.5" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline class="Thin" points="665,464.5 836,464.5" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline class="Thin" points="665,472.5 836,472.5" fill="none" stroke="#000" stroke-width="0.25"/>
@@ -385,13 +385,17 @@
 <polyline class="Thin" data-object="94" points="535.14,100 534.64,96.6" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline class="Thin" data-object="94" points="534.64,96.6 539.668,96.6" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline class="Thin" data-object="47" points="57.8,160 59.214,157.172" fill="none" stroke="#000" stroke-width="0.25"/>
-<polyline class="Thin" data-object="47" points="57.8,160 79.8,138 113.575,138" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" data-object="47" points="57.8,160 79.8,138 114.361,138" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" data-object="47" points="109.346,137 111.311,137 111.311,134.5 109.346,137" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline class="Thin" data-object="55" points="113.8,160 115.214,157.172" fill="none" stroke="#000" stroke-width="0.25"/>
-<polyline class="Thin" data-object="55" points="113.8,160 135.8,138 169.575,138" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" data-object="55" points="113.8,160 135.8,138 170.361,138" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" data-object="55" points="165.346,137 167.311,137 167.311,134.5 165.346,137" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline class="Thin" data-object="67" points="179.8,106 181.214,103.172" fill="none" stroke="#000" stroke-width="0.25"/>
-<polyline class="Thin" data-object="67" points="179.8,106 189.8,96 223.575,96" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" data-object="67" points="179.8,106 189.8,96 224.361,96" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" data-object="67" points="219.346,95 221.311,95 221.311,92.5 219.346,95" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline class="Thin" data-object="79" points="419.8,106 421.214,103.172" fill="none" stroke="#000" stroke-width="0.25"/>
-<polyline class="Thin" data-object="79" points="419.8,106 435.8,90 469.575,90" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" data-object="79" points="419.8,106 435.8,90 470.361,90" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" data-object="79" points="465.346,89 467.311,89 467.311,86.5 465.346,89" fill="none" stroke="#000" stroke-width="0.25"/>
 <text x="299.1" y="193.571" font-size="7.143" text-anchor="middle" fill="#000">Фасад по оси А</text>
 <text x="64.8" y="96" font-size="7.143" text-anchor="start" fill="#000" data-object="8">3</text>
 <text x="120.8" y="96" font-size="7.143" text-anchor="start" fill="#000" data-object="9">3</text>
@@ -409,10 +413,14 @@
 <text x="425.8" y="109" font-size="7.143" text-anchor="start" fill="#000" data-object="69">6</text>
 <text x="295.14" y="96" font-size="7.143" text-anchor="start" fill="#000" data-object="81">2</text>
 <text x="535.14" y="96" font-size="7.143" text-anchor="start" fill="#000" data-object="94">2</text>
-<text x="80.3" y="137" font-size="3.571" text-anchor="start" fill="#000" data-object="47">ГОСТ 5264-80-Т1-Δ6</text>
-<text x="136.3" y="137" font-size="3.571" text-anchor="start" fill="#000" data-object="55">ГОСТ 5264-80-Т1-Δ6</text>
-<text x="190.3" y="95" font-size="3.571" text-anchor="start" fill="#000" data-object="67">ГОСТ 5264-80-Т1-Δ6</text>
-<text x="436.3" y="89" font-size="3.571" text-anchor="start" fill="#000" data-object="79">ГОСТ 5264-80-Т1-Δ6</text>
+<text x="80.3" y="137" font-size="3.571" text-anchor="start" fill="#000" data-object="47">ГОСТ 5264-80-Т1-</text>
+<text x="111.846" y="137" font-size="3.571" text-anchor="start" fill="#000" data-object="47">6</text>
+<text x="136.3" y="137" font-size="3.571" text-anchor="start" fill="#000" data-object="55">ГОСТ 5264-80-Т1-</text>
+<text x="167.846" y="137" font-size="3.571" text-anchor="start" fill="#000" data-object="55">6</text>
+<text x="190.3" y="95" font-size="3.571" text-anchor="start" fill="#000" data-object="67">ГОСТ 5264-80-Т1-</text>
+<text x="221.846" y="95" font-size="3.571" text-anchor="start" fill="#000" data-object="67">6</text>
+<text x="436.3" y="89" font-size="3.571" text-anchor="start" fill="#000" data-object="79">ГОСТ 5264-80-Т1-</text>
+<text x="467.846" y="89" font-size="3.571" text-anchor="start" fill="#000" data-object="79">6</text>
 </g>
 <g class="view" data-view="2">
 <polyline class="Hidden" data-object="10" points="173.8,245.8 179.8,245.8" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="3 1.5"/>
@@ -530,48 +538,49 @@
 <text x="11.375" y="576.5" font-size="2.5" text-anchor="middle" fill="#000" transform="rotate(-90 11.375 576.5)">Инв. № подл.</text>
 <text x="11.375" y="546.5" font-size="2.5" text-anchor="middle" fill="#000" transform="rotate(-90 11.375 546.5)">Подп. и дата</text>
 <text x="11.375" y="516.5" font-size="2.5" text-anchor="middle" fill="#000" transform="rotate(-90 11.375 516.5)">Взам. инв. №</text>
-<text x="750.5" y="400.5" font-size="5" text-anchor="middle" fill="#000">Спецификация металлопроката</text>
-<text x="682.5" y="411.75" font-size="3.571" text-anchor="middle" fill="#000">Наименование</text>
-<text x="682.5" y="415.75" font-size="3.571" text-anchor="middle" fill="#000">профиля,</text>
-<text x="682.5" y="419.75" font-size="3.571" text-anchor="middle" fill="#000">ГОСТ, ТУ</text>
-<text x="715" y="411.75" font-size="3.571" text-anchor="middle" fill="#000">Наименование</text>
-<text x="715" y="415.75" font-size="3.571" text-anchor="middle" fill="#000">или марка</text>
-<text x="715" y="419.75" font-size="3.571" text-anchor="middle" fill="#000">металла</text>
-<text x="745" y="411.75" font-size="3.571" text-anchor="middle" fill="#000">Номер или</text>
-<text x="745" y="415.75" font-size="3.571" text-anchor="middle" fill="#000">размеры</text>
-<text x="745" y="419.75" font-size="3.571" text-anchor="middle" fill="#000">профиля, мм</text>
-<text x="765" y="413.75" font-size="3.571" text-anchor="middle" fill="#000">№</text>
-<text x="765" y="417.75" font-size="3.571" text-anchor="middle" fill="#000">п.п.</text>
-<text x="778" y="420.75" font-size="3.571" text-anchor="middle" fill="#000">Колонны</text>
-<text x="794" y="420.75" font-size="3.571" text-anchor="middle" fill="#000">Балки</text>
-<text x="810" y="420.75" font-size="3.571" text-anchor="middle" fill="#000">Прочие</text>
-<text x="827" y="413.75" font-size="3.571" text-anchor="middle" fill="#000">Общая</text>
-<text x="827" y="417.75" font-size="3.571" text-anchor="middle" fill="#000">масса, т</text>
-<text x="794" y="408.75" font-size="3.571" text-anchor="middle" fill="#000">Масса металла по</text>
-<text x="794" y="412.75" font-size="3.571" text-anchor="middle" fill="#000">элементам конструкций, т</text>
-<text x="666" y="429.75" font-size="3.571" text-anchor="start" fill="#000">Двутавры</text>
-<text x="701" y="429.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
-<text x="731" y="429.75" font-size="3.571" text-anchor="start" fill="#000">I 300×150×8×12</text>
-<text x="765" y="429.75" font-size="3.571" text-anchor="middle" fill="#000">1</text>
-<text x="778" y="429.75" font-size="3.571" text-anchor="middle" fill="#000">0,274</text>
-<text x="794" y="429.75" font-size="3.571" text-anchor="middle" fill="#000">0,547</text>
-<text x="827" y="429.75" font-size="3.571" text-anchor="middle" fill="#000">0,821</text>
-<text x="701" y="437.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
-<text x="731" y="437.75" font-size="3.571" text-anchor="start" fill="#000">I600 GUI support</text>
-<text x="765" y="437.75" font-size="3.571" text-anchor="middle" fill="#000">2</text>
-<text x="778" y="437.75" font-size="3.571" text-anchor="middle" fill="#000">1,838</text>
-<text x="827" y="437.75" font-size="3.571" text-anchor="middle" fill="#000">1,838</text>
-<text x="731" y="445.75" font-size="3.571" text-anchor="start" fill="#000">Итого</text>
-<text x="765" y="445.75" font-size="3.571" text-anchor="middle" fill="#000">3</text>
-<text x="778" y="445.75" font-size="3.571" text-anchor="middle" fill="#000">2,112</text>
-<text x="794" y="445.75" font-size="3.571" text-anchor="middle" fill="#000">0,547</text>
-<text x="827" y="445.75" font-size="3.571" text-anchor="middle" fill="#000">2,659</text>
-<text x="666" y="453.75" font-size="3.571" text-anchor="start" fill="#000">Прокат листовой</text>
-<text x="701" y="453.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
-<text x="731" y="453.75" font-size="3.571" text-anchor="start" fill="#000">—20</text>
-<text x="765" y="453.75" font-size="3.571" text-anchor="middle" fill="#000">4</text>
-<text x="810" y="453.75" font-size="3.571" text-anchor="middle" fill="#000">0,040</text>
-<text x="827" y="453.75" font-size="3.571" text-anchor="middle" fill="#000">0,040</text>
+<text x="750.5" y="398.5" font-size="5" text-anchor="middle" fill="#000">Спецификация металлопроката</text>
+<text x="682.5" y="409.75" font-size="3.571" text-anchor="middle" fill="#000">Наименование</text>
+<text x="682.5" y="413.75" font-size="3.571" text-anchor="middle" fill="#000">профиля,</text>
+<text x="682.5" y="417.75" font-size="3.571" text-anchor="middle" fill="#000">ГОСТ, ТУ</text>
+<text x="715" y="409.75" font-size="3.571" text-anchor="middle" fill="#000">Наименование</text>
+<text x="715" y="413.75" font-size="3.571" text-anchor="middle" fill="#000">или марка</text>
+<text x="715" y="417.75" font-size="3.571" text-anchor="middle" fill="#000">металла</text>
+<text x="745" y="409.75" font-size="3.571" text-anchor="middle" fill="#000">Номер или</text>
+<text x="745" y="413.75" font-size="3.571" text-anchor="middle" fill="#000">размеры</text>
+<text x="745" y="417.75" font-size="3.571" text-anchor="middle" fill="#000">профиля, мм</text>
+<text x="765" y="411.75" font-size="3.571" text-anchor="middle" fill="#000">№</text>
+<text x="765" y="415.75" font-size="3.571" text-anchor="middle" fill="#000">п.п.</text>
+<text x="778" y="418.75" font-size="3.571" text-anchor="middle" fill="#000">Колонны</text>
+<text x="794" y="418.75" font-size="3.571" text-anchor="middle" fill="#000">Балки</text>
+<text x="810" y="418.75" font-size="3.571" text-anchor="middle" fill="#000">Прочие</text>
+<text x="827" y="411.75" font-size="3.571" text-anchor="middle" fill="#000">Общая</text>
+<text x="827" y="415.75" font-size="3.571" text-anchor="middle" fill="#000">масса, т</text>
+<text x="794" y="406.75" font-size="3.571" text-anchor="middle" fill="#000">Масса металла по</text>
+<text x="794" y="410.75" font-size="3.571" text-anchor="middle" fill="#000">элементам конструкций, т</text>
+<text x="666" y="427.75" font-size="3.571" text-anchor="start" fill="#000">Двутавры</text>
+<text x="701" y="427.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
+<text x="731" y="427.75" font-size="3.571" text-anchor="start" fill="#000">I 300×150×8×12</text>
+<text x="765" y="427.75" font-size="3.571" text-anchor="middle" fill="#000">1</text>
+<text x="778" y="427.75" font-size="3.571" text-anchor="middle" fill="#000">0,274</text>
+<text x="794" y="427.75" font-size="3.571" text-anchor="middle" fill="#000">0,547</text>
+<text x="827" y="427.75" font-size="3.571" text-anchor="middle" fill="#000">0,821</text>
+<text x="701" y="435.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
+<text x="731" y="435.75" font-size="3.571" text-anchor="start" fill="#000">I600 GUI support</text>
+<text x="765" y="435.75" font-size="3.571" text-anchor="middle" fill="#000">2</text>
+<text x="778" y="435.75" font-size="3.571" text-anchor="middle" fill="#000">1,838</text>
+<text x="827" y="435.75" font-size="3.571" text-anchor="middle" fill="#000">1,838</text>
+<text x="731" y="443.75" font-size="3.571" text-anchor="start" fill="#000">Итого</text>
+<text x="765" y="443.75" font-size="3.571" text-anchor="middle" fill="#000">3</text>
+<text x="778" y="443.75" font-size="3.571" text-anchor="middle" fill="#000">2,112</text>
+<text x="794" y="443.75" font-size="3.571" text-anchor="middle" fill="#000">0,547</text>
+<text x="827" y="443.75" font-size="3.571" text-anchor="middle" fill="#000">2,659</text>
+<text x="666" y="450.75" font-size="3.571" text-anchor="start" fill="#000">Прокат листовой</text>
+<text x="666" y="454.75" font-size="3.571" text-anchor="start" fill="#000">ГОСТ 19903-2015</text>
+<text x="701" y="452.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
+<text x="731" y="452.75" font-size="3.571" text-anchor="start" fill="#000">—20</text>
+<text x="765" y="452.75" font-size="3.571" text-anchor="middle" fill="#000">4</text>
+<text x="810" y="452.75" font-size="3.571" text-anchor="middle" fill="#000">0,040</text>
+<text x="827" y="452.75" font-size="3.571" text-anchor="middle" fill="#000">0,040</text>
 <text x="701" y="461.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
 <text x="731" y="461.75" font-size="3.571" text-anchor="start" fill="#000">—25</text>
 <text x="765" y="461.75" font-size="3.571" text-anchor="middle" fill="#000">5</text>

@@ -12,3 +12,9 @@ pub use import::{ImportReport, import};
 pub const GUID_PROPERTY: &str = "IFC GUID";
 /// Property set holding element properties.
 pub const PSET_NAME: &str = "Open BIM";
+/// Derived property set for Russian reviewers: section, its standard, steel
+/// and mass. Export only; import rebuilds these from the model.
+pub const GOST_PSET_NAME: &str = "Сведения по ГОСТ";
+/// Element property with a code of the construction information classifier
+/// (КСИ); exported as an IFC classification reference.
+pub const KSI_PROPERTY: &str = "КСИ";
