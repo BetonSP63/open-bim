@@ -20,6 +20,9 @@ pub enum Family {
     IBeamNormal,
     IBeamWide,
     IBeamColumn,
+    IBeamNormal57837,
+    IBeamWide57837,
+    IBeamColumn57837,
     Channel,
     Angle,
     Pipe,
@@ -28,7 +31,10 @@ pub enum Family {
 }
 
 impl Family {
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 12] = [
+        Self::IBeamNormal57837,
+        Self::IBeamWide57837,
+        Self::IBeamColumn57837,
         Self::IBeamNormal,
         Self::IBeamWide,
         Self::IBeamColumn,
@@ -45,6 +51,9 @@ impl Family {
             Self::IBeamNormal => "Двутавры балочные Б (ГОСТ 26020)",
             Self::IBeamWide => "Двутавры широкополочные Ш (ГОСТ 26020)",
             Self::IBeamColumn => "Двутавры колонные К (ГОСТ 26020)",
+            Self::IBeamNormal57837 => "Двутавры балочные Б (ГОСТ Р 57837)",
+            Self::IBeamWide57837 => "Двутавры широкополочные Ш (ГОСТ Р 57837)",
+            Self::IBeamColumn57837 => "Двутавры колонные К (ГОСТ Р 57837)",
             Self::Channel => "Швеллеры У (ГОСТ 8240)",
             Self::Angle => "Уголки равнополочные (ГОСТ 8509)",
             Self::Pipe => "Трубы круглые (ГОСТ 10704)",
@@ -88,6 +97,10 @@ impl Entry {
 
 const GOST_8239: &str = "ГОСТ 8239-89";
 const GOST_26020: &str = "ГОСТ 26020-83";
+const GOST_57837: &str = "ГОСТ Р 57837-2017";
+/// Suffix that keeps ГОСТ Р 57837 names apart from the same names in
+/// ГОСТ 26020, whose sections differ.
+const SUFFIX_57837: &str = " (Р 57837)";
 const GOST_8240: &str = "ГОСТ 8240-97";
 const GOST_8509: &str = "ГОСТ 8509-93";
 const GOST_10704: &str = "ГОСТ 10704-91";
@@ -193,6 +206,26 @@ const CHANNELS: [(&str, f64, f64, f64, f64, f64, f64); 16] = [
     ("40У", 400., 115., 8.0, 13.5, 15.0, 61.5),
 ];
 
+/// ГОСТ Р 57837-2017 with Amendment 1, from the sourced reference table.
+const I_57837_CSV: &str = include_str!("../../../data/reference/i_beams_gost_r_57837_2017.csv");
+
+/// ГОСТ Р 57837-2017 rows: designation, h, b, tw, tf, r, A cm².
+fn i_57837() -> Vec<(&'static str, f64, f64, f64, f64, f64, f64)> {
+    I_57837_CSV
+        .lines()
+        .skip(1)
+        .filter(|l| !l.trim().is_empty())
+        .map(|line| {
+            let f: Vec<&str> = line.splitn(9, ',').collect();
+            let n = |i: usize| {
+                f[i].parse::<f64>()
+                    .expect("number in the ГОСТ Р 57837 table")
+            };
+            (f[0], n(2), n(3), n(4), n(5), n(6), n(7))
+        })
+        .collect()
+}
+
 /// ГОСТ 8509-93: b, t, R, A cm².
 const ANGLES: [(f64, f64, f64, f64); 23] = [
     (50., 4., 5.5, 3.89),
@@ -289,6 +322,28 @@ pub fn sections() -> Vec<Entry> {
                 flange: t,
             },
             standard: GOST_26020,
+            area_mm2: a * 100.0,
+            radius: r,
+        });
+    }
+    for (name, h, b, s, t, r, a) in i_57837() {
+        let family = if name.contains('Б') {
+            Family::IBeamNormal57837
+        } else if name.contains('Ш') {
+            Family::IBeamWide57837
+        } else {
+            Family::IBeamColumn57837
+        };
+        out.push(Entry {
+            name: format!("{name}{SUFFIX_57837}"),
+            family,
+            shape: ProfileShape::ISection {
+                height: h,
+                width: b,
+                web: s,
+                flange: t,
+            },
+            standard: GOST_57837,
             area_mm2: a * 100.0,
             radius: r,
         });
@@ -436,6 +491,24 @@ mod tests {
     }
 
     #[test]
+    fn gost_57837_beams_match_their_areas_within_one_percent() {
+        let rows = i_57837();
+        assert_eq!(rows.len(), 171);
+        for (name, h, b, s, t, r, a) in rows {
+            let computed = i_area(h, b, s, t, r);
+            let listed = a * 100.0;
+            let err = (computed - listed).abs() / listed;
+            assert!(err < 0.01, "{name}: {computed:.0} vs {listed:.0} mm²");
+        }
+        // Same name, different section: 20Б1 is 100×5.5×8 here and 100×5.6×8.5
+        // in ГОСТ 26020.
+        let new = section("20Б1 (Р 57837)").unwrap();
+        assert_eq!(new.standard, "ГОСТ Р 57837-2017");
+        assert!((new.area_mm2 - 2716.0).abs() < 1.0);
+        assert_eq!(section("20Б1").unwrap().standard, "ГОСТ 26020-83");
+    }
+
+    #[test]
     fn sloped_flange_beams_and_channels_match_their_areas() {
         // Sloped flanges and toe radii: the mean-thickness formula agrees
         // within 3 %.
@@ -488,7 +561,8 @@ mod tests {
             assert_eq!(section(&e.name).as_ref(), Some(e));
         }
         assert!(all.len() > 130);
-        assert_eq!(search("30б").len(), 2);
+        assert_eq!(search("30б").len(), 2 + 4);
+        assert_eq!(search("30б 57837").len(), 4);
         assert_eq!(search("Труба 219").len(), 2);
         assert!((section("20Б1").unwrap().mass_kg_m() - 22.4).abs() < 0.05);
         assert!((section("I20").unwrap().mass_kg_m() - 21.0).abs() < 0.05);
