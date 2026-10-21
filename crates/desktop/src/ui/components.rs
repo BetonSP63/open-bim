@@ -107,6 +107,17 @@ pub fn catalog() -> Vec<Component> {
             template: None,
         },
         Component {
+            name: "Свой компонент".into(),
+            group: "Свои компоненты".into(),
+            description: "Пластины, болты и швы на конце стержня, размеры которых заданы формулами от сечения. Пример — торцевая пластина на четырёх болтах; правится в окне «Свои компоненты». Выберите стержень, затем опору.".into(),
+            needs_support: true,
+            kind: TemplateKind::Custom {
+                definition: open_bim_model::example_definition(),
+            },
+            thickness: 12.,
+            template: None,
+        },
+        Component {
             name: "Фасонка связи".into(),
             group: "Связи".into(),
             description: "Фасонка за полкой уголковой связи: болты в ряд вдоль связи, шов к ближайшей грани опоры. Выберите связь, затем колонну или балку.".into(),

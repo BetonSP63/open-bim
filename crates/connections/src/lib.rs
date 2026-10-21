@@ -20,6 +20,10 @@ mod gusset;
 pub use gusset::{GussetGeometry, MAX_GUSSET_REACH, gusset_geometry, rebuild_gussets};
 pub mod by_profile;
 mod clip_angle;
+mod custom;
+pub use custom::{
+    CustomGeometry, builtins as custom_builtins, custom_geometry, rebuild_custom, section_sizes,
+};
 pub mod norms;
 pub use clip_angle::{ClipAngleGeometry, clip_angle_geometry, rebuild_clip_angles};
 
@@ -241,5 +245,6 @@ pub fn check_geometry(
         TemplateKind::Haunch { .. } => haunch_geometry(project, instance).map(drop),
         TemplateKind::Gusset { .. } => gusset_geometry(project, instance).map(drop),
         TemplateKind::Seat { .. } => seat_geometry(project, instance).map(drop),
+        TemplateKind::Custom { .. } => custom_geometry(project, instance).map(drop),
     }
 }

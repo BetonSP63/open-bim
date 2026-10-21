@@ -295,6 +295,9 @@ impl ConnectionUi {
                     dimension(ui, "Ширина столика, мм", width);
                     dimension(ui, "Высота ребра, мм", depth);
                 }
+                TemplateKind::Custom { .. } => {
+                    ui.label("Размеры заданы формулами: окно «Свои компоненты»");
+                }
                 TemplateKind::ColumnStiffeners { chamfer } => {
                     dimension(ui, "Срез угла у стенки, мм", chamfer);
                 }

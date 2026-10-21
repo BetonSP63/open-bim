@@ -63,6 +63,9 @@ impl ConnectionInstance {
         if let TemplateKind::Gusset { bolts, .. } = self.template.kind {
             return self.validate_gusset(p, bolts);
         }
+        if let TemplateKind::Custom { definition } = &self.template.kind {
+            return self.validate_custom(p, definition);
+        }
         let roles: &[&str] = match self.template.kind {
             TemplateKind::BasePlate { .. } => &[
                 "plate", "hole-0", "hole-1", "hole-2", "hole-3", "bolts", "weld",
@@ -99,7 +102,8 @@ impl ConnectionInstance {
             | TemplateKind::BeamSplice { .. }
             | TemplateKind::Haunch { .. }
             | TemplateKind::Seat { .. }
-            | TemplateKind::Gusset { .. } => unreachable!(),
+            | TemplateKind::Gusset { .. }
+            | TemplateKind::Custom { .. } => unreachable!(),
         };
         if self.children.len() != roles.len()
             || roles.iter().any(|r| !self.children.contains_key(*r))
@@ -524,6 +528,46 @@ impl ConnectionInstance {
     }
 }
 
+impl ConnectionInstance {
+    /// Custom component: exactly the roles of its definition, plates as
+    /// plates, holes and bolts and welds as such.
+    fn validate_custom(
+        &self,
+        p: &crate::Project,
+        definition: &crate::CustomDefinition,
+    ) -> Result<(), ModelError> {
+        let error =
+            || ModelError::InvalidValue("Состав соединения не соответствует шаблону".into());
+        let roles = definition.roles();
+        if self.children.len() != roles.len()
+            || roles.iter().any(|r| !self.children.contains_key(r))
+        {
+            return Err(error());
+        }
+        for (role, id) in &self.children {
+            let ok = if role.starts_with("plate-") {
+                matches!(
+                    p.elements.get(id).map(|e| &e.shape),
+                    Some(crate::ElementShape::Plate { .. })
+                )
+            } else {
+                let kind = p.details.get(id).map(|d| &d.kind);
+                if role.starts_with("weld-") {
+                    matches!(kind, Some(crate::DetailKind::Weld { .. }))
+                } else if role.starts_with("bolts-") {
+                    matches!(kind, Some(crate::DetailKind::BoltGroup { .. }))
+                } else {
+                    matches!(kind, Some(crate::DetailKind::Hole { .. }))
+                }
+            };
+            if !ok {
+                return Err(error());
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Child roles of a brace gusset with `bolts` bolts.
 pub fn gusset_roles(bolts: u32) -> Vec<String> {
     let mut roles = vec!["gusset".to_string(), "bolts".into(), "weld".into()];
@@ -671,6 +715,11 @@ pub enum TemplateKind {
         width: f64,
         depth: f64,
     },
+    /// Custom component («свой компонент»): plates, bolts and welds laid out
+    /// by formulas, see [`crate::CustomDefinition`].
+    Custom {
+        definition: crate::CustomDefinition,
+    },
 }
 
 impl ConnectionTemplate {
@@ -771,6 +820,7 @@ impl ConnectionTemplate {
                     return Err(invalid());
                 }
             }
+            TemplateKind::Custom { ref definition } => definition.validate()?,
         }
         Ok(())
     }

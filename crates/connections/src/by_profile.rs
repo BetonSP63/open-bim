@@ -141,6 +141,8 @@ pub fn fit_to_profile(
             *bolts = (*bolts).max(2);
             t.thickness = sheet((tw + 2.).max(8.));
         }
+        // Its own formulas already size it from the section.
+        TemplateKind::Custom { .. } => return None,
         TemplateKind::Seat {
             length,
             width,

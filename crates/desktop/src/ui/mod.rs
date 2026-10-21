@@ -7,6 +7,7 @@ pub mod chrome;
 pub mod commands;
 pub mod component_editor;
 pub mod components;
+pub mod custom_form;
 pub mod icons;
 pub mod jobs;
 pub mod keytips;
