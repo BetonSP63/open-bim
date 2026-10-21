@@ -21,6 +21,9 @@ impl ConnectionInstance {
         if let TemplateKind::FinPlate { rows, .. } = self.template.kind {
             return self.validate_fin_plate(p, rows);
         }
+        if let TemplateKind::ColumnStiffeners { .. } = self.template.kind {
+            return self.validate_stiffeners(p);
+        }
         let roles: &[&str] = match self.template.kind {
             TemplateKind::BasePlate { .. } => &[
                 "plate", "hole-0", "hole-1", "hole-2", "hole-3", "bolts", "weld",
@@ -52,7 +55,9 @@ impl ConnectionInstance {
                 "primary-bolts",
                 "support-bolts",
             ],
-            TemplateKind::FinPlate { .. } => unreachable!(),
+            TemplateKind::FinPlate { .. } | TemplateKind::ColumnStiffeners { .. } => {
+                unreachable!()
+            }
         };
         if self.children.len() != roles.len()
             || roles.iter().any(|r| !self.children.contains_key(*r))
@@ -208,6 +213,43 @@ impl ConnectionInstance {
     }
 }
 
+impl ConnectionInstance {
+    /// Column stiffeners: four plates, each welded to the column.
+    fn validate_stiffeners(&self, p: &crate::Project) -> Result<(), ModelError> {
+        let error =
+            || ModelError::InvalidValue("Состав соединения не соответствует шаблону".into());
+        self.secondary.ok_or_else(error)?;
+        if self.children.len() != 8 {
+            return Err(error());
+        }
+        for i in 0..4 {
+            let (Some(plate), Some(weld)) = (
+                self.children.get(&format!("stiffener-{i}")),
+                self.children.get(&format!("weld-{i}")),
+            ) else {
+                return Err(error());
+            };
+            if !matches!(
+                p.elements.get(plate).map(|e| &e.shape),
+                Some(crate::ElementShape::Plate { .. })
+            ) {
+                return Err(error());
+            }
+            let Some(crate::DetailKind::Weld { parts, size, .. }) =
+                p.details.get(weld).map(|d| &d.kind)
+            else {
+                return Err(error());
+            };
+            if *parts != std::collections::BTreeSet::from([*plate, self.primary])
+                || *size != self.template.weld_size
+            {
+                return Err(error());
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Dimensions use millimetres. This contract makes no capacity calculation.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -247,6 +289,11 @@ pub enum TemplateKind {
         gap: f64,
         pitch: f64,
         rows: u32,
+    },
+    /// Stiffeners in an I-section column at the levels of the beam flanges,
+    /// with the web-side corners cut by `chamfer`.
+    ColumnStiffeners {
+        chamfer: f64,
     },
 }
 
@@ -299,6 +346,11 @@ impl ConnectionTemplate {
                     || height < 2.0 * self.edge_distance + pitch * (rows - 1) as f64
                     || lap < 2.0 * self.edge_distance
                 {
+                    return Err(invalid());
+                }
+            }
+            TemplateKind::ColumnStiffeners { chamfer } => {
+                if !chamfer.is_finite() || !(0.0..=100.0).contains(&chamfer) {
                     return Err(invalid());
                 }
             }

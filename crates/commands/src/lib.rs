@@ -191,6 +191,7 @@ impl Document {
         open_bim_connections::rebuild_end_plates(&mut staged, &self.project)?;
         open_bim_connections::rebuild_clip_angles(&mut staged, &self.project)?;
         open_bim_connections::rebuild_fin_plates(&mut staged, &self.project)?;
+        open_bim_connections::rebuild_stiffeners(&mut staged, &self.project)?;
         staged.validate()?;
         staged.revision = staged
             .revision
@@ -291,6 +292,16 @@ impl<T> DependencyCache<T> {
             .retain(|_, (dependencies, _)| dependencies.is_disjoint(&event.touched));
         previous - self.entries.len()
     }
+}
+
+/// Apply commands to a scratch copy without rebuilding connections or
+/// validating: lets a caller derive later commands of one transaction from
+/// the state the earlier ones leave (copy special builds N copies this way).
+pub fn apply_staged(project: &mut Project, commands: &[Command]) -> Result<(), CommandError> {
+    for command in commands {
+        apply_command(project, command)?;
+    }
+    Ok(())
 }
 
 fn apply_command(project: &mut Project, command: &Command) -> Result<(), CommandError> {

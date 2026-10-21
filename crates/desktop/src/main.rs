@@ -149,6 +149,8 @@ struct Desktop {
     area_drag: Option<[f64; 2]>,
     /// Handle being dragged (direct modification).
     handle_drag: Option<overlay::Handle>,
+    /// Drag and drop of the selection: the grabbed (snapped) world point.
+    object_drag: Option<DVec3>,
     /// Rotation centre of the running orbit gesture.
     orbit: open_bim_desktop::interaction::orbit::Orbit,
     /// Shift+Tab was used during this Shift press (no direction lock then).
@@ -263,6 +265,7 @@ impl Desktop {
             viewport: None,
             area_drag: None,
             handle_drag: None,
+            object_drag: None,
             orbit: Default::default(),
             last_hover: None,
             shift_tab: false,
@@ -709,9 +712,11 @@ impl eframe::App for Desktop {
             // Snapping runs while a command picks points or a handle is dragged.
             let previous = match &self.handle_drag {
                 Some(h) => selection::anchor(project, h),
+                None if self.object_drag.is_some() => self.object_drag,
                 None => self.bench.previous_pick(),
             };
-            let snapping = self.bench.picking() || self.handle_drag.is_some();
+            let snapping =
+                self.bench.picking() || self.handle_drag.is_some() || self.object_drag.is_some();
             let candidates = match (snapping, response.hover_pos()) {
                 (true, Some(pos)) => {
                     // The elevation field moves a horizontal work plane.
@@ -830,6 +835,9 @@ impl eframe::App for Desktop {
                     Cmd::PanelProperties,
                     Cmd::MoveByPicks,
                     Cmd::CopyByPicks,
+                    Cmd::CopySpecial,
+                    Cmd::MoveSpecial,
+                    Cmd::SelectPrevious,
                     Cmd::DeleteSelected,
                     Cmd::HideSelected,
                     Cmd::ShowOnlySelected,
@@ -968,12 +976,79 @@ impl eframe::App for Desktop {
                 } else {
                     Vec::new()
                 };
-                match selection::handle_at(&handles, start, 8.) {
-                    Some(h) => self.handle_drag = Some(h),
-                    None => self.area_drag = Some(start),
+                // Drag and drop: a press on a selected part grabs the selection
+                // at the snap point under the cursor (or the work plane point).
+                let press = egui::pos2(start[0] as f32, start[1] as f32);
+                let press_ray = self.camera.ray(
+                    self.scene.origin,
+                    [
+                        ((press.x - rect.min.x) / rect.width()) as f64,
+                        ((press.y - rect.min.y) / rect.height()) as f64,
+                    ],
+                    rect.aspect_ratio() as f64,
+                );
+                let grab = press_ray
+                    .filter(|_| self.bench.drag_drop)
+                    .filter(|ray| {
+                        self.scene
+                            .pick(*ray, &self.view)
+                            .is_some_and(|id| self.bench.editor.selected.contains(&id))
+                    })
+                    .and_then(|ray| {
+                        let view = open_bim_desktop::interaction::snap::View {
+                            camera: &self.camera,
+                            origin: self.scene.origin,
+                            size: [rect.width() as f64, rect.height() as f64],
+                        };
+                        let px = press - rect.min;
+                        self.bench
+                            .snapper
+                            .candidates(
+                                self.bench.editor.document.project(),
+                                &self.scene,
+                                view,
+                                [px.x as f64, px.y as f64],
+                                self.bench.switches,
+                                self.bench.snap_tolerance_px,
+                                None,
+                                &self.bench.engine.workplane,
+                            )
+                            .first()
+                            .map(|h| h.point)
+                            .or_else(|| {
+                                self.bench
+                                    .engine
+                                    .workplane
+                                    .intersect(ray.origin, ray.direction)
+                            })
+                    });
+                match (selection::handle_at(&handles, start, 8.), grab) {
+                    (Some(h), _) => self.handle_drag = Some(h),
+                    (None, Some(p)) => {
+                        self.object_drag = Some(p);
+                        self.bench.tools.message = Some(
+                            "Перетаскивание: отпустите в точке назначения (Ctrl или ⌥ — копия)"
+                                .into(),
+                        );
+                    }
+                    (None, None) => self.area_drag = Some(start),
                 }
             }
             if response.drag_stopped() {
+                if let Some(from) = self.object_drag.take() {
+                    let to = cursor.map(|(p, _)| DVec3::from_array(p.0)).or_else(|| {
+                        hover.and_then(|ray| {
+                            self.bench
+                                .engine
+                                .workplane
+                                .intersect(ray.origin, ray.direction)
+                        })
+                    });
+                    let copy = modifiers.ctrl || modifiers.alt;
+                    if let Some(r) = to.and_then(|to| self.bench.drop_selection(from, to, copy)) {
+                        self.pending.push(r);
+                    }
+                }
                 if let Some(h) = self.handle_drag.take() {
                     match cursor.map(|(p, _)| {
                         open_bim_desktop::interaction::member_edit::drag_handle(
@@ -1029,6 +1104,8 @@ impl eframe::App for Desktop {
                 m.clone()
             } else if let Some(h) = &self.handle_drag {
                 selection::anchor(project, h).into_iter().collect()
+            } else if let Some(p) = self.object_drag {
+                vec![p]
             } else if let Some(p) = &self.bench.workplane_picks {
                 p.clone()
             } else if self.bench.edit_pick.op.is_some() {
@@ -1194,6 +1271,30 @@ impl eframe::App for Desktop {
                         galley,
                         egui::Color32::BLACK,
                     );
+                }
+            }
+            // Rollover highlight (H): outline of the part under the cursor.
+            self.bench.hovered = hover
+                .filter(|_| {
+                    self.bench.rollover
+                        && !self.bench.picking()
+                        && self.area_drag.is_none()
+                        && self.handle_drag.is_none()
+                })
+                .and_then(|ray| self.scene.pick(ray, &self.view))
+                .filter(|id| !self.bench.editor.selected.contains(id));
+            if let Some(id) = self.bench.hovered {
+                let stroke = egui::Stroke::new(2., egui::Color32::from_rgb(255, 140, 0));
+                for (a, b) in selection::segments(self.bench.editor.document.project(), id) {
+                    if let (Some(a), Some(b)) = (projector.screen(a), projector.screen(b)) {
+                        ui.painter().line_segment(
+                            [
+                                egui::pos2(a[0] as f32, a[1] as f32),
+                                egui::pos2(b[0] as f32, b[1] as f32),
+                            ],
+                            stroke,
+                        );
+                    }
                 }
             }
             // Area selection rectangle: solid = window (left→right), dashed = crossing.

@@ -47,6 +47,11 @@ are listed in `docs/reference-docs-comparison.md`.
 | Selection switches: parts, assemblies, bolt groups, welds, grid lines | toolbar toggles; Ctrl+A selects all allowed | window_selects_inside_crossing_selects_touching_and_switches_filter, `tests/ui/selection-editing/02-window-select.png` |
 | Direct modification (D): blue handles; drag a handle with snapping | member ends and plate vertices; one undo step | dragging_a_beam_end_handle_to_a_snapped_node_moves_only_that_end, plate_vertex_handle_moves_the_vertex |
 | Move Ctrl+M / Copy Ctrl+C by origin + destination; copy repeats | same; mirror by 2 points, rotate by centre + 2 directions | move_copy_mirror_and_rotate_by_picks |
+| Copy special / move special: linear (N copies), rotate (N copies, dZ per copy), mirror, to another plane | dialog with picks for the vector, centre, mirror line and planes; N copies are one undo step; holes, cuts, bolts and welds come along (context menu, ⌘P) | linear_copy_makes_n_copies_in_one_undo_step, rotate_copy_turns_and_rises_each_copy, copy_to_another_plane_keeps_the_position_relative_to_the_planes |
+| Select previous (Alt+P) | same; the contour plate moved to ⇧⌥P | alt_p_returns_to_the_previous_selection |
+| Rollover highlight (H) | orange outline of the part under the cursor | drag_and_drop_moves_or_copies_the_selection |
+| Selection filter (Ctrl+G) | name, profile, material, class; several values, `*` and `?` | selection_filter_limits_clicks_area_and_select_all |
+| Drag and drop of the selection; Ctrl copies | snapped grab and drop points; Ctrl or ⌥ copies; toolbar switch | drag_and_drop_moves_or_copies_the_selection |
 | Delete asks before removing dependants | confirmation dialog when holes/bolts/welds/nodes depend | delete_with_dependants_asks_first |
 | Right-click menu | Прервать, Завершить, Свойства, Переместить, Копировать, Удалить, Скрыть, Показать только выбранные, Показать все, Вписать выбранные (⇧Пробел), Чертёж детали | context_menu_commands_all_act |
 | Tab / Shift+Tab cycle snap points; Ctrl+pick sets a temporary reference point (black cross); snap tooltip; turquoise line of the snapped object | same | tab_cycles_snap_candidates_and_ctrl_pick_sets_a_reference |
@@ -94,16 +99,11 @@ is claimed. See `docs/reference-docs-comparison.md` for each row's status.
 - **Bolts:** «by face» and «by parts and face»; circle/list shapes; slotted, oversized, tapped and blind holes; Auto bolt.
 - **Welds:** polygon welds, weld to a part, weld preparation, weld marks in drawings.
 - **Selection:**
-  - selection filters (Ctrl+G);
-  - Alt+P select previous;
-  - rollover highlight (H);
   - component and component-object switches;
   - single-bolt, cuts, points and planes switches.
 - **Editing:**
   - clipboard copy/paste between models;
   - Smart select;
-  - drag & drop;
-  - copy special (linear, rotate, mirror, to another plane);
   - swap handles.
 - **Property pane:** UDA dialogs, copying properties from another object; levels of a column cannot be changed after creation (only by recreating it).
 - **Other reference features:**

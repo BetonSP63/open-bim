@@ -222,6 +222,9 @@ pub enum Edit {
         normal: Point3,
         offset: f64,
     },
+    /// Rigid motion `world = frame.world(p)` (copy special: rotate with dZ,
+    /// to another plane). The axes must be orthonormal and right-handed.
+    Transform(Frame),
     Property {
         key: String,
         value: PropertyValue,
@@ -231,7 +234,7 @@ fn transform_point(p: Point3, rotation: Frame, pivot: Point3) -> Point3 {
     let r = rotation.world(Point3(std::array::from_fn(|i| p.0[i] - pivot.0[i])));
     Point3(std::array::from_fn(|i| r.0[i] + pivot.0[i]))
 }
-fn rotation(axis: Point3, degrees: f64) -> Result<Frame, String> {
+pub(crate) fn rotation(axis: Point3, degrees: f64) -> Result<Frame, String> {
     let axis = DVec3::from_array(axis.0)
         .try_normalize()
         .ok_or("Нулевая ось поворота")?;
@@ -248,6 +251,19 @@ fn rotation(axis: Point3, degrees: f64) -> Result<Frame, String> {
         ],
         ..Default::default()
     })
+}
+/// A rigid motion: finite, orthonormal, right-handed axes.
+fn rigid(frame: Frame) -> Result<Frame, String> {
+    let [x, y, z] = frame.axes.map(DVec3::from_array);
+    let ok = DVec3::from_array(frame.origin.0).is_finite()
+        && [x, y, z].iter().all(|a| (a.length() - 1.0).abs() < 1e-6)
+        && x.dot(y).abs() < 1e-6
+        && (x.cross(y) - z).length() < 1e-6;
+    if ok {
+        Ok(frame)
+    } else {
+        Err("Некорректное преобразование".into())
+    }
 }
 pub fn edit_commands(
     project: &Project,
@@ -302,6 +318,7 @@ pub fn edit_commands(
                 degrees,
                 pivot,
             } => (rotation(*axis, *degrees)?, *pivot),
+            Edit::Transform(frame) => (rigid(*frame)?, Point3([0.0; 3])),
             _ => (Frame::default(), Point3([0.0; 3])),
         };
         let mirror = if let Edit::Mirror { normal, offset } = edit {
@@ -510,7 +527,7 @@ pub fn edit_commands(
             commands.push(Command::ReplaceDetail { detail });
         }
     }
-    if let Edit::Move(_) | Edit::Rotate { .. } = edit {
+    if let Edit::Move(_) | Edit::Rotate { .. } | Edit::Transform(_) = edit {
         let (r, pivot) = match edit {
             Edit::Move(delta) => (
                 Frame {
@@ -524,6 +541,7 @@ pub fn edit_commands(
                 degrees,
                 pivot,
             } => (rotation(*axis, *degrees)?, *pivot),
+            Edit::Transform(frame) => (rigid(*frame)?, Point3([0.0; 3])),
             _ => unreachable!(),
         };
         for source in project.details.values() {
@@ -705,6 +723,7 @@ impl Editor {
                 Edit::Copy(_) => "Копировать",
                 Edit::Rotate { .. } => "Повернуть",
                 Edit::Mirror { .. } => "Зеркало",
+                Edit::Transform(_) => "Переместить",
                 Edit::Property { .. } => "Свойства",
                 Edit::PlateShape { .. } => "Изменить пластину",
             },
