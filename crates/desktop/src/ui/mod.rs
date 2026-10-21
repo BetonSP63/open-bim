@@ -203,6 +203,8 @@ pub struct Workbench {
     pub snap_cycle: usize,
     /// Property pane edit buffer.
     pub pane: property_pane::PropertyPane,
+    /// «Фаски углов» of the selected plates.
+    pub corners: crate::interaction::corners::CornerUi,
     /// Model views (3D, plans, elevations) and the active one.
     pub views: Vec<views::ModelView>,
     pub active_view: usize,
@@ -298,6 +300,7 @@ impl Workbench {
             delete_confirm: None,
             snap_cycle: 0,
             pane: Default::default(),
+            corners: Default::default(),
             views: vec![views::ModelView::model_3d()],
             active_view: 0,
             clip: [None, None],

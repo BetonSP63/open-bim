@@ -3,6 +3,7 @@
 //! object is created after the last pick and the command re-arms until Esc.
 pub mod assembly_edit;
 pub mod component_symbols;
+pub mod corners;
 pub mod grid_edit;
 pub mod keyboard_cursor;
 pub mod member_edit;

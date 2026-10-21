@@ -1000,6 +1000,49 @@ impl Workbench {
         }
     }
 
+    /// «Фаски углов» fields; true when «Срезать углы» is pressed.
+    fn corner_editor(&mut self, ui: &mut egui::Ui) -> bool {
+        use crate::interaction::corners::CornerKind;
+        let f = &mut self.corners;
+        egui::Grid::new("corner grid")
+            .num_columns(2)
+            .show(ui, |ui| {
+                let l = ui.label("Тип");
+                egui::ComboBox::new("corner kind", "")
+                    .selected_text(f.kind.label())
+                    .show_ui(ui, |ui| {
+                        for k in CornerKind::ALL {
+                            ui.selectable_value(&mut f.kind, k, k.label());
+                        }
+                    })
+                    .response
+                    .labelled_by(l.id);
+                ui.end_row();
+                let l = ui.label("Углы");
+                ui.add(egui::TextEdit::singleline(&mut f.corners).desired_width(90.))
+                    .labelled_by(l.id)
+                    .on_hover_text("«все» или номера точек контура: 1 3");
+                ui.end_row();
+                if f.kind == CornerKind::Line {
+                    let l = ui.label("Катет X, мм");
+                    ui.add(egui::TextEdit::singleline(&mut f.x).desired_width(60.))
+                        .labelled_by(l.id)
+                        .on_hover_text("Вдоль стороны к предыдущей точке");
+                    ui.end_row();
+                    let l = ui.label("Катет Y, мм");
+                    ui.add(egui::TextEdit::singleline(&mut f.y).desired_width(60.))
+                        .labelled_by(l.id)
+                        .on_hover_text("Вдоль стороны к следующей точке");
+                } else {
+                    let l = ui.label("Радиус, мм");
+                    ui.add(egui::TextEdit::singleline(&mut f.x).desired_width(60.))
+                        .labelled_by(l.id);
+                }
+                ui.end_row();
+            });
+        ui.button("Срезать углы").clicked()
+    }
+
     fn tool_pane_active(&self) -> bool {
         use crate::interaction::trim::TrimTool;
         self.detail.tool.is_some()
@@ -1613,6 +1656,33 @@ impl Workbench {
                     ui.small(
                         "Ручки — на опорной линии; профиль и положение меняются относительно неё",
                     );
+                });
+        }
+        let plates = {
+            let project = self.editor.document.project();
+            c.parts.iter().all(|id| {
+                matches!(
+                    project.elements.get(id).map(|e| &e.shape),
+                    Some(open_bim_model::ElementShape::Plate { .. })
+                )
+            })
+        };
+        if plates && !c.parts.is_empty() {
+            egui::CollapsingHeader::new("Фаски углов")
+                .default_open(false)
+                .show(ui, |ui| {
+                    if self.corner_editor(ui) {
+                        match self
+                            .corners
+                            .commands(self.editor.document.project(), &c.parts)
+                        {
+                            Ok(commands) => requests.push(Request::Action(Action::Commit(
+                                "Фаски углов".into(),
+                                commands,
+                            ))),
+                            Err(e) => self.message(e),
+                        }
+                    }
                 });
         }
         ui.separator();
