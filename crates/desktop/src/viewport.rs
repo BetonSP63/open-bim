@@ -20,6 +20,10 @@ pub fn glyph(kind: SnapKind) -> Glyph {
         SnapKind::Intersection => Glyph::Intersection,
         SnapKind::Perpendicular => Glyph::Perpendicular,
         SnapKind::Nearest => Glyph::Nearest,
+        SnapKind::Center => Glyph::Center,
+        SnapKind::Parallel => Glyph::Parallel,
+        SnapKind::Extension => Glyph::Extension,
+        SnapKind::Line => Glyph::Line,
         SnapKind::Free => Glyph::Free,
     }
 }

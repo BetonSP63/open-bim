@@ -214,6 +214,10 @@ pub struct Workbench {
     pub snapper: crate::interaction::snap::Snapper,
     pub switches: crate::interaction::snap::Switches,
     pub snap_tolerance_px: f64,
+    /// Right-click snap override: only this kind for the next pick.
+    pub snap_override: Option<crate::interaction::snap::SnapKind>,
+    /// Shift direction lock and X/Y/Z coordinate locks of the running pick.
+    pub locks: crate::interaction::snap::Locks,
     /// Pick-command engine (creation by points).
     pub engine: crate::interaction::Engine,
     /// World point under the cursor on the work plane (set by the viewport).
@@ -293,6 +297,8 @@ impl Workbench {
             snapper: Default::default(),
             switches: Default::default(),
             snap_tolerance_px: 12.,
+            snap_override: None,
+            locks: Default::default(),
             cursor: None,
         }
     }
@@ -1165,6 +1171,9 @@ impl Workbench {
     /// A pick from the viewport (world point, already snapped).
     pub fn pick(&mut self, point: open_bim_renderer::DVec3) -> Option<Request> {
         self.engine.reference = None;
+        // An override lasts one pick; a held direction starts again from the new point.
+        self.snap_override = None;
+        self.locks.direction = None;
         if matches!(
             self.trim.need(),
             Some(crate::interaction::trim::Need::Point | crate::interaction::trim::Need::Polygon)
@@ -1891,11 +1900,14 @@ impl Workbench {
         // A typed point replaces the keyboard cursor as the reference.
         self.kb_cursor = None;
         // A grid node («Б/2», «Б/2/+3,600») is an exact pick of that intersection.
+        // «К1000,0» is the R mode on the Russian layout, not a grid node.
         if let Some(node) = crate::interaction::grid_edit::grid_node(
             self.editor.document.project(),
             text,
             self.engine.workplane.origin.z,
-        ) {
+        )
+        .filter(|n| n.is_ok() || crate::interaction::numeric::mode_prefix(text).is_none())
+        {
             return match node {
                 Ok(point) => {
                     self.engine.numeric = None;
@@ -1980,6 +1992,64 @@ impl Workbench {
         }
     }
 
+    /// The point the next pick starts from (direction lock, X/Y/Z locks).
+    pub fn previous_pick(&self) -> Option<open_bim_renderer::DVec3> {
+        self.engine
+            .reference
+            .or(self.engine.picks.last().copied())
+            .or(self.edit_pick.points.last().copied())
+            .or(self.detail.points.last().copied())
+            .or(self.trim.points.last().copied())
+            .or(self
+                .workplane_picks
+                .as_ref()
+                .and_then(|p| p.last().copied()))
+            .or(self.measure.as_ref().and_then(|p| p.last().copied()))
+    }
+
+    /// X, Y, Z while picking: lock that work plane coordinate at the
+    /// point under the pointer (or the previous pick); the same key releases it.
+    /// Locks end with the command.
+    fn lock_keys(&mut self, ctx: &egui::Context) {
+        if !self.picking() {
+            self.locks = Default::default();
+            self.snap_override = None;
+            return;
+        }
+        if self.engine.numeric.is_some() || ctx.egui_wants_keyboard_input() {
+            return;
+        }
+        for (k, key, chars) in [
+            (0, egui::Key::X, ['x', 'X', 'ч', 'Ч']),
+            (1, egui::Key::Y, ['y', 'Y', 'н', 'Н']),
+            (2, egui::Key::Z, ['z', 'Z', 'я', 'Я']),
+        ] {
+            if !ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, key)) {
+                continue;
+            }
+            // The typed letter must not open the coordinate box.
+            ctx.input_mut(|i| {
+                i.events.retain(
+                    |e| !matches!(e, egui::Event::Text(t) if t.chars().all(|c| chars.contains(&c))),
+                )
+            });
+            let Some(at) = self.cursor.or(self.previous_pick()) else {
+                self.message("Наведите курсор на точку, затем нажмите X, Y или Z");
+                continue;
+            };
+            let name = ["X", "Y", "Z"][k];
+            let on = self.locks.toggle(k, at, &self.engine.workplane);
+            self.message(if on {
+                format!(
+                    "Координата {name} зафиксирована: {:.1} мм (повторное нажатие {name} — снять)",
+                    self.locks.coordinates[k].unwrap_or_default()
+                )
+            } else {
+                format!("Фиксация {name} снята")
+            });
+        }
+    }
+
     /// Typing a digit, «@» or «-» during a pick opens the coordinate box.
     fn numeric_input(&mut self, ctx: &egui::Context, requests: &mut Vec<Request>) {
         let trim_points = matches!(
@@ -1998,6 +2068,8 @@ impl Workbench {
                     matches!(e, egui::Event::Text(t) if t.starts_with(|c: char| {
                         c.is_ascii_digit()
                             || matches!(c, '@' | '-' | '$' | '!')
+                            // Mode letters R, A, G.
+                            || matches!(c, 'R' | 'r' | 'A' | 'a' | 'G' | 'g')
                             // Cyrillic letters start a grid node («Б/2»).
                             || ('А'..='я').contains(&c)
                     }))
@@ -2032,7 +2104,7 @@ impl Workbench {
             .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0., -80.))
             .show(ctx, |ui| {
                 let label =
-                    ui.label("x,y,z — от предыдущей точки · $x,y,z — от начала плоскости · !x,y,z — глобально · d<угол — полярно · d — по курсору · Б/2 или Б/2/+3,600 — узел сетки");
+                    ui.label("x,y,z или R x,y,z — от предыдущей точки · $x,y,z или A x,y,z — от начала плоскости · !x,y,z или G x,y,z — глобально · d<угол — полярно · d — по курсору · Б/2 или Б/2/+3,600 — узел сетки");
                 let edit = ui
                     .add(
                         egui::TextEdit::singleline(&mut text)
@@ -2073,6 +2145,7 @@ impl Workbench {
         let mut requests = Vec::new();
         self.engine.plate_mode = self.editor.draft.plate_mode;
         self.keytips_input(&ctx, &mut requests);
+        self.lock_keys(&ctx);
         // Drawing editor: arrows move the selection 1 mm (Shift: 10 mm).
         if self.mode == Mode::Drawings && !ctx.egui_wants_keyboard_input() {
             let mut by = [0., 0.];

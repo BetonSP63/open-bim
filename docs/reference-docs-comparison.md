@@ -30,12 +30,12 @@ everything still ⚠/❌ is listed in `docs/interaction.md` → «not implemente
 | Reference | Open BIM | |
 |---|---|---|
 | Main switches Reference lines/points and Geometry lines/points (highest priority; both off = no snap) | both main switches («Опорные», «Геометрия») | ✅ |
-| Points (incl. grid intersections), End, Centers, Mid, Intersections, Perpendicular, Parallel, Line extensions, Any position, Nearest, Lines | end, mid, intersection, perpendicular, nearest, free | ⚠ (no centers, parallel, extensions, lines) |
+| Points (incl. grid intersections), End, Centers, Mid, Intersections, Perpendicular, Parallel, Line extensions, Any position, Nearest, Lines | all of them: reference points, end, centre (bolts, circles), mid, intersection, perpendicular, parallel, line extension, line, nearest, free | ✅ |
 | Snap zone in pixels, priority by switches, depth Plane/Auto/3D | pixel tolerance, priority; no depth setting | ⚠ |
 | Orange snap symbol, snap tooltip, turquoise highlight of the snapped line | orange glyph, snap tooltip next to the cursor, turquoise highlight of the member axis or grid line | ✅ |
-| Tab / Shift+Tab cycles snap candidates; right-click snap override; Shift locks direction; Ctrl+pick sets a temporary reference point; X/Y/Z lock | Tab/Shift+Tab cycle, Ctrl+pick temporary reference point (black cross); no snap override, Shift lock, X/Y/Z lock | ⚠ |
+| Tab / Shift+Tab cycles snap candidates; right-click snap override; Shift locks direction; Ctrl+pick sets a temporary reference point; X/Y/Z lock | Tab/Shift+Tab cycle, Ctrl+pick temporary reference point (black cross), «Переопределение привязки» in the right-click menu, Shift direction lock, X/Y/Z coordinate locks | ✅ |
 | Ortho (O); rubber band coloured by work plane axis | ortho; rubber band one colour | ⚠ |
-| Numeric input on typing: **default relative**, `@` relative, `$` absolute (work plane), `!` global, polar `d<a<b`, one value = distance along the pointer direction, R/A/G keys | same modes and prefixes (fixed in phase 5); no R/A/G keys | ✅ |
+| Numeric input on typing: **default relative**, `@` relative, `$` absolute (work plane), `!` global, polar `d<a<b`, one value = distance along the pointer direction, R/A/G keys | same modes and prefixes (fixed in phase 5); R/A/G letters (also К/Ф/П on the Russian layout) | ✅ |
 
 ## Navigation (MOD 1.2, shortcuts)
 | Reference | Open BIM | |

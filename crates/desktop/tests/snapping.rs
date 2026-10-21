@@ -257,7 +257,7 @@ fn perpendicular_foot_from_previous_pick() {
         intersection: false,
         nearest: false,
         perpendicular: true,
-        ortho: false,
+        ..Switches::default().none()
     };
     let previous = DVec3::new(2000., 3000., 0.);
     let hit = snap_at(

@@ -37,6 +37,10 @@ pub enum Glyph {
     Intersection,
     Perpendicular,
     Nearest,
+    Center,
+    Parallel,
+    Extension,
+    Line,
     Free,
 }
 
@@ -291,6 +295,8 @@ pub struct Input<'a> {
     pub snap_label: Option<String>,
     /// Reference line or edge of the snapped point, highlighted.
     pub highlight: Option<(DVec3, DVec3)>,
+    /// Dashed guide of an extension or parallel snap.
+    pub guide: Option<(DVec3, DVec3)>,
     /// Temporary reference point (Ctrl+pick), drawn as a black cross.
     pub reference: Option<DVec3>,
     /// Direct modification on: handles are blue and draggable.
@@ -359,6 +365,32 @@ pub fn glyph(c: [f64; 2], g: Glyph) -> Vec<Mark> {
             },
             s(at(-r, 0.), at(r, 0.)),
             s(at(0., -r), at(0., r)),
+        ],
+        Glyph::Center => vec![
+            Mark::Circle {
+                center: c,
+                radius: r as f32,
+                color: SNAP,
+                fill: None,
+            },
+            Mark::Circle {
+                center: c,
+                radius: 2.,
+                color: SNAP,
+                fill: Some(SNAP),
+            },
+        ],
+        Glyph::Parallel => vec![
+            s(at(-r, r * 0.4), at(r * 0.4, -r)),
+            s(at(-r * 0.4, r), at(r, -r * 0.4)),
+        ],
+        Glyph::Extension => vec![
+            line(at(-r, r), at(r, -r), SNAP, 2., Some([3., 3.])),
+            s(at(-r, 0.), at(0., 0.)),
+        ],
+        Glyph::Line => vec![
+            s(at(-r, 0.), at(r, 0.)),
+            s(at(0., -r * 0.5), at(0., r * 0.5)),
         ],
         Glyph::Free => vec![s(at(-4., 0.), at(4., 0.)), s(at(0., -4.), at(0., 4.))],
     }
@@ -665,6 +697,11 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
     {
         marks.push(line(a, b, SNAP_LINE, 2.5, None));
     }
+    if let Some((a, b)) = input.guide
+        && let (Some(a), Some(b)) = (p.screen(a), p.screen(b))
+    {
+        marks.push(line(a, b, SNAP_LINE, 1.5, Some([6., 4.])));
+    }
     if let Some(c) = input.reference.and_then(|r| p.screen(r)) {
         let k = 6.;
         let black = [0, 0, 0, 255];
@@ -939,6 +976,7 @@ mod tests {
             cursor: Some((DVec3::new(3000., 4000., 0.), Glyph::End)),
             snap_label: Some("Конечная точка".into()),
             highlight: None,
+            guide: None,
             reference: None,
             direct: false,
             plate_preview: None,
@@ -971,6 +1009,10 @@ mod tests {
             Glyph::Intersection,
             Glyph::Perpendicular,
             Glyph::Nearest,
+            Glyph::Center,
+            Glyph::Parallel,
+            Glyph::Extension,
+            Glyph::Line,
             Glyph::Free,
         ];
         let shapes: BTreeSet<String> = kinds

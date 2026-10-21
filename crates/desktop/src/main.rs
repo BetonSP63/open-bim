@@ -153,6 +153,8 @@ struct Desktop {
     object_drag: Option<DVec3>,
     /// Rotation centre of the running orbit gesture.
     orbit: open_bim_desktop::interaction::orbit::Orbit,
+    /// Shift+Tab was used during this Shift press (no direction lock then).
+    shift_tab: bool,
     /// Pointer position the snap cycle belongs to.
     last_hover: Option<egui::Pos2>,
     measure: Option<open_bim_desktop::bench::Bench>,
@@ -266,6 +268,7 @@ impl Desktop {
             object_drag: None,
             orbit: Default::default(),
             last_hover: None,
+            shift_tab: false,
             measure: options.bench.map(|path| {
                 open_bim_desktop::bench::Bench::new(path, options.bench_frames.max(10))
             }),
@@ -710,14 +713,7 @@ impl eframe::App for Desktop {
             let previous = match &self.handle_drag {
                 Some(h) => selection::anchor(project, h),
                 None if self.object_drag.is_some() => self.object_drag,
-                None => self
-                    .bench
-                    .engine
-                    .reference
-                    .or(self.bench.engine.picks.last().copied())
-                    .or(self.bench.edit_pick.points.last().copied())
-                    .or(self.bench.detail.points.last().copied())
-                    .or(self.bench.trim.points.last().copied()),
+                None => self.bench.previous_pick(),
             };
             let snapping =
                 self.bench.picking() || self.handle_drag.is_some() || self.object_drag.is_some();
@@ -737,16 +733,11 @@ impl eframe::App for Desktop {
                     };
                     let mut switches = self.bench.switches;
                     if !self.bench.tools.snap_enabled {
-                        switches = open_bim_desktop::interaction::snap::Switches {
-                            reference: false,
-                            geometry: false,
-                            end: false,
-                            mid: false,
-                            intersection: false,
-                            perpendicular: false,
-                            nearest: false,
-                            ..switches
-                        };
+                        switches = switches.none();
+                    }
+                    // Right-click override: one kind for the next pick.
+                    if let Some(kind) = self.bench.snap_override {
+                        switches = switches.only(kind);
                     }
                     // Tab / Shift+Tab cycle the snap points under a resting pointer.
                     if self.last_hover.is_none_or(|l| l.distance(pos) > 3.) {
@@ -755,6 +746,8 @@ impl eframe::App for Desktop {
                     }
                     if ctx.input_mut(|i| i.consume_key(egui::Modifiers::SHIFT, egui::Key::Tab)) {
                         self.bench.snap_cycle = self.bench.snap_cycle.wrapping_sub(1);
+                        // Shift here cycles points; it does not hold the direction.
+                        self.shift_tab = true;
                     } else if ctx
                         .input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Tab))
                     {
@@ -773,10 +766,36 @@ impl eframe::App for Desktop {
                 }
                 _ => Vec::new(),
             };
-            let hit = (!candidates.is_empty()).then(|| {
+            let mut hit = (!candidates.is_empty()).then(|| {
                 let n = candidates.len();
                 candidates[(self.bench.snap_cycle % n + n) % n]
             });
+            // Shift: hold the direction from the previous pick while the
+            // key is down; X/Y/Z keys hold work plane coordinates.
+            if !modifiers.shift {
+                self.shift_tab = false;
+            }
+            if snapping && self.handle_drag.is_none() {
+                if !modifiers.shift || self.shift_tab {
+                    self.bench.locks.direction = None;
+                } else if self.bench.locks.direction.is_none()
+                    && let (Some(from), Some(h)) = (previous, hit)
+                    && h.point.distance(from) > 1e-6
+                {
+                    self.bench.locks.direction = Some(h.point - from);
+                }
+                if let Some(h) = &mut hit
+                    && self.bench.locks.any()
+                {
+                    h.point =
+                        self.bench
+                            .locks
+                            .apply(h.point, previous, &self.bench.engine.workplane);
+                    if let (Some(from), Some(_)) = (previous, self.bench.locks.direction) {
+                        h.guide = Some((from, h.point));
+                    }
+                }
+            }
             let cursor = hit.map(|h| (open_bim_model::Point3(h.point.to_array()), h));
             // Without the mouse over the view the keyboard cursor is shown instead.
             let kb_mark = self
@@ -788,8 +807,28 @@ impl eframe::App for Desktop {
             self.bench.last_snap = hit.map(|h| h.kind);
             // Right button: context menu.
             let mut menu_cmd = None;
+            let picking = self.bench.picking();
+            let mut override_kind = None;
             response.context_menu(|ui| {
                 use open_bim_desktop::ui::commands::{Cmd, caption};
+                // «Переопределение привязки»: one kind for the next pick.
+                if picking {
+                    ui.menu_button("Переопределение привязки", |ui| {
+                        use open_bim_desktop::interaction::snap::SnapKind;
+                        for kind in SnapKind::ALL {
+                            let name = if kind == SnapKind::Free {
+                                "Любая точка"
+                            } else {
+                                kind.label()
+                            };
+                            if ui.button(name).clicked() {
+                                override_kind = Some(kind);
+                                ui.close();
+                            }
+                        }
+                    });
+                    ui.separator();
+                }
                 for cmd in [
                     Cmd::CancelTool,
                     Cmd::FinishPicks,
@@ -813,6 +852,13 @@ impl eframe::App for Desktop {
                     }
                 }
             });
+            if let Some(kind) = override_kind {
+                self.bench.snap_override = Some(kind);
+                self.bench.tools.message = Some(format!(
+                    "Следующая точка: только «{}»",
+                    kind.label().to_lowercase()
+                ));
+            }
             if let Some(cmd) = menu_cmd
                 && let Some(r) = self.bench.execute(cmd)
             {
@@ -1071,6 +1117,7 @@ impl eframe::App for Desktop {
             } else {
                 self.bench.engine.picks.clone()
             };
+            let guide = hit.and_then(|h| h.guide);
             // The reference line of the snapped object (member axis or grid line).
             let highlight = hit.and_then(|h| {
                 let id = h.object?;
@@ -1080,17 +1127,10 @@ impl eframe::App for Desktop {
                         DVec3::from_array(axis.end.0),
                     ));
                 }
-                match &project.elements.get(&id)?.shape {
-                    open_bim_model::ElementShape::Member { length, frame, .. } => Some((
-                        DVec3::from_array(frame.origin.0),
-                        DVec3::from_array(
-                            frame
-                                .world(open_bim_model::Point3([0., 0., length.value()]))
-                                .0,
-                        ),
-                    )),
-                    _ => None,
-                }
+                open_bim_desktop::interaction::snap::member_line(
+                    project,
+                    &project.elements.get(&id)?.shape,
+                )
             });
             let polygon = self.bench.engine.tool.is_some_and(|k| {
                 matches!(
@@ -1124,6 +1164,7 @@ impl eframe::App for Desktop {
                     plate_preview: self.bench.plate_preview(self.bench.cursor),
                     snap_label: hit.map(|h| h.kind.label().to_string()),
                     highlight,
+                    guide,
                     reference: self.bench.engine.reference,
                     direct: self.bench.direct_modification,
                     light,
