@@ -218,6 +218,9 @@ impl ConnectionUi {
                 TemplateKind::BasePlate { overhang } | TemplateKind::EndPlate { overhang } => {
                     dimension(ui, "Свес, мм", overhang)
                 }
+                TemplateKind::ColumnStiffeners { chamfer } => {
+                    dimension(ui, "Срез угла у стенки, мм", chamfer);
+                }
                 TemplateKind::ClipAngle { leg, height, pitch } => {
                     dimension(ui, "Полка уголка, мм", leg);
                     dimension(ui, "Высота уголка, мм", height);
@@ -241,15 +244,18 @@ impl ConnectionUi {
                 }
             }
             dimension(ui, "Толщина, мм", &mut self.template.thickness);
-            dimension(ui, "Отступ от края, мм", &mut self.template.edge_distance);
-            dimension(ui, "Диаметр болта, мм", &mut self.template.bolt_diameter);
-            dimension(ui, "Зазор отверстия, мм", &mut self.template.clearance);
-            let field_label = ui.label("Стандарт болта");
-            ui.text_edit_singleline(&mut self.template.bolt_standard)
-                .labelled_by(field_label.id);
-            let field_label = ui.label("Класс прочности");
-            ui.text_edit_singleline(&mut self.template.bolt_grade)
-                .labelled_by(field_label.id);
+            // Stiffeners are welded only: no bolt fields.
+            if !matches!(self.template.kind, TemplateKind::ColumnStiffeners { .. }) {
+                dimension(ui, "Отступ от края, мм", &mut self.template.edge_distance);
+                dimension(ui, "Диаметр болта, мм", &mut self.template.bolt_diameter);
+                dimension(ui, "Зазор отверстия, мм", &mut self.template.clearance);
+                let field_label = ui.label("Стандарт болта");
+                ui.text_edit_singleline(&mut self.template.bolt_standard)
+                    .labelled_by(field_label.id);
+                let field_label = ui.label("Класс прочности");
+                ui.text_edit_singleline(&mut self.template.bolt_grade)
+                    .labelled_by(field_label.id);
+            }
             if !matches!(self.template.kind, TemplateKind::ClipAngle { .. }) {
                 dimension(ui, "Размер шва, мм", &mut self.template.weld_size);
             }

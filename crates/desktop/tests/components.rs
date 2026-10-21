@@ -77,3 +77,25 @@ fn fin_plate_by_two_clicks_goes_to_the_column_end_of_the_beam() {
     b.execute(Cmd::CancelTool);
     assert!(b.components.armed.is_none());
 }
+
+#[test]
+fn column_stiffeners_by_two_clicks_follow_the_beam_flanges() {
+    let mut b = Workbench::new(Editor::new(default_project().unwrap()).unwrap());
+    let column = member(&mut b, MemberKind::Column, [0., 0., 0.], [0., 0., 3600.]);
+    let beam = member(
+        &mut b,
+        MemberKind::Beam,
+        [0., 150., 3000.],
+        [0., 6000., 3000.],
+    );
+    let stiffeners = search("рёбра").remove(0);
+    assert_eq!(stiffeners.name, "Рёбра жёсткости колонны");
+    b.arm_component(stiffeners);
+    assert!(b.pick_object(Some(column)).is_none(), "waits for the beam");
+    let r = b.pick_object(Some(beam));
+    commit(&mut b, r);
+    let project = b.editor.document.project();
+    let c = project.connections.values().next().unwrap();
+    assert_eq!((c.primary, c.secondary), (column, Some(beam)));
+    assert_eq!(c.children.len(), 8);
+}
