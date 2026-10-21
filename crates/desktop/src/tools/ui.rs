@@ -58,6 +58,8 @@ pub struct ToolsUi {
     pub key: String,
     pub value: String,
     pub path: String,
+    /// Autosave of the project file and recovery after a crash.
+    pub autosave: crate::autosave::Autosave,
     pub workplane: String,
     pub snap_enabled: bool,
     pub snap_mode: SnapMode,
@@ -85,6 +87,7 @@ impl Default for ToolsUi {
             key: "Марка".into(),
             value: "К1".into(),
             path: "project.obim".into(),
+            autosave: Default::default(),
             workplane: "0".into(),
             snap_enabled: true,
             snap_mode: SnapMode::All,
@@ -455,6 +458,23 @@ impl ToolsUi {
                 if ui.button("Открыть").clicked() {
                     action = Some(Action::Open);
                 }
+            });
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut self.autosave.enabled, "Автосохранение каждые")
+                    .on_hover_text("Копия рядом с проектом: файл .obim.autosave");
+                let minutes = ui.add_enabled(
+                    self.autosave.enabled,
+                    egui::DragValue::new(&mut self.autosave.minutes)
+                        .range(1..=60)
+                        .suffix(" мин"),
+                );
+                minutes.widget_info(|| {
+                    egui::WidgetInfo::labeled(
+                        egui::WidgetType::DragValue,
+                        true,
+                        "Интервал автосохранения, мин",
+                    )
+                });
             });
             ui.horizontal(|ui| {
                 if ui

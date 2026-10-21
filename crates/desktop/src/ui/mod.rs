@@ -228,11 +228,13 @@ pub struct Workbench {
     pub cursor: Option<open_bim_renderer::DVec3>,
     /// Model tree rows keyed by (journal length, revision).
     tree: ((usize, u64), TreeRows),
+    /// The running open job restores an autosave snapshot.
+    recovering: bool,
 }
 
 impl Workbench {
     pub fn new(editor: Editor) -> Self {
-        Self {
+        let mut bench = Self {
             mode: Mode::Model,
             editor,
             tools: ToolsUi::default(),
@@ -305,7 +307,11 @@ impl Workbench {
             snap_override: None,
             locks: Default::default(),
             cursor: None,
-        }
+            recovering: false,
+        };
+        let project = bench.editor.document.project().clone();
+        bench.tools.autosave.mark_saved(&project);
+        bench
     }
 
     fn message(&mut self, text: impl Into<String>) {
@@ -343,8 +349,76 @@ impl Workbench {
         self.job.is_some()
     }
 
-    /// Start loading a project on a worker thread (scene meshes included).
+    /// Open a project; a newer autosave snapshot of it is offered first.
     pub fn start_open(&mut self, path: PathBuf) {
+        if let Some(offer) = self.tools.autosave.recovery(&path) {
+            self.tools.autosave.offer = Some(offer);
+            return;
+        }
+        self.recovering = false;
+        self.spawn_open(path);
+    }
+
+    /// Restore the offered snapshot; the project path stays the same, so
+    /// ⌘S writes the restored model to the project file.
+    pub fn recover_autosave(&mut self) {
+        let Some(offer) = self.tools.autosave.offer.take() else {
+            return;
+        };
+        self.tools.path = offer.project.to_string_lossy().into_owned();
+        self.recovering = true;
+        self.spawn_open(offer.snapshot);
+    }
+
+    /// Open the project file and keep the snapshot on disk.
+    pub fn decline_autosave(&mut self) {
+        let Some(offer) = self.tools.autosave.offer.clone() else {
+            return;
+        };
+        self.tools.autosave.decline(&offer);
+        if offer.project_missing {
+            self.message(format!(
+                "Файла {} нет; автосохранение осталось: {}",
+                offer.project.display(),
+                offer.snapshot.display()
+            ));
+        } else {
+            self.start_open(offer.project);
+        }
+    }
+
+    /// ⌘S: previous file kept as «.bak», autosave snapshot removed.
+    pub fn save_project(&mut self) -> Result<String, String> {
+        let path = PathBuf::from(&self.tools.path);
+        let message = self
+            .tools
+            .autosave
+            .save(&path, self.editor.document.project())?;
+        self.editor.record("Сохранить");
+        Ok(message)
+    }
+
+    /// Timer autosave; called every frame, writes only when due and changed.
+    pub fn autosave_tick(&mut self, now: std::time::Instant) {
+        if self.busy() || self.tools.autosave.offer.is_some() {
+            return;
+        }
+        let path = PathBuf::from(&self.tools.path);
+        match self
+            .tools
+            .autosave
+            .tick(now, &path, self.editor.document.project())
+        {
+            Ok(Some(snapshot)) => self
+                .editor
+                .record(&format!("Автосохранение {}", snapshot.display())),
+            Ok(None) => {}
+            Err(e) => self.message(e),
+        }
+    }
+
+    /// Start loading a project on a worker thread (scene meshes included).
+    fn spawn_open(&mut self, path: PathBuf) {
         let delay = self.load_delay_ms;
         let target = path.clone();
         let job = Job::spawn(
@@ -437,10 +511,22 @@ impl Workbench {
                     self.drawings = DrawingEditor::new();
                     self.reports.reports = None;
                     self.hidden.clear();
-                    self.message(format!("Открыт {}", path.display()));
+                    let project = self.editor.document.project().clone();
+                    if std::mem::take(&mut self.recovering) {
+                        self.tools.autosave.mark_recovered(&project);
+                        self.message(format!(
+                            "Восстановлено из {}. Сохраните проект (⌘S), чтобы записать его в {}",
+                            path.display(),
+                            self.tools.path
+                        ));
+                    } else {
+                        self.tools.autosave.mark_saved(&project);
+                        self.message(format!("Открыт {}", path.display()));
+                    }
                     return Some(Request::Loaded(scene));
                 }
                 Err(e) => {
+                    self.recovering = false;
                     self.editor
                         .record(&format!("Ошибка файла {}: {e}", path.display()));
                     self.message(format!("Ошибка файла: {e}. Текущая модель не изменена."));
@@ -2199,7 +2285,9 @@ impl Workbench {
                 requests.push(r);
             }
         }
+        self.autosave_tick(std::time::Instant::now());
         self.job_window(&ctx, &mut requests);
+        self.recovery_window(&ctx);
         self.grid_window(&ctx, &mut requests);
         self.components_window(&ctx);
         self.component_editor_window(&ctx);
@@ -2218,6 +2306,45 @@ impl Workbench {
             });
         }
         requests
+    }
+
+    fn recovery_window(&mut self, ctx: &egui::Context) {
+        let Some(offer) = self.tools.autosave.offer.clone() else {
+            return;
+        };
+        let (mut recover, mut decline) = (false, false);
+        egui::Window::new("Восстановление проекта")
+            .id(egui::Id::new("recovery window"))
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0., 0.))
+            .show(ctx, |ui| {
+                ui.label(format!(
+                    "Найдено автосохранение {} ({}).",
+                    offer.snapshot.display(),
+                    offer.age()
+                ));
+                ui.label(if offer.project_missing {
+                    "Файла проекта нет: модель не была сохранена.".to_string()
+                } else {
+                    format!(
+                        "Оно новее файла {}: работа после последнего сохранения не записана.",
+                        offer.project.display()
+                    )
+                });
+                ui.horizontal(|ui| {
+                    recover = ui.button("Восстановить автосохранение").clicked();
+                    decline = ui
+                        .button("Открыть файл проекта")
+                        .on_hover_text("Автосохранение останется на диске")
+                        .clicked();
+                });
+            });
+        if recover {
+            self.recover_autosave();
+        } else if decline {
+            self.decline_autosave();
+        }
     }
 
     fn job_window(&mut self, ctx: &egui::Context, requests: &mut Vec<Request>) {
