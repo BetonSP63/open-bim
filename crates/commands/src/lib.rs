@@ -100,6 +100,10 @@ pub enum Command {
     RenameProject {
         name: String,
     },
+    /// Fix the marks of a numbering run (replaces the stored marks).
+    SetNumbering {
+        marks: BTreeMap<ObjectId, String>,
+    },
     /// Next change of a set with the drawings it reissues (ГОСТ Р 21.101,
     /// section 7): the change and the updated drawings in one step.
     RecordChange {
@@ -558,6 +562,7 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
             }
         }
         Command::RenameProject { name } => project.name = name.clone(),
+        Command::SetNumbering { marks } => project.numbering = marks.clone(),
         Command::SetDocumentInfo { info } => {
             info.validate()?;
             project.document = info.as_ref().clone();

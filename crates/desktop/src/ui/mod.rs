@@ -446,9 +446,10 @@ impl Workbench {
 
     pub fn start_check(&mut self) {
         let project = self.editor.document.project().clone();
+        let fresh = std::mem::take(&mut self.tools.coordination.renumber_all);
         self.job = Some(ActiveJob::Check(Job::spawn(
             "Нумерация и проверка коллизий",
-            move |_| crate::tools::coordination_ui::CoordinationUi::compute(&project),
+            move |_| crate::tools::coordination_ui::CoordinationUi::compute(&project, fresh),
         )));
     }
 
@@ -535,6 +536,9 @@ impl Workbench {
             ActiveJob::Check(j) => match j.wait() {
                 Ok((numbering, report)) => {
                     self.tools.coordination.accept(numbering, report);
+                    if let Err(e) = self.tools.coordination.store(&mut self.editor) {
+                        self.tools.coordination.message = Some(e);
+                    }
                     self.editor.record("Нумерация и проверка коллизий");
                 }
                 Err(e) => self.tools.coordination.message = Some(e),

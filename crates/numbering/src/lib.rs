@@ -2,6 +2,7 @@
 //! Coordinates use 1e-6 mm resolution; direction cosines use 1e-9 resolution.
 use open_bim_model::{
     DetailKind, ElementShape, Frame, MemberKind, ModelError, ObjectId, Point3, Project,
+    PropertyValue,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -182,24 +183,117 @@ pub fn part_key(project: &Project, id: ObjectId) -> Result<String, ModelError> {
     )
 }
 
-/// Marks numbered 1, 2, 3… per prefix: equal keys share a mark, different
-/// keys get the next number of their prefix, in key order.
+/// Property keys of a numbering series on a part or an assembly: the mark
+/// prefix (text) and the first number (number).
+pub const SERIES_PREFIX: &str = "numbering_prefix";
+pub const SERIES_START: &str = "numbering_start";
+
+/// Numbering series: marks are compared and numbered only within a series.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Series {
+    pub prefix: String,
+    pub start: u64,
+}
+
+impl Series {
+    /// Number of `mark` in this series («К12» in К → 12).
+    fn number_of(&self, mark: &str) -> Option<u64> {
+        let rest = mark.strip_prefix(self.prefix.as_str())?;
+        if rest.is_empty() || !rest.bytes().all(|b| b.is_ascii_digit()) {
+            return None;
+        }
+        rest.parse().ok()
+    }
+}
+
+/// Series set on an object by its properties, or the default one.
+fn series(properties: &BTreeMap<String, PropertyValue>, default_prefix: &str) -> Series {
+    let prefix = match properties.get(SERIES_PREFIX) {
+        Some(PropertyValue::Text(t)) => t.trim().to_string(),
+        _ => default_prefix.to_string(),
+    };
+    let start = match properties.get(SERIES_START) {
+        Some(PropertyValue::Number(n)) if n.is_finite() && *n >= 1. => n.round() as u64,
+        _ => 1,
+    };
+    Series { prefix, start }
+}
+
+/// Series of a part (default: plain numbers from 1).
+pub fn part_series(project: &Project, id: ObjectId) -> Series {
+    match project.elements.get(&id) {
+        Some(e) => series(&e.properties, ""),
+        None => series(&BTreeMap::new(), ""),
+    }
+}
+
+/// Series of an assembly (default: К, Б or М by the main part, from 1).
+pub fn assembly_series(project: &Project, id: ObjectId) -> Series {
+    let prefix = assembly_prefix(project, id);
+    match project.assemblies.get(&id) {
+        Some(a) => series(&a.properties, prefix),
+        None => series(&BTreeMap::new(), prefix),
+    }
+}
+
+/// Group of equal objects in one series.
+type Group<'a> = (Series, &'a String);
+
+/// Marks within each series: equal keys share a mark. A group of equal
+/// objects keeps the old mark most of its members had at the last run (the
+/// lowest number on a tie) unless another group already took it; the other
+/// groups get the next numbers after the highest one kept, in key order.
+/// Without old marks this numbers start, start+1… in key order.
 fn positions(
     keys: &BTreeMap<ObjectId, String>,
-    prefix: impl Fn(ObjectId) -> &'static str,
+    series_of: impl Fn(ObjectId) -> Series,
+    old: &BTreeMap<ObjectId, String>,
 ) -> BTreeMap<ObjectId, String> {
-    let mut by_key: BTreeMap<(&'static str, &String), String> = BTreeMap::new();
+    let mut groups: BTreeMap<Group, Vec<ObjectId>> = BTreeMap::new();
     for (id, key) in keys {
-        by_key.entry((prefix(*id), key)).or_default();
+        groups.entry((series_of(*id), key)).or_default().push(*id);
     }
-    let mut next: BTreeMap<&str, usize> = BTreeMap::new();
-    for ((prefix, _), mark) in by_key.iter_mut() {
-        let n = next.entry(prefix).or_default();
-        *n += 1;
-        *mark = format!("{prefix}{n}");
+    let mut by_series: BTreeMap<&Series, Vec<&Group>> = BTreeMap::new();
+    for group in groups.keys() {
+        by_series.entry(&group.0).or_default().push(group);
     }
-    keys.iter()
-        .map(|(id, k)| (*id, by_key[&(prefix(*id), k)].clone()))
+    let mut marks: BTreeMap<&Group, String> = BTreeMap::new();
+    for (series, members) in by_series {
+        // (members holding the mark, number, group), most held first.
+        let mut candidates = Vec::new();
+        for group in &members {
+            let mut counts: BTreeMap<u64, usize> = BTreeMap::new();
+            for id in &groups[*group] {
+                if let Some(n) = old.get(id).and_then(|m| series.number_of(m)) {
+                    *counts.entry(n).or_default() += 1;
+                }
+            }
+            for (n, count) in counts {
+                candidates.push((std::cmp::Reverse(count), n, *group));
+            }
+        }
+        candidates.sort();
+        let mut taken = BTreeSet::new();
+        for (_, n, group) in candidates {
+            if !marks.contains_key(group) && !taken.contains(&n) {
+                taken.insert(n);
+                marks.insert(group, format!("{}{n}", series.prefix));
+            }
+        }
+        let mut next = taken
+            .last()
+            .map_or(series.start, |n| (n + 1).max(series.start));
+        for group in members {
+            if !marks.contains_key(group) {
+                marks.insert(group, format!("{}{next}", series.prefix));
+                next += 1;
+            }
+        }
+    }
+    groups
+        .iter()
+        .flat_map(|(group, ids)| ids.iter().map(move |id| (*id, group)))
+        .map(|(id, group)| (id, marks[group].clone()))
         .collect()
 }
 
@@ -311,6 +405,43 @@ fn assembly_key(
 
 /// Recomputable report; numbering does not mutate source geometry or user properties.
 pub fn number(project: &Project) -> Result<Numbering, ModelError> {
+    number_with(project, &project.numbering)
+}
+
+/// Numbering from scratch («Перенумеровать всё»): stored marks are ignored.
+pub fn renumber_all(project: &Project) -> Result<Numbering, ModelError> {
+    number_with(project, &BTreeMap::new())
+}
+
+/// Marks of a numbering result, as stored by «Нумеровать».
+pub fn stored_marks(numbering: &Numbering) -> BTreeMap<ObjectId, String> {
+    numbering
+        .parts
+        .iter()
+        .chain(&numbering.assemblies)
+        .map(|(id, mark)| (*id, mark.clone()))
+        .collect()
+}
+
+/// Objects whose current mark differs from the stored one or that have
+/// none: the numbering is out of date for them. Empty when never numbered.
+pub fn outdated(project: &Project, numbering: &Numbering) -> BTreeSet<ObjectId> {
+    if project.numbering.is_empty() {
+        return BTreeSet::new();
+    }
+    numbering
+        .parts
+        .iter()
+        .chain(&numbering.assemblies)
+        .filter(|(id, mark)| project.numbering.get(id) != Some(*mark))
+        .map(|(id, _)| *id)
+        .collect()
+}
+
+fn number_with(
+    project: &Project,
+    old: &BTreeMap<ObjectId, String>,
+) -> Result<Numbering, ModelError> {
     project.validate()?;
     let part_keys: BTreeMap<ObjectId, String> = project
         .elements
@@ -340,8 +471,8 @@ pub fn number(project: &Project) -> Result<Numbering, ModelError> {
     Ok(Numbering {
         // Part positions are plain numbers (поз. 1, 2…), shipping marks
         // carry the kind of the main part (К1, Б1…).
-        parts: positions(&part_keys, |_| ""),
-        assemblies: positions(&assembly_keys, |id| assembly_prefix(project, id)),
+        parts: positions(&part_keys, |id| part_series(project, id), old),
+        assemblies: positions(&assembly_keys, |id| assembly_series(project, id), old),
         part_keys,
         assembly_keys,
     })

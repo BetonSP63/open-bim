@@ -280,6 +280,12 @@ pub fn fingerprint(project: &Project, id: ObjectId) -> Option<String> {
     } else {
         serde_json::to_value(project.details.get(&id)?).ok()?
     };
+    let mut value = value;
+    // A fixed mark (numbering run) is drawn too; absent marks keep the
+    // fingerprints of never-numbered models unchanged.
+    if let (Some(mark), Some(object)) = (project.numbering.get(&id), value.as_object_mut()) {
+        object.insert("mark".into(), serde_json::json!(mark));
+    }
     let bytes = serde_json::to_vec(&value).ok()?;
     Some(
         Sha256::digest(bytes)

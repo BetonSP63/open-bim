@@ -26,6 +26,15 @@ deleted node, outdated refusal), `tests/fixtures/steel_release/verify.py`
 release + save, reopen + CSV export; identical CSV; 14 PDFs read by pypdf).
 
 Limits: no bolt length selection, washers/nuts lists, paint areas, NC/DSTV,
-cutting optimisation, or report templates; part positions are numbers (1, 2, 3…)
-and shipping marks carry the main part kind (К1 columns, Б1 beams, М1
-others), without user prefixes.
+cutting optimisation, or report templates.
+
+Numbering: part positions are numbers (1, 2, 3…) and shipping marks carry
+the main part kind (К1 columns, Б1 beams, М1 others) unless a numbering
+series is set on the part or assembly (properties `numbering_prefix` and
+`numbering_start`, panel «Нумерация и коллизии» → «Серии нумерации»); parts
+are compared only within their series. «Нумеровать» (⌘K) fixes the marks in
+the model (`Project::numbering`); later runs keep a group's previous mark
+(the one most of its members had), give changed and new parts the next free
+number of the series, and «Перенумеровать всё» numbers from the start again.
+A fixed mark is part of the drawing fingerprint, so a drawing whose marks
+changed becomes outdated.

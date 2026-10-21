@@ -143,6 +143,11 @@ pub struct Project {
     /// Changes of the issued sets in order (ГОСТ Р 21.101-2026, section 7).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub changes: Vec<crate::Change>,
+    /// Part positions and shipping marks fixed by the last numbering run
+    /// («Нумеровать»), by object. Later runs keep these marks where the
+    /// objects are still alike; new and changed objects get new numbers.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub numbering: BTreeMap<ObjectId, String>,
 }
 
 impl Default for Project {
@@ -167,6 +172,7 @@ impl Default for Project {
             dimensions: BTreeMap::new(),
             document: crate::DocumentInfo::default(),
             changes: Vec::new(),
+            numbering: BTreeMap::new(),
         }
     }
 }
