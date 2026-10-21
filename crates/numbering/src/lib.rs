@@ -125,6 +125,12 @@ fn relative_frame(reference: &Frame, other: &Frame) -> Frame {
 
 /// Canonical manufacture key. Model names and catalog IDs are not manufacture data.
 pub fn part_key(project: &Project, id: ObjectId) -> Result<String, ModelError> {
+    serialized(&part_key_data(project, id)?)
+}
+
+/// The data a part's position is compared by (material, shape, features,
+/// properties) before hashing; for showing why two parts differ.
+pub fn part_key_data(project: &Project, id: ObjectId) -> Result<Value, ModelError> {
     let part = project
         .elements
         .get(&id)
@@ -178,8 +184,8 @@ pub fn part_key(project: &Project, id: ObjectId) -> Result<String, ModelError> {
         features.push(serialized(&feature)?);
     }
     features.sort();
-    serialized(
-        &json!({"schema":1,"material":{"name":material.name,"density":material.density_kg_m3},"shape":shape,"features":features,"properties":part.properties}),
+    Ok(
+        json!({"schema":1,"material":{"name":material.name,"density":material.density_kg_m3},"shape":shape,"features":features,"properties":part.properties}),
     )
 }
 

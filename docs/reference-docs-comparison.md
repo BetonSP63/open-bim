@@ -61,6 +61,8 @@ everything still ⚠/❌ is listed in `docs/interaction.md` → «not implemente
 | Plate corner chamfers: line, rounding | «Фаски углов»: straight cut by two legs, rounding by radius, written into the contour (not editable later as a chamfer) | ⚠ |
 | Surface treatment on parts | treatment per part, area per treatment in the lists; not modelled as a layer on faces | ⚠ |
 | Curved beam, polybeam, bent plate | not yet | ❌ |
+| Inquire object, compare parts | «Запросить объект» (part, bolt, weld, component, assembly), «Сравнить детали» by the numbering data | ✅ |
+| Measure angle; clip plane by pick | «Измерить угол» (vertex and two sides); «Секущая плоскость по точке» facing the viewer, one plane | ⚠ |
 
 ## Drawings, management, sharing (DRA, MGE, SHA)
 Reference drawings come from the model with Document manager, Master drawing catalog,

@@ -63,6 +63,8 @@ impl Workbench {
             || self.edit_pick.op.is_some()
             || self.special.picking.is_some()
             || self.measure.is_some()
+            || self.angle_picks.is_some()
+            || self.clip_pick
             || matches!(
                 self.trim.need(),
                 Some(
@@ -84,6 +86,14 @@ impl Workbench {
             p
         } else if let Some(p) = self.special.prompt() {
             p.into()
+        } else if self.clip_pick {
+            "Секущая плоскость: укажите точку, через которую она пройдёт".into()
+        } else if let Some(m) = &self.angle_picks {
+            match m.len() {
+                0 => "Измерение угла: укажите вершину угла".into(),
+                1 => "Укажите точку на первой стороне угла".into(),
+                _ => "Укажите точку на второй стороне угла".into(),
+            }
         } else if let Some(m) = &self.measure {
             if m.is_empty() {
                 "Укажите первую точку измерения".into()

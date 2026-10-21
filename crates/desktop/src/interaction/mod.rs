@@ -5,6 +5,7 @@ pub mod assembly_edit;
 pub mod component_symbols;
 pub mod corners;
 pub mod grid_edit;
+pub mod inquire;
 pub mod keyboard_cursor;
 pub mod member_edit;
 pub mod numeric;
