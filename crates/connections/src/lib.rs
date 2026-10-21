@@ -17,6 +17,7 @@ pub use haunch::{HaunchGeometry, haunch_geometry, rebuild_haunches};
 mod gusset;
 pub use gusset::{GussetGeometry, MAX_GUSSET_REACH, gusset_geometry, rebuild_gussets};
 mod clip_angle;
+pub mod norms;
 pub use clip_angle::{ClipAngleGeometry, clip_angle_geometry, rebuild_clip_angles};
 
 pub(crate) fn child_id(

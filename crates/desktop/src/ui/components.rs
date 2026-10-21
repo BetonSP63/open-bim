@@ -216,6 +216,10 @@ pub fn connection(
             template.kind = component.kind.clone();
             template.thickness = component.thickness;
             template.name = component.name.clone();
+            // СП 16.13330: the weld leg grows with the plate.
+            template.weld_size = template
+                .weld_size
+                .max(open_bim_connections::norms::min_weld(template.thickness));
             template
         }
     };

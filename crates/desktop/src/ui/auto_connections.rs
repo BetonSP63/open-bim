@@ -186,6 +186,9 @@ fn instance(
     template.kind = component.kind.clone();
     template.thickness = component.thickness;
     template.name = component.name.clone();
+    template.weld_size = template
+        .weld_size
+        .max(open_bim_connections::norms::min_weld(template.thickness));
     ConnectionInstance {
         id,
         primary: main,

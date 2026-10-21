@@ -166,7 +166,7 @@ fn a_small_bolt_pitch_is_explained_with_a_fix() {
     assert!(check(&t).iter().all(|i| i.key != "pitch"));
     // A bigger bolt grows the edge distance when the hole needs it.
     t.edge_distance = 16.;
-    ce::set_bolt(&mut t, 30., 3.);
+    ce::set_bolt(&mut t, 30.);
     assert_eq!((t.bolt_diameter, t.clearance), (30., 3.));
     assert!(t.edge_distance > 16.5);
 }
@@ -194,12 +194,12 @@ fn a_saved_component_is_placed_with_all_its_values() {
     assert_eq!(draft.template.name, "Шарнир на пластине (мой)");
     draft.template.name = "Шарнир М16 на 3 болтах".into();
     draft.description = "Для балок I 30".into();
-    ce::set_bolt(&mut draft.template, 16., 2.);
+    ce::set_bolt(&mut draft.template, 16.);
     set(&mut draft.template, "rows", 3.);
     // Three bolts do not fit the default plate; the issue says how tall.
     let issue = draft.issues().remove(0);
-    assert_eq!((issue.key, issue.fix), ("height", Some(210.)));
-    set(&mut draft.template, "height", 210.);
+    assert_eq!((issue.key, issue.fix), ("height", Some(230.)));
+    set(&mut draft.template, "height", 230.);
     assert!(draft.issues().is_empty(), "{:?}", draft.issues());
     let placed = b.save_component(true).unwrap();
     assert!(b.component_editor.draft.is_none());
@@ -386,4 +386,76 @@ fn the_editor_window_draws_with_named_controls_and_a_preview() {
         assert!(text.iter().any(|t| t.contains(s)), "{s}: {text:?}");
     }
     let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn catalogue_values_meet_gost_and_sp_16() {
+    for c in catalog() {
+        let t = ce::base_template(&c);
+        assert_eq!(t.bolt_standard, "ГОСТ 7798-70");
+        assert_eq!(ce::advice(&t), vec![], "{}", c.name);
+    }
+}
+
+#[test]
+fn gost_bolts_and_sp_16_spacing_are_advised_with_fixes() {
+    let fin = search("шарнир").remove(0);
+    let mut t = ce::base_template(&fin);
+    // High-strength bolts: class 10.9 only, hole +3.
+    ce::set_standard(&mut t, ce::bolt_standard("ГОСТ Р 52644-2006").unwrap());
+    assert_eq!((t.bolt_grade.as_str(), t.clearance), ("10.9", 3.));
+    t.bolt_grade = "8.8".into();
+    let a = ce::advice(&t);
+    assert!(
+        a.iter()
+            .any(|a| a.key == "bolt_grade" && a.text.contains("только 10.9")),
+        "{a:?}"
+    );
+    // Edge 35 mm with a Ø23 hole: enough across the force only.
+    t.bolt_grade = "10.9".into();
+    t.edge_distance = 35.;
+    let edge = ce::advice(&t)
+        .into_iter()
+        .find(|a| a.key == "edge_distance")
+        .unwrap();
+    assert!(edge.text.contains("2d = 46"), "{}", edge.text);
+    assert_eq!(edge.fix, Some(50.));
+    // Bolts closer than 2,5d.
+    set(&mut t, "pitch", 40.);
+    assert!(ce::advice(&t).iter().any(|a| a.key == "pitch"));
+    // A thin weld on a 20 mm plate.
+    t.thickness = 20.;
+    t.weld_size = 5.;
+    assert!(
+        ce::advice(&t)
+            .iter()
+            .any(|a| a.key == "weld_size" && a.fix == Some(7.))
+    );
+    // A foreign standard is named.
+    t.bolt_standard = "DIN 931".into();
+    assert!(ce::advice(&t).iter().any(|a| a.key == "bolt_standard"));
+    ce::bring_to_norms(&mut t);
+    assert!(check(&t).is_empty());
+    assert_eq!(ce::advice(&t), vec![]);
+    assert_eq!(t.bolt_standard, "ГОСТ 7798-70");
+}
+
+#[test]
+fn bringing_to_norms_keeps_every_template_valid() {
+    let mut rng = Lcg(11);
+    for round in 0..600 {
+        let c = &catalog()[round % catalog().len()];
+        let mut t = ce::base_template(c);
+        for f in fields(&c.kind) {
+            let v = if f.unit == "шт" {
+                (rng.next() * 6.).floor() + 1.
+            } else {
+                (rng.next() * 120.).round() + 1.
+            };
+            set(&mut t, f.key, v);
+        }
+        ce::bring_to_norms(&mut t);
+        assert!(check(&t).is_empty(), "{}: {:?}", c.name, check(&t));
+        assert_eq!(ce::advice(&t), vec![], "{}: {t:?}", c.name);
+    }
 }

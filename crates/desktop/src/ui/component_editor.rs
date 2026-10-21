@@ -74,18 +74,7 @@ const PITCH: Field = field(
     "Расстояние между центрами соседних болтов. Обычно 2,5–3 диаметра болта.",
 );
 
-/// Whether the node has bolts (stiffeners and haunches are welded only).
-pub fn bolted(kind: &TemplateKind) -> bool {
-    !matches!(
-        kind,
-        TemplateKind::ColumnStiffeners { .. } | TemplateKind::Haunch { .. }
-    )
-}
-
-/// Whether the node has a weld (the clip angle is bolted only).
-pub fn welded(kind: &TemplateKind) -> bool {
-    !matches!(kind, TemplateKind::ClipAngle { .. })
-}
+pub use open_bim_connections::norms::{bolted, welded};
 
 /// Numeric values of a node of this kind, in form order.
 pub fn fields(kind: &TemplateKind) -> Vec<Field> {
@@ -338,15 +327,7 @@ pub struct Issue {
     pub fix: Option<f64>,
 }
 
-/// Millimetres the Russian way: «22» or «12,5».
-pub fn mm(v: f64) -> String {
-    let rounded = (v * 10.).round() / 10.;
-    if rounded.fract() == 0. {
-        format!("{rounded:.0}")
-    } else {
-        format!("{rounded:.1}").replace('.', ",")
-    }
-}
+pub use open_bim_connections::norms::mm;
 
 /// Smallest multiple of 5 strictly above `x`.
 fn above(x: f64) -> f64 {
@@ -380,6 +361,7 @@ pub fn base_template(c: &Component) -> ConnectionTemplate {
     t.kind = c.kind.clone();
     t.thickness = c.thickness;
     t.name = c.name.clone();
+    t.weld_size = t.weld_size.max(min_weld(t.thickness));
     t
 }
 
@@ -401,7 +383,10 @@ pub fn check(t: &ConnectionTemplate) -> Vec<Issue> {
         push("name", "Имя слишком длинное");
     }
     if t.bolt_standard.trim().is_empty() || t.bolt_standard.len() > 256 {
-        push("bolt_standard", "Укажите стандарт болта, например ISO 4014");
+        push(
+            "bolt_standard",
+            "Укажите стандарт болта, например ГОСТ 7798-70",
+        );
     }
     if t.bolt_grade.trim().is_empty() || t.bolt_grade.len() > 256 {
         push("bolt_grade", "Укажите класс прочности болта, например 8.8");
@@ -609,26 +594,52 @@ pub fn fix_all(t: &mut ConnectionTemplate) {
     }
 }
 
-/// Usual bolt sizes: (label, diameter, hole clearance).
-pub const BOLT_SIZES: [(&str, f64, f64); 5] = [
-    ("М16", 16., 2.),
-    ("М20", 20., 2.),
-    ("М24", 24., 3.),
-    ("М27", 27., 3.),
-    ("М30", 30., 3.),
-];
+pub use open_bim_connections::norms::{
+    Advice, BOLT_STANDARDS, BoltStandard, advice, bolt_standard, hole_clearance, min_weld,
+};
 
-/// Usual strength classes for the grade picker.
-pub const BOLT_GRADES: [&str; 4] = ["5.8", "8.8", "10.9", "12.9"];
-
-/// Pick a bolt size; the edge distance grows when the new hole needs it.
-pub fn set_bolt(t: &mut ConnectionTemplate, diameter: f64, clearance: f64) {
+/// Pick a bolt diameter: the hole follows the bolt standard, and the edge
+/// distance grows to 2d when the new hole needs more.
+pub fn set_bolt(t: &mut ConnectionTemplate, diameter: f64) {
     t.bolt_diameter = diameter;
-    t.clearance = clearance;
-    let hole = diameter + clearance;
-    if t.edge_distance <= hole / 2. + 0.001 {
-        t.edge_distance = at_least(1.5 * hole);
+    t.clearance = hole_clearance(&t.bolt_standard, diameter);
+    let hole = diameter + t.clearance;
+    if t.edge_distance < 2. * hole {
+        t.edge_distance = at_least(2. * hole);
     }
+}
+
+/// Pick a bolt standard: strength class, diameter and hole follow it.
+pub fn set_standard(t: &mut ConnectionTemplate, s: &BoltStandard) {
+    t.bolt_standard = s.name.into();
+    if !s.grades.contains(&t.bolt_grade.as_str()) {
+        t.bolt_grade = s.default_grade.into();
+    }
+    let d = s
+        .diameters
+        .iter()
+        .copied()
+        .min_by(|a, b| {
+            (a - t.bolt_diameter)
+                .abs()
+                .total_cmp(&(b - t.bolt_diameter).abs())
+        })
+        .unwrap_or(t.bolt_diameter);
+    set_bolt(t, d);
+}
+
+/// Bring a template to ГОСТ and СП 16.13330 while keeping it valid.
+pub fn bring_to_norms(t: &mut ConnectionTemplate) {
+    for _ in 0..5 {
+        fix_all(t);
+        if advice(t).is_empty() {
+            return;
+        }
+        open_bim_connections::norms::apply_advice(t, |t, key, v| {
+            set(t, key, v);
+        });
+    }
+    fix_all(t);
 }
 
 /// A saved user component.
@@ -1195,6 +1206,15 @@ impl Draft {
         }
     }
 
+    /// Rules of ГОСТ and СП 16.13330 the values break, once they are valid.
+    pub fn advice(&self) -> Vec<Advice> {
+        if check(&self.template).is_empty() {
+            advice(&self.template)
+        } else {
+            Vec::new()
+        }
+    }
+
     /// Problems with the values and the name.
     pub fn issues(&self) -> Vec<Issue> {
         let mut issues = check(&self.template);
@@ -1353,19 +1373,39 @@ impl Workbench {
             .default_width(760.)
             .show(ctx, |ui| {
                 let issues = draft.issues();
+                let advice = draft.advice();
                 ui.columns(2, |cols| {
                     egui::ScrollArea::vertical()
                         .id_salt("component-editor-form")
                         .max_height(520.)
-                        .show(&mut cols[0], |ui| form(ui, draft, &issues));
+                        .show(&mut cols[0], |ui| form(ui, draft, &issues, &advice));
                     preview_panel(&mut cols[1], draft, &project);
                 });
                 ui.separator();
-                if issues.is_empty() {
+                if issues.is_empty() && advice.is_empty() {
                     ui.colored_label(
                         egui::Color32::from_rgb(40, 140, 60),
-                        "✔ Значения в порядке. Можно сохранять.",
+                        "✔ Значения в порядке и соответствуют ГОСТ и СП 16.13330. Можно сохранять.",
                     );
+                } else if issues.is_empty() {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.colored_label(
+                            ADVICE,
+                            format!(
+                                "Узел строится, но замечаний по ГОСТ и СП 16.13330: {}. Сохранить можно.",
+                                advice.len()
+                            ),
+                        );
+                        if ui
+                            .button("Привести к нормам")
+                            .on_hover_text(
+                                "Подставить значения по ГОСТ и СП 16.13330 во все поля с замечаниями",
+                            )
+                            .clicked()
+                        {
+                            bring_to_norms(&mut draft.template);
+                        }
+                    });
                 } else {
                     ui.horizontal_wrapped(|ui| {
                         ui.colored_label(
@@ -1437,7 +1477,21 @@ fn issue_label(ui: &mut egui::Ui, t: &mut ConnectionTemplate, issue: &Issue) {
     });
 }
 
-fn form(ui: &mut egui::Ui, draft: &mut Draft, issues: &[Issue]) {
+/// Amber, for a rule the value breaks while still being buildable.
+const ADVICE: egui::Color32 = egui::Color32::from_rgb(190, 120, 0);
+
+fn advice_label(ui: &mut egui::Ui, t: &mut ConnectionTemplate, a: &Advice) {
+    ui.horizontal_wrapped(|ui| {
+        ui.colored_label(ADVICE, format!("ℹ {}", a.text));
+        if let Some(v) = a.fix
+            && ui.small_button(format!("Поставить {}", mm(v))).clicked()
+        {
+            set(t, a.key, v);
+        }
+    });
+}
+
+fn form(ui: &mut egui::Ui, draft: &mut Draft, issues: &[Issue], advice: &[Advice]) {
     ui.heading("1. На основе какого узла");
     let catalog = components::catalog();
     let current = base(&draft.template.kind);
@@ -1487,19 +1541,70 @@ fn form(ui: &mut egui::Ui, draft: &mut Draft, issues: &[Issue]) {
         ui.add_space(6.);
         ui.heading(format!("{}. {}", n + 3, section.title()));
         if section == Section::Bolts && bolted(&draft.template.kind) {
+            ui.horizontal(|ui| {
+                let label = ui.label("Стандарт болта");
+                egui::ComboBox::new("component-standard", "")
+                    .selected_text(draft.template.bolt_standard.as_str())
+                    .width(170.)
+                    .show_ui(ui, |ui| {
+                        for s in &BOLT_STANDARDS {
+                            if ui
+                                .selectable_label(draft.template.bolt_standard == s.name, s.name)
+                                .on_hover_text(s.title)
+                                .clicked()
+                            {
+                                set_standard(&mut draft.template, s);
+                            }
+                        }
+                    })
+                    .response
+                    .labelled_by(label.id)
+                    .on_hover_text(
+                        bolt_standard(&draft.template.bolt_standard)
+                            .map(|s| s.title)
+                            .unwrap_or("Выберите стандарт болта"),
+                    );
+            });
+            let standard =
+                bolt_standard(&draft.template.bolt_standard).unwrap_or(&BOLT_STANDARDS[0]);
             ui.horizontal_wrapped(|ui| {
                 ui.label("Болт:");
-                for (label, d, c) in BOLT_SIZES {
+                for &d in standard.diameters {
                     let on = draft.template.bolt_diameter == d;
+                    let c = hole_clearance(standard.name, d);
                     if ui
-                        .selectable_label(on, label)
-                        .on_hover_text(format!("Диаметр {d} мм, отверстие {} мм", mm(d + c)))
+                        .selectable_label(on, format!("М{d}"))
+                        .on_hover_text(format!("Диаметр {d} мм, отверстие Ø{} мм", mm(d + c)))
                         .clicked()
                     {
-                        set_bolt(&mut draft.template, d, c);
+                        set_bolt(&mut draft.template, d);
                     }
                 }
             });
+            ui.horizontal(|ui| {
+                let label = ui.label("Класс прочности");
+                egui::ComboBox::new("component-grade", "")
+                    .selected_text(draft.template.bolt_grade.as_str())
+                    .show_ui(ui, |ui| {
+                        for g in standard.grades {
+                            ui.selectable_value(&mut draft.template.bolt_grade, (*g).into(), *g);
+                        }
+                    })
+                    .response
+                    .labelled_by(label.id);
+            });
+            for issue in issues
+                .iter()
+                .filter(|i| matches!(i.key, "bolt_standard" | "bolt_grade"))
+            {
+                issue_label(ui, &mut draft.template, issue);
+            }
+            for a in advice
+                .iter()
+                .filter(|a| matches!(a.key, "bolt_standard" | "bolt_grade"))
+            {
+                advice_label(ui, &mut draft.template, a);
+            }
         }
         egui::Grid::new(("component-fields", n))
             .num_columns(2)
@@ -1534,33 +1639,13 @@ fn form(ui: &mut egui::Ui, draft: &mut Draft, issues: &[Issue]) {
                         issue_label(ui, &mut draft.template, issue);
                         ui.end_row();
                     }
+                    for a in advice.iter().filter(|a| a.key == f.key) {
+                        ui.label("");
+                        advice_label(ui, &mut draft.template, a);
+                        ui.end_row();
+                    }
                 }
             });
-        if section == Section::Bolts && bolted(&draft.template.kind) {
-            ui.horizontal(|ui| {
-                let label = ui.label("Класс прочности");
-                egui::ComboBox::new("component-grade", "")
-                    .selected_text(draft.template.bolt_grade.as_str())
-                    .show_ui(ui, |ui| {
-                        for g in BOLT_GRADES {
-                            ui.selectable_value(&mut draft.template.bolt_grade, g.into(), g);
-                        }
-                    })
-                    .response
-                    .labelled_by(label.id);
-            });
-            ui.horizontal(|ui| {
-                let label = ui.label("Стандарт болта");
-                ui.text_edit_singleline(&mut draft.template.bolt_standard)
-                    .labelled_by(label.id);
-            });
-            for issue in issues
-                .iter()
-                .filter(|i| matches!(i.key, "bolt_standard" | "bolt_grade"))
-            {
-                issue_label(ui, &mut draft.template, issue);
-            }
-        }
     }
     // Problems with values the form does not show for this kind.
     let shown: Vec<&str> = list.iter().map(|f| f.key).collect();
