@@ -123,3 +123,25 @@ fn collinear_beams_get_one_splice_and_a_selection_limits_the_scope() {
             .any(|c| c.primary == column)
     );
 }
+
+#[test]
+fn stacked_columns_get_a_splice_and_one_base() {
+    let mut b = Workbench::new(Editor::new(default_project().unwrap()).unwrap());
+    let lower = member(&mut b, MemberKind::Column, [0., 0., 0.], [0., 0., 3000.]);
+    let upper = member(&mut b, MemberKind::Column, [0., 0., 3010.], [0., 0., 6000.]);
+    assert!(run(&mut b));
+    let found = names(&b);
+    assert_eq!(found.len(), 2, "{found:?}");
+    assert!(found.contains(&("Опорная плита".into(), lower, false)));
+    let p = b.editor.document.project();
+    let splice = p
+        .connections
+        .values()
+        .find(|c| c.template.name == "Стык балок на накладках")
+        .expect("splice");
+    assert_eq!(
+        (splice.primary, splice.secondary, splice.at_end),
+        (lower, Some(upper), true)
+    );
+    assert!(!run(&mut b), "nothing more to connect");
+}

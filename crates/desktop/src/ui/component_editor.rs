@@ -175,6 +175,29 @@ pub fn fields(kind: &TemplateKind) -> Vec<Field> {
                 "На сколько вута опускается ниже нижней полки балки у опоры.",
             ),
         ],
+        TemplateKind::Seat { .. } => vec![
+            field(
+                "length",
+                "Длина столика",
+                "мм",
+                Size,
+                "Длина столика вдоль балки от грани опоры. Болты стоят посередине.",
+            ),
+            field(
+                "width",
+                "Ширина столика",
+                "мм",
+                Size,
+                "Ширина столика поперёк балки. Не меньше ширины полки балки.",
+            ),
+            field(
+                "depth",
+                "Высота ребра",
+                "мм",
+                Size,
+                "Высота треугольного ребра под столиком у грани опоры.",
+            ),
+        ],
         TemplateKind::Gusset { .. } => vec![
             field(
                 "bolts",
@@ -265,6 +288,9 @@ pub fn get(t: &ConnectionTemplate, key: &str) -> Option<f64> {
         (TemplateKind::BeamSplice { pitch, .. }, "pitch") => *pitch,
         (TemplateKind::Haunch { length, .. }, "length") => *length,
         (TemplateKind::Haunch { depth, .. }, "depth") => *depth,
+        (TemplateKind::Seat { length, .. }, "length") => *length,
+        (TemplateKind::Seat { width, .. }, "width") => *width,
+        (TemplateKind::Seat { depth, .. }, "depth") => *depth,
         (TemplateKind::Gusset { bolts, .. }, "bolts") => *bolts as f64,
         (TemplateKind::Gusset { pitch, .. }, "pitch") => *pitch,
         _ => return None,
@@ -309,6 +335,9 @@ pub fn set(t: &mut ConnectionTemplate, key: &str, value: f64) -> bool {
             (TemplateKind::BeamSplice { pitch, .. }, "pitch") => pitch,
             (TemplateKind::Haunch { length, .. }, "length") => length,
             (TemplateKind::Haunch { depth, .. }, "depth") => depth,
+            (TemplateKind::Seat { length, .. }, "length") => length,
+            (TemplateKind::Seat { width, .. }, "width") => width,
+            (TemplateKind::Seat { depth, .. }, "depth") => depth,
             (TemplateKind::Gusset { pitch, .. }, "pitch") => pitch,
             _ => return false,
         },
@@ -523,6 +552,21 @@ pub fn check(t: &ConnectionTemplate) -> Vec<Issue> {
         TemplateKind::Haunch { .. } => {
             must_be_positive("length", &mut issues);
             must_be_positive("depth", &mut issues);
+        }
+        TemplateKind::Seat { length, .. } => {
+            let length_ok = must_be_positive("length", &mut issues);
+            must_be_positive("width", &mut issues);
+            must_be_positive("depth", &mut issues);
+            if base_ok && length_ok && length < 2. * e {
+                issues.push(Issue {
+                    key: "length",
+                    text: format!(
+                        "Столик короткий для болтов: нужно не меньше {} мм.",
+                        mm(2. * e)
+                    ),
+                    fix: Some(at_least(2. * e)),
+                });
+            }
         }
         TemplateKind::BeamSplice { rows, pitch } => {
             let pitch_ok = must_be_positive("pitch", &mut issues);
@@ -920,7 +964,7 @@ fn sample_parts(
             };
             (beam_from(document, start)?, Some(c))
         }
-        TemplateKind::Haunch { .. } => {
+        TemplateKind::Haunch { .. } | TemplateKind::Seat { .. } => {
             let c = column(document)?;
             (beam_from(document, 150.)?, Some(c))
         }
@@ -1019,6 +1063,7 @@ pub fn preview(project: &Project, t: &ConnectionTemplate, view: View) -> Preview
             oc::rebuild_stiffeners,
             oc::rebuild_beam_splices,
             oc::rebuild_haunches,
+            oc::rebuild_seats,
             oc::rebuild_gussets,
         ] {
             rebuild(&mut sample, &before).map_err(|e| e.to_string())?;

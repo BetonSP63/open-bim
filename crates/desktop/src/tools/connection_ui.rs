@@ -286,6 +286,15 @@ impl ConnectionUi {
                     dimension(ui, "Длина вуты вдоль балки, мм", length);
                     dimension(ui, "Высота вуты под балкой, мм", depth);
                 }
+                TemplateKind::Seat {
+                    length,
+                    width,
+                    depth,
+                } => {
+                    dimension(ui, "Длина столика вдоль балки, мм", length);
+                    dimension(ui, "Ширина столика, мм", width);
+                    dimension(ui, "Высота ребра, мм", depth);
+                }
                 TemplateKind::ColumnStiffeners { chamfer } => {
                     dimension(ui, "Срез угла у стенки, мм", chamfer);
                 }

@@ -81,6 +81,7 @@ pub enum Cmd {
     ComponentCatalog,
     ComponentEditor,
     AutoConnections,
+    FitToProfile,
     GridViews,
     PanelViews,
     PlaneOr3d,
@@ -648,6 +649,13 @@ pub const ALL: &[Spec] = &[
         category: "Детали",
         shortcut: None,
         keywords: "автосоединения автоматически узлы соединения правила все балки база",
+    },
+    Spec {
+        cmd: Cmd::FitToProfile,
+        label: "Подобрать узлы по профилю",
+        category: "Детали",
+        shortcut: None,
+        keywords: "подбор размеры узла по профилю сечению автоумолчания болт толщина пластины",
     },
     Spec {
         cmd: Cmd::UndoPick,

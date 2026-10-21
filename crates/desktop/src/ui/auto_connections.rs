@@ -14,6 +14,9 @@ use std::collections::BTreeSet;
 /// Farthest a member end may stop from the part it connects to, mm.
 pub const REACH: f64 = 400.0;
 
+/// Widest gap between two columns spliced end to end, mm.
+pub const SPLICE_GAP: f64 = 50.0;
+
 /// Components tried in order for each kind of joint; the first whose
 /// geometry fits is used.
 #[derive(Clone, Debug, PartialEq)]
@@ -21,6 +24,12 @@ pub struct AutoRules {
     pub beam_to_support: Vec<&'static str>,
     pub beam_to_beam: Vec<&'static str>,
     pub column_base: Vec<&'static str>,
+    /// Two columns end to end on one axis.
+    pub column_splice: Vec<&'static str>,
+    /// Pick the sizes of each connection from the section of its main part
+    /// (`open_bim_connections::by_profile`); a picked set that does not fit
+    /// falls back to the catalogue sizes.
+    pub by_profile: bool,
 }
 
 impl Default for AutoRules {
@@ -33,6 +42,8 @@ impl Default for AutoRules {
             ],
             beam_to_beam: vec!["Стык балок на накладках"],
             column_base: vec!["Опорная плита"],
+            column_splice: vec!["Стык балок на накладках"],
+            by_profile: true,
         }
     }
 }
@@ -108,8 +119,21 @@ pub fn plan(
      -> bool {
         for name in names {
             let Some(c) = component(name) else { continue };
-            let instance = instance(c, template, ObjectId(next), main, support, at_end);
-            if open_bim_connections::check_geometry(project, &instance).is_ok() {
+            let plain = instance(c, template, ObjectId(next), main, support, at_end);
+            let fitted = rules
+                .by_profile
+                .then(|| open_bim_connections::by_profile::fit_to_profile(project, &plain))
+                .flatten()
+                .map(|template| ConnectionInstance {
+                    template,
+                    ..plain.clone()
+                });
+            let fits =
+                |i: &ConnectionInstance| open_bim_connections::check_geometry(project, i).is_ok();
+            let chosen = fitted
+                .filter(fits)
+                .or_else(|| fits(&plain).then_some(plain));
+            if let Some(instance) = chosen {
                 next += 1;
                 plan.commands.push(Command::CreateConnection {
                     connection: instance,
@@ -124,11 +148,33 @@ pub fn plan(
     for m in &members {
         match m.kind {
             MemberKind::Column => {
+                // A column standing on another one on the same axis: splice.
+                for at_end in [false, true] {
+                    let p = if at_end { m.end } else { m.start };
+                    let along = (m.end - m.start).normalize();
+                    let partner = members.iter().find(|n| {
+                        n.id != m.id
+                            && n.kind == MemberKind::Column
+                            && along.dot((n.end - n.start).normalize()).abs() > 1. - 1e-9
+                            && n.start.distance(p).min(n.end.distance(p)) <= SPLICE_GAP
+                    });
+                    let Some(n) = partner else { continue };
+                    let partner_end = n.end.distance(p) < n.start.distance(p);
+                    if taken.contains(&(m.id, at_end)) || taken.contains(&(n.id, partner_end)) {
+                        continue;
+                    }
+                    if try_rule(&mut plan, &rules.column_splice, m.id, Some(n.id), at_end) {
+                        taken.insert((m.id, at_end));
+                        taken.insert((n.id, partner_end));
+                    }
+                }
                 let at_end = m.end.z < m.start.z;
                 let foot = if at_end { m.end } else { m.start };
-                let stands_on_something = members
-                    .iter()
-                    .any(|n| n.id != m.id && distance_to_segment(foot, n.start, n.end) < 1.0);
+                // On another part, or on a column below across a splice gap.
+                let stands_on_something = members.iter().any(|n| {
+                    let d = distance_to_segment(foot, n.start, n.end);
+                    n.id != m.id && (d < 1.0 || (n.kind == MemberKind::Column && d <= SPLICE_GAP))
+                });
                 if taken.contains(&(m.id, at_end)) || stands_on_something {
                     continue;
                 }
@@ -225,6 +271,61 @@ impl Workbench {
         Some(super::Request::Action(Action::Commit(
             format!("Автосоединения ({count})"),
             plan.commands,
+        )))
+    }
+
+    /// «Подобрать узлы по профилю»: the selected components (all of them
+    /// when none is selected) take the sizes picked from their main part.
+    /// Locked ones, ones whose main part has another section and ones the
+    /// picked sizes do not fit are left as they are.
+    pub(super) fn fit_to_profile(&mut self) -> Option<super::Request> {
+        let project = self.editor.document.project();
+        let selected: Vec<_> = project
+            .connections
+            .values()
+            .filter(|c| self.editor.selected.contains(&c.id))
+            .collect();
+        let scope: Vec<_> = if selected.is_empty() {
+            project.connections.values().collect()
+        } else {
+            selected
+        };
+        if scope.is_empty() {
+            self.message("В модели нет узлов для подбора по профилю");
+            return None;
+        }
+        let (mut commands, mut kept) = (Vec::new(), 0);
+        for c in scope {
+            let fitted = (!c.general.locked)
+                .then(|| open_bim_connections::by_profile::fit_to_profile(project, c))
+                .flatten()
+                .map(|template| ConnectionInstance {
+                    template,
+                    ..c.clone()
+                })
+                .filter(|f| {
+                    f.template != c.template
+                        && open_bim_connections::check_geometry(project, f).is_ok()
+                });
+            match fitted {
+                Some(connection) => commands.push(Command::ReplaceConnection { connection }),
+                None => kept += 1,
+            }
+        }
+        let kept = if kept > 0 {
+            format!(", без изменений: {kept}")
+        } else {
+            String::new()
+        };
+        if commands.is_empty() {
+            self.message(format!("Подбор по профилю: менять нечего{kept}"));
+            return None;
+        }
+        let count = commands.len();
+        self.message(format!("Подбор по профилю: узлов {count}{kept}"));
+        Some(super::Request::Action(Action::Commit(
+            format!("Подбор по профилю ({count})"),
+            commands,
         )))
     }
 }

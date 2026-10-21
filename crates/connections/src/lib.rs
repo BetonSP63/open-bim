@@ -14,8 +14,11 @@ pub use beam_splice::{
 };
 mod haunch;
 pub use haunch::{HaunchGeometry, haunch_geometry, rebuild_haunches};
+mod seat;
+pub use seat::{SeatGeometry, rebuild_seats, seat_geometry};
 mod gusset;
 pub use gusset::{GussetGeometry, MAX_GUSSET_REACH, gusset_geometry, rebuild_gussets};
+pub mod by_profile;
 mod clip_angle;
 pub mod norms;
 pub use clip_angle::{ClipAngleGeometry, clip_angle_geometry, rebuild_clip_angles};
@@ -237,5 +240,6 @@ pub fn check_geometry(
         TemplateKind::BeamSplice { .. } => beam_splice_geometry(project, instance).map(drop),
         TemplateKind::Haunch { .. } => haunch_geometry(project, instance).map(drop),
         TemplateKind::Gusset { .. } => gusset_geometry(project, instance).map(drop),
+        TemplateKind::Seat { .. } => seat_geometry(project, instance).map(drop),
     }
 }
