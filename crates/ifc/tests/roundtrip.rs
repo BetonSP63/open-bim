@@ -229,3 +229,55 @@ fn step_strings_round_trip_cyrillic_quotes_and_backslashes() {
         "x", 7
     )));
 }
+
+#[test]
+fn gost_property_set_and_ksi_classification() {
+    let mut frame = open_bim_model::example_steel_frame().unwrap();
+    let first = *frame.elements.keys().next().unwrap();
+    frame.elements.get_mut(&first).unwrap().properties.insert(
+        open_bim_ifc::KSI_PROPERTY.into(),
+        PropertyValue::Text("TEST-01".into()),
+    );
+    let (text, _) = export(&frame).unwrap();
+    let file = step::parse(&text).unwrap();
+    let sets: Vec<&str> = file
+        .entities
+        .values()
+        .filter(|e| e.kind == "IFCPROPERTYSET")
+        .filter_map(|e| e.args.get(2).and_then(step::Value::as_str))
+        .collect();
+    assert_eq!(
+        sets.iter()
+            .filter(|s| **s == open_bim_ifc::GOST_PSET_NAME)
+            .count(),
+        frame.elements.len(),
+        "every part carries the ГОСТ set"
+    );
+    let names: Vec<&str> = file
+        .entities
+        .values()
+        .filter(|e| e.kind == "IFCPROPERTYSINGLEVALUE")
+        .filter_map(|e| e.args.first().and_then(step::Value::as_str))
+        .collect();
+    for name in ["Профиль", "Сталь", "Масса, кг"] {
+        assert!(names.contains(&name), "{name}");
+    }
+    let kinds: Vec<&str> = file.entities.values().map(|e| e.kind.as_str()).collect();
+    for kind in [
+        "IFCCLASSIFICATION",
+        "IFCCLASSIFICATIONREFERENCE",
+        "IFCRELASSOCIATESCLASSIFICATION",
+    ] {
+        assert_eq!(kinds.iter().filter(|k| **k == kind).count(), 1, "{kind}");
+    }
+    // The derived set does not come back as element properties; the code
+    // does, through the Open BIM set.
+    let (back, report) = import(&text).unwrap();
+    assert!(report.issues.is_empty(), "{:?}", report.issues);
+    let e = back
+        .elements
+        .values()
+        .find(|e| e.properties.contains_key(open_bim_ifc::KSI_PROPERTY))
+        .unwrap();
+    assert!(e.properties.keys().all(|k| !k.contains("ГОСТ")));
+}

@@ -6,10 +6,10 @@
     "rejected": 1136
   },
   "ifc": {
-    "accepted": 61,
+    "accepted": 57,
     "inputs": 1200,
     "panics": 0,
-    "rejected": 1139
+    "rejected": 1143
   },
   "project": {
     "accepted": 1,

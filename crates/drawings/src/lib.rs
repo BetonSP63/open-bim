@@ -31,6 +31,8 @@ pub const SCALES: [f64; 15] = [
 pub const MARGIN_LEFT: f64 = 20.;
 pub const MARGIN: f64 = 5.;
 pub const TITLE_BLOCK: [f64; 2] = [185., 55.];
+/// Advance of the drawn ГОСТ 2.312 leg sign, in character heights.
+const LEG_SIGN_WIDTH: f64 = 0.85;
 /// Notes and weld signs: font 2.5.
 pub const TEXT_HEIGHT: f64 = conventions::em(2.5);
 
@@ -1238,10 +1240,19 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
             let at = context.paper([q[0], q[1]]);
             let text =
                 open_bim_model::weld_mark(*process, *weld_type, *sides, *size, *around, *shop);
-            let width = metrics.as_ref().map_or_else(
-                |_| text.chars().count() as f64 * TEXT_HEIGHT * 0.62,
-                |m| m.width(&text, TEXT_HEIGHT),
-            ) + 1.;
+            // The leg sign is drawn as lines: the sheet font has no glyph.
+            let (head, tail) = text
+                .split_once(open_bim_model::LEG_SIGN)
+                .map_or((text.as_str(), None), |(h, t)| (h, Some(t)));
+            let text_width = |s: &str| {
+                metrics.as_ref().map_or_else(
+                    |_| s.chars().count() as f64 * TEXT_HEIGHT * 0.62,
+                    |m| m.width(s, TEXT_HEIGHT),
+                )
+            };
+            let head_width = text_width(head);
+            let width =
+                head_width + tail.map_or(0., |t| LEG_SIGN_WIDTH * TEXT_HEIGHT + text_width(t)) + 1.;
             // Shelf up-right of the weld, moved further out and to the left
             // until the sign clears the marks and other signs.
             let boxes: Vec<[[f64; 2]; 2]> = graphic
@@ -1314,15 +1325,31 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
             graphic
                 .lines
                 .push(line(vec![at, shelf, [shelf_end, shelf[1]]]));
-            graphic.labels.push(Label {
-                position: [shelf[0].min(shelf_end) + 0.5, shelf[1] + 1.],
-                text,
+            let base = [shelf[0].min(shelf_end) + 0.5, shelf[1] + 1.];
+            let label = |position: [f64; 2], text: &str| Label {
+                position,
+                text: text.into(),
                 height: TEXT_HEIGHT,
                 align: Align::Start,
                 rotation: 0.,
                 object: Some(detail.id),
                 lost: false,
-            });
+            };
+            graphic.labels.push(label(base, head));
+            if let Some(tail) = tail {
+                // ⊿: right angle at the lower right, cap height tall.
+                let x0 = base[0] + head_width + 0.15 * TEXT_HEIGHT;
+                let x1 = base[0] + head_width + (LEG_SIGN_WIDTH - 0.15) * TEXT_HEIGHT;
+                let top = base[1] + 0.7 * TEXT_HEIGHT;
+                graphic.lines.push(line(vec![
+                    [x0, base[1]],
+                    [x1, base[1]],
+                    [x1, top],
+                    [x0, base[1]],
+                ]));
+                let after = [base[0] + head_width + LEG_SIGN_WIDTH * TEXT_HEIGHT, base[1]];
+                graphic.labels.push(label(after, tail));
+            }
         }
     }
     // View titles go under the lowest dimension of their view.

@@ -138,6 +138,10 @@ fn size_text(size: f64) -> String {
     }
 }
 
+/// Leg sign of ГОСТ 2.312 (right triangle). The sheet font has no glyph for
+/// it, so drawings draw it as lines and the screen shows «Δ».
+pub const LEG_SIGN: char = '⊿';
+
 /// Weld mark text in the style of ГОСТ 2.312: standard, joint, leg size
 /// (fillet and lap welds), «по контуру» and site welding.
 pub fn weld_mark(
@@ -149,7 +153,7 @@ pub fn weld_mark(
     shop: bool,
 ) -> String {
     let leg = matches!(weld_type, WeldType::Fillet | WeldType::Lap)
-        .then(|| format!("-Δ{}", size_text(size)))
+        .then(|| format!("-{LEG_SIGN}{}", size_text(size)))
         .unwrap_or_default();
     let mut mark = format!(
         "{}-{}{leg}",
@@ -439,17 +443,17 @@ mod tests {
     fn marks_name_the_standard_of_the_process() {
         let mark = |p, t, s| weld_mark(p, t, s, 6.0, false, true);
         use {WeldProcess::*, WeldSides::*, WeldType::*};
-        assert_eq!(mark(Manual, Fillet, One), "ГОСТ 5264-80-Т1-Δ6");
-        assert_eq!(mark(GasShielded, Fillet, Both), "ГОСТ 14771-76-Т3-Δ6");
+        assert_eq!(mark(Manual, Fillet, One), "ГОСТ 5264-80-Т1-⊿6");
+        assert_eq!(mark(GasShielded, Fillet, Both), "ГОСТ 14771-76-Т3-⊿6");
         assert_eq!(mark(GasShielded, Butt, One), "ГОСТ 14771-76-С17");
         // ГОСТ 8713 has no С2 and С17.
         assert_eq!(mark(Submerged, ButtSquare, One), "ГОСТ 8713-79-С4");
         assert_eq!(mark(Submerged, Butt, One), "ГОСТ 8713-79-С18");
         assert_eq!(mark(Submerged, Butt, Both), "ГОСТ 8713-79-С21");
-        assert_eq!(mark(Submerged, Lap, Both), "ГОСТ 8713-79-Н2-Δ6");
+        assert_eq!(mark(Submerged, Lap, Both), "ГОСТ 8713-79-Н2-⊿6");
         assert_eq!(
             weld_mark(Manual, Fillet, One, 8.0, true, false),
-            "ГОСТ 5264-80-Т1-Δ8 по контуру (монт.)"
+            "ГОСТ 5264-80-Т1-⊿8 по контуру (монт.)"
         );
     }
 

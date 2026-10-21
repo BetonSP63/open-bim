@@ -35,16 +35,16 @@
 <polyline class="Frame" points="13,267 20,267 20,232 13,232 13,267" fill="none" stroke="#000" stroke-width="0.7"/>
 <polyline class="Frame" points="8,232 13,232 13,207 8,207 8,232" fill="none" stroke="#000" stroke-width="0.7"/>
 <polyline class="Frame" points="13,232 20,232 20,207 13,207 13,232" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="381,153.5 397,153.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="276,127.5 415,127.5 415,219.5 276,219.5 276,127.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="276,159.5 415,159.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="311,127.5 311,219.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="341,127.5 341,219.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="371,127.5 371,219.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="381,127.5 381,219.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="397,127.5 397,219.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Thin" points="276,167.5 415,167.5" fill="none" stroke="#000" stroke-width="0.25"/>
-<polyline class="Thin" points="276,175.5 415,175.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Frame" points="381,151.5 397,151.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="276,125.5 415,125.5 415,219.5 276,219.5 276,125.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="276,157.5 415,157.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="311,125.5 311,219.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="341,125.5 341,219.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="371,125.5 371,219.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="381,125.5 381,219.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="397,125.5 397,219.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Thin" points="276,165.5 415,165.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="276,173.5 415,173.5" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline class="Thin" points="276,183.5 415,183.5" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline class="Thin" points="276,191.5 415,191.5" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline class="Thin" points="276,201.5 415,201.5" fill="none" stroke="#000" stroke-width="0.25"/>
@@ -317,43 +317,44 @@
 <text x="11.375" y="279.5" font-size="2.5" text-anchor="middle" fill="#000" transform="rotate(-90 11.375 279.5)">Инв. № подл.</text>
 <text x="11.375" y="249.5" font-size="2.5" text-anchor="middle" fill="#000" transform="rotate(-90 11.375 249.5)">Подп. и дата</text>
 <text x="11.375" y="219.5" font-size="2.5" text-anchor="middle" fill="#000" transform="rotate(-90 11.375 219.5)">Взам. инв. №</text>
-<text x="345.5" y="123.5" font-size="5" text-anchor="middle" fill="#000">Спецификация металлопроката</text>
-<text x="293.5" y="140.75" font-size="3.571" text-anchor="middle" fill="#000">Наименование</text>
-<text x="293.5" y="144.75" font-size="3.571" text-anchor="middle" fill="#000">профиля,</text>
-<text x="293.5" y="148.75" font-size="3.571" text-anchor="middle" fill="#000">ГОСТ, ТУ</text>
-<text x="326" y="140.75" font-size="3.571" text-anchor="middle" fill="#000">Наименование</text>
-<text x="326" y="144.75" font-size="3.571" text-anchor="middle" fill="#000">или марка</text>
-<text x="326" y="148.75" font-size="3.571" text-anchor="middle" fill="#000">металла</text>
-<text x="356" y="140.75" font-size="3.571" text-anchor="middle" fill="#000">Номер или</text>
-<text x="356" y="144.75" font-size="3.571" text-anchor="middle" fill="#000">размеры</text>
-<text x="356" y="148.75" font-size="3.571" text-anchor="middle" fill="#000">профиля, мм</text>
-<text x="376" y="142.75" font-size="3.571" text-anchor="middle" fill="#000">№</text>
-<text x="376" y="146.75" font-size="3.571" text-anchor="middle" fill="#000">п.п.</text>
-<text x="389" y="157.75" font-size="3.571" text-anchor="middle" fill="#000">Балки</text>
-<text x="406" y="142.75" font-size="3.571" text-anchor="middle" fill="#000">Общая</text>
-<text x="406" y="146.75" font-size="3.571" text-anchor="middle" fill="#000">масса, т</text>
-<text x="389" y="131.75" font-size="3.571" text-anchor="middle" fill="#000">Масса</text>
-<text x="389" y="135.75" font-size="3.571" text-anchor="middle" fill="#000">металла</text>
-<text x="389" y="139.75" font-size="3.571" text-anchor="middle" fill="#000">по</text>
-<text x="389" y="143.75" font-size="3.571" text-anchor="middle" fill="#000">элементам</text>
-<text x="389" y="147.75" font-size="3.571" text-anchor="middle" fill="#000">конструкций,</text>
-<text x="389" y="151.75" font-size="3.571" text-anchor="middle" fill="#000">т</text>
-<text x="277" y="164.75" font-size="3.571" text-anchor="start" fill="#000">Двутавры</text>
-<text x="312" y="164.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
-<text x="342" y="164.75" font-size="3.571" text-anchor="start" fill="#000">I 300×150×8×12</text>
-<text x="376" y="164.75" font-size="3.571" text-anchor="middle" fill="#000">1</text>
-<text x="389" y="164.75" font-size="3.571" text-anchor="middle" fill="#000">0,137</text>
-<text x="406" y="164.75" font-size="3.571" text-anchor="middle" fill="#000">0,137</text>
-<text x="342" y="172.75" font-size="3.571" text-anchor="start" fill="#000">Итого</text>
-<text x="376" y="172.75" font-size="3.571" text-anchor="middle" fill="#000">2</text>
-<text x="389" y="172.75" font-size="3.571" text-anchor="middle" fill="#000">0,137</text>
-<text x="406" y="172.75" font-size="3.571" text-anchor="middle" fill="#000">0,137</text>
-<text x="277" y="180.75" font-size="3.571" text-anchor="start" fill="#000">Прокат листовой</text>
-<text x="312" y="180.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
-<text x="342" y="180.75" font-size="3.571" text-anchor="start" fill="#000">—20</text>
-<text x="376" y="180.75" font-size="3.571" text-anchor="middle" fill="#000">3</text>
-<text x="389" y="180.75" font-size="3.571" text-anchor="middle" fill="#000">0,019</text>
-<text x="406" y="180.75" font-size="3.571" text-anchor="middle" fill="#000">0,019</text>
+<text x="345.5" y="121.5" font-size="5" text-anchor="middle" fill="#000">Спецификация металлопроката</text>
+<text x="293.5" y="138.75" font-size="3.571" text-anchor="middle" fill="#000">Наименование</text>
+<text x="293.5" y="142.75" font-size="3.571" text-anchor="middle" fill="#000">профиля,</text>
+<text x="293.5" y="146.75" font-size="3.571" text-anchor="middle" fill="#000">ГОСТ, ТУ</text>
+<text x="326" y="138.75" font-size="3.571" text-anchor="middle" fill="#000">Наименование</text>
+<text x="326" y="142.75" font-size="3.571" text-anchor="middle" fill="#000">или марка</text>
+<text x="326" y="146.75" font-size="3.571" text-anchor="middle" fill="#000">металла</text>
+<text x="356" y="138.75" font-size="3.571" text-anchor="middle" fill="#000">Номер или</text>
+<text x="356" y="142.75" font-size="3.571" text-anchor="middle" fill="#000">размеры</text>
+<text x="356" y="146.75" font-size="3.571" text-anchor="middle" fill="#000">профиля, мм</text>
+<text x="376" y="140.75" font-size="3.571" text-anchor="middle" fill="#000">№</text>
+<text x="376" y="144.75" font-size="3.571" text-anchor="middle" fill="#000">п.п.</text>
+<text x="389" y="155.75" font-size="3.571" text-anchor="middle" fill="#000">Балки</text>
+<text x="406" y="140.75" font-size="3.571" text-anchor="middle" fill="#000">Общая</text>
+<text x="406" y="144.75" font-size="3.571" text-anchor="middle" fill="#000">масса, т</text>
+<text x="389" y="129.75" font-size="3.571" text-anchor="middle" fill="#000">Масса</text>
+<text x="389" y="133.75" font-size="3.571" text-anchor="middle" fill="#000">металла</text>
+<text x="389" y="137.75" font-size="3.571" text-anchor="middle" fill="#000">по</text>
+<text x="389" y="141.75" font-size="3.571" text-anchor="middle" fill="#000">элементам</text>
+<text x="389" y="145.75" font-size="3.571" text-anchor="middle" fill="#000">конструкций,</text>
+<text x="389" y="149.75" font-size="3.571" text-anchor="middle" fill="#000">т</text>
+<text x="277" y="162.75" font-size="3.571" text-anchor="start" fill="#000">Двутавры</text>
+<text x="312" y="162.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
+<text x="342" y="162.75" font-size="3.571" text-anchor="start" fill="#000">I 300×150×8×12</text>
+<text x="376" y="162.75" font-size="3.571" text-anchor="middle" fill="#000">1</text>
+<text x="389" y="162.75" font-size="3.571" text-anchor="middle" fill="#000">0,137</text>
+<text x="406" y="162.75" font-size="3.571" text-anchor="middle" fill="#000">0,137</text>
+<text x="342" y="170.75" font-size="3.571" text-anchor="start" fill="#000">Итого</text>
+<text x="376" y="170.75" font-size="3.571" text-anchor="middle" fill="#000">2</text>
+<text x="389" y="170.75" font-size="3.571" text-anchor="middle" fill="#000">0,137</text>
+<text x="406" y="170.75" font-size="3.571" text-anchor="middle" fill="#000">0,137</text>
+<text x="277" y="177.75" font-size="3.571" text-anchor="start" fill="#000">Прокат листовой</text>
+<text x="277" y="181.75" font-size="3.571" text-anchor="start" fill="#000">ГОСТ 19903-2015</text>
+<text x="312" y="179.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
+<text x="342" y="179.75" font-size="3.571" text-anchor="start" fill="#000">—20</text>
+<text x="376" y="179.75" font-size="3.571" text-anchor="middle" fill="#000">3</text>
+<text x="389" y="179.75" font-size="3.571" text-anchor="middle" fill="#000">0,019</text>
+<text x="406" y="179.75" font-size="3.571" text-anchor="middle" fill="#000">0,019</text>
 <text x="342" y="188.75" font-size="3.571" text-anchor="start" fill="#000">Итого</text>
 <text x="376" y="188.75" font-size="3.571" text-anchor="middle" fill="#000">4</text>
 <text x="389" y="188.75" font-size="3.571" text-anchor="middle" fill="#000">0,019</text>

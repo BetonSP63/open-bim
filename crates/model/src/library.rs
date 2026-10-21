@@ -13,6 +13,9 @@
 //! standard before issuing documents.
 use crate::{Material, ObjectId, Profile, ProfileShape};
 
+/// Hot-rolled plate: thicknesses and sheet sizes per ГОСТ 19903-2015.
+pub const PLATE_STANDARD: &str = "ГОСТ 19903-2015";
+
 /// Group shown in the profile picker.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Family {

@@ -80,7 +80,7 @@ fn rolled_steel_totals_per_grade_equal_part_masses() {
     let plate = rs
         .lines
         .iter()
-        .find(|l| l.assortment == "Прокат листовой")
+        .find(|l| l.assortment == "Прокат листовой ГОСТ 19903-2015")
         .unwrap();
     assert!(plate.masses_t[columns] > 0.);
     let csv = open_bim_reports::gost_tables::rolled_steel_csv(&rs);

@@ -634,7 +634,7 @@ pub fn element_type(project: &Project, id: ObjectId) -> &'static str {
 }
 
 /// Assortment kind and size of a part: «Двутавры» / «I 300×150×8×12»,
-/// «Прокат листовой» / «—20».
+/// «Прокат листовой ГОСТ 19903-2015» / «—20».
 pub fn assortment(project: &Project, id: ObjectId) -> (String, String) {
     let Some(element) = project.elements.get(&id) else {
         return (String::new(), String::new());
@@ -660,7 +660,10 @@ pub fn assortment(project: &Project, id: ObjectId) -> (String, String) {
             (kind, p.name.clone())
         }
         ElementShape::Plate { thickness, .. } => (
-            "Прокат листовой".into(),
+            format!(
+                "Прокат листовой {}",
+                open_bim_model::library::PLATE_STANDARD
+            ),
             format!("—{}", crate::format_mm(thickness.value())),
         ),
     }

@@ -546,7 +546,8 @@ impl PropertyFilter {
                 .profiles
                 .get(profile)
                 .map_or(String::new(), |p| p.name.clone()),
-            ElementShape::Plate { thickness, .. } => format!("PL{}", thickness.value()),
+            // Plates as in the specification, «—20»; a typed hyphen matches too.
+            ElementShape::Plate { thickness, .. } => format!("—{}", thickness.value()),
         };
         let material = project
             .materials
@@ -565,7 +566,10 @@ impl PropertyFilter {
         ]
         .iter()
         .all(|(field, value)| {
-            field.trim().is_empty() || field.split_whitespace().any(|f| wildcard(f, value))
+            field.trim().is_empty()
+                || field
+                    .split_whitespace()
+                    .any(|f| wildcard(f, value) || wildcard(&f.replacen('-', "—", 1), value))
         })
     }
 }

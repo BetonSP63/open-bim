@@ -1,6 +1,6 @@
 //! IFC import of the declared subset; everything else is listed in the report.
 use crate::step::{Entity, File, Value, parse, valid_guid};
-use crate::{GUID_PROPERTY, PSET_NAME};
+use crate::{GOST_PSET_NAME, GUID_PROPERTY, PSET_NAME};
 use open_bim_model::{
     Detail, DetailKind, Element, ElementShape, Frame, LengthMm, Material, MemberKind, ObjectId,
     Point3, Profile, ProfileShape, Project, PropertyValue,
@@ -62,6 +62,9 @@ const KNOWN: &[&str] = &[
     "IFCRELDEFINESBYPROPERTIES",
     "IFCOPENINGELEMENT",
     "IFCRELVOIDSELEMENT",
+    "IFCCLASSIFICATION",
+    "IFCCLASSIFICATIONREFERENCE",
+    "IFCRELASSOCIATESCLASSIFICATION",
     "IFCBEAM",
     "IFCCOLUMN",
     "IFCMEMBER",
@@ -578,6 +581,10 @@ pub fn import(text: &str) -> Result<(Project, ImportReport), String> {
             continue;
         }
         let set_name = set.args.get(2).and_then(Value::as_str).unwrap_or("");
+        // Derived from the model on export; nothing to keep on import.
+        if set_name == GOST_PSET_NAME {
+            continue;
+        }
         let mut values = Vec::new();
         for p in set
             .args

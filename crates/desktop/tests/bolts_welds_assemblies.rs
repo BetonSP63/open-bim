@@ -227,8 +227,17 @@ fn weld_with_type_choice_joins_an_assembly_lists_and_draws() {
             .views
             .iter()
             .flat_map(|v| &v.labels)
-            .any(|l| l.text == "ГОСТ 5264-80-Т3-Δ6"),
+            .any(|l| l.text == "ГОСТ 5264-80-Т3-"),
         "weld sign on the drawing"
+    );
+    // The leg sign is drawn as lines, the leg follows it.
+    assert!(
+        sheet
+            .views
+            .iter()
+            .flat_map(|v| &v.labels)
+            .any(|l| l.text == "6" && l.height == open_bim_drawings::TEXT_HEIGHT),
+        "leg after the sign"
     );
     // A site weld does not join assemblies.
     let mut b2 = bench();

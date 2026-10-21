@@ -1,6 +1,6 @@
 //! IFC4 export of the declared subset (see docs/ifc-support.md).
 use crate::step::{encode, guid, real, valid_guid};
-use crate::{GUID_PROPERTY, PSET_NAME};
+use crate::{GOST_PSET_NAME, GUID_PROPERTY, KSI_PROPERTY, PSET_NAME};
 use open_bim_model::{
     DetailKind, ElementShape, Frame, MemberKind, ObjectId, ProfileShape, Project, PropertyValue,
 };
@@ -247,6 +247,7 @@ pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
     let mut products = Vec::new();
     let mut by_material: BTreeMap<ObjectId, Vec<u64>> = BTreeMap::new();
     let mut profiles: BTreeMap<ObjectId, u64> = BTreeMap::new();
+    let mut ksi: BTreeMap<String, Vec<u64>> = BTreeMap::new();
     for element in project.elements.values() {
         let frame = element.shape.frame();
         let place = w.placement(local(frame, project.origin), frame.axes[2], frame.axes[0]);
@@ -343,6 +344,56 @@ pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
                 "IFCRELDEFINESBYPROPERTIES('{}',$,$,$,(#{product}),#{pset})",
                 derived_guid("defines", element.id.0)
             ));
+        }
+        // Section, its standard, steel and mass as Russian specifications
+        // give them.
+        let (section, standard) = match &element.shape {
+            ElementShape::Member { profile, .. } => {
+                let p = &project.profiles[profile];
+                (p.name.clone(), p.standard.clone())
+            }
+            ElementShape::Plate { thickness, .. } => (
+                format!("—{}", real(thickness.value()).trim_end_matches('.')),
+                Some(open_bim_model::library::PLATE_STANDARD.into()),
+            ),
+        };
+        let text = |w: &mut Writer, name: &str, value: &str| {
+            w.add(format!(
+                "IFCPROPERTYSINGLEVALUE({},$,IFCLABEL({}),$)",
+                encode(name),
+                encode(value)
+            ))
+        };
+        let mut gost = vec![text(&mut w, "Профиль", &section)];
+        if let Some(standard) = standard {
+            gost.push(text(&mut w, "Сортамент", &standard));
+        }
+        if let Some(m) = project.materials.get(&element.material) {
+            gost.push(text(&mut w, "Сталь", &m.name));
+        }
+        if let Ok(mass) = project.element_mass_kg(element.id) {
+            gost.push(w.add(format!(
+                "IFCPROPERTYSINGLEVALUE({},$,IFCMASSMEASURE({}),$)",
+                encode("Масса, кг"),
+                real((mass * 10.).round() / 10.)
+            )));
+        }
+        let gost_set = w.add(format!(
+            "IFCPROPERTYSET('{}',$,{},$,({}))",
+            derived_guid("gost-pset", element.id.0),
+            encode(GOST_PSET_NAME),
+            refs(&gost)
+        ));
+        w.add(format!(
+            "IFCRELDEFINESBYPROPERTIES('{}',$,$,$,(#{product}),#{gost_set})",
+            derived_guid("gost-defines", element.id.0)
+        ));
+        if let Some(PropertyValue::Text(code)) = element.properties.get(KSI_PROPERTY)
+            && !code.trim().is_empty()
+        {
+            ksi.entry(code.trim().to_string())
+                .or_default()
+                .push(product);
         }
         // Holes and axis-aligned box cuts become openings voiding the element.
         for detail in project
@@ -537,6 +588,24 @@ pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
             derived_guid("material", material.0),
             refs(&items)
         ));
+    }
+    // КСИ codes the user put on elements, one reference per code.
+    if !ksi.is_empty() {
+        let system = w.add(format!(
+            "IFCCLASSIFICATION($,$,$,{},$,'https://ksi.faufcc.ru',$)",
+            encode("КСИ")
+        ));
+        for (n, (code, items)) in ksi.iter().enumerate() {
+            let reference = w.add(format!(
+                "IFCCLASSIFICATIONREFERENCE($,{},$,#{system},$,$)",
+                encode(code)
+            ));
+            w.add(format!(
+                "IFCRELASSOCIATESCLASSIFICATION('{}',$,$,$,({}),#{reference})",
+                derived_guid("ksi", n as u64),
+                refs(items)
+            ));
+        }
     }
     let mut text = String::new();
     text.push_str("ISO-10303-21;\nHEADER;\n");

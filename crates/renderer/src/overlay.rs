@@ -559,7 +559,7 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
                     let short = mark
                         .trim_start_matches(process.standard())
                         .trim_start_matches('-')
-                        .to_string();
+                        .replace(open_bim_model::LEG_SIGN, "Δ");
                     marks.push(text(mid, short, colour, [0, 1], 12.));
                 }
             }
