@@ -50,6 +50,23 @@ pub enum Request {
     FitSelected,
     /// Switch the camera and view depth to a model view.
     ApplyView(Box<views::ModelView>),
+    /// «Секущая плоскость по точке»: a clip plane through the point, facing
+    /// the viewer; the part of the model in front of it is cut away.
+    ClipAt(open_bim_renderer::DVec3),
+}
+
+/// Clip plane through `point` facing the eye: what lies between the eye
+/// and the plane is cut away.
+pub fn clip_facing(
+    eye: open_bim_renderer::DVec3,
+    target: open_bim_renderer::DVec3,
+    point: open_bim_renderer::DVec3,
+) -> open_bim_renderer::ClipPlane {
+    let normal = (target - eye).normalize_or(open_bim_renderer::DVec3::NEG_Z);
+    open_bim_renderer::ClipPlane {
+        normal,
+        offset: normal.dot(point),
+    }
 }
 
 /// Keyboard focus areas cycled by F6.
@@ -228,6 +245,14 @@ pub struct Workbench {
     /// Measure command picks and the last measured segment.
     pub measure: Option<Vec<open_bim_renderer::DVec3>>,
     pub measured: Option<(open_bim_renderer::DVec3, open_bim_renderer::DVec3)>,
+    /// «Измерить угол»: picks (vertex, first side, second side) and the
+    /// last measured angle.
+    pub angle_picks: Option<Vec<open_bim_renderer::DVec3>>,
+    pub measured_angle: Option<[open_bim_renderer::DVec3; 3]>,
+    /// «Запросить объект» / «Сравнить детали» result window.
+    pub inquiry: Option<crate::interaction::inquire::Inquiry>,
+    /// The next pick places the clip plane.
+    pub clip_pick: bool,
     /// Snap kind under the cursor (status bar).
     pub last_snap: Option<crate::interaction::snap::SnapKind>,
     /// Screen-space snapping and its switches (bottom toolbar).
@@ -321,6 +346,10 @@ impl Workbench {
             context_at: None,
             measure: None,
             measured: None,
+            angle_picks: None,
+            measured_angle: None,
+            inquiry: None,
+            clip_pick: false,
             last_snap: None,
             snapper: Default::default(),
             switches: Default::default(),
@@ -855,6 +884,11 @@ impl Workbench {
                 } else if self.measure.take().is_some() {
                     self.measured = None;
                     self.message("Измерение завершено");
+                } else if std::mem::take(&mut self.clip_pick) {
+                    self.message("Секущая плоскость не задана");
+                } else if self.angle_picks.take().is_some() {
+                    self.measured_angle = None;
+                    self.message("Измерение угла завершено");
                 } else if self.trim.cancel()
                     || self.detail.cancel()
                     || self.edit_pick.cancel()
@@ -1089,6 +1123,47 @@ impl Workbench {
                 self.measure = Some(Vec::new());
                 self.mode = Mode::Model;
                 self.message(self.prompt());
+            }
+            Cmd::MeasureAngle => {
+                self.engine.cancel();
+                self.editor.cancel();
+                self.detail.cancel();
+                self.edit_pick.cancel();
+                self.measure = None;
+                self.angle_picks = Some(Vec::new());
+                self.mode = Mode::Model;
+                self.message(self.prompt());
+            }
+            Cmd::ClipPlanePick => {
+                self.engine.cancel();
+                self.editor.cancel();
+                self.detail.cancel();
+                self.measure = None;
+                self.angle_picks = None;
+                self.clip_pick = true;
+                self.mode = Mode::Model;
+                self.message(self.prompt());
+            }
+            Cmd::ClipPlaneRemove => {
+                self.clip_pick = false;
+                self.clip[0] = None;
+                self.message("Секущая плоскость убрана");
+            }
+            Cmd::InquireObject | Cmd::CompareParts => {
+                use crate::interaction::inquire;
+                let project = self.editor.document.project();
+                let result = if cmd == Cmd::InquireObject {
+                    inquire::inquire_selected(project, &self.editor.selected)
+                } else {
+                    inquire::compare_selected(project, &self.editor.selected)
+                };
+                match result {
+                    Ok(i) => {
+                        self.message(i.note.clone().unwrap_or_else(|| i.title.clone()));
+                        self.inquiry = Some(i);
+                    }
+                    Err(e) => self.message(e),
+                }
             }
             Cmd::CycleFocus => {
                 self.focus_area = self.focus_area.next();
@@ -1357,6 +1432,31 @@ impl Workbench {
                 return self.finish_trim();
             }
             self.message(self.prompt());
+            return None;
+        }
+        if self.clip_pick {
+            self.clip_pick = false;
+            self.message("Секущая плоскость задана: модель перед ней скрыта");
+            return Some(Request::ClipAt(point));
+        }
+        if let Some(picks) = &mut self.angle_picks {
+            picks.push(point);
+            if let [v, a, b] = picks[..] {
+                picks.clear();
+                match crate::interaction::inquire::angle_deg(v, a, b) {
+                    Some(deg) => {
+                        self.measured_angle = Some([v, a, b]);
+                        self.message(format!(
+                            "Угол {deg:.2}° (дополнительный {:.2}°)",
+                            180. - deg
+                        ));
+                    }
+                    None => self.message("Точки совпадают: укажите вершину и две разные точки"),
+                }
+            } else {
+                self.measured_angle = None;
+                self.message(self.prompt());
+            }
             return None;
         }
         if let Some(picks) = &mut self.measure {
@@ -1940,6 +2040,46 @@ impl Workbench {
         }
     }
 
+    fn inquiry_window(&mut self, ctx: &egui::Context) {
+        let Some(i) = &self.inquiry else {
+            return;
+        };
+        let mut open = true;
+        egui::Window::new(i.title.clone())
+            .id(egui::Id::new("inquiry window"))
+            .open(&mut open)
+            .collapsible(false)
+            .default_width(420.)
+            .show(ctx, |ui| {
+                egui::ScrollArea::vertical()
+                    .max_height(420.)
+                    .show(ui, |ui| {
+                        egui::Grid::new("inquiry grid")
+                            .striped(true)
+                            .num_columns(i.header.len())
+                            .show(ui, |ui| {
+                                for h in &i.header {
+                                    ui.strong(h);
+                                }
+                                ui.end_row();
+                                for row in &i.rows {
+                                    for cell in row {
+                                        ui.label(cell);
+                                    }
+                                    ui.end_row();
+                                }
+                            });
+                    });
+                if let Some(note) = &i.note {
+                    ui.separator();
+                    ui.label(note);
+                }
+            });
+        if !open {
+            self.inquiry = None;
+        }
+    }
+
     fn document_window(&mut self, ctx: &egui::Context, requests: &mut Vec<Request>) {
         let Some(info) = &mut self.document_info else {
             return;
@@ -2235,6 +2375,7 @@ impl Workbench {
                 .as_ref()
                 .and_then(|p| p.last().copied()))
             .or(self.measure.as_ref().and_then(|p| p.last().copied()))
+            .or(self.angle_picks.as_ref().and_then(|p| p.last().copied()))
     }
 
     /// X, Y, Z while picking: lock that work plane coordinate at the
@@ -2435,6 +2576,7 @@ impl Workbench {
         self.components_window(&ctx);
         self.component_editor_window(&ctx);
         self.document_window(&ctx, &mut requests);
+        self.inquiry_window(&ctx);
         self.delete_window(&ctx, &mut requests);
         self.special_window(&ctx, &mut requests);
         self.filter_window(&ctx);

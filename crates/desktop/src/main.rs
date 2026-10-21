@@ -403,6 +403,13 @@ impl Desktop {
                     }
                 }
                 Request::ToggleProjection => self.camera.orthographic = !self.camera.orthographic,
+                Request::ClipAt(point) => {
+                    self.bench.clip[0] = Some(open_bim_desktop::ui::clip_facing(
+                        self.camera.eye(),
+                        self.camera.target,
+                        point,
+                    ));
+                }
                 Request::View(view) => self.camera.set_view(view),
                 Request::Loaded(scene) => {
                     self.bench.objects = scene.instances.len();
@@ -863,6 +870,8 @@ impl eframe::App for Desktop {
                     Cmd::ShowOnlySelected,
                     Cmd::ShowAll,
                     Cmd::FitSelected,
+                    Cmd::InquireObject,
+                    Cmd::CompareParts,
                     Cmd::PartDrawing,
                     Cmd::GridDialog,
                 ] {
@@ -1259,6 +1268,34 @@ impl eframe::App for Desktop {
                     pa.lerp(pb, 0.5) - egui::vec2(0., 10.),
                     egui::Align2::CENTER_BOTTOM,
                     format!("{:.1} мм", a.distance(b)),
+                    egui::FontId::proportional(13.),
+                    ink,
+                );
+            }
+            // Last angle: both sides from the vertex with the value.
+            if let Some([v, a, b]) = self.bench.measured_angle
+                && let (Some(pv), Some(pa), Some(pb)) = (
+                    projector.screen(v),
+                    projector.screen(a),
+                    projector.screen(b),
+                )
+                && let Some(deg) = open_bim_desktop::interaction::inquire::angle_deg(v, a, b)
+            {
+                let p = |q: [f64; 2]| egui::pos2(q[0] as f32, q[1] as f32);
+                let ink = if light {
+                    egui::Color32::BLACK
+                } else {
+                    egui::Color32::WHITE
+                };
+                for side in [pa, pb] {
+                    ui.painter()
+                        .line_segment([p(pv), p(side)], egui::Stroke::new(1.5, ink));
+                }
+                ui.painter().circle_filled(p(pv), 3., ink);
+                ui.painter().text(
+                    p(pv) + (p(pa).lerp(p(pb), 0.5) - p(pv)).normalized() * 28.,
+                    egui::Align2::CENTER_CENTER,
+                    format!("{deg:.2}°"),
                     egui::FontId::proportional(13.),
                     ink,
                 );
