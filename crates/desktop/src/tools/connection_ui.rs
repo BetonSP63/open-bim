@@ -225,6 +225,13 @@ impl ConnectionUi {
                         ui.add(egui::DragValue::new(rows).range(1..=12));
                     });
                 }
+                TemplateKind::Gusset { bolts, pitch } => {
+                    dimension(ui, "Шаг болтов, мм", pitch);
+                    ui.horizontal(|ui| {
+                        ui.label("Болтов в ряду");
+                        ui.add(egui::DragValue::new(bolts).range(1..=12));
+                    });
+                }
                 TemplateKind::Haunch { length, depth } => {
                     dimension(ui, "Длина вуты вдоль балки, мм", length);
                     dimension(ui, "Высота вуты под балкой, мм", depth);

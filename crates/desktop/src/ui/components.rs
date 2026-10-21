@@ -83,6 +83,17 @@ pub fn catalog() -> Vec<Component> {
             thickness: 10.,
         },
         Component {
+            name: "Фасонка связи",
+            group: "Связи",
+            description: "Фасонка за полкой уголковой связи: болты в ряд вдоль связи, шов к ближайшей грани опоры. Выберите связь, затем колонну или балку.",
+            needs_support: true,
+            kind: TemplateKind::Gusset {
+                bolts: 2,
+                pitch: 70.,
+            },
+            thickness: 10.,
+        },
+        Component {
             name: "Уголковое соединение",
             group: "Балка — колонна / балка",
             description: "Уголок на двух болтах к стенке балки и двух болтах к опоре. Выберите балку, затем опору.",

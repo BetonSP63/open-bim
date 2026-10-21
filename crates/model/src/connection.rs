@@ -30,6 +30,9 @@ impl ConnectionInstance {
         if let TemplateKind::Haunch { .. } = self.template.kind {
             return self.validate_haunch(p);
         }
+        if let TemplateKind::Gusset { bolts, .. } = self.template.kind {
+            return self.validate_gusset(p, bolts);
+        }
         let roles: &[&str] = match self.template.kind {
             TemplateKind::BasePlate { .. } => &[
                 "plate", "hole-0", "hole-1", "hole-2", "hole-3", "bolts", "weld",
@@ -64,7 +67,8 @@ impl ConnectionInstance {
             TemplateKind::FinPlate { .. }
             | TemplateKind::ColumnStiffeners { .. }
             | TemplateKind::BeamSplice { .. }
-            | TemplateKind::Haunch { .. } => unreachable!(),
+            | TemplateKind::Haunch { .. }
+            | TemplateKind::Gusset { .. } => unreachable!(),
         };
         if self.children.len() != roles.len()
             || roles.iter().any(|r| !self.children.contains_key(*r))
@@ -418,6 +422,79 @@ impl ConnectionInstance {
     }
 }
 
+/// Child roles of a brace gusset with `bolts` bolts.
+pub fn gusset_roles(bolts: u32) -> Vec<String> {
+    let mut roles = vec!["gusset".to_string(), "bolts".into(), "weld".into()];
+    for i in 0..bolts {
+        roles.push(format!("gusset-hole-{i}"));
+        roles.push(format!("brace-hole-{i}"));
+    }
+    roles
+}
+
+impl ConnectionInstance {
+    /// Brace gusset: the plate, its holes and the brace holes, the bolt
+    /// group joining plate and brace, and the weld to the support.
+    fn validate_gusset(&self, p: &crate::Project, bolts: u32) -> Result<(), ModelError> {
+        let error =
+            || ModelError::InvalidValue("Состав соединения не соответствует шаблону".into());
+        let support = self.secondary.ok_or_else(error)?;
+        let roles = gusset_roles(bolts);
+        if self.children.len() != roles.len()
+            || roles.iter().any(|r| !self.children.contains_key(r))
+        {
+            return Err(error());
+        }
+        let gusset = self.children["gusset"];
+        if !matches!(
+            p.elements.get(&gusset).map(|e| &e.shape),
+            Some(crate::ElementShape::Plate { .. })
+        ) {
+            return Err(error());
+        }
+        for (role, id) in &self.children {
+            if role.contains("hole-")
+                && !matches!(
+                    p.details.get(id).map(|d| &d.kind),
+                    Some(crate::DetailKind::Hole { .. })
+                )
+            {
+                return Err(error());
+            }
+        }
+        let Some(crate::DetailKind::BoltGroup {
+            parts,
+            diameter,
+            clearance,
+            standard,
+            grade,
+            ..
+        }) = p.details.get(&self.children["bolts"]).map(|d| &d.kind)
+        else {
+            return Err(error());
+        };
+        if *parts != std::collections::BTreeSet::from([gusset, self.primary])
+            || *diameter != self.template.bolt_diameter
+            || *clearance != self.template.clearance
+            || *standard != self.template.bolt_standard
+            || *grade != self.template.bolt_grade
+        {
+            return Err(error());
+        }
+        let Some(crate::DetailKind::Weld { parts, size, .. }) =
+            p.details.get(&self.children["weld"]).map(|d| &d.kind)
+        else {
+            return Err(error());
+        };
+        if *parts != std::collections::BTreeSet::from([gusset, support])
+            || *size != self.template.weld_size
+        {
+            return Err(error());
+        }
+        Ok(())
+    }
+}
+
 /// Dimensions use millimetres. This contract makes no capacity calculation.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -478,6 +555,12 @@ pub enum TemplateKind {
         length: f64,
         depth: f64,
     },
+    /// Gusset plate at the end of an angle brace: bolted to the brace leg
+    /// with one row of `bolts` at `pitch` and welded to the support face.
+    Gusset {
+        bolts: u32,
+        pitch: f64,
+    },
 }
 
 impl ConnectionTemplate {
@@ -528,6 +611,14 @@ impl ConnectionTemplate {
                     || (rows > 1 && pitch <= hole)
                     || height < 2.0 * self.edge_distance + pitch * (rows - 1) as f64
                     || lap < 2.0 * self.edge_distance
+                {
+                    return Err(invalid());
+                }
+            }
+            TemplateKind::Gusset { bolts, pitch } => {
+                if !positive(pitch)
+                    || !(1..=12).contains(&bolts)
+                    || (bolts > 1 && pitch <= self.bolt_diameter + self.clearance)
                 {
                     return Err(invalid());
                 }
