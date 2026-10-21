@@ -105,6 +105,7 @@ pub enum Cmd {
     ApplyProperty,
     NumberAndCheck,
     ExportIfc,
+    ExportNc,
     ImportIfc,
     DocumentManager,
     PartDrawing,
@@ -187,6 +188,13 @@ pub const ALL: &[Spec] = &[
         category: "Файл",
         shortcut: s(CMD, Key::E),
         keywords: "ifc обмен выгрузить",
+    },
+    Spec {
+        cmd: Cmd::ExportNc,
+        label: "Экспорт NC (DSTV)",
+        category: "Файл",
+        shortcut: None,
+        keywords: "nc dstv nc1 станок чпу производство",
     },
     Spec {
         cmd: Cmd::ImportIfc,

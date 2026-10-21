@@ -1,0 +1,17 @@
+[package]
+name = "open-bim-nc"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+open-bim-model.workspace = true
+open-bim-numbering.workspace = true
+
+[dev-dependencies]
+open-bim-steel.workspace = true
+open-bim-commands.workspace = true

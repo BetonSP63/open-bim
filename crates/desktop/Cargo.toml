@@ -27,6 +27,7 @@ open-bim-drawings.workspace = true
 open-bim-drawing-export.workspace = true
 open-bim-reports.workspace = true
 open-bim-ifc.workspace = true
+open-bim-nc.workspace = true
 
 [dev-dependencies]
 skrifa = "=0.44.0"

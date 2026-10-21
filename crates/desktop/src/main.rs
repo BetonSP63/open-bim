@@ -303,6 +303,12 @@ impl Desktop {
                     Some(self.bench.editor.export_ifc(&path).unwrap_or_else(|e| e));
                 return;
             }
+            Action::ExportNc => {
+                let path = std::path::Path::new(&self.bench.tools.path);
+                self.bench.tools.message =
+                    Some(self.bench.editor.export_nc(path).unwrap_or_else(|e| e));
+                return;
+            }
             Action::ImportIfc => {
                 let path = std::path::Path::new(&self.bench.tools.path).with_extension("ifc");
                 match self.bench.editor.import_ifc(&path) {

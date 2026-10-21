@@ -14,6 +14,7 @@ pub enum Action {
     Save,
     Open,
     ExportIfc,
+    ExportNc,
     ImportIfc,
     New,
     Example,
@@ -486,6 +487,13 @@ impl ToolsUi {
                 }
                 if ui.button("Импорт IFC4").clicked() {
                     action = Some(Action::ImportIfc);
+                }
+                if ui
+                    .button("Экспорт NC")
+                    .on_hover_text("Файлы DSTV .nc1 по маркам деталей в папке .nc рядом с проектом")
+                    .clicked()
+                {
+                    action = Some(Action::ExportNc);
                 }
             });
         }
