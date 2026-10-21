@@ -15,6 +15,7 @@ fn base_plate_recipe_tracks_section_attachment_and_world_frame() {
         at_end: false,
         template,
         children: Default::default(),
+        general: Default::default(),
     };
     let recipe = base_plate_geometry(&p, &instance).unwrap();
     let ElementShape::Plate {

@@ -84,6 +84,7 @@ fn create(doc: &mut Document, at_end: bool, rows: u32) -> ObjectId {
                 at_end,
                 template: template(rows),
                 children: Default::default(),
+                general: Default::default(),
             },
         }],
     )
@@ -172,6 +173,7 @@ fn support_away_from_the_gap_or_bad_parameters_are_refused() {
                     at_end: true,
                     template: t,
                     children: Default::default(),
+                    general: Default::default(),
                 },
             }],
         )

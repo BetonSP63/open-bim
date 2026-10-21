@@ -89,6 +89,7 @@ fn beam_connections_drill_only_the_contacting_column_flange() {
                     at_end: true,
                     template,
                     children: Default::default(),
+                    general: Default::default(),
                 },
             }],
         )

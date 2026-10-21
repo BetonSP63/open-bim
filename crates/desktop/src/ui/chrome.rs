@@ -256,6 +256,7 @@ impl Workbench {
         let allowed = |id: &ObjectId| {
             (self.select.grids && project.axes.contains_key(id))
                 || (self.select.levels && project.levels.contains_key(id))
+                || (self.select.components && project.connections.contains_key(id))
                 || project.construction.contains_key(id)
                 || project.dimensions.contains_key(id)
         };
@@ -265,6 +266,14 @@ impl Workbench {
                     (Some(a), _) => format!("Выбрана ось {}", a.name),
                     (_, Some(l)) => format!("Выбран уровень {}", l.name),
                     _ if project.dimensions.contains_key(&axis) => "Выбран размер".into(),
+                    _ if project.connections.contains_key(&axis) => {
+                        let c = &project.connections[&axis];
+                        format!(
+                            "Выбран узел «{}»: {} (двойной щелчок — свойства, Delete — удалить)",
+                            c.template.name,
+                            crate::interaction::component_symbols::status(c).label()
+                        )
+                    }
                     _ => "Выбран вспомогательный объект (Delete — удалить)".into(),
                 };
                 crate::interaction::selection::apply(
@@ -537,6 +546,12 @@ impl Workbench {
                         &mut f.assemblies,
                     ),
                     (
+                        Icon::SelectComponents,
+                        "Выбор узлов",
+                        "Выбирать узлы по их символам",
+                        &mut f.components,
+                    ),
+                    (
                         Icon::SelectBolts,
                         "Выбор болтов",
                         "Выбирать болтовые группы",
@@ -583,6 +598,11 @@ impl Workbench {
                 for (cmd, name, on) in [
                     (Cmd::ToggleDragDrop, "Перетаскивание", self.drag_drop),
                     (Cmd::ToggleRollover, "Подсветка", self.rollover),
+                    (
+                        Cmd::ToggleComponentSymbols,
+                        "Символы узлов",
+                        self.show_components,
+                    ),
                     (Cmd::SelectionFilter, "Фильтр", self.filter.active()),
                 ] {
                     if ui

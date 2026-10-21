@@ -65,6 +65,7 @@ pub enum Cmd {
     MoveSpecial,
     SelectPrevious,
     ToggleRollover,
+    ToggleComponentSymbols,
     SelectionFilter,
     ToggleDragDrop,
     FitSelected,
@@ -424,6 +425,13 @@ pub const ALL: &[Spec] = &[
         category: "Выбор",
         shortcut: s(NONE, Key::H),
         keywords: "подсветка наведение rollover highlight",
+    },
+    Spec {
+        cmd: Cmd::ToggleComponentSymbols,
+        label: "Символы узлов",
+        category: "Выбор",
+        shortcut: None,
+        keywords: "символ узла компонент состояние соединение component symbol",
     },
     Spec {
         cmd: Cmd::SelectionFilter,

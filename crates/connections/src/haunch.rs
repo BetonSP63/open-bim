@@ -159,7 +159,13 @@ pub fn rebuild_haunches(project: &mut Project, previous: &Project) -> Result<(),
         if !instance_changed(project, previous, &instance) {
             continue;
         }
-        let recipe = haunch_geometry(project, &instance)?;
+        let recipe = match haunch_geometry(project, &instance) {
+            Ok(recipe) => recipe,
+            Err(error) => {
+                crate::keep_failed(project, previous, instance, error)?;
+                continue;
+            }
+        };
         retain_children(project, &mut instance, &HAUNCH_ROLES);
         let t = instance.template.clone();
         let web = child_id(project, &mut instance, "web-plate")?;

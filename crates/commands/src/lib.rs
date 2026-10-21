@@ -199,6 +199,7 @@ impl Document {
         open_bim_connections::rebuild_beam_splices(&mut staged, &self.project)?;
         open_bim_connections::rebuild_haunches(&mut staged, &self.project)?;
         open_bim_connections::rebuild_gussets(&mut staged, &self.project)?;
+        open_bim_connections::apply_component_classes(&mut staged);
         staged.validate()?;
         staged.revision = staged
             .revision
@@ -340,6 +341,11 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
             if old.children != connection.children {
                 return Err(CommandError::InvalidTransaction(
                     "ID деталей узла управляются генератором".into(),
+                ));
+            }
+            if old.general.locked && connection.general.locked && old != connection {
+                return Err(CommandError::InvalidTransaction(
+                    "Узел заблокирован: снимите флажок «Заблокировано» на вкладке «Общие»".into(),
                 ));
             }
             project

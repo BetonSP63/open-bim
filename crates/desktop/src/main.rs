@@ -6,6 +6,8 @@ use open_bim_desktop::ui::{Request, Workbench};
 use open_bim_model::{ObjectId, example_steel_frame};
 /// Work area box margin around the model bounds, mm.
 const WORK_AREA_MARGIN_MM: f64 = 500.0;
+/// Pixels around a component symbol that pick it.
+const SYMBOL_PICK_PX: f64 = 8.0;
 use open_bim_renderer::{
     Camera, ClipPlane, DVec3, GpuRenderer, NamedView, Scene, ViewState, ViewportCallback, overlay,
 };
@@ -929,13 +931,47 @@ impl eframe::App for Desktop {
                         })
                         .or_else(|| pick_axis(project, &projector, at, 6.))
                     });
-                    self.bench.select_clicked(id, axis, click_mode);
+                    // A component symbol wins over the part behind it.
+                    let symbol = response
+                        .interact_pointer_pos()
+                        .filter(|_| self.bench.select.components)
+                        .and_then(|p| {
+                            open_bim_desktop::interaction::component_symbols::pick(
+                                self.bench.editor.document.project(),
+                                &projector,
+                                &self.view.hidden,
+                                [p.x as f64, p.y as f64],
+                                SYMBOL_PICK_PX,
+                            )
+                        });
+                    if symbol.is_some() {
+                        self.bench.select_clicked(None, symbol, click_mode);
+                    } else {
+                        self.bench.select_clicked(id, axis, click_mode);
+                    }
                     self.bench.select = saved;
                 }
             }
             // Double click opens the properties of the clicked part.
             // On a grid line (no part under the cursor) it opens the grid dialog.
-            if response.double_clicked() && !self.bench.picking() {
+            let symbol = response
+                .double_clicked()
+                .then(|| response.interact_pointer_pos())
+                .flatten()
+                .filter(|_| !self.bench.picking())
+                .and_then(|p| {
+                    open_bim_desktop::interaction::component_symbols::pick(
+                        self.bench.editor.document.project(),
+                        &projector,
+                        &self.view.hidden,
+                        [p.x as f64, p.y as f64],
+                        SYMBOL_PICK_PX,
+                    )
+                });
+            // Double click on a component symbol opens the component's properties.
+            if let Some(id) = symbol {
+                self.bench.open_component(id);
+            } else if response.double_clicked() && !self.bench.picking() {
                 let on_grid = hover
                     .and_then(|ray| self.scene.pick(ray, &self.view))
                     .is_none()
@@ -1170,6 +1206,18 @@ impl eframe::App for Desktop {
                 },
             );
             open_bim_desktop::viewport::paint(ui.painter(), &marks);
+            if self.bench.show_components {
+                open_bim_desktop::viewport::paint_symbols(
+                    ui.painter(),
+                    &open_bim_desktop::interaction::component_symbols::symbols(
+                        self.bench.editor.document.project(),
+                        &projector,
+                        &self.view.hidden,
+                        &self.bench.editor.selected,
+                    ),
+                    light,
+                );
+            }
             // Last measurement: dimension line with the distance.
             if let Some((a, b)) = self.bench.measured
                 && let (Some(pa), Some(pb)) = (projector.screen(a), projector.screen(b))

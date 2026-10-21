@@ -240,7 +240,13 @@ pub fn rebuild_clip_angles(project: &mut Project, previous: &Project) -> Result<
         if !instance_changed(project, previous, &instance) {
             continue;
         }
-        let recipe = clip_angle_geometry(project, &instance)?;
+        let recipe = match clip_angle_geometry(project, &instance) {
+            Ok(recipe) => recipe,
+            Err(error) => {
+                crate::keep_failed(project, previous, instance, error)?;
+                continue;
+            }
+        };
         retain_children(
             project,
             &mut instance,

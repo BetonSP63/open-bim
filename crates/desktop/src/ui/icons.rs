@@ -56,6 +56,7 @@ pub enum Icon {
     SelectAssemblies,
     SelectBolts,
     SelectWelds,
+    SelectComponents,
     SelectGrid,
     SelectLevels,
 }
@@ -728,6 +729,12 @@ pub fn paint(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32, en
                 line(p, r, (x, 0.75), (x + 0.1, 0.35), s);
                 line(p, r, (x + 0.1, 0.35), (x + 0.2, 0.75), s);
             }
+        }
+        Icon::SelectComponents => {
+            // Two parts meeting at a component symbol.
+            line(p, r, (0.1, 0.8), (0.9, 0.8), thin);
+            line(p, r, (0.5, 0.8), (0.5, 0.1), thin);
+            p.circle_stroke(at(r, 0.5, 0.55), r.width() * 0.16, s);
         }
         Icon::SelectGrid => {
             line(p, r, (0.3, 0.05), (0.3, 0.95), Stroke::new(thin.width, ink));

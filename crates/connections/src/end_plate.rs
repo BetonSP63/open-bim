@@ -261,7 +261,13 @@ pub fn rebuild_end_plates(project: &mut Project, previous: &Project) -> Result<(
         if !crate::instance_changed(project, previous, &instance) {
             continue;
         }
-        let recipe = end_plate_geometry(project, &instance)?;
+        let recipe = match end_plate_geometry(project, &instance) {
+            Ok(recipe) => recipe,
+            Err(error) => {
+                crate::keep_failed(project, previous, instance, error)?;
+                continue;
+            }
+        };
         crate::retain_children(
             project,
             &mut instance,

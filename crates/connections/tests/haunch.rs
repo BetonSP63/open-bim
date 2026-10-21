@@ -71,6 +71,7 @@ fn attempt(doc: &mut Document, at_end: bool, t: ConnectionTemplate) -> Result<Ob
                 at_end,
                 template: t,
                 children: Default::default(),
+                general: Default::default(),
             },
         }],
     )

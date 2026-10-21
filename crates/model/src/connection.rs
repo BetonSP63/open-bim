@@ -10,14 +10,41 @@ pub struct ConnectionInstance {
     pub secondary: Option<ObjectId>,
     pub at_end: bool,
     pub template: ConnectionTemplate,
-    /// Semantic child keys retain IDs across regeneration.
+    /// Semantic child keys retain IDs across regeneration. Empty when the
+    /// component could not be built after its parts changed («не создан»).
     pub children: BTreeMap<String, ObjectId>,
+    #[serde(default, skip_serializing_if = "ComponentGeneral::is_default")]
+    pub general: ComponentGeneral,
+}
+
+/// «Общие»: settings every component has besides its template.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ComponentGeneral {
+    /// Changes to the component's properties are refused while it is set.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub locked: bool,
+    /// Class given to every part the component makes (part colour by class).
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub class: String,
+    /// Connection code shown next to the component symbol.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub code: String,
+}
+
+impl ComponentGeneral {
+    pub fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
 }
 
 impl ConnectionInstance {
     pub(crate) fn validate_child_roles(&self, p: &crate::Project) -> Result<(), ModelError> {
         let error =
             || ModelError::InvalidValue("Состав соединения не соответствует шаблону".into());
+        if self.children.is_empty() {
+            return Ok(());
+        }
         if let TemplateKind::FinPlate { rows, .. } = self.template.kind {
             return self.validate_fin_plate(p, rows);
         }

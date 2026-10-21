@@ -196,6 +196,7 @@ fn instance(
         at_end,
         template,
         children: Default::default(),
+        general: Default::default(),
     }
 }
 

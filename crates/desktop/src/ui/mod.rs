@@ -195,6 +195,8 @@ pub struct Workbench {
     /// Rollover highlight (H) and the part under the cursor.
     pub rollover: bool,
     pub hovered: Option<ObjectId>,
+    /// Component symbols in the model (status colour, code).
+    pub show_components: bool,
     /// Delete waiting for confirmation: ids and the total number removed.
     pub delete_confirm: Option<(BTreeSet<ObjectId>, usize)>,
     /// Tab / Shift+Tab: index into the snap candidates under the cursor.
@@ -289,6 +291,7 @@ impl Workbench {
             previous_selection: BTreeSet::new(),
             selection_seen: BTreeSet::new(),
             rollover: true,
+            show_components: true,
             hovered: None,
             delete_confirm: None,
             snap_cycle: 0,
@@ -933,6 +936,14 @@ impl Workbench {
                     ));
                 }
             }
+            Cmd::ToggleComponentSymbols => {
+                self.show_components = !self.show_components;
+                self.message(if self.show_components {
+                    "Символы узлов: показаны"
+                } else {
+                    "Символы узлов: скрыты"
+                });
+            }
             Cmd::ToggleRollover => {
                 self.rollover = !self.rollover;
                 self.hovered = None;
@@ -1529,6 +1540,21 @@ impl Workbench {
     }
 
     /// Remember the selection it replaces when the selection changed (Alt+P).
+    /// Double click on a component symbol: select the component and open its
+    /// properties in the «Узлы» panel.
+    pub fn open_component(&mut self, id: ObjectId) {
+        let project = self.editor.document.project();
+        if let Err(e) = self.tools.connection.load(project, id) {
+            self.message(e);
+            return;
+        }
+        self.editor.selected = BTreeSet::from([id]);
+        self.sync_selection();
+        self.mode = Mode::Model;
+        self.side_panel = Some(chrome::SidePanel::Connections);
+        self.message("Свойства узла: измените значения и нажмите «Изменить»");
+    }
+
     pub fn sync_selection(&mut self) {
         if self.editor.selected != self.selection_seen {
             self.previous_selection =

@@ -133,3 +133,43 @@ pub fn paint(painter: &egui::Painter, marks: &[Mark]) {
         }
     }
 }
+
+/// Component symbols: a filled circle in the status colour (green created,
+/// yellow with remarks, red not created), a ring when selected, and the
+/// connection code or name beside it.
+pub fn paint_symbols(
+    painter: &egui::Painter,
+    symbols: &[crate::interaction::component_symbols::Symbol],
+    light: bool,
+) {
+    use crate::interaction::component_symbols::Status;
+    let ink = if light {
+        egui::Color32::from_gray(30)
+    } else {
+        egui::Color32::from_gray(230)
+    };
+    for s in symbols {
+        let at = egui::pos2(s.at[0] as f32, s.at[1] as f32);
+        let fill = match s.status {
+            Status::Created => egui::Color32::from_rgb(40, 170, 70),
+            Status::Remarks(_) => egui::Color32::from_rgb(235, 190, 30),
+            Status::Failed => egui::Color32::from_rgb(220, 50, 40),
+        };
+        painter.circle_filled(at, 5., fill);
+        painter.circle_stroke(at, 5., egui::Stroke::new(1., ink));
+        if s.selected {
+            painter.circle_stroke(
+                at,
+                8.5,
+                egui::Stroke::new(2., egui::Color32::from_rgb(255, 0, 200)),
+            );
+        }
+        painter.text(
+            at + egui::vec2(9., -9.),
+            egui::Align2::LEFT_BOTTOM,
+            &s.label,
+            egui::FontId::proportional(11.),
+            ink,
+        );
+    }
+}

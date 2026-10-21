@@ -174,7 +174,13 @@ pub fn rebuild_fin_plates(project: &mut Project, previous: &Project) -> Result<(
         if !instance_changed(project, previous, &instance) {
             continue;
         }
-        let recipe = fin_plate_geometry(project, &instance)?;
+        let recipe = match fin_plate_geometry(project, &instance) {
+            Ok(recipe) => recipe,
+            Err(error) => {
+                crate::keep_failed(project, previous, instance, error)?;
+                continue;
+            }
+        };
         let roles = fin_plate_roles(recipe.rows);
         let refs: Vec<&str> = roles.iter().map(String::as_str).collect();
         retain_children(project, &mut instance, &refs);

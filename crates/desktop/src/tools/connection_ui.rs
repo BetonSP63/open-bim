@@ -1,6 +1,8 @@
 use eframe::egui;
 use open_bim_commands::Command;
-use open_bim_model::{ConnectionInstance, ConnectionTemplate, ObjectId, Project, TemplateKind};
+use open_bim_model::{
+    ComponentGeneral, ConnectionInstance, ConnectionTemplate, ObjectId, Project, TemplateKind,
+};
 use std::collections::BTreeSet;
 use std::io::Read;
 
@@ -13,6 +15,11 @@ pub struct ConnectionUi {
     pub path: String,
     pub message: Option<String>,
     pub loaded: Option<ConnectionInstance>,
+    /// «Общие»: blocking, class and code of the component.
+    pub general: ComponentGeneral,
+    /// «Изменить выбранные»: change only components of the same type
+    /// (otherwise every selected component takes this type).
+    pub only_same_type: bool,
 }
 impl Default for ConnectionUi {
     fn default() -> Self {
@@ -36,6 +43,8 @@ impl Default for ConnectionUi {
             path: "connection-template.json".into(),
             message: None,
             loaded: None,
+            general: ComponentGeneral::default(),
+            only_same_type: true,
         }
     }
 }
@@ -61,12 +70,14 @@ impl ConnectionUi {
                 at_end: self.at_end,
                 template: self.template.clone(),
                 children: Default::default(),
+                general: self.general.clone(),
             }
         };
         connection.primary = primary;
         connection.secondary = secondary;
         connection.at_end = self.at_end;
         connection.template = self.template.clone();
+        connection.general = self.general.clone();
         Ok(vec![if self.editing.is_some() {
             Command::ReplaceConnection { connection }
         } else {
@@ -80,6 +91,7 @@ impl ConnectionUi {
         self.secondary = c.secondary;
         self.at_end = c.at_end;
         self.template = c.template.clone();
+        self.general = c.general.clone();
         self.loaded = Some(c.clone());
         Ok(())
     }
@@ -94,6 +106,44 @@ impl ConnectionUi {
                 self.loaded = None;
             }
         }
+    }
+    /// «Изменить» for all selected components: the template and «Общие» of
+    /// this dialog go to each one. Locked components, and with
+    /// `only_same_type` the components of another type, are skipped; the
+    /// count of skipped ones comes back with the commands.
+    pub fn modify_selected(
+        &self,
+        p: &Project,
+        selected: &BTreeSet<ObjectId>,
+    ) -> Result<(Vec<Command>, usize), String> {
+        self.template.validate().map_err(|e| e.to_string())?;
+        let mut commands = Vec::new();
+        let mut skipped = 0;
+        for c in p.connections.values().filter(|c| selected.contains(&c.id)) {
+            let same = std::mem::discriminant(&c.template.kind)
+                == std::mem::discriminant(&self.template.kind);
+            if c.general.locked || (self.only_same_type && !same) {
+                skipped += 1;
+                continue;
+            }
+            let base_plate = matches!(self.template.kind, TemplateKind::BasePlate { .. });
+            if !base_plate && c.secondary.is_none() {
+                // A node on one part cannot become a two-part connection.
+                skipped += 1;
+                continue;
+            }
+            let mut connection = c.clone();
+            connection.template = self.template.clone();
+            connection.general = self.general.clone();
+            if base_plate {
+                connection.secondary = None;
+            }
+            commands.push(Command::ReplaceConnection { connection });
+        }
+        if commands.is_empty() {
+            return Err("Нет узлов, которые можно изменить".into());
+        }
+        Ok((commands, skipped))
     }
     pub fn export_template(&self) -> Result<(), String> {
         let json = self.template.to_json().map_err(|e| e.to_string())?;
@@ -280,6 +330,31 @@ impl ConnectionUi {
             if !matches!(self.template.kind, TemplateKind::ClipAngle { .. }) {
                 dimension(ui, "Размер шва, мм", &mut self.template.weld_size);
             }
+            ui.collapsing("Общие", |ui| {
+                ui.checkbox(&mut self.general.locked, "Заблокировано");
+                let field_label = ui.label("Класс деталей узла");
+                ui.text_edit_singleline(&mut self.general.class)
+                    .labelled_by(field_label.id);
+                let field_label = ui.label("Код узла");
+                ui.text_edit_singleline(&mut self.general.code)
+                    .labelled_by(field_label.id);
+            });
+            if let Some(c) = self.editing.and_then(|id| p.connections.get(&id)) {
+                use crate::interaction::component_symbols::{Status, status};
+                let state = status(c);
+                ui.label(format!("Состояние: {}", state.label()));
+                match state {
+                    Status::Remarks(remarks) => {
+                        for r in remarks {
+                            ui.label(format!("• {r}"));
+                        }
+                    }
+                    Status::Failed => {
+                        ui.label("Детали узла не позволяют его построить: измените детали или параметры узла");
+                    }
+                    Status::Created => {}
+                }
+            }
             if ui
                 .button(if self.editing.is_some() {
                     "Перестроить узел"
@@ -293,6 +368,30 @@ impl ConnectionUi {
                     self.editing = Some(ObjectId(p.next_id));
                 }
                 result = Some(command);
+            }
+            let chosen = p
+                .connections
+                .keys()
+                .filter(|id| selected.contains(id))
+                .count();
+            if chosen > 1 {
+                ui.checkbox(&mut self.only_same_type, "Только узлы того же типа");
+                if ui
+                    .button(format!("Изменить выбранные узлы ({chosen})"))
+                    .clicked()
+                {
+                    result = Some(self.modify_selected(p, selected).map(|(commands, skipped)| {
+                        self.message = Some(if skipped == 0 {
+                            format!("Изменено узлов: {}", commands.len())
+                        } else {
+                            format!(
+                                "Изменено узлов: {}, пропущено: {skipped} (заблокированы или другого типа)",
+                                commands.len()
+                            )
+                        });
+                        commands
+                    }));
+                }
             }
             let field_label = ui.label("Файл шаблона JSON");
             ui.text_edit_singleline(&mut self.path)
