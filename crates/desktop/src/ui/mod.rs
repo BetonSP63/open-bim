@@ -5,6 +5,7 @@ pub mod auto_connections;
 pub mod catalog_picker;
 pub mod chrome;
 pub mod commands;
+pub mod component_editor;
 pub mod components;
 pub mod icons;
 pub mod jobs;
@@ -140,6 +141,8 @@ pub struct Workbench {
     pub detail: crate::interaction::tools::DetailPicker,
     /// Component catalogue (Ctrl+F) and the armed component.
     pub components: components::ComponentState,
+    /// «Редактор компонентов»: the user component being made or changed.
+    pub component_editor: component_editor::EditorState,
     /// Open grid dialog («Сетка осей…»).
     pub grid: Option<crate::interaction::tools::GridSpec>,
     /// Fitting, cutting and construction commands in progress.
@@ -253,6 +256,7 @@ impl Workbench {
             work_area: true,
             detail: Default::default(),
             components: Default::default(),
+            component_editor: Default::default(),
             grid: None,
             trim: Default::default(),
             display: Default::default(),
@@ -955,6 +959,11 @@ impl Workbench {
                 self.components.cancel();
                 self.components.window = true;
                 self.message("Каталог компонентов: выберите узел");
+            }
+            Cmd::ComponentEditor => {
+                self.components.window = false;
+                let base = components::catalog().remove(0);
+                self.new_component(&base);
             }
             Cmd::FocusSearch => {
                 self.focus_area = FocusArea::Search;
@@ -2193,6 +2202,7 @@ impl Workbench {
         self.job_window(&ctx, &mut requests);
         self.grid_window(&ctx, &mut requests);
         self.components_window(&ctx);
+        self.component_editor_window(&ctx);
         self.document_window(&ctx, &mut requests);
         self.delete_window(&ctx, &mut requests);
         self.special_window(&ctx, &mut requests);

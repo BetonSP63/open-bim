@@ -75,6 +75,7 @@ pub enum Cmd {
     CycleFocus,
     FocusSearch,
     ComponentCatalog,
+    ComponentEditor,
     AutoConnections,
     GridViews,
     PanelViews,
@@ -535,6 +536,13 @@ pub const ALL: &[Spec] = &[
         category: "Детали",
         shortcut: s(CTRL, Key::F),
         keywords: "компоненты узлы соединения каталог пластина шарнир база",
+    },
+    Spec {
+        cmd: Cmd::ComponentEditor,
+        label: "Редактор компонентов…",
+        category: "Детали",
+        shortcut: None,
+        keywords: "компонент свой создать редактор узел шаблон мои компоненты изменить",
     },
     Spec {
         cmd: Cmd::AutoConnections,
