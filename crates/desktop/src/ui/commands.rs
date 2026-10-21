@@ -25,6 +25,7 @@ pub enum Cmd {
     ViewRight,
     ToolAxis,
     ToolBeam,
+    ToolTwin,
     ToolColumn,
     ToolPlate,
     ToolGusset,
@@ -339,6 +340,13 @@ pub const ALL: &[Spec] = &[
         category: "Моделирование",
         shortcut: s(ALT, Key::B),
         keywords: "beam",
+    },
+    Spec {
+        cmd: Cmd::ToolTwin,
+        label: "Сдвоенный профиль",
+        category: "Моделирование",
+        shortcut: None,
+        keywords: "сдвоенный парный два уголка швеллера спаренный twin profile",
     },
     Spec {
         cmd: Cmd::ToolColumn,

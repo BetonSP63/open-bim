@@ -1342,6 +1342,7 @@ impl Workbench {
     fn object_type(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
         let tools = [
             (Cmd::ToolBeam, "Балка"),
+            (Cmd::ToolTwin, "Сдвоенный профиль"),
             (Cmd::ToolColumn, "Колонна"),
             (Cmd::ToolPlate, "Контурная пластина"),
             (Cmd::ToolBolt, "Болт"),

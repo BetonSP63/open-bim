@@ -634,11 +634,31 @@ impl Workbench {
                 self.mode = mode;
                 self.detail.cancel();
                 let first = self.editor.begin(kind);
+                if cmd == Cmd::ToolBeam {
+                    // «Сдвоенный профиль» is its own command.
+                    self.editor.draft.twin = crate::tools::twin::Twin::Single;
+                }
                 self.engine.start(kind);
                 self.message(self.engine.prompt());
                 if first {
                     self.load_standard(crate::tools::property_files::FileKind::of_tool(kind));
                 }
+            }
+            Cmd::ToolTwin => {
+                use crate::tools::twin::Twin;
+                let kept = self.editor.draft.twin;
+                let r = self.execute(Cmd::ToolBeam);
+                self.editor.draft.twin = if kept == Twin::Single {
+                    Twin::BackToBack
+                } else {
+                    kept
+                };
+                self.message(format!(
+                    "Сдвоенный профиль ({}): {}",
+                    self.editor.draft.twin.label().to_lowercase(),
+                    self.engine.prompt()
+                ));
+                return r;
             }
             Cmd::ToolBolt | Cmd::ToolWeld | Cmd::ToolWeldPolygon | Cmd::ToolWeldOnPart => {
                 self.engine.cancel();

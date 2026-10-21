@@ -305,23 +305,34 @@ pub fn commands(
             } else {
                 MemberKind::Column
             };
-            let shape = project
-                .new_member(member_kind, draft.profile, p(start), p(end), draft.position)
-                .map_err(|e| e.to_string())?;
-            Ok(vec![Command::Create {
-                element: Element {
-                    id,
-                    name: draft.name.clone(),
-                    material: draft.material,
-                    shape,
-                    properties: if kind == ToolKind::Column {
-                        let (b, t) = draft.column_ends()?;
-                        crate::tools::column_levels::binding(b, t)
-                    } else {
-                        Default::default()
+            let shapes = crate::tools::twin::member_shapes(
+                project,
+                member_kind,
+                draft.profile,
+                (p(start), p(end)),
+                draft.position,
+                draft.twin,
+                &draft.twin_gap,
+            )?;
+            let properties = if kind == ToolKind::Column {
+                let (b, t) = draft.column_ends()?;
+                crate::tools::column_levels::binding(b, t)
+            } else {
+                Default::default()
+            };
+            Ok(shapes
+                .into_iter()
+                .zip(id.0..)
+                .map(|(shape, id)| Command::Create {
+                    element: Element {
+                        id: ObjectId(id),
+                        name: draft.name.clone(),
+                        material: draft.material,
+                        shape,
+                        properties: properties.clone(),
                     },
-                },
-            }])
+                })
+                .collect())
         }
         ToolKind::Plate | ToolKind::Gusset | ToolKind::Stiffener => {
             // Rectangle modes turn their picks into the four corners.

@@ -5,6 +5,7 @@ pub mod coordination_ui;
 pub mod detailing_ui;
 pub mod property_files;
 mod snap;
+pub mod twin;
 pub mod ui;
 use open_bim_commands::{Command, Document, project_hash};
 use open_bim_model::{
@@ -57,6 +58,9 @@ pub struct Draft {
     pub plate_position: crate::interaction::polygon::PlatePosition,
     /// Beam/column position on the reference line («Положение»).
     pub position: open_bim_model::PartPosition,
+    /// «Сдвоенный профиль» and the gap between the two members, mm.
+    pub twin: twin::Twin,
+    pub twin_gap: String,
     pub contour: String,
     /// Column bottom and top, mm («Низ»/«Верх»): global Z, or an
     /// offset from the chosen level.
@@ -79,6 +83,8 @@ impl Default for Draft {
             plate_mode: Default::default(),
             plate_position: Default::default(),
             position: Default::default(),
+            twin: Default::default(),
+            twin_gap: "10".into(),
             bottom: "0".into(),
             top: "3600".into(),
             bottom_level: None,
@@ -172,15 +178,28 @@ impl Draft {
             } else {
                 MemberKind::Column
             };
-            project
-                .new_member(
-                    member_kind,
-                    self.profile,
-                    start,
-                    point(&self.end)?,
-                    self.position,
-                )
-                .map_err(|e| e.to_string())?
+            let shapes = twin::member_shapes(
+                project,
+                member_kind,
+                self.profile,
+                (start, point(&self.end)?),
+                self.position,
+                self.twin,
+                &self.twin_gap,
+            )?;
+            return Ok(shapes
+                .into_iter()
+                .zip(project.next_id..)
+                .map(|(shape, id)| Command::Create {
+                    element: Element {
+                        id: ObjectId(id),
+                        name: self.name.clone(),
+                        material: self.material,
+                        shape,
+                        properties: Default::default(),
+                    },
+                })
+                .collect());
         };
         Ok(vec![Command::Create {
             element: Element {

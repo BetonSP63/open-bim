@@ -236,6 +236,7 @@ impl ToolsUi {
                                 &mut editor.draft.position,
                             );
                         });
+                    twin_editor(ui, &mut editor.draft);
                     let project = editor.document.project();
                     egui::ComboBox::new("profile", "Профиль")
                         .selected_text(
@@ -642,5 +643,30 @@ pub fn select(
         } else {
             selected.insert(id);
         }
+    }
+}
+
+/// «Сдвоенный профиль»: one or two members and the gap between them.
+pub fn twin_editor(ui: &mut egui::Ui, draft: &mut crate::tools::Draft) {
+    use crate::tools::twin::Twin;
+    ui.horizontal(|ui| {
+        let l = ui.label("Сдвоенный профиль");
+        egui::ComboBox::new("twin", "")
+            .selected_text(draft.twin.label())
+            .show_ui(ui, |ui| {
+                for t in Twin::ALL {
+                    ui.selectable_value(&mut draft.twin, t, t.label());
+                }
+            })
+            .response
+            .labelled_by(l.id);
+    });
+    if draft.twin != Twin::Single {
+        ui.horizontal(|ui| {
+            let l = ui.label("Зазор, мм");
+            ui.add(egui::TextEdit::singleline(&mut draft.twin_gap).desired_width(60.))
+                .labelled_by(l.id);
+        });
+        ui.small("Вторая деталь зеркальна первой; зазор — под фасонку или прокладки.");
     }
 }
