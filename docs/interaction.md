@@ -122,3 +122,9 @@ Shortcut deviations (macOS):
 - The usual detailing Ctrl commands use the Control key: Ctrl+M, Ctrl+C, Ctrl+A, Ctrl+P, Ctrl+I, Ctrl+K.
 - F2/F3/F4 switch the model, drawings and lists modes here. In the reference workflow they are selection and snap switches; here those are toolbar buttons.
 - Redo is ⇧⌘Z instead of Ctrl+Y.
+
+Organizer: the «Дерево модели» panel groups parts («Группировать»: по типу,
+по марке, по профилю, по уровню, по сборке) with the count and mass of each
+category; a category's «Выбрать все» selects its parts in the model (Shift or
+⌘ adds to the selection). Categories are recomputed from the model on every
+revision, so they never go stale (`crates/desktop/src/organizer.rs`).
