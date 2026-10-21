@@ -1,6 +1,7 @@
 //! Drawing editor: every change is a `ReplaceDrawing` transaction, so undo,
 //! redo, saving and the revision journal work exactly as for model edits.
 pub mod changes;
+pub mod manager;
 mod panel;
 mod preview;
 pub mod tools;
@@ -32,6 +33,19 @@ impl ExportFormat {
     }
 }
 
+/// File name from a designation: letters, digits, «-» and «_» kept.
+pub fn safe_file_name(name: &str) -> String {
+    name.chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect()
+}
+
 #[derive(Default)]
 pub struct DrawingEditor {
     pub current: Option<ObjectId>,
@@ -50,6 +64,8 @@ pub struct DrawingEditor {
     pub preview: PreviewState,
     /// Change and release form (sections 7, 8).
     pub change: changes::ChangeForm,
+    /// «Менеджер документов» window.
+    pub manager: manager::Manager,
     cache: Option<(Drawing, u64, Sheet)>,
 }
 
@@ -451,18 +467,11 @@ impl DrawingEditor {
         let drawing = self.require(project)?;
         let sheet = self.sheet(project)?.clone();
         std::fs::create_dir_all(directory).map_err(|e| e.to_string())?;
-        let safe: String = drawing
-            .number
-            .chars()
-            .map(|c| {
-                if c.is_alphanumeric() || c == '-' || c == '_' {
-                    c
-                } else {
-                    '_'
-                }
-            })
-            .collect();
-        let path = directory.join(format!("{safe}.{}", format.extension()));
+        let path = directory.join(format!(
+            "{}.{}",
+            safe_file_name(&drawing.number),
+            format.extension()
+        ));
         let bytes = match format {
             ExportFormat::Pdf => open_bim_drawing_export::pdf::render(&[sheet], &drawing.number)?,
             ExportFormat::Svg => open_bim_drawing_export::svg(&sheet).into_bytes(),
