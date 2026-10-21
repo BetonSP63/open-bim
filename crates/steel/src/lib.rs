@@ -15,6 +15,8 @@ pub struct BoltPattern {
     pub steps_y: Vec<f64>,
     pub standard: String,
     pub grade: String,
+    /// Circle or list bolt positions in the group frame (empty: the array of steps).
+    pub points: Vec<[f64; 2]>,
 }
 
 /// Build one atomic transaction: all associated holes plus the bolt group.
@@ -25,21 +27,13 @@ pub fn bolt_commands(project: &Project, pattern: &BoltPattern) -> Result<Vec<Com
     if pattern.steps_x.len() > 1000
         || pattern.steps_y.len() > 1000
         || (pattern.steps_x.len() + 1) * (pattern.steps_y.len() + 1) > 10000
+        || pattern.points.len() > 1000
         || pattern.parts.len() > 100
     {
         return Err(ModelError::InvalidValue("Bolt pattern too large".into()));
     }
-    let prefix = |steps: &[f64]| {
-        let mut points = vec![0.0];
-        let mut sum = 0.0;
-        for step in steps {
-            sum += step;
-            points.push(sum);
-        }
-        points
-    };
-    let xs = prefix(&pattern.steps_x);
-    let ys = prefix(&pattern.steps_y);
+    let positions =
+        open_bim_model::bolt_positions(&pattern.steps_x, &pattern.steps_y, &pattern.points);
     let mut candidate = project.clone();
     let mut commands = Vec::new();
     let mut holes = BTreeSet::new();
@@ -50,8 +44,8 @@ pub fn bolt_commands(project: &Project, pattern: &BoltPattern) -> Result<Vec<Com
             .ok_or(ModelError::MissingReference(*part))?
             .shape
             .frame();
-        for x in &xs {
-            for y in &ys {
+        for [x, y] in &positions {
+            {
                 let world = pattern.frame.world(Point3([*x, *y, 0.0]));
                 let delta = std::array::from_fn::<_, 3, _>(|i| world.0[i] - parent.origin.0[i]);
                 let dot = |a: [f64; 3], b: [f64; 3]| {
@@ -92,6 +86,7 @@ pub fn bolt_commands(project: &Project, pattern: &BoltPattern) -> Result<Vec<Com
             steps_y: pattern.steps_y.clone(),
             standard: pattern.standard.clone(),
             grade: pattern.grade.clone(),
+            points: pattern.points.clone(),
         },
     };
     candidate.details.insert(id, detail.clone());
@@ -134,13 +129,14 @@ pub fn fabrication_rows(project: &Project) -> Result<Vec<FabricationRow>, ModelE
                 steps_y,
                 standard,
                 grade,
+                points,
                 ..
             } => Some(FabricationRow::Bolts {
                 id: detail.id,
                 standard: standard.clone(),
                 grade: grade.clone(),
                 diameter_mm: *diameter,
-                count: (steps_x.len() + 1) * (steps_y.len() + 1),
+                count: open_bim_model::bolt_positions(steps_x, steps_y, points).len(),
                 parts: parts.clone(),
             }),
             DetailKind::Weld {

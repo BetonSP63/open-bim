@@ -337,24 +337,9 @@ fn detail_centres(project: &Project) -> Vec<(ObjectId, DVec3)> {
         let at = |frame: &open_bim_model::Frame, x: f64, y: f64| {
             DVec3::from_array(frame.world(Point3([x, y, 0.])).0)
         };
-        if let DetailKind::BoltGroup {
-            frame,
-            steps_x,
-            steps_y,
-            ..
-        } = &detail.kind
-        {
-            let prefix = |s: &[f64]| {
-                let mut v = vec![0.];
-                for x in s {
-                    v.push(v.last().unwrap() + x);
-                }
-                v
-            };
-            for x in prefix(steps_x) {
-                for y in prefix(steps_y) {
-                    out.push((detail.id, at(frame, x, y)));
-                }
+        if let DetailKind::BoltGroup { frame, .. } = &detail.kind {
+            for [x, y] in detail.kind.bolt_positions() {
+                out.push((detail.id, at(frame, x, y)));
             }
         }
     }

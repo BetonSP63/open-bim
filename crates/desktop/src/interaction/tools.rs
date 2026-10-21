@@ -299,13 +299,7 @@ pub fn bolt_pattern(
             high = high.max(t);
         }
     }
-    let (mut steps_x, mut steps_y) = (
-        crate::tools::detailing_ui::spacings(&props.steps_x)?,
-        crate::tools::detailing_ui::spacings(&props.steps_y)?,
-    );
-    if props.rotate {
-        std::mem::swap(&mut steps_x, &mut steps_y);
-    }
+    let (steps_x, steps_y, points) = props.bolt_layout()?;
     let origin = a + z * low + x * number(&props.shift_x)? + y * number(&props.shift_y)?;
     Ok(open_bim_steel::BoltPattern {
         parts: parts.clone(),
@@ -320,28 +314,21 @@ pub fn bolt_pattern(
         steps_y,
         standard: props.standard.clone(),
         grade: props.grade.clone(),
+        points,
     })
 }
 
 /// Bolt axes of a pattern (start and end of each bolt), for the preview.
 pub fn bolt_axes(pattern: &open_bim_steel::BoltPattern) -> Vec<(DVec3, DVec3)> {
     let f = &pattern.frame;
-    let prefix = |s: &[f64]| {
-        let mut out = vec![0.];
-        for v in s {
-            out.push(out.last().copied().unwrap_or(0.) + v);
-        }
-        out
-    };
-    let mut out = Vec::new();
-    for x in prefix(&pattern.steps_x) {
-        for y in prefix(&pattern.steps_y) {
+    open_bim_model::bolt_positions(&pattern.steps_x, &pattern.steps_y, &pattern.points)
+        .into_iter()
+        .map(|[x, y]| {
             let a = DVec3::from_array(f.world(Point3([x, y, 0.])).0);
             let b = DVec3::from_array(f.world(Point3([x, y, pattern.hole_depth])).0);
-            out.push((a, b));
-        }
-    }
-    out
+            (a, b)
+        })
+        .collect()
 }
 
 pub fn bolt_by_picks(
@@ -401,10 +388,66 @@ pub fn weld_between(
     Ok(commands)
 }
 
+/// Weld along picked points («шов по ломаной» with two parts, «шов на
+/// детали» with one): `parts[0]` is the part welded to.
+pub fn weld_by_points(
+    project: &Project,
+    parts: &[ObjectId],
+    points: &[DVec3],
+    props: &DetailingUi,
+) -> Result<Vec<Command>, String> {
+    if parts.is_empty() {
+        return Err("Сначала выберите деталь".into());
+    }
+    if points.len() < 2 {
+        return Err("Укажите хотя бы две точки шва".into());
+    }
+    if points.windows(2).any(|p| p[0].distance(p[1]) <= 0.001) {
+        return Err("Соседние точки шва совпадают".into());
+    }
+    let mut candidate = project.clone();
+    let id = candidate.allocate_id().map_err(|e| e.to_string())?;
+    let detail = Detail {
+        id,
+        kind: DetailKind::Weld {
+            parts: parts.iter().copied().collect(),
+            weld_type: props.weld_type,
+            size: number(&props.weld_size)?,
+            path: points.iter().map(|p| Point3(p.to_array())).collect(),
+            shop: props.shop,
+            sides: props.weld_sides,
+            around: props.weld_around,
+            process: props.weld_process,
+        },
+    };
+    candidate.details.insert(id, detail.clone());
+    candidate.validate().map_err(|e| e.to_string())?;
+    let mut commands = vec![Command::CreateDetail { detail }];
+    if props.shop && parts.len() == 2 {
+        commands.extend(super::assembly_edit::join(&candidate, parts[0], parts[1]));
+    }
+    Ok(commands)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DetailTool {
     Bolt,
     Weld,
+    /// Weld of a secondary part to a main part along picked points.
+    WeldPolygon,
+    /// Weld on one part along picked points (a seam on a tube).
+    WeldOnPart,
+}
+
+impl DetailTool {
+    /// Parts picked before the points of a weld by points.
+    pub fn weld_parts(self) -> usize {
+        match self {
+            Self::WeldPolygon => 2,
+            Self::WeldOnPart => 1,
+            _ => 0,
+        }
+    }
 }
 
 /// Pick state of the bolt and weld commands. Bolt («by parts and
@@ -418,6 +461,8 @@ pub struct DetailPicker {
     pub parts_done: bool,
     pub points: Vec<DVec3>,
     pub main: Option<ObjectId>,
+    /// Weld by points: the parts in pick order (main first).
+    pub weld_parts: Vec<ObjectId>,
 }
 
 impl DetailPicker {
@@ -432,11 +477,25 @@ impl DetailPicker {
         match self.tool {
             Some(DetailTool::Weld) => true,
             Some(DetailTool::Bolt) => !self.parts_done,
+            Some(t) => self.weld_parts.len() < t.weld_parts(),
             None => false,
         }
     }
     pub fn picks_points(&self) -> bool {
-        self.tool == Some(DetailTool::Bolt) && self.parts_done
+        match self.tool {
+            Some(DetailTool::Bolt) => self.parts_done,
+            Some(t @ (DetailTool::WeldPolygon | DetailTool::WeldOnPart)) => {
+                self.weld_parts.len() == t.weld_parts()
+            }
+            _ => false,
+        }
+    }
+    /// A weld by points: the picked parts and points while points are picked.
+    pub fn weld_by_points(&self) -> bool {
+        matches!(
+            self.tool,
+            Some(DetailTool::WeldPolygon | DetailTool::WeldOnPart)
+        )
     }
     pub fn prompt(&self) -> Option<String> {
         Some(
@@ -457,6 +516,18 @@ impl DetailPicker {
                 (DetailTool::Bolt, true, _, _, _) => "Укажите направление оси X болтовой группы",
                 (DetailTool::Weld, _, _, _, None) => "Выберите деталь, к которой приваривают",
                 (DetailTool::Weld, _, _, _, Some(_)) => "Выберите привариваемую деталь",
+                (t @ (DetailTool::WeldPolygon | DetailTool::WeldOnPart), ..) => {
+                    match (t, self.weld_parts.len(), self.points.len()) {
+                        (DetailTool::WeldPolygon, 0, _) => "Выберите деталь, к которой приваривают",
+                        (DetailTool::WeldPolygon, 1, _) => "Выберите привариваемую деталь",
+                        (DetailTool::WeldOnPart, 0, _) => {
+                            "Выберите деталь, на которой делается шов"
+                        }
+                        (_, _, 0) => "Укажите начало шва",
+                        (_, _, 1) => "Укажите следующую точку шва",
+                        _ => "Следующая точка шва (средняя кнопка или Enter — создать шов)",
+                    }
+                }
             }
             .into(),
         )

@@ -88,6 +88,13 @@ pub struct BoltValues {
     pub shift_x: Option<String>,
     pub shift_y: Option<String>,
     pub rotate: Option<bool>,
+    /// «Массив», «Окружность» or «Список».
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shape: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub circle_count: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub circle_diameter: Option<String>,
 }
 
 /// Contents of a property file.
@@ -417,6 +424,9 @@ pub fn from_bolts(d: &DetailingUi) -> Values {
         shift_x: Some(d.shift_x.clone()),
         shift_y: Some(d.shift_y.clone()),
         rotate: Some(d.rotate),
+        shape: Some(d.bolt_shape.label().into()),
+        circle_count: Some(d.circle_count.clone()),
+        circle_diameter: Some(d.circle_diameter.clone()),
     })
 }
 
@@ -431,6 +441,8 @@ pub fn apply_to_bolts(d: &mut DetailingUi, values: &Values) {
         (&v.steps_y, &mut d.steps_y),
         (&v.shift_x, &mut d.shift_x),
         (&v.shift_y, &mut d.shift_y),
+        (&v.circle_count, &mut d.circle_count),
+        (&v.circle_diameter, &mut d.circle_diameter),
     ] {
         if let Some(value) = value {
             field.clone_from(value);
@@ -438,6 +450,13 @@ pub fn apply_to_bolts(d: &mut DetailingUi, values: &Values) {
     }
     if let Some(r) = v.rotate {
         d.rotate = r;
+    }
+    if let Some(shape) = v
+        .shape
+        .as_deref()
+        .and_then(crate::tools::detailing_ui::BoltShape::from_label)
+    {
+        d.bolt_shape = shape;
     }
 }
 

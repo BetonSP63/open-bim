@@ -361,6 +361,7 @@ pub fn rebuild_beam_splices(project: &mut Project, previous: &Project) -> Result
                         steps_y: group.steps_y,
                         standard: t.bolt_standard.clone(),
                         grade: t.bolt_grade.clone(),
+                        points: Vec::new(),
                     },
                 },
             );

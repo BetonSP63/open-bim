@@ -416,7 +416,10 @@ impl Workbench {
                                                         if ui.input(|i| i.modifiers.shift) {
                                                             self.mode = Mode::Model;
                                                             self.side_panel = Some(match cmd {
-                                                                Cmd::ToolBolt | Cmd::ToolWeld => {
+                                                                Cmd::ToolBolt
+                                                                | Cmd::ToolWeld
+                                                                | Cmd::ToolWeldPolygon
+                                                                | Cmd::ToolWeldOnPart => {
                                                                     SidePanel::Detailing
                                                                 }
                                                                 _ => SidePanel::Properties,
@@ -453,6 +456,10 @@ impl Workbench {
                 && self.detail.tool == Some(crate::interaction::tools::DetailTool::Bolt)
             || cmd == Cmd::ToolWeld
                 && self.detail.tool == Some(crate::interaction::tools::DetailTool::Weld)
+            || cmd == Cmd::ToolWeldPolygon
+                && self.detail.tool == Some(crate::interaction::tools::DetailTool::WeldPolygon)
+            || cmd == Cmd::ToolWeldOnPart
+                && self.detail.tool == Some(crate::interaction::tools::DetailTool::WeldOnPart)
             || cmd == Cmd::ToggleWorkArea && self.work_area
             || cmd == Cmd::ToolGusset
                 && self.trim.tool == Some(crate::interaction::trim::TrimTool::Gusset)

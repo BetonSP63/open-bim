@@ -45,6 +45,7 @@ fn bolted(hole_depth: f64) -> (Project, ObjectId, ObjectId, ObjectId) {
         steps_y: vec![50.],
         standard: "ГОСТ 7798".into(),
         grade: "8.8".into(),
+        points: Vec::new(),
     };
     let mut group = ObjectId(0);
     for command in bolt_commands(&p, &pattern).unwrap() {

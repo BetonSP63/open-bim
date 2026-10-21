@@ -23,7 +23,8 @@ pub use connection::{
 };
 pub use construction::{Construction, ConstructionKind, DimPoint, ModelDimension};
 pub use detailing::{
-    Detail, DetailKind, LEG_SIGN, WeldProcess, WeldSides, WeldType, bolt_set, weld_mark,
+    Detail, DetailKind, LEG_SIGN, WeldProcess, WeldSides, WeldType, bolt_positions, bolt_set,
+    circle_points, weld_mark,
 };
 pub use document_info::{
     DEFAULT_BASE, DocumentInfo, MAX_APPROVALS, MAX_GENERAL_NOTES, MAX_OTHER_SIGNERS, Person, Stage,

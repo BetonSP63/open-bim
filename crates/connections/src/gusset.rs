@@ -299,6 +299,7 @@ pub fn rebuild_gussets(project: &mut Project, previous: &Project) -> Result<(), 
                     steps_y: vec![recipe.pitch; recipe.bolts as usize - 1],
                     standard: t.bolt_standard.clone(),
                     grade: t.bolt_grade.clone(),
+                    points: Vec::new(),
                 },
             },
         );

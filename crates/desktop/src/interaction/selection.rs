@@ -133,25 +133,11 @@ pub fn segments(project: &Project, id: ObjectId) -> Vec<(DVec3, DVec3)> {
     }
     if let Some(detail) = project.details.get(&id) {
         return match &detail.kind {
-            DetailKind::BoltGroup {
-                frame,
-                steps_x,
-                steps_y,
-                ..
-            } => {
-                let prefix = |s: &[f64]| {
-                    let mut out = vec![0.];
-                    for x in s {
-                        out.push(out.last().unwrap() + x);
-                    }
-                    out
-                };
+            DetailKind::BoltGroup { frame, .. } => {
                 let mut pts = Vec::new();
-                for x in prefix(steps_x) {
-                    for y in prefix(steps_y) {
-                        let p = v(frame.world(Point3([x, y, 0.])));
-                        pts.push((p, p));
-                    }
+                for [x, y] in detail.kind.bolt_positions() {
+                    let p = v(frame.world(Point3([x, y, 0.])));
+                    pts.push((p, p));
                 }
                 pts
             }

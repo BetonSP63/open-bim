@@ -44,6 +44,7 @@ fn pattern() -> BoltPattern {
         steps_y: vec![40.],
         standard: "ISO 4014".into(),
         grade: "8.8".into(),
+        points: Vec::new(),
     }
 }
 

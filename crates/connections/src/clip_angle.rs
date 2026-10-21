@@ -387,6 +387,7 @@ pub fn rebuild_clip_angles(project: &mut Project, previous: &Project) -> Result<
                         steps_y: vec![pitch],
                         standard: template.bolt_standard.clone(),
                         grade: template.bolt_grade.clone(),
+                        points: Vec::new(),
                     },
                 },
             );

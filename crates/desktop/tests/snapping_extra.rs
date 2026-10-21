@@ -86,6 +86,7 @@ fn fixture() -> (Project, Arc<Scene>) {
                 steps_y: vec![],
                 standard: "ГОСТ 7798".into(),
                 grade: "5.8".into(),
+                points: Vec::new(),
             },
         },
     );

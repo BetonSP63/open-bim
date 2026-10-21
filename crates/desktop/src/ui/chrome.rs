@@ -1021,6 +1021,23 @@ impl Workbench {
                     "4. Укажите направление ряда X — болты видны заранее",
                 ],
             ),
+            (Some(DetailTool::WeldPolygon), _) => (
+                "Свойства шва",
+                &[
+                    "1. Щёлкните деталь, к которой приваривают",
+                    "2. Щёлкните привариваемую деталь",
+                    "3. Укажите точки шва по кромке",
+                    "4. Enter или средняя кнопка — шов создан",
+                ],
+            ),
+            (Some(DetailTool::WeldOnPart), _) => (
+                "Свойства шва",
+                &[
+                    "1. Щёлкните деталь, на которой делается шов",
+                    "2. Укажите точки шва",
+                    "3. Enter или средняя кнопка — шов создан",
+                ],
+            ),
             (Some(DetailTool::Weld), _) => (
                 "Свойства шва",
                 &[
@@ -1076,7 +1093,9 @@ impl Workbench {
         let d = &mut self.tools.detailing;
         match (self.detail.tool, self.trim.tool) {
             (Some(DetailTool::Bolt), _) => d.bolt_fields(ui),
-            (Some(DetailTool::Weld), _) => d.weld_fields(ui),
+            (Some(DetailTool::Weld | DetailTool::WeldPolygon | DetailTool::WeldOnPart), _) => {
+                d.weld_fields(ui)
+            }
             (_, Some(TrimTool::Gusset)) => {
                 egui::Grid::new("gusset fields")
                     .num_columns(2)
@@ -1327,6 +1346,8 @@ impl Workbench {
             (Cmd::ToolPlate, "Контурная пластина"),
             (Cmd::ToolBolt, "Болт"),
             (Cmd::ToolWeld, "Сварной шов"),
+            (Cmd::ToolWeldPolygon, "Шов по ломаной"),
+            (Cmd::ToolWeldOnPart, "Шов на детали"),
             (Cmd::ToolAxis, "Ось"),
             (Cmd::GridDialog, "Сетка"),
         ];

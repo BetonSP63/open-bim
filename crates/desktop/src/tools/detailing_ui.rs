@@ -25,6 +25,30 @@ impl DetailTool {
         }
     }
 }
+/// «Форма» of a bolt group.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum BoltShape {
+    /// Rows and columns by the X and Y spacings.
+    #[default]
+    Array,
+    /// `circle_count` bolts on a circle of `circle_diameter` around the origin.
+    Circle,
+    /// Bolt coordinates from the origin: X list and Y list, bolt by bolt.
+    List,
+}
+impl BoltShape {
+    pub const ALL: [Self; 3] = [Self::Array, Self::Circle, Self::List];
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Array => "Массив",
+            Self::Circle => "Окружность",
+            Self::List => "Список",
+        }
+    }
+    pub fn from_label(label: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|s| s.label() == label)
+    }
+}
 pub struct DetailingUi {
     pub kind: DetailTool,
     pub start: [String; 3],
@@ -37,6 +61,9 @@ pub struct DetailingUi {
     pub clearance: String,
     pub steps_x: String,
     pub steps_y: String,
+    pub bolt_shape: BoltShape,
+    pub circle_count: String,
+    pub circle_diameter: String,
     pub standard: String,
     pub grade: String,
     pub weld_size: String,
@@ -71,6 +98,9 @@ impl Default for DetailingUi {
             clearance: "2".into(),
             steps_x: "50".into(),
             steps_y: "50".into(),
+            bolt_shape: BoltShape::Array,
+            circle_count: "6".into(),
+            circle_diameter: "200".into(),
             standard: open_bim_connections::norms::DEFAULT_BOLT_STANDARD.into(),
             grade: "8.8".into(),
             weld_size: "6".into(),
@@ -109,7 +139,7 @@ impl DetailingUi {
             axes,
         };
         if self.kind == DetailTool::Bolts {
-            let steps = |s: &str| spacings(s);
+            let (steps_x, steps_y, points) = self.bolt_layout()?;
             return open_bim_steel::bolt_commands(
                 project,
                 &open_bim_steel::BoltPattern {
@@ -118,10 +148,11 @@ impl DetailingUi {
                     diameter: number(&self.diameter)?,
                     clearance: number(&self.clearance)?,
                     hole_depth: number(&self.depth)?,
-                    steps_x: steps(&self.steps_x)?,
-                    steps_y: steps(&self.steps_y)?,
+                    steps_x,
+                    steps_y,
                     standard: self.standard.clone(),
                     grade: self.grade.clone(),
+                    points,
                 },
             )
             .map_err(|e| e.to_string());
@@ -285,7 +316,81 @@ pub fn spacings(text: &str) -> Result<Vec<f64>, String> {
     Ok(out)
 }
 
+/// X steps, Y steps (array) and bolt points (circle, list) of a bolt group.
+pub type BoltLayout = (Vec<f64>, Vec<f64>, Vec<[f64; 2]>);
+
+/// Coordinates «75 175 250», «-50 0 2*50» (repeats allowed, any sign).
+pub fn coordinates(text: &str) -> Result<Vec<f64>, String> {
+    let mut out = Vec::new();
+    for token in text.split([';', ' ', ',']).filter(|t| !t.trim().is_empty()) {
+        match token.split_once('*') {
+            Some((n, value)) => {
+                let n: usize = n
+                    .trim()
+                    .parse()
+                    .map_err(|_| format!("«{token}»: число повторов"))?;
+                if n == 0 || n > 200 {
+                    return Err(format!("«{token}»: 1…200 повторов"));
+                }
+                out.extend(std::iter::repeat_n(number(value)?, n));
+            }
+            None => out.push(number(token)?),
+        }
+    }
+    Ok(out)
+}
+
 impl DetailingUi {
+    /// Steps of an array group, or bolt points of a circle or list group,
+    /// in the group frame («Повернуть» swaps X and Y).
+    pub fn bolt_layout(&self) -> Result<BoltLayout, String> {
+        let (mut steps_x, mut steps_y, mut points) = match self.bolt_shape {
+            BoltShape::Array => (spacings(&self.steps_x)?, spacings(&self.steps_y)?, vec![]),
+            BoltShape::Circle => {
+                let count: usize = self
+                    .circle_count
+                    .trim()
+                    .parse()
+                    .map_err(|_| "Число болтов на окружности — целое число")?;
+                if !(2..=360).contains(&count) {
+                    return Err("На окружности от 2 до 360 болтов".into());
+                }
+                let diameter = number(&self.circle_diameter)?;
+                if diameter <= 0. {
+                    return Err("Диаметр окружности болтов должен быть больше 0".into());
+                }
+                (
+                    vec![],
+                    vec![],
+                    open_bim_model::circle_points(count, diameter),
+                )
+            }
+            BoltShape::List => {
+                let xs = coordinates(&self.steps_x)?;
+                let mut ys = coordinates(&self.steps_y)?;
+                if ys.len() == 1 && xs.len() > 1 {
+                    ys = vec![ys[0]; xs.len()];
+                }
+                if xs.is_empty() || xs.len() != ys.len() {
+                    return Err(format!(
+                        "Координат X ({}) и Y ({}) должно быть поровну",
+                        xs.len(),
+                        ys.len()
+                    ));
+                }
+                let points = xs.into_iter().zip(ys).map(|(x, y)| [x, y]).collect();
+                (vec![], vec![], points)
+            }
+        };
+        if self.rotate {
+            std::mem::swap(&mut steps_x, &mut steps_y);
+            for p in &mut points {
+                p.swap(0, 1);
+            }
+        }
+        Ok((steps_x, steps_y, points))
+    }
+
     /// Weld properties: type, sides, leg, all around, shop/site, and the
     /// resulting designation.
     pub fn weld_fields(&mut self, ui: &mut egui::Ui) {
@@ -348,13 +453,35 @@ impl DetailingUi {
         field(ui, "Класс прочности", &mut self.grade);
         field(ui, "Диаметр, мм", &mut self.diameter);
         field(ui, "Зазор отверстия, мм", &mut self.clearance);
-        field(ui, "Шаги по X («3*80»)", &mut self.steps_x);
-        field(ui, "Шаги по Y («80»)", &mut self.steps_y);
+        let l = ui.label("Форма группы");
+        egui::ComboBox::from_id_salt("bolt-shape")
+            .selected_text(self.bolt_shape.label())
+            .show_ui(ui, |ui| {
+                for s in BoltShape::ALL {
+                    ui.selectable_value(&mut self.bolt_shape, s, s.label());
+                }
+            })
+            .response
+            .labelled_by(l.id);
+        match self.bolt_shape {
+            BoltShape::Array => {
+                field(ui, "Шаги по X («3*80»)", &mut self.steps_x);
+                field(ui, "Шаги по Y («80»)", &mut self.steps_y);
+            }
+            BoltShape::Circle => {
+                field(ui, "Число болтов", &mut self.circle_count);
+                field(ui, "Диаметр окружности, мм", &mut self.circle_diameter);
+            }
+            BoltShape::List => {
+                field(ui, "Координаты X («75 175 250»)", &mut self.steps_x);
+                field(ui, "Координаты Y («75 -50 0»)", &mut self.steps_y);
+            }
+        }
         field(ui, "Сдвиг по X, мм", &mut self.shift_x);
         field(ui, "Сдвиг по Y, мм", &mut self.shift_y);
         ui.checkbox(&mut self.rotate, "Повернуть на 90° (поменять X и Y)");
-        match (spacings(&self.steps_x), spacings(&self.steps_y)) {
-            (Ok(x), Ok(y)) => {
+        match (self.bolt_shape, self.bolt_layout()) {
+            (BoltShape::Array, Ok((x, y, _))) => {
                 ui.small(format!(
                     "Болтов в группе: {} × {} = {}",
                     x.len() + 1,
@@ -362,7 +489,10 @@ impl DetailingUi {
                     (x.len() + 1) * (y.len() + 1)
                 ));
             }
-            (Err(e), _) | (_, Err(e)) => {
+            (_, Ok((_, _, points))) => {
+                ui.small(format!("Болтов в группе: {}", points.len()));
+            }
+            (_, Err(e)) => {
                 ui.colored_label(ui.visuals().error_fg_color, e);
             }
         }

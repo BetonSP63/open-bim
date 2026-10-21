@@ -110,6 +110,7 @@ pub fn rebuild_base_plates(project: &mut Project, previous: &Project) -> Result<
                     steps_y: recipe.steps_y,
                     standard: t.bolt_standard.clone(),
                     grade: t.bolt_grade.clone(),
+                    points: Vec::new(),
                 },
             },
         );

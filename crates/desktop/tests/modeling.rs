@@ -382,6 +382,7 @@ fn linked_bolts_and_weld_follow_whole_group_rigid_edits() {
                 steps_y: vec![],
                 standard: "ISO 4014".into(),
                 grade: "8.8".into(),
+                points: Vec::new(),
             },
         },
     });
