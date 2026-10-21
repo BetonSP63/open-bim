@@ -190,10 +190,10 @@ pub const ALL: &[Spec] = &[
     },
     Spec {
         cmd: Cmd::ImportIfc,
-        label: "Импорт IFC4",
+        label: "Импорт IFC (IFC2x3, IFC4)",
         category: "Файл",
         shortcut: s(CMD, Key::I),
-        keywords: "ifc обмен загрузить",
+        keywords: "ifc обмен загрузить импорт модели внешних программ ifc2x3",
     },
     Spec {
         cmd: Cmd::Undo,
