@@ -469,7 +469,7 @@
   },
   {
     "button": "Импорт IFC",
-    "command": "Импорт IFC4",
+    "command": "Импорт IFC (IFC2x3, IFC4)",
     "group": "Обмен",
     "tab": "УПРАВЛЕНИЕ"
   }

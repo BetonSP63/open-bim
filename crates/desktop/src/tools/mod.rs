@@ -822,29 +822,70 @@ impl Editor {
             }
         ))
     }
-    /// IFC4 import replaces the project; the report lists unsupported content.
+    /// IFC import (IFC2x3 or IFC4, from any program). An empty model is
+    /// replaced by the file; otherwise the file's objects are added to the
+    /// model as one undoable step. The message summarises sections matched to
+    /// the ГОСТ catalogue and what was left out.
     pub fn import_ifc(&mut self, path: &Path) -> Result<(Arc<Scene>, String), String> {
         let bytes = std::fs::metadata(path).map_err(|e| e.to_string())?.len();
         if bytes > open_bim_ifc::step::MAX_FILE_BYTES as u64 {
             return Err("IFC: файл слишком большой".into());
         }
-        let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+        let raw = std::fs::read(path).map_err(|e| e.to_string())?;
+        let text = String::from_utf8_lossy(&raw);
         let (project, report) = open_bim_ifc::import(&text)?;
-        let scene = self.replace(project, &format!("Импорт IFC {}", path.display()))?;
-        let unsupported: usize = report.unsupported_entities.values().sum();
-        Ok((
-            scene,
-            format!(
-                "Импорт IFC: {:?}; неподдерживаемых сущностей {unsupported}; замечаний {}{}",
-                report.imported,
-                report.issues.len(),
-                report
-                    .issues
-                    .first()
-                    .map(|i| format!(" — {i}"))
-                    .unwrap_or_default()
-            ),
-        ))
+        if project.elements.is_empty() {
+            return Err(format!(
+                "В файле нет балок, колонн и пластин. {}",
+                report.summary()
+            ));
+        }
+        let file = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let label = format!("Импорт IFC {file}");
+        let current = self.document.project();
+        if current.elements.is_empty() && current.axes.is_empty() {
+            let scene = self.replace(project, &label)?;
+            return Ok((scene, report.summary()));
+        }
+        let merge = open_bim_ifc::merge::merge(self.document.project(), &project);
+        let mut commands = Vec::new();
+        commands.extend(merge.materials.iter().map(|m| Command::CreateMaterial {
+            material: m.clone(),
+        }));
+        commands.extend(
+            merge
+                .profiles
+                .iter()
+                .map(|p| Command::CreateProfile { profile: p.clone() }),
+        );
+        commands.extend(
+            merge
+                .elements
+                .iter()
+                .map(|e| Command::Create { element: e.clone() }),
+        );
+        commands.extend(
+            merge
+                .details
+                .iter()
+                .map(|d| Command::CreateDetail { detail: d.clone() }),
+        );
+        commands.extend(merge.assemblies.iter().map(|a| Command::CreateAssembly {
+            assembly: a.clone(),
+        }));
+        let scene = self.commit(&label, &commands)?;
+        let mut message = format!("Добавлено в текущую модель. {}", report.summary());
+        if merge.shift != [0.; 3] {
+            message.push_str(&format!(
+                " Модель была далеко от начала координат и сдвинута на ({:.0}; {:.0}) м.",
+                merge.shift[0] / 1000.,
+                merge.shift[1] / 1000.
+            ));
+        }
+        Ok((scene, message))
     }
     /// Take a project whose scene was already built elsewhere (background open).
     pub fn adopt(&mut self, project: Project, label: &str) -> Result<(), String> {
