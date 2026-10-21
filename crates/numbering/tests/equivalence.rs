@@ -192,3 +192,28 @@ fn assemblies_use_main_part_multiplicity_layout_and_nested_children() {
     let edited = number(&p).unwrap();
     assert_ne!(nested.assembly_keys[&parent], edited.assembly_keys[&parent]);
 }
+
+#[test]
+fn positions_are_numbers_and_shipping_marks_name_the_main_part() {
+    let mut p = open_bim_model::example_steel_frame().unwrap();
+    let n = number(&p).unwrap();
+    assert!(
+        n.parts.values().all(|m| m.parse::<usize>().is_ok()),
+        "{n:?}"
+    );
+    // Four equal columns, two equal beams, one plate: three positions.
+    let distinct: std::collections::BTreeSet<_> = n.parts.values().collect();
+    assert_eq!(distinct.len(), 3);
+    let assembly = *p.assemblies.keys().next().unwrap();
+    assert_eq!(n.assemblies[&assembly], "К1");
+    // The same assembly around a beam is «Б1»; the plate as main part, «М1».
+    p.assemblies.get_mut(&assembly).unwrap().main_part = ObjectId(12);
+    p.assemblies
+        .get_mut(&assembly)
+        .unwrap()
+        .members
+        .insert(ObjectId(12));
+    assert_eq!(number(&p).unwrap().assemblies[&assembly], "Б1");
+    p.assemblies.get_mut(&assembly).unwrap().main_part = ObjectId(14);
+    assert_eq!(number(&p).unwrap().assemblies[&assembly], "М1");
+}

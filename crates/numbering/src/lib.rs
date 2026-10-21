@@ -1,6 +1,8 @@
 //! Deterministic manufacturing equivalence, independent of model IDs and placement.
 //! Coordinates use 1e-6 mm resolution; direction cosines use 1e-9 resolution.
-use open_bim_model::{DetailKind, ElementShape, Frame, ModelError, ObjectId, Point3, Project};
+use open_bim_model::{
+    DetailKind, ElementShape, Frame, MemberKind, ModelError, ObjectId, Point3, Project,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -180,16 +182,45 @@ pub fn part_key(project: &Project, id: ObjectId) -> Result<String, ModelError> {
     )
 }
 
-fn positions(keys: &BTreeMap<ObjectId, String>, prefix: &str) -> BTreeMap<ObjectId, String> {
-    let unique: BTreeSet<&String> = keys.values().collect();
-    let by_key: BTreeMap<&String, String> = unique
-        .into_iter()
-        .enumerate()
-        .map(|(i, k)| (k, format!("{prefix}{:04}", i + 1)))
-        .collect();
+/// Marks numbered 1, 2, 3… per prefix: equal keys share a mark, different
+/// keys get the next number of their prefix, in key order.
+fn positions(
+    keys: &BTreeMap<ObjectId, String>,
+    prefix: impl Fn(ObjectId) -> &'static str,
+) -> BTreeMap<ObjectId, String> {
+    let mut by_key: BTreeMap<(&'static str, &String), String> = BTreeMap::new();
+    for (id, key) in keys {
+        by_key.entry((prefix(*id), key)).or_default();
+    }
+    let mut next: BTreeMap<&str, usize> = BTreeMap::new();
+    for ((prefix, _), mark) in by_key.iter_mut() {
+        let n = next.entry(prefix).or_default();
+        *n += 1;
+        *mark = format!("{prefix}{n}");
+    }
     keys.iter()
-        .map(|(id, k)| (*id, by_key[k].clone()))
+        .map(|(id, k)| (*id, by_key[&(prefix(*id), k)].clone()))
         .collect()
+}
+
+/// Shipping mark prefix of an assembly by its main part, as on КМД
+/// drawings: «К» columns, «Б» beams, «М» other assemblies.
+pub fn assembly_prefix(project: &Project, assembly: ObjectId) -> &'static str {
+    let main = project
+        .assemblies
+        .get(&assembly)
+        .and_then(|a| project.elements.get(&a.main_part));
+    match main.map(|e| &e.shape) {
+        Some(ElementShape::Member {
+            member_kind: MemberKind::Column,
+            ..
+        }) => "К",
+        Some(ElementShape::Member {
+            member_kind: MemberKind::Beam,
+            ..
+        }) => "Б",
+        _ => "М",
+    }
 }
 
 fn assembly_key(
@@ -247,6 +278,7 @@ fn assembly_key(
                 shop,
                 sides,
                 around,
+                process,
             } if joined.is_subset(&assembly.members) => {
                 let mut keys: Vec<_> = joined.iter().map(|p| &parts[p]).collect();
                 keys.sort();
@@ -257,6 +289,9 @@ fn assembly_key(
                 }
                 if *around {
                     weld["around"] = json!(true);
+                }
+                if *process != open_bim_model::WeldProcess::Manual {
+                    weld["process"] = json!(process);
                 }
                 Some(weld)
             }
@@ -303,8 +338,10 @@ pub fn number(project: &Project) -> Result<Numbering, ModelError> {
         }
     }
     Ok(Numbering {
-        parts: positions(&part_keys, "P"),
-        assemblies: positions(&assembly_keys, "A"),
+        // Part positions are plain numbers (поз. 1, 2…), shipping marks
+        // carry the kind of the main part (К1, Б1…).
+        parts: positions(&part_keys, |_| ""),
+        assemblies: positions(&assembly_keys, |id| assembly_prefix(project, id)),
         part_keys,
         assembly_keys,
     })

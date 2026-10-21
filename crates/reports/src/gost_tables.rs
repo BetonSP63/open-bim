@@ -13,7 +13,7 @@ pub fn rolled_steel(project: &Project) -> Result<RolledSteel, Error> {
 }
 
 fn tonnes(value: f64) -> String {
-    format!("{value:.3}")
+    crate::csv::number(value)
 }
 
 /// CSV of the rolled-steel specification: lines, subtotals («Итого»), the

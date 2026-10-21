@@ -214,7 +214,7 @@ fn weld_with_type_choice_joins_an_assembly_lists_and_draws() {
         reports
             .fasteners
             .iter()
-            .any(|r| r.description == "Шов угловой Т3 k=6 заводской"),
+            .any(|r| r.description == "Шов угловой ГОСТ 5264-80 Т3 k=6 заводской"),
         "{:?}",
         reports.fasteners
     );

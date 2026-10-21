@@ -112,11 +112,8 @@ pub fn elements(project: &Project, drawing: &Drawing) -> Result<Vec<Table>, Erro
             DetailKind::BoltGroup { standard, .. } if !standard.trim().is_empty() => {
                 referenced.insert((standard.trim().into(), "Болты".into()));
             }
-            DetailKind::Weld { .. } => {
-                referenced.insert((
-                    "ГОСТ 5264-80".into(),
-                    "Ручная дуговая сварка. Соединения сварные. Основные типы, конструктивные элементы и размеры".into(),
-                ));
+            DetailKind::Weld { process, .. } => {
+                referenced.insert((process.standard().into(), process.title().into()));
             }
             _ => {}
         }
@@ -220,12 +217,24 @@ fn notes(project: &Project, mark: &str) -> Result<Table, Error> {
             grades.join(", ")
         ));
     }
-    if project
+    let processes: BTreeSet<&str> = project
         .details
         .values()
-        .any(|d| matches!(d.kind, DetailKind::Weld { .. }))
-    {
-        items.push("Сварные соединения — по ГОСТ 5264-80, катеты швов — по чертежам.".into());
+        .filter_map(|d| match &d.kind {
+            DetailKind::Weld { process, .. } => Some(process.standard()),
+            _ => None,
+        })
+        .collect();
+    if !processes.is_empty() {
+        let standards: Vec<&str> = processes.into_iter().collect();
+        items.push(format!(
+            "Сварные соединения — по {}, катеты швов — по чертежам.",
+            standards.join(", ")
+        ));
+        items.push(
+            "Сварочные материалы — по таблице Г.1 СП 16.13330.2017 для марок стали свариваемых деталей."
+                .into(),
+        );
     }
     items.push(if mark == "КМ" {
         "Размеры — в миллиметрах, отметки — в метрах.".into()

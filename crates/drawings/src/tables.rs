@@ -571,11 +571,17 @@ pub fn assembly_specification(project: &Project, assembly: ObjectId) -> Result<V
             && !joined.is_empty()
             && joined.is_subset(&parts)
         {
-            let name = format!(
-                "Болт М{}, класс прочности {grade}, {standard}",
-                crate::format_mm(*diameter)
-            );
-            *bolts.entry(name).or_default() += (steps_x.len() + 1) * (steps_y.len() + 1);
+            // Each bolt comes with one nut and one washer.
+            let count = (steps_x.len() + 1) * (steps_y.len() + 1);
+            let d = crate::format_mm(*diameter);
+            let (nut, washer) = open_bim_model::bolt_set(standard);
+            for name in [
+                format!("Болт М{d}, класс прочности {grade}, {standard}"),
+                format!("Гайка М{d}, {nut}"),
+                format!("Шайба {d}, {washer}"),
+            ] {
+                *bolts.entry(name).or_default() += count;
+            }
         }
     }
     if !bolts.is_empty() {

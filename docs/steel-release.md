@@ -9,8 +9,9 @@ part/assembly/fastener lists. Everything is regenerated from the model.
   standard and grade; welds by type, leg and shop/site with total length).
   Totals are summed before rounding. `auto_assemblies()` joins parts connected by
   shop welds; the main part is the heaviest member.
-* CSV (`csv.rs`): RFC 4180, comma, CRLF, quotes doubled, fields with commas,
-  quotes or line breaks quoted, UTF-8 with BOM.
+* CSV (`csv.rs`): semicolon separator and decimal comma for spreadsheets with
+  Russian settings, CRLF, quotes doubled, fields with semicolons, quotes or
+  line breaks quoted, UTF-8 with BOM.
 * Release (`release.rs`): creates missing drawings (GA A1, one per assembly
   and part position), refreshes outdated ones, refuses export while any
   drawing is outdated or has lost bindings; writes one PDF per drawing,
@@ -25,5 +26,6 @@ deleted node, outdated refusal), `tests/fixtures/steel_release/verify.py`
 release + save, reopen + CSV export; identical CSV; 14 PDFs read by pypdf).
 
 Limits: no bolt length selection, washers/nuts lists, paint areas, NC/DSTV,
-cutting optimisation, or report templates; positions use the deterministic
-`P0001`/`A0001` scheme without user prefixes.
+cutting optimisation, or report templates; part positions are numbers (1, 2, 3…)
+and shipping marks carry the main part kind (К1 columns, Б1 beams, М1
+others), without user prefixes.

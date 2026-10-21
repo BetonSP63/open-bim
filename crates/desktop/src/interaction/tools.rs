@@ -388,6 +388,7 @@ pub fn weld_between(
             shop: props.shop,
             sides: props.weld_sides,
             around: props.weld_around,
+            process: props.weld_process,
         },
     };
     candidate.details.insert(id, detail.clone());

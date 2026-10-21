@@ -280,6 +280,7 @@ pub fn control_set() -> Result<Project, crate::Error> {
                 shop: true,
                 sides: Default::default(),
                 around: true,
+                process: Default::default(),
             },
         },
     );

@@ -43,8 +43,15 @@ impl WeldType {
             Self::Lap => "нахлёсточный",
         }
     }
-    /// Joint designation of ГОСТ 5264-80 (manual arc welding) for the sides.
-    pub fn joint(self, sides: WeldSides) -> &'static str {
+    /// Joint designation in the standard of `process` for the sides. ГОСТ
+    /// 5264 and 14771 share the designations; ГОСТ 8713 has no С2 and С17,
+    /// its one-sided butt joints are С4 (square) and С18 (bevelled).
+    pub fn joint(self, sides: WeldSides, process: WeldProcess) -> &'static str {
+        match (self, sides, process) {
+            (Self::ButtSquare, WeldSides::One, WeldProcess::Submerged) => return "С4",
+            (Self::Butt, WeldSides::One, WeldProcess::Submerged) => return "С18",
+            _ => {}
+        }
         match (self, sides) {
             (Self::Fillet, WeldSides::One) => "Т1",
             (Self::Fillet, WeldSides::Both) => "Т3",
@@ -57,6 +64,66 @@ impl WeldType {
             (Self::Lap, WeldSides::Both) => "Н2",
         }
     }
+}
+
+/// Welding process; it names the standard of the joint types.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WeldProcess {
+    /// Ручная дуговая сварка, ГОСТ 5264-80.
+    #[default]
+    Manual,
+    /// Дуговая сварка в защитном газе, ГОСТ 14771-76.
+    GasShielded,
+    /// Автоматическая и механизированная сварка под флюсом, ГОСТ 8713-79.
+    Submerged,
+}
+
+impl WeldProcess {
+    pub const ALL: [WeldProcess; 3] = [Self::Manual, Self::GasShielded, Self::Submerged];
+    pub fn standard(self) -> &'static str {
+        match self {
+            Self::Manual => "ГОСТ 5264-80",
+            Self::GasShielded => "ГОСТ 14771-76",
+            Self::Submerged => "ГОСТ 8713-79",
+        }
+    }
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Manual => "ручная дуговая",
+            Self::GasShielded => "в защитном газе",
+            Self::Submerged => "под флюсом",
+        }
+    }
+    /// Title of the standard for the list of referenced documents.
+    pub fn title(self) -> &'static str {
+        match self {
+            Self::Manual => {
+                "Ручная дуговая сварка. Соединения сварные. Основные типы, конструктивные элементы и размеры"
+            }
+            Self::GasShielded => {
+                "Дуговая сварка в защитном газе. Соединения сварные. Основные типы, конструктивные элементы и размеры"
+            }
+            Self::Submerged => {
+                "Сварка под флюсом. Соединения сварные. Основные типы, конструктивные элементы и размеры"
+            }
+        }
+    }
+}
+
+/// Nut and washer standards of a bolt set: high-strength bolts of ГОСТ Р
+/// 52644 come with ГОСТ Р 52645 nuts and ГОСТ Р 52646 washers, other bolts
+/// with ГОСТ 5915-70 nuts and ГОСТ 11371-78 washers.
+pub fn bolt_set(standard: &str) -> (&'static str, &'static str) {
+    if standard.contains("52644") {
+        ("ГОСТ Р 52645-2006", "ГОСТ Р 52646-2006")
+    } else {
+        ("ГОСТ 5915-70", "ГОСТ 11371-78")
+    }
+}
+
+fn is_manual(p: &WeldProcess) -> bool {
+    *p == WeldProcess::Manual
 }
 
 fn is_one_side(s: &WeldSides) -> bool {
@@ -74,6 +141,7 @@ fn size_text(size: f64) -> String {
 /// Weld mark text in the style of ГОСТ 2.312: standard, joint, leg size
 /// (fillet and lap welds), «по контуру» and site welding.
 pub fn weld_mark(
+    process: WeldProcess,
     weld_type: WeldType,
     sides: WeldSides,
     size: f64,
@@ -83,7 +151,11 @@ pub fn weld_mark(
     let leg = matches!(weld_type, WeldType::Fillet | WeldType::Lap)
         .then(|| format!("-Δ{}", size_text(size)))
         .unwrap_or_default();
-    let mut mark = format!("ГОСТ 5264-80-{}{leg}", weld_type.joint(sides));
+    let mut mark = format!(
+        "{}-{}{leg}",
+        process.standard(),
+        weld_type.joint(sides, process)
+    );
     if around {
         mark.push_str(" по контуру");
     }
@@ -151,6 +223,8 @@ pub enum DetailKind {
         /// Welded all around the joint («по контуру»).
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         around: bool,
+        #[serde(default, skip_serializing_if = "is_manual")]
+        process: WeldProcess,
     },
 }
 
@@ -354,5 +428,42 @@ impl DetailKind {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn marks_name_the_standard_of_the_process() {
+        let mark = |p, t, s| weld_mark(p, t, s, 6.0, false, true);
+        use {WeldProcess::*, WeldSides::*, WeldType::*};
+        assert_eq!(mark(Manual, Fillet, One), "ГОСТ 5264-80-Т1-Δ6");
+        assert_eq!(mark(GasShielded, Fillet, Both), "ГОСТ 14771-76-Т3-Δ6");
+        assert_eq!(mark(GasShielded, Butt, One), "ГОСТ 14771-76-С17");
+        // ГОСТ 8713 has no С2 and С17.
+        assert_eq!(mark(Submerged, ButtSquare, One), "ГОСТ 8713-79-С4");
+        assert_eq!(mark(Submerged, Butt, One), "ГОСТ 8713-79-С18");
+        assert_eq!(mark(Submerged, Butt, Both), "ГОСТ 8713-79-С21");
+        assert_eq!(mark(Submerged, Lap, Both), "ГОСТ 8713-79-Н2-Δ6");
+        assert_eq!(
+            weld_mark(Manual, Fillet, One, 8.0, true, false),
+            "ГОСТ 5264-80-Т1-Δ8 по контуру (монт.)"
+        );
+    }
+
+    #[test]
+    fn manual_welds_keep_their_saved_form() {
+        let json = r#"{"kind":"weld","parts":[1,2],"weld_type":"fillet","size":6.0,"path":[[0.0,0.0,0.0],[1.0,0.0,0.0]],"shop":true}"#;
+        let kind: DetailKind = serde_json::from_str(json).unwrap();
+        assert!(matches!(
+            kind,
+            DetailKind::Weld {
+                process: WeldProcess::Manual,
+                ..
+            }
+        ));
+        assert_eq!(serde_json::to_string(&kind).unwrap(), json);
     }
 }
