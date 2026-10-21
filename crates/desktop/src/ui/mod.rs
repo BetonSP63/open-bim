@@ -111,6 +111,16 @@ impl ActiveJob {
 /// Cached model tree labels shared with the virtualised list.
 type TreeRows = Arc<Vec<(ObjectId, String)>>;
 
+/// Common surface treatments of steel parts; any other text is allowed.
+pub const TREATMENTS: [&str; 6] = [
+    "Без покрытия",
+    "Грунт ГФ-021 + эмаль ПФ-115, 2 слоя",
+    "Грунт ГФ-021",
+    "Горячее цинкование",
+    "Огнезащитное покрытие",
+    "Эмаль ХВ-124 по грунту ХС-010",
+];
+
 pub struct Workbench {
     pub mode: Mode,
     pub editor: Editor,
@@ -203,6 +213,10 @@ pub struct Workbench {
     pub snap_cycle: usize,
     /// Property pane edit buffer.
     pub pane: property_pane::PropertyPane,
+    /// «Фаски углов» of the selected plates.
+    pub corners: crate::interaction::corners::CornerUi,
+    /// «Обработка поверхности» typed or picked for the selected parts.
+    pub treatment: String,
     /// Model views (3D, plans, elevations) and the active one.
     pub views: Vec<views::ModelView>,
     pub active_view: usize,
@@ -298,6 +312,8 @@ impl Workbench {
             delete_confirm: None,
             snap_cycle: 0,
             pane: Default::default(),
+            corners: Default::default(),
+            treatment: TREATMENTS[1].into(),
             views: vec![views::ModelView::model_3d()],
             active_view: 0,
             clip: [None, None],
@@ -634,11 +650,31 @@ impl Workbench {
                 self.mode = mode;
                 self.detail.cancel();
                 let first = self.editor.begin(kind);
+                if cmd == Cmd::ToolBeam {
+                    // «Сдвоенный профиль» is its own command.
+                    self.editor.draft.twin = crate::tools::twin::Twin::Single;
+                }
                 self.engine.start(kind);
                 self.message(self.engine.prompt());
                 if first {
                     self.load_standard(crate::tools::property_files::FileKind::of_tool(kind));
                 }
+            }
+            Cmd::ToolTwin => {
+                use crate::tools::twin::Twin;
+                let kept = self.editor.draft.twin;
+                let r = self.execute(Cmd::ToolBeam);
+                self.editor.draft.twin = if kept == Twin::Single {
+                    Twin::BackToBack
+                } else {
+                    kept
+                };
+                self.message(format!(
+                    "Сдвоенный профиль ({}): {}",
+                    self.editor.draft.twin.label().to_lowercase(),
+                    self.engine.prompt()
+                ));
+                return r;
             }
             Cmd::ToolBolt | Cmd::ToolWeld | Cmd::ToolWeldPolygon | Cmd::ToolWeldOnPart => {
                 self.engine.cancel();

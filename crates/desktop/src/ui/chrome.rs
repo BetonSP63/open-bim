@@ -1000,6 +1000,49 @@ impl Workbench {
         }
     }
 
+    /// «Фаски углов» fields; true when «Срезать углы» is pressed.
+    fn corner_editor(&mut self, ui: &mut egui::Ui) -> bool {
+        use crate::interaction::corners::CornerKind;
+        let f = &mut self.corners;
+        egui::Grid::new("corner grid")
+            .num_columns(2)
+            .show(ui, |ui| {
+                let l = ui.label("Тип");
+                egui::ComboBox::new("corner kind", "")
+                    .selected_text(f.kind.label())
+                    .show_ui(ui, |ui| {
+                        for k in CornerKind::ALL {
+                            ui.selectable_value(&mut f.kind, k, k.label());
+                        }
+                    })
+                    .response
+                    .labelled_by(l.id);
+                ui.end_row();
+                let l = ui.label("Углы");
+                ui.add(egui::TextEdit::singleline(&mut f.corners).desired_width(90.))
+                    .labelled_by(l.id)
+                    .on_hover_text("«все» или номера точек контура: 1 3");
+                ui.end_row();
+                if f.kind == CornerKind::Line {
+                    let l = ui.label("Катет X, мм");
+                    ui.add(egui::TextEdit::singleline(&mut f.x).desired_width(60.))
+                        .labelled_by(l.id)
+                        .on_hover_text("Вдоль стороны к предыдущей точке");
+                    ui.end_row();
+                    let l = ui.label("Катет Y, мм");
+                    ui.add(egui::TextEdit::singleline(&mut f.y).desired_width(60.))
+                        .labelled_by(l.id)
+                        .on_hover_text("Вдоль стороны к следующей точке");
+                } else {
+                    let l = ui.label("Радиус, мм");
+                    ui.add(egui::TextEdit::singleline(&mut f.x).desired_width(60.))
+                        .labelled_by(l.id);
+                }
+                ui.end_row();
+            });
+        ui.button("Срезать углы").clicked()
+    }
+
     fn tool_pane_active(&self) -> bool {
         use crate::interaction::trim::TrimTool;
         self.detail.tool.is_some()
@@ -1342,6 +1385,7 @@ impl Workbench {
     fn object_type(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
         let tools = [
             (Cmd::ToolBeam, "Балка"),
+            (Cmd::ToolTwin, "Сдвоенный профиль"),
             (Cmd::ToolColumn, "Колонна"),
             (Cmd::ToolPlate, "Контурная пластина"),
             (Cmd::ToolBolt, "Болт"),
@@ -1612,6 +1656,83 @@ impl Workbench {
                     ui.small(
                         "Ручки — на опорной линии; профиль и положение меняются относительно неё",
                     );
+                });
+        }
+        egui::CollapsingHeader::new("Обработка поверхности")
+            .default_open(false)
+            .show(ui, |ui| {
+                let key = open_bim_reports::SURFACE_TREATMENT;
+                let project = self.editor.document.project();
+                let current: BTreeSet<String> = c
+                    .parts
+                    .iter()
+                    .filter_map(|id| project.elements.get(id))
+                    .map(|e| match e.properties.get(key) {
+                        Some(open_bim_model::PropertyValue::Text(t)) => t.clone(),
+                        _ => "Без покрытия".into(),
+                    })
+                    .collect();
+                ui.label(match current.len() {
+                    1 => format!("Сейчас: {}", current.first().unwrap()),
+                    _ => format!("Сейчас: {VARIES}"),
+                });
+                egui::ComboBox::new("treatment", "Покрытие")
+                    .selected_text(self.treatment.clone())
+                    .width(220.)
+                    .show_ui(ui, |ui| {
+                        for t in super::TREATMENTS {
+                            ui.selectable_value(&mut self.treatment, t.to_string(), t);
+                        }
+                    });
+                let l = ui.label("Своё покрытие");
+                ui.text_edit_singleline(&mut self.treatment)
+                    .labelled_by(l.id);
+                if ui.button("Назначить выбранным").clicked() {
+                    let value = self.treatment.trim();
+                    let value = (!value.is_empty() && value != super::TREATMENTS[0])
+                        .then(|| open_bim_model::PropertyValue::Text(value.to_string()));
+                    let commands = c
+                        .parts
+                        .iter()
+                        .filter(|id| project.elements.contains_key(id))
+                        .map(|id| open_bim_commands::Command::ChangeProperty {
+                            id: *id,
+                            key: key.into(),
+                            value: value.clone(),
+                        })
+                        .collect();
+                    requests.push(Request::Action(Action::Commit(
+                        "Обработка поверхности".into(),
+                        commands,
+                    )));
+                }
+                ui.small("Площадь покрытия — в ведомостях, вкладка «Покрытия»");
+            });
+        let plates = {
+            let project = self.editor.document.project();
+            c.parts.iter().all(|id| {
+                matches!(
+                    project.elements.get(id).map(|e| &e.shape),
+                    Some(open_bim_model::ElementShape::Plate { .. })
+                )
+            })
+        };
+        if plates && !c.parts.is_empty() {
+            egui::CollapsingHeader::new("Фаски углов")
+                .default_open(false)
+                .show(ui, |ui| {
+                    if self.corner_editor(ui) {
+                        match self
+                            .corners
+                            .commands(self.editor.document.project(), &c.parts)
+                        {
+                            Ok(commands) => requests.push(Request::Action(Action::Commit(
+                                "Фаски углов".into(),
+                                commands,
+                            ))),
+                            Err(e) => self.message(e),
+                        }
+                    }
                 });
         }
         ui.separator();
