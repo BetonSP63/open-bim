@@ -883,9 +883,8 @@ fn member(
 fn sample_parts(
     document: &mut Project,
     t: &ConnectionTemplate,
-    wide: ObjectId,
+    [wide, i_beam, angle]: [ObjectId; 3],
 ) -> Result<(ObjectId, Option<ObjectId>), String> {
-    let (i_beam, angle) = (ObjectId(2), ObjectId(3));
     let column =
         |d: &mut Project| member(d, MemberKind::Column, i_beam, [0., 0., 0.], [0., 0., 3600.]);
     let beam_from = |d: &mut Project, y: f64| {
@@ -986,11 +985,20 @@ pub fn preview(project: &Project, t: &ConnectionTemplate, view: View) -> Preview
             area_mm2: None,
         },
     );
-    sample.next_id = wide.0 + 1;
+    // The sample is laid out for I 300×150 members and an L 100×75 brace,
+    // whatever sections the model itself starts with.
+    let (i_beam, angle) = (ObjectId(wide.0 + 1), ObjectId(wide.0 + 2));
+    let builtin = Project::default().profiles;
+    for (id, from) in [(i_beam, ObjectId(2)), (angle, ObjectId(3))] {
+        if let Some(p) = builtin.get(&from) {
+            sample.profiles.insert(id, Profile { id, ..p.clone() });
+        }
+    }
+    sample.next_id = wide.0 + 3;
     // The generators run directly, without the whole-model check a real
     // edit makes, so the preview keeps up with typing.
     let built = (|| {
-        let (main, secondary) = sample_parts(&mut sample, t, wide)?;
+        let (main, secondary) = sample_parts(&mut sample, t, [wide, i_beam, angle])?;
         let connection = ConnectionInstance {
             id: sample.allocate_id().map_err(|e| e.to_string())?,
             primary: main,
