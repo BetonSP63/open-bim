@@ -2,7 +2,7 @@
 //! the picked reference line, handles stay on that line, and changing the
 //! profile or the position keeps the line.
 use open_bim_desktop::interaction::selection::move_handle;
-use open_bim_desktop::interaction::tools::default_project;
+use open_bim_desktop::interaction::tools::with_default_grid;
 use open_bim_desktop::tools::{Editor, ui::Action};
 use open_bim_desktop::ui::property_pane::{PropertyPane, common, modify};
 use open_bim_desktop::ui::{Request, Workbench, commands::Cmd};
@@ -10,6 +10,13 @@ use open_bim_model::{AtDepth, ElementShape, ObjectId, OnPlane, PartPosition, Poi
 use open_bim_renderer::DVec3;
 use open_bim_renderer::overlay::{Handle, HandleKind};
 use std::collections::BTreeSet;
+
+/// The analytic test sections these geometry checks are written for
+/// (profile 2 is I 300×150×8×12), with the default grid; new models in the
+/// app start with ГОСТ sections instead.
+fn default_project() -> Result<open_bim_model::Project, String> {
+    with_default_grid(open_bim_model::Project::default())
+}
 
 const I300: ObjectId = ObjectId(2);
 const C200: ObjectId = ObjectId(4);

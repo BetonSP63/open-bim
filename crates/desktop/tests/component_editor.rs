@@ -1,7 +1,7 @@
 //! Component editor: a user component made from a catalogue one with plain
 //! hints, explained mistakes with one-click fixes, a preview on a sample
 //! column and beam, and saving under «Мои компоненты».
-use open_bim_desktop::interaction::tools::default_project;
+use open_bim_desktop::interaction::tools::with_default_grid;
 use open_bim_desktop::tools::{Editor, ui::Action};
 use open_bim_desktop::ui::component_editor::{
     self as ce, Draft, GROUP, UserComponent, View, check, fields, fix_all, get, set,
@@ -9,6 +9,13 @@ use open_bim_desktop::ui::component_editor::{
 use open_bim_desktop::ui::components::{catalog, search, search_in};
 use open_bim_desktop::ui::{Request, Workbench, commands::Cmd};
 use open_bim_model::{Element, ElementShape, Frame, MemberKind, ObjectId, Point3, TemplateKind};
+
+/// The analytic test sections these geometry checks are written for
+/// (profile 2 is I 300×150×8×12), with the default grid; new models in the
+/// app start with ГОСТ sections instead.
+fn default_project() -> Result<open_bim_model::Project, String> {
+    with_default_grid(open_bim_model::Project::default())
+}
 
 fn bench(test: &str) -> (Workbench, std::path::PathBuf) {
     let dir =
@@ -457,5 +464,16 @@ fn bringing_to_norms_keeps_every_template_valid() {
         ce::bring_to_norms(&mut t);
         assert!(check(&t).is_empty(), "{}: {:?}", c.name, check(&t));
         assert_eq!(ce::advice(&t), vec![], "{}: {t:?}", c.name);
+    }
+}
+
+#[test]
+fn previews_build_in_a_new_model_with_gost_sections() {
+    // The sample keeps its own sections, so a model that starts with 30Б1
+    // still previews every node.
+    let project = open_bim_desktop::interaction::tools::default_project().unwrap();
+    for c in catalog() {
+        let p = ce::preview(&project, &ce::base_template(&c), View::ALL[0]);
+        assert_eq!(p.error, None, "{}", c.name);
     }
 }

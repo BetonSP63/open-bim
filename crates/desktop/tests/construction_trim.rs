@@ -2,7 +2,7 @@
 //! and cutting commands, checked against exact geometry.
 use open_bim_commands::Command;
 use open_bim_desktop::interaction::member_edit::ends;
-use open_bim_desktop::interaction::tools::default_project;
+use open_bim_desktop::interaction::tools::with_default_grid;
 use open_bim_desktop::interaction::trim::{
     TrimTool, combine, construction, cut_line, cut_part, cut_polygon, dimension, extend_to,
     fit_end, split,
@@ -11,6 +11,13 @@ use open_bim_desktop::tools::{Editor, ui::Action};
 use open_bim_desktop::ui::{Request, Workbench, commands::Cmd};
 use open_bim_model::{ConstructionKind, ObjectId, Project};
 use open_bim_renderer::DVec3;
+
+/// The analytic test sections these geometry checks are written for
+/// (profile 2 is I 300×150×8×12), with the default grid; new models in the
+/// app start with ГОСТ sections instead.
+fn default_project() -> Result<open_bim_model::Project, String> {
+    with_default_grid(open_bim_model::Project::default())
+}
 
 const Z: DVec3 = DVec3::Z;
 

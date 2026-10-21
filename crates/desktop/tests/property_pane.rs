@@ -4,7 +4,7 @@
 //! the geometry snap switch and grid nodes at every level.
 use open_bim_desktop::interaction::Workplane;
 use open_bim_desktop::interaction::snap::{SnapKind, Snapper, Switches, View};
-use open_bim_desktop::interaction::tools::default_project;
+use open_bim_desktop::interaction::tools::with_default_grid;
 use open_bim_desktop::tools::{Editor, ui::Action};
 use open_bim_desktop::ui::property_pane::{Changes, PropertyPane, Shared, common, modify};
 use open_bim_desktop::ui::views::{ViewKind, grid_views};
@@ -13,6 +13,13 @@ use open_bim_model::{ElementShape, ObjectId};
 use open_bim_renderer::{Bounds, Camera, DVec3, Scene};
 use std::collections::BTreeSet;
 use std::sync::Arc;
+
+/// The analytic test sections these geometry checks are written for
+/// (profile 2 is I 300×150×8×12), with the default grid; new models in the
+/// app start with ГОСТ sections instead.
+fn default_project() -> Result<open_bim_model::Project, String> {
+    with_default_grid(open_bim_model::Project::default())
+}
 
 fn bench() -> Workbench {
     Workbench::new(Editor::new(default_project().unwrap()).unwrap())

@@ -24,14 +24,16 @@ pub enum Family {
     IBeamWide57837,
     IBeamColumn57837,
     Channel,
+    ChannelP,
     Angle,
+    AngleUnequal,
     Pipe,
     SquareTube,
     RectTube,
 }
 
 impl Family {
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 14] = [
         Self::IBeamNormal57837,
         Self::IBeamWide57837,
         Self::IBeamColumn57837,
@@ -40,7 +42,9 @@ impl Family {
         Self::IBeamColumn,
         Self::IBeamSloped,
         Self::Channel,
+        Self::ChannelP,
         Self::Angle,
+        Self::AngleUnequal,
         Self::Pipe,
         Self::SquareTube,
         Self::RectTube,
@@ -54,8 +58,10 @@ impl Family {
             Self::IBeamNormal57837 => "Двутавры балочные Б (ГОСТ Р 57837)",
             Self::IBeamWide57837 => "Двутавры широкополочные Ш (ГОСТ Р 57837)",
             Self::IBeamColumn57837 => "Двутавры колонные К (ГОСТ Р 57837)",
-            Self::Channel => "Швеллеры У (ГОСТ 8240)",
+            Self::Channel => "Швеллеры с уклоном полок У (ГОСТ 8240)",
+            Self::ChannelP => "Швеллеры с параллельными гранями полок П (ГОСТ 8240)",
             Self::Angle => "Уголки равнополочные (ГОСТ 8509)",
+            Self::AngleUnequal => "Уголки неравнополочные (ГОСТ 8510)",
             Self::Pipe => "Трубы круглые (ГОСТ 10704)",
             Self::SquareTube => "Трубы квадратные (ГОСТ 30245)",
             Self::RectTube => "Трубы прямоугольные (ГОСТ 30245)",
@@ -103,29 +109,9 @@ const GOST_57837: &str = "ГОСТ Р 57837-2017";
 const SUFFIX_57837: &str = " (Р 57837)";
 const GOST_8240: &str = "ГОСТ 8240-97";
 const GOST_8509: &str = "ГОСТ 8509-93";
+const GOST_8510: &str = "ГОСТ 8510-86";
 const GOST_10704: &str = "ГОСТ 10704-91";
 const GOST_30245: &str = "ГОСТ 30245-2003";
-
-/// ГОСТ 8239-89: №, h, b, s, t (mean flange), R, A cm².
-const I_SLOPED: [(&str, f64, f64, f64, f64, f64, f64); 17] = [
-    ("10", 100., 55., 4.5, 7.2, 7.0, 12.0),
-    ("12", 120., 64., 4.8, 7.3, 7.5, 14.7),
-    ("14", 140., 73., 4.9, 7.5, 8.0, 17.4),
-    ("16", 160., 81., 5.0, 7.8, 8.5, 20.2),
-    ("18", 180., 90., 5.1, 8.1, 9.0, 23.4),
-    ("20", 200., 100., 5.2, 8.4, 9.5, 26.8),
-    ("22", 220., 110., 5.4, 8.7, 10.0, 30.6),
-    ("24", 240., 115., 5.6, 9.5, 10.5, 34.8),
-    ("27", 270., 125., 6.0, 9.8, 11.0, 40.2),
-    ("30", 300., 135., 6.5, 10.2, 12.0, 46.5),
-    ("33", 330., 140., 7.0, 11.2, 13.0, 53.8),
-    ("36", 360., 145., 7.5, 12.3, 14.0, 61.9),
-    ("40", 400., 155., 8.3, 13.0, 15.0, 72.6),
-    ("45", 450., 160., 9.0, 14.2, 16.0, 84.7),
-    ("50", 500., 170., 10.0, 15.2, 17.0, 100.0),
-    ("55", 550., 180., 11.0, 16.5, 18.0, 118.0),
-    ("60", 600., 190., 12.0, 17.8, 20.0, 138.0),
-];
 
 /// ГОСТ 26020-83: name, h, b, s, t, R, A cm².
 const I_PARALLEL: [(&str, f64, f64, f64, f64, f64, f64); 55] = [
@@ -186,112 +172,165 @@ const I_PARALLEL: [(&str, f64, f64, f64, f64, f64, f64); 55] = [
     ("40К2", 400., 400., 13.0, 20.0, 22., 210.96),
 ];
 
-/// ГОСТ 8240-97, series У: №, h, b, s, t (mean flange), R, A cm².
-const CHANNELS: [(&str, f64, f64, f64, f64, f64, f64); 16] = [
-    ("5У", 50., 32., 4.4, 7.0, 6.0, 6.16),
-    ("6,5У", 65., 36., 4.4, 7.2, 6.0, 7.51),
-    ("8У", 80., 40., 4.5, 7.4, 6.5, 8.98),
-    ("10У", 100., 46., 4.5, 7.6, 7.0, 10.9),
-    ("12У", 120., 52., 4.8, 7.8, 7.5, 13.3),
-    ("14У", 140., 58., 4.9, 8.1, 8.0, 15.6),
-    ("16У", 160., 64., 5.0, 8.4, 8.5, 18.1),
-    ("18У", 180., 70., 5.1, 8.7, 9.0, 20.7),
-    ("20У", 200., 76., 5.2, 9.0, 9.5, 23.4),
-    ("22У", 220., 82., 5.4, 9.5, 10.0, 26.7),
-    ("24У", 240., 90., 5.6, 10.0, 10.5, 30.6),
-    ("27У", 270., 95., 6.0, 10.5, 11.0, 35.2),
-    ("30У", 300., 100., 6.5, 11.0, 12.0, 40.5),
-    ("33У", 330., 105., 7.0, 11.7, 13.0, 46.5),
-    ("36У", 360., 110., 7.5, 12.6, 14.0, 53.4),
-    ("40У", 400., 115., 8.0, 13.5, 15.0, 61.5),
-];
-
-/// ГОСТ Р 57837-2017 with Amendment 1, from the sourced reference table.
+/// Sourced reference tables (`data/reference`, see its `sources.md`).
+const I_8239_CSV: &str = include_str!("../../../data/reference/i_beams_gost_8239_89.csv");
 const I_57837_CSV: &str = include_str!("../../../data/reference/i_beams_gost_r_57837_2017.csv");
+const CHANNELS_CSV: &str = include_str!("../../../data/reference/channels_gost_8240_97.csv");
+const ANGLES_CSV: &str = include_str!("../../../data/reference/angles_equal_gost_8509_93.csv");
+const ANGLES_UNEQUAL_CSV: &str =
+    include_str!("../../../data/reference/angles_unequal_gost_8510_86.csv");
+const PIPES_CSV: &str = include_str!("../../../data/reference/pipes_round_gost_10704_91.csv");
+const TUBES_CSV: &str = include_str!("../../../data/reference/hollow_sections_gost_30245_2003.csv");
+const STEELS_CSV: &str = include_str!("../../../data/reference/steel_grades.csv");
 
-/// ГОСТ Р 57837-2017 rows: designation, h, b, tw, tf, r, A cm².
-fn i_57837() -> Vec<(&'static str, f64, f64, f64, f64, f64, f64)> {
-    I_57837_CSV
-        .lines()
-        .skip(1)
-        .filter(|l| !l.trim().is_empty())
-        .map(|line| {
-            let f: Vec<&str> = line.splitn(9, ',').collect();
-            let n = |i: usize| {
-                f[i].parse::<f64>()
-                    .expect("number in the ГОСТ Р 57837 table")
-            };
-            (f[0], n(2), n(3), n(4), n(5), n(6), n(7))
+/// Rows of a reference table as `column → value`; quoted cells (notes) may
+/// hold commas, the columns read here never do.
+fn table(csv: &'static str) -> Vec<Row> {
+    let mut lines = csv.lines().filter(|l| !l.trim().is_empty());
+    let header: Vec<&'static str> = lines.next().expect("table header").split(',').collect();
+    lines
+        .map(|line| Row {
+            header: header.clone(),
+            cells: split_csv(line),
         })
         .collect()
 }
 
-/// ГОСТ 8509-93: b, t, R, A cm².
-const ANGLES: [(f64, f64, f64, f64); 23] = [
-    (50., 4., 5.5, 3.89),
-    (50., 5., 5.5, 4.80),
-    (63., 5., 7.0, 6.13),
-    (63., 6., 7.0, 7.28),
-    (70., 6., 8.0, 8.15),
-    (70., 7., 8.0, 9.42),
-    (75., 6., 9.0, 8.78),
-    (75., 8., 9.0, 11.5),
-    (80., 6., 9.0, 9.38),
-    (80., 8., 9.0, 12.3),
-    (90., 7., 10.0, 12.28),
-    (90., 8., 10.0, 13.93),
-    (100., 8., 12.0, 15.6),
-    (100., 10., 12.0, 19.24),
-    (110., 8., 12.0, 17.2),
-    (125., 8., 14.0, 19.69),
-    (125., 10., 14.0, 24.33),
-    (140., 10., 14.0, 27.33),
-    (160., 10., 16.0, 31.43),
-    (160., 12., 16.0, 37.39),
-    (180., 12., 16.0, 42.19),
-    (200., 12., 18.0, 47.1),
-    (200., 14., 18.0, 54.6),
-];
+fn split_csv(line: &'static str) -> Vec<&'static str> {
+    let mut cells = Vec::new();
+    let (mut start, mut quoted) = (0, false);
+    for (i, c) in line.char_indices() {
+        match c {
+            '"' => quoted = !quoted,
+            ',' if !quoted => {
+                cells.push(&line[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    cells.push(&line[start..]);
+    cells
+}
 
-/// ГОСТ 10704-91: D, t (common sizes; the area is exact).
-const PIPES: [(f64, f64); 14] = [
-    (57., 3.5),
-    (76., 3.5),
-    (89., 4.0),
-    (108., 4.0),
-    (114., 4.5),
-    (127., 5.0),
-    (133., 5.0),
-    (159., 6.0),
-    (168., 6.0),
-    (219., 6.0),
-    (219., 8.0),
-    (273., 8.0),
-    (325., 8.0),
-    (426., 10.0),
-];
+struct Row {
+    header: Vec<&'static str>,
+    cells: Vec<&'static str>,
+}
 
-/// ГОСТ 30245-2003 (common sizes): H, B, t, outer corner radius R, A cm².
-const TUBES: [(f64, f64, f64, f64, f64); 18] = [
-    (60., 60., 4., 8., 8.55),
-    (80., 80., 4., 8., 11.75),
-    (80., 80., 5., 10., 14.36),
-    (100., 100., 5., 10., 18.36),
-    (100., 100., 6., 12., 21.63),
-    (120., 120., 6., 12., 26.43),
-    (140., 140., 6., 12., 31.23),
-    (160., 160., 6., 12., 36.03),
-    (160., 160., 8., 20., 46.44),
-    (180., 180., 8., 20., 52.84),
-    (200., 200., 8., 20., 59.24),
-    (80., 60., 4., 8., 10.15),
-    (100., 60., 4., 8., 11.75),
-    (120., 80., 5., 10., 18.36),
-    (140., 100., 6., 12., 26.43),
-    (160., 120., 6., 12., 31.23),
-    (180., 140., 6., 12., 36.03),
-    (200., 160., 8., 20., 52.84),
-];
+impl Row {
+    fn text(&self, column: &str) -> &'static str {
+        let i = self
+            .header
+            .iter()
+            .position(|h| *h == column)
+            .unwrap_or_else(|| panic!("column {column}"));
+        self.cells.get(i).copied().unwrap_or("")
+    }
+    fn num(&self, column: &str) -> f64 {
+        self.text(column)
+            .parse()
+            .unwrap_or_else(|_| panic!("{column} of {}", self.cells[0]))
+    }
+}
+
+/// ГОСТ 8239-89: №, h, b, s, t (mean flange), R, A cm².
+fn i_sloped() -> Vec<(&'static str, f64, f64, f64, f64, f64, f64)> {
+    table(I_8239_CSV)
+        .iter()
+        .map(|r| {
+            let n = |c| r.num(c);
+            (
+                r.text("designation"),
+                n("h"),
+                n("b"),
+                n("tw"),
+                n("tf"),
+                n("r"),
+                n("area_cm2"),
+            )
+        })
+        .collect()
+}
+
+/// ГОСТ Р 57837-2017 rows: designation, h, b, tw, tf, r, A cm².
+fn i_57837() -> Vec<(&'static str, f64, f64, f64, f64, f64, f64)> {
+    table(I_57837_CSV)
+        .iter()
+        .map(|r| {
+            let n = |c| r.num(c);
+            (
+                r.text("designation"),
+                n("h"),
+                n("b"),
+                n("tw"),
+                n("tf"),
+                n("r"),
+                n("area_cm2"),
+            )
+        })
+        .collect()
+}
+
+/// ГОСТ 8240-97, series У and П: №, h, b, s, t (mean flange), R, A cm².
+fn channels() -> Vec<(&'static str, f64, f64, f64, f64, f64, f64)> {
+    table(CHANNELS_CSV)
+        .iter()
+        .map(|r| {
+            let n = |c| r.num(c);
+            (
+                r.text("designation"),
+                n("h"),
+                n("b"),
+                n("tw"),
+                n("tf"),
+                n("r"),
+                n("area_cm2"),
+            )
+        })
+        .collect()
+}
+
+/// ГОСТ 8509-93: b, t, R, r (toe), A cm².
+fn angles() -> Vec<(f64, f64, f64, f64, f64)> {
+    table(ANGLES_CSV)
+        .iter()
+        .map(|r| {
+            let n = |c| r.num(c);
+            (n("b"), n("t"), n("r"), n("r2"), n("area_cm2"))
+        })
+        .collect()
+}
+
+/// ГОСТ 8510-86: B, b, t, R, r (toe), A cm².
+fn angles_unequal() -> Vec<(f64, f64, f64, f64, f64, f64)> {
+    table(ANGLES_UNEQUAL_CSV)
+        .iter()
+        .map(|r| {
+            let n = |c| r.num(c);
+            (n("B"), n("b"), n("t"), n("r"), n("r2"), n("area_cm2"))
+        })
+        .collect()
+}
+
+/// ГОСТ 10704-91: D, t (the area is exact).
+fn pipes() -> Vec<(f64, f64)> {
+    table(PIPES_CSV)
+        .iter()
+        .map(|r| (r.num("D"), r.num("t")))
+        .collect()
+}
+
+/// ГОСТ 30245-2003: H, B, t, outer corner radius R, A cm².
+fn tubes() -> Vec<(f64, f64, f64, f64, f64)> {
+    table(TUBES_CSV)
+        .iter()
+        .map(|r| {
+            let n = |c| r.num(c);
+            (n("h"), n("b"), n("t"), n("r_outer"), n("area_cm2"))
+        })
+        .collect()
+}
 
 fn fmt(v: f64) -> String {
     if v.fract() == 0.0 {
@@ -303,6 +342,16 @@ fn fmt(v: f64) -> String {
 
 /// Every catalogue section, in picker order.
 pub fn sections() -> Vec<Entry> {
+    all().to_vec()
+}
+
+/// The catalogue, read from the tables once.
+fn all() -> &'static [Entry] {
+    static ALL: std::sync::OnceLock<Vec<Entry>> = std::sync::OnceLock::new();
+    ALL.get_or_init(read_sections)
+}
+
+fn read_sections() -> Vec<Entry> {
     let mut out = Vec::new();
     for (name, h, b, s, t, r, a) in I_PARALLEL {
         let family = if name.contains('Б') {
@@ -348,7 +397,7 @@ pub fn sections() -> Vec<Entry> {
             radius: r,
         });
     }
-    for (n, h, b, s, t, r, a) in I_SLOPED {
+    for (n, h, b, s, t, r, a) in i_sloped() {
         out.push(Entry {
             name: format!("I{n}"),
             family: Family::IBeamSloped,
@@ -363,10 +412,14 @@ pub fn sections() -> Vec<Entry> {
             radius: r,
         });
     }
-    for (n, h, b, s, t, r, a) in CHANNELS {
+    for (n, h, b, s, t, r, a) in channels() {
         out.push(Entry {
-            name: format!("[{n}"),
-            family: Family::Channel,
+            name: format!("[{}", n.replace('.', ",")),
+            family: if n.ends_with('П') {
+                Family::ChannelP
+            } else {
+                Family::Channel
+            },
             shape: ProfileShape::Channel {
                 height: h,
                 width: b,
@@ -378,7 +431,7 @@ pub fn sections() -> Vec<Entry> {
             radius: r,
         });
     }
-    for (b, t, r, a) in ANGLES {
+    for (b, t, r, _, a) in angles() {
         out.push(Entry {
             name: format!("L{}×{}", fmt(b), fmt(t)),
             family: Family::Angle,
@@ -392,7 +445,21 @@ pub fn sections() -> Vec<Entry> {
             radius: r,
         });
     }
-    for (d, t) in PIPES {
+    for (big, b, t, r, _, a) in angles_unequal() {
+        out.push(Entry {
+            name: format!("L{}×{}×{}", fmt(big), fmt(b), fmt(t)),
+            family: Family::AngleUnequal,
+            shape: ProfileShape::Angle {
+                height: big,
+                width: b,
+                thickness: t,
+            },
+            standard: GOST_8510,
+            area_mm2: a * 100.0,
+            radius: r,
+        });
+    }
+    for (d, t) in pipes() {
         out.push(Entry {
             name: format!("Труба {}×{}", fmt(d), fmt(t)),
             family: Family::Pipe,
@@ -405,7 +472,7 @@ pub fn sections() -> Vec<Entry> {
             radius: 0.0,
         });
     }
-    for (h, b, t, r, a) in TUBES {
+    for (h, b, t, r, a) in tubes() {
         let family = if h == b {
             Family::SquareTube
         } else {
@@ -429,32 +496,43 @@ pub fn sections() -> Vec<Entry> {
 
 /// A catalogue section by its exact name («20Б1», «I20», «[20У»…).
 pub fn section(name: &str) -> Option<Entry> {
-    sections().into_iter().find(|e| e.name == name)
+    all().iter().find(|e| e.name == name).cloned()
 }
 
 /// Sections whose name contains every word of `query`, case-insensitive
 /// («30б», «ш1», «труба 219»).
 pub fn search(query: &str) -> Vec<Entry> {
     let words: Vec<String> = query.split_whitespace().map(str::to_lowercase).collect();
-    sections()
-        .into_iter()
+    all()
+        .iter()
         .filter(|e| {
             let name = e.name.to_lowercase();
             words.iter().all(|w| name.contains(w.as_str()))
         })
+        .cloned()
         .collect()
 }
 
-/// Structural steel grades (ГОСТ 27772-2021, ГОСТ 19281-2014), ρ = 7850 kg/m³.
+/// Structural steel grades, ρ = 7850 kg/m³: every grade of ГОСТ 27772-2021
+/// in СП 16.13330 tables В.3–В.5 (`steel_grades.csv`), then 09Г2С of
+/// ГОСТ 19281-2014.
 pub fn steels() -> Vec<(&'static str, &'static str)> {
-    vec![
-        ("С245", "ГОСТ 27772-2021"),
-        ("С255", "ГОСТ 27772-2021"),
-        ("С345", "ГОСТ 27772-2021"),
-        ("С355", "ГОСТ 27772-2021"),
-        ("С390", "ГОСТ 27772-2021"),
-        ("09Г2С", "ГОСТ 19281-2014"),
-    ]
+    let mut out: Vec<(&'static str, &'static str)> = Vec::new();
+    for row in table(STEELS_CSV) {
+        let grade = row.text("grade");
+        if !out.iter().any(|(g, _)| *g == grade) {
+            out.push((grade, "ГОСТ 27772-2021"));
+        }
+    }
+    out.sort_by_key(|(g, _)| steel_order(g));
+    out.push(("09Г2С", "ГОСТ 19281-2014"));
+    out
+}
+
+/// С235 < С245 < … < С440, and within a strength С345 < С345Б < С345Б-1 < С345К.
+fn steel_order(grade: &str) -> (u32, String) {
+    let digits: String = grade.chars().filter(char::is_ascii_digit).take(3).collect();
+    (digits.parse().unwrap_or(0), grade.into())
 }
 
 /// A steel grade as a project material.
@@ -512,11 +590,13 @@ mod tests {
     fn sloped_flange_beams_and_channels_match_their_areas() {
         // Sloped flanges and toe radii: the mean-thickness formula agrees
         // within 3 %.
-        for (name, h, b, s, t, r, a) in I_SLOPED {
+        for (name, h, b, s, t, r, a) in i_sloped() {
             let err = (i_area(h, b, s, t, r) - a * 100.0).abs() / (a * 100.0);
             assert!(err < 0.03, "I{name}: {err:.3}");
         }
-        for (name, h, b, s, t, r, a) in CHANNELS {
+        let channels = channels();
+        assert_eq!(channels.len(), 36);
+        for (name, h, b, s, t, r, a) in channels {
             let computed = 2.0 * b * t + (h - 2.0 * t) * s + (2.0 - PI / 2.0) * r * r;
             let err = (computed - a * 100.0).abs() / (a * 100.0);
             assert!(err < 0.03, "[{name}: {err:.3}");
@@ -525,19 +605,28 @@ mod tests {
 
     #[test]
     fn angles_match_their_areas_within_one_percent() {
-        for (b, t, r, a) in ANGLES {
-            let toe = r / 3.0;
+        let angles = angles();
+        assert_eq!(angles.len(), 89);
+        for (b, t, r, toe, a) in angles {
             let computed = t * (2.0 * b - t) + (1.0 - PI / 4.0) * (r * r - 2.0 * toe * toe);
             let err = (computed - a * 100.0).abs() / (a * 100.0);
             assert!(err < 0.01, "L{b}×{t}: {err:.4}");
+        }
+        let unequal = angles_unequal();
+        assert_eq!(unequal.len(), 62);
+        for (big, b, t, r, toe, a) in unequal {
+            let computed = t * (big + b - t) + (1.0 - PI / 4.0) * (r * r - 2.0 * toe * toe);
+            let err = (computed - a * 100.0).abs() / (a * 100.0);
+            assert!(err < 0.01, "L{big}×{b}×{t}: {err:.4}");
         }
     }
 
     #[test]
     fn tubes_match_their_areas_with_the_standard_corner_radii() {
-        for (h, b, t, r, a) in TUBES {
-            // ГОСТ 30245: R = 2t up to t = 6 and 2.5t above; inner radius R − t.
-            assert_eq!(r, if t <= 6.0 { 2.0 * t } else { 2.5 * t }, "{h}×{b}×{t}");
+        let tubes = tubes();
+        assert_eq!(tubes.len(), 577);
+        for (h, b, t, r, a) in tubes {
+            // Inner radius R − t.
             let computed = 2.0 * t * (h + b - 2.0 * t) - (4.0 - PI) * (r * r - (r - t) * (r - t));
             let err = (computed - a * 100.0).abs() / (a * 100.0);
             assert!(err < 0.005, "{h}×{b}×{t}: {err:.4}");
@@ -551,20 +640,64 @@ mod tests {
         for e in &all {
             assert!(names.insert(e.name.clone()), "duplicate {}", e.name);
             let sharp = e.shape.area_mm2().unwrap();
-            // The sharp model and the catalogue area differ only by fillets.
+            // The sharp model and the catalogue area differ only by fillets
+            // (thick tubes with R = 2,5t: up to 11 %).
             assert!(
-                (sharp - e.area_mm2).abs() / e.area_mm2 < 0.10,
+                (sharp - e.area_mm2).abs() / e.area_mm2 < 0.12,
                 "{}: {sharp:.0} vs {:.0}",
                 e.name,
                 e.area_mm2
             );
             assert_eq!(section(&e.name).as_ref(), Some(e));
         }
-        assert!(all.len() > 130);
+        assert!(all.len() > 1200);
         assert_eq!(search("30б").len(), 2 + 4);
         assert_eq!(search("30б 57837").len(), 4);
-        assert_eq!(search("Труба 219").len(), 2);
+        assert_eq!(search("Труба 219×").len(), 14);
         assert!((section("20Б1").unwrap().mass_kg_m() - 22.4).abs() < 0.05);
         assert!((section("I20").unwrap().mass_kg_m() - 21.0).abs() < 0.05);
+    }
+
+    #[test]
+    fn names_of_earlier_versions_still_resolve() {
+        // Projects and property files store these names.
+        for name in [
+            "I20",
+            "[6,5У",
+            "[20У",
+            "[40У",
+            "L50×4",
+            "L200×14",
+            "Труба 57×3,5",
+            "Труба 426×10",
+            "Гн 60×60×4",
+            "Гн 200×160×8",
+            "20Б1",
+            "30К2 (Р 57837)",
+        ] {
+            assert!(section(name).is_some(), "{name}");
+        }
+        assert_eq!(section("[16аП").unwrap().family, Family::ChannelP);
+        let l = section("L100×63×8").unwrap();
+        assert_eq!(l.standard, "ГОСТ 8510-86");
+        assert!((l.mass_kg_m() - 9.87).abs() < 0.1, "{}", l.mass_kg_m());
+    }
+
+    #[test]
+    fn steels_cover_gost_27772_in_strength_order() {
+        let grades: Vec<&str> = steels().into_iter().map(|(g, _)| g).collect();
+        for g in [
+            "С235", "С245", "С255", "С345", "С345К", "С355", "С390", "С440", "09Г2С",
+        ] {
+            assert!(grades.contains(&g), "{g}");
+        }
+        let pos = |g| grades.iter().position(|x| *x == g).unwrap();
+        assert!(
+            pos("С235") < pos("С255") && pos("С255") < pos("С345") && pos("С390") < pos("С440")
+        );
+        assert_eq!(
+            steel(ObjectId(1), "С345").unwrap().name,
+            "С345 · ГОСТ 27772-2021"
+        );
     }
 }

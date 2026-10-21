@@ -84,3 +84,29 @@ fn catalogue_profile_and_steel_are_added_with_the_change_and_undone_with_it() {
     b.editor.history(false).unwrap();
     assert_eq!(b.editor.document.project().profiles.len(), profiles_before);
 }
+
+#[test]
+fn a_new_model_starts_with_gost_steel_and_sections() {
+    let mut b = bench();
+    let project = b.editor.document.project();
+    let names: Vec<&str> = project
+        .materials
+        .values()
+        .map(|m| m.name.as_str())
+        .collect();
+    assert_eq!(names, ["С255 · ГОСТ 27772-2021"]);
+    for name in open_bim_desktop::interaction::tools::STARTER_SECTIONS {
+        let p = project.profiles.values().find(|p| p.name == name).unwrap();
+        assert!(p.standard.as_deref().unwrap().starts_with("ГОСТ"), "{name}");
+    }
+    assert!(
+        project
+            .profiles
+            .values()
+            .all(|p| !p.name.is_ascii() && !p.source.contains("тестовый"))
+    );
+    // The beam tool takes the first one: 30Б1, 32,0 kg/m.
+    let id = beam(&mut b);
+    let mass = b.editor.document.project().element_mass_kg(id).unwrap();
+    assert!((mass - 6.0 * 32.0).abs() < 2.0, "{mass}");
+}

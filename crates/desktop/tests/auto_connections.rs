@@ -1,9 +1,16 @@
 //! «Автосоединения»: free member ends get the first fitting component of
 //! their rule, and running it again adds nothing.
-use open_bim_desktop::interaction::tools::default_project;
+use open_bim_desktop::interaction::tools::with_default_grid;
 use open_bim_desktop::tools::{Editor, ui::Action};
 use open_bim_desktop::ui::{Request, Workbench, commands::Cmd};
 use open_bim_model::{Element, ElementShape, Frame, MemberKind, ObjectId, Point3};
+
+/// The analytic test sections these geometry checks are written for
+/// (profile 2 is I 300×150×8×12), with the default grid; new models in the
+/// app start with ГОСТ sections instead.
+fn default_project() -> Result<open_bim_model::Project, String> {
+    with_default_grid(open_bim_model::Project::default())
+}
 
 fn member(b: &mut Workbench, kind: MemberKind, start: [f64; 3], end: [f64; 3]) -> ObjectId {
     let project = b.editor.document.project();
