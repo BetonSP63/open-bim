@@ -279,6 +279,7 @@ impl Desktop {
     fn action(&mut self, action: Action) {
         let fit = self.scene.instances.is_empty()
             || matches!(action, Action::New | Action::Example | Action::Open);
+        let replaced = matches!(action, Action::New | Action::Example);
         let result = match action {
             Action::Create => self.bench.editor.create(),
             Action::Commit(label, commands) => self.bench.editor.commit(&label, &commands),
@@ -319,19 +320,17 @@ impl Desktop {
                 return;
             }
             Action::Save => {
-                match self
-                    .bench
-                    .editor
-                    .save(std::path::Path::new(&self.bench.tools.path))
-                {
-                    Ok(()) => self.bench.tools.message = Some("Проект сохранён".into()),
-                    Err(error) => self.bench.tools.message = Some(error),
-                };
+                self.bench.tools.message =
+                    Some(self.bench.save_project().unwrap_or_else(|error| error));
                 return;
             }
         };
         match result {
             Ok(scene) => {
+                if replaced {
+                    let project = self.bench.editor.document.project().clone();
+                    self.bench.tools.autosave.mark_saved(&project);
+                }
                 if fit {
                     self.camera.fit(
                         overlay::model_bounds(&scene, self.bench.editor.document.project())

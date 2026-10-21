@@ -489,6 +489,14 @@ impl Workbench {
                             self.objects,
                             self.editor.document.project().revision
                         )));
+                        if let Some(at) = self.tools.autosave.last_snapshot {
+                            let minutes = at.elapsed().as_secs() / 60;
+                            ui.label(white(if minutes == 0 {
+                                "Автосохранено только что".to_string()
+                            } else {
+                                format!("Автосохранено {minutes} мин назад")
+                            }));
+                        }
                         if let Some(kind) = self.last_snap.filter(|_| self.picking()) {
                             ui.label(white(kind.label().to_string()));
                         }

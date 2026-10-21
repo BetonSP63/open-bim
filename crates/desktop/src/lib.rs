@@ -1,4 +1,5 @@
 //! Interactive modeling controller and deterministic snapping.
+pub mod autosave;
 pub mod bench;
 pub mod drawing_editor;
 pub mod interaction;
