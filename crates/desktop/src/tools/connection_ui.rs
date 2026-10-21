@@ -218,6 +218,13 @@ impl ConnectionUi {
                 TemplateKind::BasePlate { overhang } | TemplateKind::EndPlate { overhang } => {
                     dimension(ui, "Свес, мм", overhang)
                 }
+                TemplateKind::BeamSplice { rows, pitch } => {
+                    dimension(ui, "Шаг болтов, мм", pitch);
+                    ui.horizontal(|ui| {
+                        ui.label("Болтов по высоте стенки");
+                        ui.add(egui::DragValue::new(rows).range(1..=12));
+                    });
+                }
                 TemplateKind::ColumnStiffeners { chamfer } => {
                     dimension(ui, "Срез угла у стенки, мм", chamfer);
                 }

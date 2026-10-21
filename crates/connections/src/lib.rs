@@ -8,6 +8,10 @@ mod fin_plate;
 pub use fin_plate::{FinPlateGeometry, fin_plate_geometry, fin_plate_roles, rebuild_fin_plates};
 mod stiffeners;
 pub use stiffeners::{STIFFENER_ROLES, StiffenerGeometry, rebuild_stiffeners, stiffener_geometry};
+mod beam_splice;
+pub use beam_splice::{
+    BeamSpliceGeometry, MAX_SPLICE_GAP, SpliceBolts, beam_splice_geometry, rebuild_beam_splices,
+};
 mod clip_angle;
 pub use clip_angle::{ClipAngleGeometry, clip_angle_geometry, rebuild_clip_angles};
 
