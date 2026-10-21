@@ -560,7 +560,14 @@ impl eframe::App for Desktop {
         let mut requests = self.bench.panels(ui);
         requests.append(&mut self.pending);
         self.handle(requests);
+        let representation = self
+            .bench
+            .applied_representation(Arc::as_ptr(&self.scene) as usize);
         self.view.hidden = self.bench.hidden.clone();
+        self.view
+            .hidden
+            .extend(representation.hidden.iter().copied());
+        self.view.appearance = representation.appearance;
         // Clip planes follow the whole model (parts and grid), every frame.
         self.camera.extent =
             overlay::model_bounds(&self.scene, self.bench.editor.document.project())

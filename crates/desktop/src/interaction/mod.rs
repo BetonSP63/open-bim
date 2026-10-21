@@ -9,6 +9,7 @@ pub mod inquire;
 pub mod keyboard_cursor;
 pub mod member_edit;
 pub mod numeric;
+pub mod object_groups;
 pub mod orbit;
 pub mod polygon;
 pub mod selection;

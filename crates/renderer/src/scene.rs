@@ -122,9 +122,20 @@ impl ClipPlane {
     }
 }
 
+/// Colour and opacity of a part set by the object representation.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Appearance {
+    /// `None` keeps the part's own colour.
+    pub color: Option<[f32; 3]>,
+    /// 1 = opaque.
+    pub alpha: f32,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct ViewState {
     pub hidden: BTreeSet<ObjectId>,
+    /// Object representation overrides, shared like the selection.
+    pub appearance: Arc<std::collections::BTreeMap<ObjectId, Appearance>>,
     pub selected: Option<ObjectId>,
     /// Shared, so the per-frame copy of the view state stays cheap with a
     /// large selection.

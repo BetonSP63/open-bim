@@ -6,6 +6,7 @@ mod scene;
 pub use camera::{Camera, NamedView, Ray};
 pub use glam::{DMat4, DVec3};
 pub use gpu::{GpuRenderer, ViewportCallback};
+pub use scene::Appearance;
 pub use scene::{
     Bounds, ClipPlane, Display, DisplayMesh, Instance, RenderMode, Scene, TransparencyScope,
     ViewState, class_color, feature_edges,

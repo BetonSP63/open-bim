@@ -90,6 +90,7 @@ pub enum Cmd {
     InquireObject,
     CompareParts,
     ClipPlanePick,
+    ObjectRepresentation,
     ClipPlaneRemove,
     CreateElement,
     CancelTool,
@@ -569,6 +570,13 @@ pub const ALL: &[Spec] = &[
         category: "Вид",
         shortcut: None,
         keywords: "сравнить детали позиции отличия нумерация compare",
+    },
+    Spec {
+        cmd: Cmd::ObjectRepresentation,
+        label: "Представление объектов…",
+        category: "Вид",
+        shortcut: None,
+        keywords: "представление объектов группы цвет прозрачность скрыть object representation",
     },
     Spec {
         cmd: Cmd::ClipPlanePick,
