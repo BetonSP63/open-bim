@@ -12,6 +12,8 @@ pub enum Tab {
     Parts,
     Assemblies,
     Fasteners,
+    /// «Обработка поверхности»: area per treatment.
+    Coatings,
 }
 
 pub struct ReportsUi {
@@ -72,7 +74,11 @@ impl ReportsUi {
             ("ведомость-деталей.csv", csv::parts(r)),
             ("ведомость-сборок.csv", csv::assemblies(r)),
             ("крепёж-и-сварка.csv", csv::fasteners(r)),
+            ("покрытия.csv", csv::coatings(r)),
         ] {
+            if name == "покрытия.csv" && r.coatings.is_empty() {
+                continue;
+            }
             let path = dir.join(name);
             std::fs::write(&path, text).map_err(|e| e.to_string())?;
             files.push(path);
@@ -138,6 +144,7 @@ impl ReportsUi {
             ui.selectable_value(&mut self.tab, Tab::Parts, "Детали");
             ui.selectable_value(&mut self.tab, Tab::Assemblies, "Сборки");
             ui.selectable_value(&mut self.tab, Tab::Fasteners, "Крепёж и сварка");
+            ui.selectable_value(&mut self.tab, Tab::Coatings, "Покрытия");
         });
         let Some(r) = &self.reports else {
             ui.centered_and_justified(|ui| {
@@ -236,6 +243,19 @@ impl ReportsUi {
                                 f.description.clone(),
                                 f.quantity.to_string(),
                                 open_bim_reports::fmt(f.length_mm),
+                            ]
+                        })
+                        .collect(),
+                ),
+                Tab::Coatings => (
+                    vec!["Обработка поверхности", "Кол-во деталей", "Площадь, м²"],
+                    r.coatings
+                        .iter()
+                        .map(|c| {
+                            vec![
+                                c.treatment.clone(),
+                                c.quantity.to_string(),
+                                format!("{:.3}", c.area_m2),
                             ]
                         })
                         .collect(),

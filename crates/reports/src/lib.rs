@@ -47,6 +47,19 @@ pub struct FastenerRow {
     pub length_mm: f64,
 }
 
+/// Parts with one surface treatment («Обработка поверхности»).
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct CoatingRow {
+    pub treatment: String,
+    pub quantity: usize,
+    /// Outer surface of these parts, m².
+    pub area_m2: f64,
+    pub ids: Vec<ObjectId>,
+}
+
+/// Element property holding the surface treatment of a part.
+pub const SURFACE_TREATMENT: &str = "surface_treatment";
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Reports {
     pub revision: u64,
@@ -56,6 +69,8 @@ pub struct Reports {
     pub total_part_mass_kg: f64,
     pub total_assembly_mass_kg: f64,
     pub unassembled: Vec<ObjectId>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub coatings: Vec<CoatingRow>,
 }
 
 fn round(value: f64, digits: i32) -> f64 {
@@ -203,6 +218,7 @@ pub fn generate(project: &Project) -> Result<Reports, Error> {
         parts,
         assemblies,
         fasteners: fasteners(project),
+        coatings: coatings(project)?,
         total_part_mass_kg,
         total_assembly_mass_kg,
         unassembled,
@@ -224,6 +240,35 @@ pub fn assembly_parts(project: &Project, id: ObjectId) -> BTreeSet<ObjectId> {
         }
     }
     result
+}
+
+/// Surface treatments of the parts with their total outer area.
+pub fn coatings(project: &Project) -> Result<Vec<CoatingRow>, Error> {
+    let mut by: BTreeMap<String, Vec<ObjectId>> = BTreeMap::new();
+    for (id, element) in &project.elements {
+        if let Some(open_bim_model::PropertyValue::Text(t)) =
+            element.properties.get(SURFACE_TREATMENT)
+            && !t.trim().is_empty()
+        {
+            by.entry(t.trim().to_string()).or_default().push(*id);
+        }
+    }
+    by.into_iter()
+        .map(|(treatment, ids)| {
+            let mut area = 0.0;
+            for id in &ids {
+                area += project
+                    .element_surface_mm2(*id)
+                    .map_err(|e| format!("Деталь #{}: {e}", id.0))?;
+            }
+            Ok(CoatingRow {
+                treatment,
+                quantity: ids.len(),
+                area_m2: round(area / 1e6, 3),
+                ids,
+            })
+        })
+        .collect()
 }
 
 fn fasteners(project: &Project) -> Vec<FastenerRow> {

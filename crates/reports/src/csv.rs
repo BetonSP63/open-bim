@@ -131,3 +131,16 @@ pub fn fasteners(r: &Reports) -> String {
         }),
     )
 }
+
+pub fn coatings(r: &Reports) -> String {
+    table(
+        &["Обработка поверхности", "Кол-во деталей", "Площадь, м²"],
+        r.coatings.iter().map(|c| {
+            vec![
+                c.treatment.clone(),
+                c.quantity.to_string(),
+                format!("{:.3}", c.area_m2),
+            ]
+        }),
+    )
+}

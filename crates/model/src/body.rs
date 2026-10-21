@@ -2,6 +2,29 @@ use crate::{DetailKind, ElementShape, ModelError, ObjectId, Point3, ProfileShape
 use open_bim_geometry::Body;
 
 impl Project {
+    /// Outer surface of a part body (holes and cuts included), mm²: the
+    /// area to paint or galvanize.
+    pub fn element_surface_mm2(&self, id: ObjectId) -> Result<f64, ModelError> {
+        let (points, triangles) = self
+            .element_body(id)?
+            .tessellation_f64()
+            .map_err(|e| ModelError::InvalidValue(e.to_string()))?;
+        Ok(triangles
+            .iter()
+            .map(|t| {
+                let [a, b, c] = t.map(|i| points[i as usize]);
+                let u: [f64; 3] = std::array::from_fn(|k| b[k] - a[k]);
+                let v: [f64; 3] = std::array::from_fn(|k| c[k] - a[k]);
+                let n = [
+                    u[1] * v[2] - u[2] * v[1],
+                    u[2] * v[0] - u[0] * v[2],
+                    u[0] * v[1] - u[1] * v[0],
+                ];
+                (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt() / 2.0
+            })
+            .sum())
+    }
+
     /// Exact local part body. Placement remains in the element frame.
     pub fn element_body(&self, id: ObjectId) -> Result<Body, ModelError> {
         let element = self

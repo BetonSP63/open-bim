@@ -1658,6 +1658,56 @@ impl Workbench {
                     );
                 });
         }
+        egui::CollapsingHeader::new("Обработка поверхности")
+            .default_open(false)
+            .show(ui, |ui| {
+                let key = open_bim_reports::SURFACE_TREATMENT;
+                let project = self.editor.document.project();
+                let current: BTreeSet<String> = c
+                    .parts
+                    .iter()
+                    .filter_map(|id| project.elements.get(id))
+                    .map(|e| match e.properties.get(key) {
+                        Some(open_bim_model::PropertyValue::Text(t)) => t.clone(),
+                        _ => "Без покрытия".into(),
+                    })
+                    .collect();
+                ui.label(match current.len() {
+                    1 => format!("Сейчас: {}", current.first().unwrap()),
+                    _ => format!("Сейчас: {VARIES}"),
+                });
+                egui::ComboBox::new("treatment", "Покрытие")
+                    .selected_text(self.treatment.clone())
+                    .width(220.)
+                    .show_ui(ui, |ui| {
+                        for t in super::TREATMENTS {
+                            ui.selectable_value(&mut self.treatment, t.to_string(), t);
+                        }
+                    });
+                let l = ui.label("Своё покрытие");
+                ui.text_edit_singleline(&mut self.treatment)
+                    .labelled_by(l.id);
+                if ui.button("Назначить выбранным").clicked() {
+                    let value = self.treatment.trim();
+                    let value = (!value.is_empty() && value != super::TREATMENTS[0])
+                        .then(|| open_bim_model::PropertyValue::Text(value.to_string()));
+                    let commands = c
+                        .parts
+                        .iter()
+                        .filter(|id| project.elements.contains_key(id))
+                        .map(|id| open_bim_commands::Command::ChangeProperty {
+                            id: *id,
+                            key: key.into(),
+                            value: value.clone(),
+                        })
+                        .collect();
+                    requests.push(Request::Action(Action::Commit(
+                        "Обработка поверхности".into(),
+                        commands,
+                    )));
+                }
+                ui.small("Площадь покрытия — в ведомостях, вкладка «Покрытия»");
+            });
         let plates = {
             let project = self.editor.document.project();
             c.parts.iter().all(|id| {
