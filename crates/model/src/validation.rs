@@ -151,9 +151,11 @@ impl Project {
             register(*key, connection.id)?;
             connection.template.validate()?;
             connection.validate_child_roles(self)?;
-            if connection.children.is_empty() {
+            text(&connection.general.class)?;
+            text(&connection.general.code)?;
+            if connection.general.class.len() > 256 || connection.general.code.len() > 256 {
                 return Err(ModelError::InvalidValue(
-                    "Соединение не содержит сгенерированных объектов".into(),
+                    "Слишком длинный класс или код узла".into(),
                 ));
             }
             for parent in std::iter::once(connection.primary).chain(connection.secondary) {

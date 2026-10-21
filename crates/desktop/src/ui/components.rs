@@ -232,6 +232,7 @@ pub fn connection(
             at_end: at_end(project, main, support),
             template,
             children: Default::default(),
+            general: Default::default(),
         },
     }])
 }

@@ -265,7 +265,13 @@ pub fn rebuild_beam_splices(project: &mut Project, previous: &Project) -> Result
         let TemplateKind::BeamSplice { rows, .. } = instance.template.kind else {
             continue;
         };
-        let recipe = beam_splice_geometry(project, &instance)?;
+        let recipe = match beam_splice_geometry(project, &instance) {
+            Ok(recipe) => recipe,
+            Err(error) => {
+                crate::keep_failed(project, previous, instance, error)?;
+                continue;
+            }
+        };
         let roles = beam_splice_roles(rows);
         let refs: Vec<&str> = roles.iter().map(String::as_str).collect();
         retain_children(project, &mut instance, &refs);

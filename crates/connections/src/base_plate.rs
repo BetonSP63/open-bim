@@ -32,7 +32,13 @@ pub fn rebuild_base_plates(project: &mut Project, previous: &Project) -> Result<
         {
             continue;
         }
-        let recipe = base_plate_geometry(project, &instance)?;
+        let recipe = match base_plate_geometry(project, &instance) {
+            Ok(recipe) => recipe,
+            Err(error) => {
+                crate::keep_failed(project, previous, instance, error)?;
+                continue;
+            }
+        };
         crate::retain_children(
             project,
             &mut instance,

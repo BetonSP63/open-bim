@@ -86,6 +86,7 @@ fn actual_angle_drills_both_legs_and_parents_without_profile_or_id_leaks() {
                     at_end,
                     template,
                     children: Default::default(),
+                    general: Default::default(),
                 },
             }],
         )
@@ -319,6 +320,7 @@ fn bounding_box_contact_without_material_on_face_is_rejected_atomically() {
                     at_end: true,
                     template,
                     children: Default::default(),
+                    general: Default::default(),
                 },
             }],
         )

@@ -228,7 +228,13 @@ pub fn rebuild_gussets(project: &mut Project, previous: &Project) -> Result<(), 
         if !instance_changed(project, previous, &instance) {
             continue;
         }
-        let recipe = gusset_geometry(project, &instance)?;
+        let recipe = match gusset_geometry(project, &instance) {
+            Ok(recipe) => recipe,
+            Err(error) => {
+                crate::keep_failed(project, previous, instance, error)?;
+                continue;
+            }
+        };
         let roles = gusset_roles(recipe.bolts);
         let refs: Vec<&str> = roles.iter().map(String::as_str).collect();
         retain_children(project, &mut instance, &refs);

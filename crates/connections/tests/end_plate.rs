@@ -62,6 +62,7 @@ fn changing_end_to_base_preserves_shared_ids_and_removes_support_holes() {
                 at_end: true,
                 template,
                 children: Default::default(),
+                general: Default::default(),
             },
         }],
     )
@@ -127,6 +128,7 @@ fn exported_template_applies_to_different_parents_without_id_or_object_leaks() {
                     at_end: true,
                     template,
                     children: Default::default(),
+                    general: Default::default(),
                 },
             },
             Command::CreateConnection {
@@ -137,6 +139,7 @@ fn exported_template_applies_to_different_parents_without_id_or_object_leaks() {
                     at_end: true,
                     template: reused,
                     children: Default::default(),
+                    general: Default::default(),
                 },
             },
         ],
@@ -197,6 +200,7 @@ fn end_plate_drills_both_parts_tracks_both_parents_and_preserves_history() {
                     at_end,
                     template,
                     children: Default::default(),
+                    general: Default::default(),
                 },
             }],
         )
@@ -276,14 +280,16 @@ fn end_plate_drills_both_parts_tracks_both_parents_and_preserves_history() {
         assert_eq!(doc.history_depth(), history);
         let mut support = doc.project().elements[&ObjectId(9)].clone();
         support.shape.frame_mut().origin.0[2] += 1.;
-        assert!(
-            doc.transact("Gap", &[Command::ReplaceElement { element: support }])
-                .unwrap_err()
-                .to_string()
-                .contains("не прилегает")
-        );
+        // A gap no longer refuses the move of the support: the end plate
+        // stays in the model «не создан» without its objects; undo brings it back.
+        doc.transact("Gap", &[Command::ReplaceElement { element: support }])
+            .unwrap();
+        let failed = doc.project().connections.values().next().unwrap();
+        assert!(failed.children.is_empty());
+        assert!(!doc.project().elements.contains_key(&plate));
+        doc.undo().unwrap();
         assert_eq!(project_hash(doc.project()).unwrap(), valid);
-        assert_eq!(doc.history_depth(), history);
+        assert_eq!(doc.history_depth().0, history.0);
         doc.transact(
             "Delete support",
             &[Command::Delete {

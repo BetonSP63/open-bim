@@ -17,6 +17,8 @@ pub struct Filter {
     pub assemblies: bool,
     pub bolts: bool,
     pub welds: bool,
+    /// Components by their symbols.
+    pub components: bool,
     pub grids: bool,
     pub levels: bool,
 }
@@ -28,6 +30,7 @@ impl Default for Filter {
             assemblies: false,
             bolts: true,
             welds: true,
+            components: true,
             grids: true,
             levels: true,
         }

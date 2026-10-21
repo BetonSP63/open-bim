@@ -17,6 +17,7 @@ fn base_plate_transaction_regenerates_stable_ids_and_rolls_back_failure() {
         ))
         .unwrap(),
         children: Default::default(),
+        general: Default::default(),
     };
     let mut doc = Document::new(p).unwrap();
     doc.transact(

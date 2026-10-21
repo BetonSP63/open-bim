@@ -233,7 +233,13 @@ pub fn rebuild_stiffeners(project: &mut Project, previous: &Project) -> Result<(
         if !instance_changed(project, previous, &instance) {
             continue;
         }
-        let recipe = stiffener_geometry(project, &instance)?;
+        let recipe = match stiffener_geometry(project, &instance) {
+            Ok(recipe) => recipe,
+            Err(error) => {
+                crate::keep_failed(project, previous, instance, error)?;
+                continue;
+            }
+        };
         retain_children(project, &mut instance, &STIFFENER_ROLES);
         let t = instance.template.clone();
         for (i, (shape, path)) in recipe.plates.into_iter().zip(recipe.welds).enumerate() {

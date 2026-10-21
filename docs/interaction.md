@@ -99,7 +99,7 @@ is claimed. See `docs/reference-docs-comparison.md` for each row's status.
 - **Bolts:** «by face» and «by parts and face»; circle/list shapes; slotted, oversized, tapped and blind holes; Auto bolt.
 - **Welds:** polygon welds, weld to a part, weld preparation, weld marks in drawings.
 - **Selection:**
-  - component and component-object switches;
+  - component-object switch (the component switch «Выбор узлов» and component symbols are done);
   - single-bolt, cuts, points and planes switches.
 - **Editing:**
   - clipboard copy/paste between models;

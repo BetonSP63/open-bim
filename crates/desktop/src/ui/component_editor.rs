@@ -1006,6 +1006,7 @@ pub fn preview(project: &Project, t: &ConnectionTemplate, view: View) -> Preview
             at_end: components::at_end(&sample, main, secondary),
             template: t.clone(),
             children: Default::default(),
+            general: Default::default(),
         };
         sample.connections.insert(connection.id, connection);
         let before = Project::default();

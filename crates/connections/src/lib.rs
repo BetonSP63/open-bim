@@ -58,6 +58,57 @@ pub(crate) fn retain_children(
     }
 }
 
+/// A component that cannot be built any more after its parts changed stays in
+/// the model without its objects (status «не создан») instead of refusing the
+/// change of the parts; a new or edited component reports the error.
+pub(crate) fn keep_failed(
+    project: &mut open_bim_model::Project,
+    previous: &open_bim_model::Project,
+    mut instance: ConnectionInstance,
+    error: open_bim_model::ModelError,
+) -> Result<(), open_bim_model::ModelError> {
+    let same = previous.connections.get(&instance.id).is_some_and(|old| {
+        old.template == instance.template
+            && old.primary == instance.primary
+            && old.secondary == instance.secondary
+            && old.at_end == instance.at_end
+    });
+    if !same {
+        return Err(error);
+    }
+    let made: Vec<_> = instance.children.values().copied().collect();
+    retain_children(project, &mut instance, &[]);
+    for assembly in project.assemblies.values_mut() {
+        for id in &made {
+            assembly.members.remove(id);
+        }
+    }
+    project.connections.insert(instance.id, instance);
+    Ok(())
+}
+
+/// Give the parts of every component with a class in «Общие» that class.
+pub fn apply_component_classes(project: &mut open_bim_model::Project) {
+    let classes: Vec<_> = project
+        .connections
+        .values()
+        .filter(|c| !c.general.class.is_empty())
+        .flat_map(|c| {
+            c.children
+                .values()
+                .map(move |id| (*id, c.general.class.clone()))
+        })
+        .collect();
+    for (id, class) in classes {
+        if let Some(e) = project.elements.get_mut(&id) {
+            let value = open_bim_model::PropertyValue::Text(class);
+            if e.properties.get("class") != Some(&value) {
+                e.properties.insert("class".into(), value);
+            }
+        }
+    }
+}
+
 pub(crate) fn instance_changed(
     project: &open_bim_model::Project,
     previous: &open_bim_model::Project,
