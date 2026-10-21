@@ -61,6 +61,17 @@ pub fn catalog() -> Vec<Component> {
             thickness: 12.,
         },
         Component {
+            name: "Стык балок на накладках",
+            group: "Балка — балка",
+            description: "Две балки встык на одной оси: накладки с двух сторон стенки и снаружи полок на болтах. Выберите одну балку, затем вторую.",
+            needs_support: true,
+            kind: TemplateKind::BeamSplice {
+                rows: 2,
+                pitch: 70.,
+            },
+            thickness: 10.,
+        },
+        Component {
             name: "Уголковое соединение",
             group: "Балка — колонна / балка",
             description: "Уголок на двух болтах к стенке балки и двух болтах к опоре. Выберите балку, затем опору.",

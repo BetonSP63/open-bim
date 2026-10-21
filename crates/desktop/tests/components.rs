@@ -99,3 +99,33 @@ fn column_stiffeners_by_two_clicks_follow_the_beam_flanges() {
     assert_eq!((c.primary, c.secondary), (column, Some(beam)));
     assert_eq!(c.children.len(), 8);
 }
+
+#[test]
+fn beam_splice_by_two_clicks_goes_at_the_shared_ends() {
+    let mut b = Workbench::new(Editor::new(default_project().unwrap()).unwrap());
+    let left = member(
+        &mut b,
+        MemberKind::Beam,
+        [0., 0., 3000.],
+        [0., 3000., 3000.],
+    );
+    let right = member(
+        &mut b,
+        MemberKind::Beam,
+        [0., 3010., 3000.],
+        [0., 6000., 3000.],
+    );
+    let splice = search("стык").remove(0);
+    assert_eq!(splice.name, "Стык балок на накладках");
+    b.arm_component(splice);
+    assert!(
+        b.pick_object(Some(left)).is_none(),
+        "waits for the second beam"
+    );
+    let r = b.pick_object(Some(right));
+    commit(&mut b, r);
+    let project = b.editor.document.project();
+    let c = project.connections.values().next().unwrap();
+    assert_eq!((c.primary, c.secondary), (left, Some(right)));
+    assert!(c.at_end, "the end of the first beam meets the second");
+}

@@ -24,6 +24,9 @@ impl ConnectionInstance {
         if let TemplateKind::ColumnStiffeners { .. } = self.template.kind {
             return self.validate_stiffeners(p);
         }
+        if let TemplateKind::BeamSplice { rows, .. } = self.template.kind {
+            return self.validate_splice(p, rows);
+        }
         let roles: &[&str] = match self.template.kind {
             TemplateKind::BasePlate { .. } => &[
                 "plate", "hole-0", "hole-1", "hole-2", "hole-3", "bolts", "weld",
@@ -55,9 +58,9 @@ impl ConnectionInstance {
                 "primary-bolts",
                 "support-bolts",
             ],
-            TemplateKind::FinPlate { .. } | TemplateKind::ColumnStiffeners { .. } => {
-                unreachable!()
-            }
+            TemplateKind::FinPlate { .. }
+            | TemplateKind::ColumnStiffeners { .. }
+            | TemplateKind::BeamSplice { .. } => unreachable!(),
         };
         if self.children.len() != roles.len()
             || roles.iter().any(|r| !self.children.contains_key(*r))
@@ -250,6 +253,117 @@ impl ConnectionInstance {
     }
 }
 
+/// Bolt groups of a beam splice: (role, hole prefix, part tags). Side `a` is
+/// on the main beam, side `b` on the second beam.
+const SPLICE_GROUPS: [(&str, &str, &[&str]); 6] = [
+    ("web-bolts-a", "web-a", &["plate0", "plate1", "beam"]),
+    ("web-bolts-b", "web-b", &["plate0", "plate1", "beam"]),
+    ("top-bolts-a", "top-a", &["plate", "beam"]),
+    ("top-bolts-b", "top-b", &["plate", "beam"]),
+    ("bottom-bolts-a", "bottom-a", &["plate", "beam"]),
+    ("bottom-bolts-b", "bottom-b", &["plate", "beam"]),
+];
+
+/// Child roles of a beam splice with `rows` web bolts in each column: two
+/// web plates, two flange plates, six bolt groups and one hole per bolt and
+/// part. Web groups hold 2 × `rows` bolts, flange groups 2 × 2.
+pub fn beam_splice_roles(rows: u32) -> Vec<String> {
+    let mut roles: Vec<String> = [
+        "web-plate-0",
+        "web-plate-1",
+        "flange-plate-top",
+        "flange-plate-bottom",
+    ]
+    .map(String::from)
+    .to_vec();
+    for (group, prefix, tags) in SPLICE_GROUPS {
+        roles.push(group.into());
+        let bolts = if prefix.starts_with("web") {
+            2 * rows
+        } else {
+            4
+        };
+        for tag in tags {
+            for k in 0..bolts {
+                roles.push(format!("{prefix}-{tag}-{k}"));
+            }
+        }
+    }
+    roles
+}
+
+impl ConnectionInstance {
+    /// Beam splice: plates, holes and the bolt groups joining each plate set
+    /// to its beam.
+    fn validate_splice(&self, p: &crate::Project, rows: u32) -> Result<(), ModelError> {
+        let error =
+            || ModelError::InvalidValue("Состав соединения не соответствует шаблону".into());
+        let second = self.secondary.ok_or_else(error)?;
+        let roles = beam_splice_roles(rows);
+        if self.children.len() != roles.len()
+            || roles.iter().any(|r| !self.children.contains_key(r))
+        {
+            return Err(error());
+        }
+        let plate = |role: &str| -> Result<ObjectId, ModelError> {
+            let id = self.children[role];
+            match p.elements.get(&id).map(|e| &e.shape) {
+                Some(crate::ElementShape::Plate { .. }) => Ok(id),
+                _ => Err(error()),
+            }
+        };
+        let web = [plate("web-plate-0")?, plate("web-plate-1")?];
+        let top = plate("flange-plate-top")?;
+        let bottom = plate("flange-plate-bottom")?;
+        for (role, id) in &self.children {
+            if role.starts_with("web-plate")
+                || role.starts_with("flange-plate")
+                || role.contains("-bolts-")
+            {
+                continue;
+            }
+            if !matches!(
+                p.details.get(id).map(|d| &d.kind),
+                Some(crate::DetailKind::Hole { .. })
+            ) {
+                return Err(error());
+            }
+        }
+        for (group, _, _) in SPLICE_GROUPS {
+            let beam = if group.ends_with('a') {
+                self.primary
+            } else {
+                second
+            };
+            let expected: std::collections::BTreeSet<ObjectId> = match &group[..3] {
+                "web" => [web[0], web[1], beam].into(),
+                "top" => [top, beam].into(),
+                _ => [bottom, beam].into(),
+            };
+            let Some(crate::DetailKind::BoltGroup {
+                parts,
+                diameter,
+                clearance,
+                standard,
+                grade,
+                ..
+            }) = p.details.get(&self.children[group]).map(|d| &d.kind)
+            else {
+                return Err(error());
+            };
+            if *parts != expected
+                || *diameter != self.template.bolt_diameter
+                || *clearance != self.template.clearance
+                || *standard != self.template.bolt_standard
+                || *grade != self.template.bolt_grade
+            {
+                return Err(error());
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Dimensions use millimetres. This contract makes no capacity calculation.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -294,6 +408,14 @@ pub enum TemplateKind {
     /// with the web-side corners cut by `chamfer`.
     ColumnStiffeners {
         chamfer: f64,
+    },
+    /// Bolted splice of two beams end to end: plates on both sides of the
+    /// web with two columns of `rows` bolts per beam, and plates outside
+    /// both flanges with 2 × 2 bolts per beam; bolt pitch along the beam and
+    /// up the web.
+    BeamSplice {
+        rows: u32,
+        pitch: f64,
     },
 }
 
@@ -345,6 +467,14 @@ impl ConnectionTemplate {
                     || (rows > 1 && pitch <= hole)
                     || height < 2.0 * self.edge_distance + pitch * (rows - 1) as f64
                     || lap < 2.0 * self.edge_distance
+                {
+                    return Err(invalid());
+                }
+            }
+            TemplateKind::BeamSplice { rows, pitch } => {
+                if !positive(pitch)
+                    || !(1..=12).contains(&rows)
+                    || pitch <= self.bolt_diameter + self.clearance
                 {
                     return Err(invalid());
                 }
