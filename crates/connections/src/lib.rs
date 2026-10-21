@@ -169,3 +169,21 @@ pub(crate) fn touch_support_face(
     }
     Ok(())
 }
+
+/// Whether the connection's geometry can be built (parents, faces, sizes),
+/// without generating its parts.
+pub fn check_geometry(
+    project: &open_bim_model::Project,
+    instance: &ConnectionInstance,
+) -> Result<(), open_bim_model::ModelError> {
+    match instance.template.kind {
+        TemplateKind::BasePlate { .. } => base_plate_geometry(project, instance).map(drop),
+        TemplateKind::EndPlate { .. } => end_plate_geometry(project, instance).map(drop),
+        TemplateKind::ClipAngle { .. } => clip_angle_geometry(project, instance).map(drop),
+        TemplateKind::FinPlate { .. } => fin_plate_geometry(project, instance).map(drop),
+        TemplateKind::ColumnStiffeners { .. } => stiffener_geometry(project, instance).map(drop),
+        TemplateKind::BeamSplice { .. } => beam_splice_geometry(project, instance).map(drop),
+        TemplateKind::Haunch { .. } => haunch_geometry(project, instance).map(drop),
+        TemplateKind::Gusset { .. } => gusset_geometry(project, instance).map(drop),
+    }
+}
