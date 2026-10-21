@@ -27,6 +27,9 @@ impl ConnectionInstance {
         if let TemplateKind::BeamSplice { rows, .. } = self.template.kind {
             return self.validate_splice(p, rows);
         }
+        if let TemplateKind::Haunch { .. } = self.template.kind {
+            return self.validate_haunch(p);
+        }
         let roles: &[&str] = match self.template.kind {
             TemplateKind::BasePlate { .. } => &[
                 "plate", "hole-0", "hole-1", "hole-2", "hole-3", "bolts", "weld",
@@ -60,7 +63,8 @@ impl ConnectionInstance {
             ],
             TemplateKind::FinPlate { .. }
             | TemplateKind::ColumnStiffeners { .. }
-            | TemplateKind::BeamSplice { .. } => unreachable!(),
+            | TemplateKind::BeamSplice { .. }
+            | TemplateKind::Haunch { .. } => unreachable!(),
         };
         if self.children.len() != roles.len()
             || roles.iter().any(|r| !self.children.contains_key(*r))
@@ -364,6 +368,56 @@ impl ConnectionInstance {
     }
 }
 
+/// Child roles of a haunch.
+pub const HAUNCH_ROLES: [&str; 6] = [
+    "web-plate",
+    "flange-plate",
+    "weld-web",
+    "weld-flange",
+    "weld-tip",
+    "weld-support",
+];
+
+impl ConnectionInstance {
+    /// Haunch: web and flange plates, and the welds joining them to the
+    /// beam, to each other and to the support.
+    fn validate_haunch(&self, p: &crate::Project) -> Result<(), ModelError> {
+        let error =
+            || ModelError::InvalidValue("Состав соединения не соответствует шаблону".into());
+        let support = self.secondary.ok_or_else(error)?;
+        if self.children.len() != HAUNCH_ROLES.len()
+            || HAUNCH_ROLES.iter().any(|r| !self.children.contains_key(*r))
+        {
+            return Err(error());
+        }
+        let (web, flange) = (self.children["web-plate"], self.children["flange-plate"]);
+        for id in [web, flange] {
+            if !matches!(
+                p.elements.get(&id).map(|e| &e.shape),
+                Some(crate::ElementShape::Plate { .. })
+            ) {
+                return Err(error());
+            }
+        }
+        for (role, expected) in [
+            ("weld-web", vec![web, self.primary]),
+            ("weld-flange", vec![flange, web]),
+            ("weld-tip", vec![flange, self.primary]),
+            ("weld-support", vec![support, web, flange]),
+        ] {
+            let Some(crate::DetailKind::Weld { parts, size, .. }) =
+                p.details.get(&self.children[role]).map(|d| &d.kind)
+            else {
+                return Err(error());
+            };
+            if *parts != expected.into_iter().collect() || *size != self.template.weld_size {
+                return Err(error());
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Dimensions use millimetres. This contract makes no capacity calculation.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -417,6 +471,13 @@ pub enum TemplateKind {
         rows: u32,
         pitch: f64,
     },
+    /// Welded haunch under the beam end at the support: a triangular web
+    /// plate `length` along the beam and `depth` below its bottom flange, and
+    /// a flange plate along the sloped edge.
+    Haunch {
+        length: f64,
+        depth: f64,
+    },
 }
 
 impl ConnectionTemplate {
@@ -468,6 +529,11 @@ impl ConnectionTemplate {
                     || height < 2.0 * self.edge_distance + pitch * (rows - 1) as f64
                     || lap < 2.0 * self.edge_distance
                 {
+                    return Err(invalid());
+                }
+            }
+            TemplateKind::Haunch { length, depth } => {
+                if !positive(length) || !positive(depth) {
                     return Err(invalid());
                 }
             }

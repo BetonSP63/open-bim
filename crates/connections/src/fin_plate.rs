@@ -1,7 +1,7 @@
 //! Hinged beam connection on a fin plate («шарнир на пластине»): a plate
 //! welded to the support face and bolted to the beam web with one vertical
 //! row of bolts.
-use crate::end_plate::{bounds, local_frame};
+use crate::end_plate::local_frame;
 use crate::{child_id, instance_changed, retain_children};
 use open_bim_model::{
     ConnectionInstance, Detail, DetailKind, Element, ElementShape, Frame, LengthMm, ModelError,
@@ -130,48 +130,14 @@ pub fn fin_plate_geometry(
     };
     bolt_frame.validate()?;
     // The support face must lie where the plate ends.
-    let host = project
-        .elements
-        .get(&support)
-        .ok_or(ModelError::MissingReference(support))?;
-    let hf = *host.shape.frame();
-    hf.validate()?;
-    let extent = bounds(project, &host.shape)?;
     let outward = if instance.at_end { zb } else { neg(zb) };
-    let projected = hf
-        .axes
-        .map(|a| (0..3).map(|i| a[i] * outward[i]).sum::<f64>());
-    let axis = projected
-        .iter()
-        .position(|v| v.abs() > 1. - 1e-9)
-        .ok_or_else(|| {
-            ModelError::InvalidValue("Пластина требует плоскую грань опоры поперёк балки".into())
-        })?;
-    if axis != 2
-        && let ElementShape::Member { profile, .. } = &host.shape
-        && matches!(
-            project.profiles[profile].shape,
-            ProfileShape::CircularHollow { .. }
-        )
-    {
-        return invalid("У круглой опоры нет плоской грани для пластины");
-    }
-    let weld_mid = plate_frame.world(Point3([plate_length, height / 2., t / 2.]));
-    let contact = local_frame(
-        Frame {
-            origin: weld_mid,
-            ..hf
-        },
-        hf,
-    )
-    .origin
-    .0[axis];
-    let expected = extent[axis][if projected[axis] > 0. { 0 } else { 1 }];
-    if (contact - expected).abs() > 0.001 {
-        return invalid(
-            "Торец балки с зазором не доходит до грани опоры: проверьте зазор и конец балки",
-        );
-    }
+    crate::touch_support_face(
+        project,
+        support,
+        plate_frame.world(Point3([plate_length, height / 2., t / 2.])),
+        outward,
+        "Торец балки с зазором не доходит до грани опоры: проверьте зазор и конец балки",
+    )?;
     let weld_path = vec![
         plate_frame.world(Point3([plate_length, 0., t / 2.])),
         plate_frame.world(Point3([plate_length, height, t / 2.])),
