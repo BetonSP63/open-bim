@@ -68,6 +68,8 @@ pub(crate) struct Patch {
     dimensions: MapDelta<open_bim_model::ModelDimension>,
     /// Document attributes and changes before and after, when they differ.
     document: Option<Delta<(open_bim_model::DocumentInfo, Vec<open_bim_model::Change>)>>,
+    /// Stored numbering marks before and after, when they differ.
+    numbering: Option<Delta<BTreeMap<ObjectId, String>>>,
     before_meta: (u64, u64, String),
     after_meta: (u64, u64, String),
     pub touched: BTreeSet<ObjectId>,
@@ -92,6 +94,10 @@ impl Patch {
                 before: Some((before.document.clone(), before.changes.clone())),
                 after: Some((after.document.clone(), after.changes.clone())),
             });
+        let numbering = (before.numbering != after.numbering).then(|| Delta {
+            before: Some(before.numbering.clone()),
+            after: Some(after.numbering.clone()),
+        });
         let mut touched: BTreeSet<_> = elements
             .keys()
             .chain(assemblies.keys())
@@ -121,6 +127,7 @@ impl Patch {
             construction,
             dimensions,
             document,
+            numbering,
             before_meta: (before.revision, before.next_id, before.name.clone()),
             after_meta: (after.revision, after.next_id, after.name.clone()),
             touched,
@@ -145,6 +152,12 @@ impl Patch {
             if let Some((document, changes)) = side {
                 project.document = document.clone();
                 project.changes = changes.clone();
+            }
+        }
+        if let Some(delta) = &self.numbering {
+            let side = if forward { &delta.after } else { &delta.before };
+            if let Some(marks) = side {
+                project.numbering = marks.clone();
             }
         }
         let metadata = if forward {
