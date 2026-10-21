@@ -144,3 +144,23 @@ pub fn coatings(r: &Reports) -> String {
         }),
     )
 }
+
+pub fn welds(r: &Reports) -> String {
+    table(
+        &["№ шва", "Обозначение", "Длина, мм", "Детали", "Шов"],
+        r.welds.iter().map(|w| {
+            vec![
+                w.number.clone(),
+                w.designation.clone(),
+                length(w.length_mm),
+                w.parts.clone(),
+                if w.shop {
+                    "заводской"
+                } else {
+                    "монтажный"
+                }
+                .into(),
+            ]
+        }),
+    )
+}

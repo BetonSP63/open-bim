@@ -38,3 +38,9 @@ the model (`Project::numbering`); later runs keep a group's previous mark
 number of the series, and «Перенумеровать всё» numbers from the start again.
 A fixed mark is part of the drawing fingerprint, so a drawing whose marks
 changed becomes outdated.
+
+## Weld numbers and control numbers
+
+- «Нумеровать» also numbers the welds: 1, 2… over the model. A weld keeps its stored number; new welds get the next numbers, bottom to top, then along Y and X by the middle of the weld. «Перенумеровать всё» orders all welds again. A new weld makes the numbering out of date like a new part.
+- After the numbers are stored, the lists get «Швы» (number, designation, length, part positions, shop or site) and the CSV export adds `швы.csv`. «Запросить объект» on a weld shows its number. The drawings do not print weld numbers yet.
+- «Контрольные номера…» numbers the erection order of assemblies: prefix, start, step and the order (bottom to top then along X and Y, or along X or Y first) by the start of the main part. It applies to the assemblies of the selected objects, or to all top assemblies when nothing is selected. The number is the assembly property `control_number`; «Сбросить» removes it. «Запросить объект» shows it for the assembly and its parts.

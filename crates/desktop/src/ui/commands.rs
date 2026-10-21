@@ -91,6 +91,7 @@ pub enum Cmd {
     CompareParts,
     ClipPlanePick,
     ObjectRepresentation,
+    ControlNumbers,
     ClipPlaneRemove,
     CreateElement,
     CancelTool,
@@ -570,6 +571,13 @@ pub const ALL: &[Spec] = &[
         category: "Вид",
         shortcut: None,
         keywords: "сравнить детали позиции отличия нумерация compare",
+    },
+    Spec {
+        cmd: Cmd::ControlNumbers,
+        label: "Контрольные номера…",
+        category: "Моделирование",
+        shortcut: None,
+        keywords: "контрольные номера монтаж порядок сборки erection control number",
     },
     Spec {
         cmd: Cmd::ObjectRepresentation,
