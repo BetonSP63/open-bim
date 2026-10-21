@@ -15,6 +15,9 @@ pub struct Numbering {
     pub assemblies: BTreeMap<ObjectId, String>,
     pub part_keys: BTreeMap<ObjectId, String>,
     pub assembly_keys: BTreeMap<ObjectId, String>,
+    /// Weld numbers («Нумерация швов»): 1, 2… over the model.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub welds: BTreeMap<ObjectId, String>,
 }
 
 impl Numbering {
@@ -430,6 +433,7 @@ pub fn stored_marks(numbering: &Numbering) -> BTreeMap<ObjectId, String> {
         .parts
         .iter()
         .chain(&numbering.assemblies)
+        .chain(&numbering.welds)
         .map(|(id, mark)| (*id, mark.clone()))
         .collect()
 }
@@ -444,6 +448,7 @@ pub fn outdated(project: &Project, numbering: &Numbering) -> BTreeSet<ObjectId> 
         .parts
         .iter()
         .chain(&numbering.assemblies)
+        .chain(&numbering.welds)
         .filter(|(id, mark)| project.numbering.get(id) != Some(*mark))
         .map(|(id, _)| *id)
         .collect()
@@ -484,7 +489,50 @@ fn number_with(
         // carry the kind of the main part (К1, Б1…).
         parts: positions(&part_keys, |id| part_series(project, id), old),
         assemblies: positions(&assembly_keys, |id| assembly_series(project, id), old),
+        welds: weld_numbers(project, old),
         part_keys,
         assembly_keys,
     })
+}
+
+/// Weld numbers: a weld keeps its stored number; new welds get the next
+/// numbers in model order (bottom to top, then along Y and X by the middle
+/// of the weld), so the numbers do not jump when a weld is added.
+pub fn weld_numbers(
+    project: &Project,
+    old: &BTreeMap<ObjectId, String>,
+) -> BTreeMap<ObjectId, String> {
+    let welds: Vec<(ObjectId, [f64; 3])> = project
+        .details
+        .values()
+        .filter_map(|d| match &d.kind {
+            DetailKind::Weld { path, .. } if !path.is_empty() => {
+                let n = path.len() as f64;
+                let mid = std::array::from_fn(|i| path.iter().map(|p| p.0[i]).sum::<f64>() / n);
+                Some((d.id, mid))
+            }
+            _ => None,
+        })
+        .collect();
+    let mut out: BTreeMap<ObjectId, String> = BTreeMap::new();
+    let mut used = BTreeSet::new();
+    for (id, _) in &welds {
+        if let Some(n) = old.get(id).and_then(|m| m.parse::<u64>().ok())
+            && used.insert(n)
+        {
+            out.insert(*id, n.to_string());
+        }
+    }
+    let mut fresh: Vec<&(ObjectId, [f64; 3])> = welds
+        .iter()
+        .filter(|(id, _)| !out.contains_key(id))
+        .collect();
+    let round = |v: f64| (v * 1e3).round() as i64;
+    fresh.sort_by_key(|(id, m)| (round(m[2]), round(m[1]), round(m[0]), *id));
+    let mut next = used.iter().max().copied().unwrap_or(0);
+    for (id, _) in fresh {
+        next += 1;
+        out.insert(*id, next.to_string());
+    }
+    out
 }

@@ -57,6 +57,18 @@ pub struct CoatingRow {
     pub ids: Vec<ObjectId>,
 }
 
+/// One numbered weld («Ведомость швов»).
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct WeldRow {
+    pub number: String,
+    pub designation: String,
+    pub length_mm: f64,
+    /// Positions of the welded parts.
+    pub parts: String,
+    pub shop: bool,
+    pub id: ObjectId,
+}
+
 /// Element property holding the surface treatment of a part.
 pub const SURFACE_TREATMENT: &str = "surface_treatment";
 
@@ -71,6 +83,9 @@ pub struct Reports {
     pub unassembled: Vec<ObjectId>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub coatings: Vec<CoatingRow>,
+    /// Numbered welds, once «Нумеровать» stored weld numbers.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub welds: Vec<WeldRow>,
 }
 
 fn round(value: f64, digits: i32) -> f64 {
@@ -219,6 +234,7 @@ pub fn generate(project: &Project) -> Result<Reports, Error> {
         assemblies,
         fasteners: fasteners(project),
         coatings: coatings(project)?,
+        welds: welds(project, &numbering),
         total_part_mass_kg,
         total_assembly_mass_kg,
         unassembled,
@@ -240,6 +256,53 @@ pub fn assembly_parts(project: &Project, id: ObjectId) -> BTreeSet<ObjectId> {
         }
     }
     result
+}
+
+/// Welds with their stored numbers, in number order; empty until the
+/// numbering is stored with weld numbers.
+pub fn welds(project: &Project, numbering: &open_bim_numbering::Numbering) -> Vec<WeldRow> {
+    let mut rows: Vec<WeldRow> = project
+        .details
+        .values()
+        .filter_map(|d| {
+            let DetailKind::Weld {
+                parts,
+                path,
+                weld_type,
+                size,
+                shop,
+                sides,
+                around,
+                process,
+            } = &d.kind
+            else {
+                return None;
+            };
+            let number = project.numbering.get(&d.id)?.clone();
+            Some(WeldRow {
+                number,
+                designation: open_bim_model::weld_mark(
+                    *process, *weld_type, *sides, *size, *around, *shop,
+                ),
+                length_mm: round(path.windows(2).map(|w| w[0].distance(w[1])).sum(), 1),
+                parts: parts
+                    .iter()
+                    .map(|p| {
+                        numbering
+                            .parts
+                            .get(p)
+                            .cloned()
+                            .unwrap_or_else(|| format!("#{}", p.0))
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                shop: *shop,
+                id: d.id,
+            })
+        })
+        .collect();
+    rows.sort_by_key(|r| (r.number.parse::<u64>().unwrap_or(u64::MAX), r.id));
+    rows
 }
 
 /// Surface treatments of the parts with their total outer area.

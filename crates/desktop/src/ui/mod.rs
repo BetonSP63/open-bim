@@ -264,6 +264,9 @@ pub struct Workbench {
     /// the applied representation.
     pub representation_version: u64,
     applied: Option<((usize, u64), representation::Shared)>,
+    /// «Контрольные номера» window.
+    pub control: crate::interaction::control_numbers::ControlNumbers,
+    pub control_open: bool,
     /// Snap kind under the cursor (status bar).
     pub last_snap: Option<crate::interaction::snap::SnapKind>,
     /// Screen-space snapping and its switches (bottom toolbar).
@@ -367,6 +370,8 @@ impl Workbench {
             group_edited: 0,
             representation_version: 0,
             applied: None,
+            control: Default::default(),
+            control_open: false,
             last_snap: None,
             snapper: Default::default(),
             switches: Default::default(),
@@ -1150,6 +1155,14 @@ impl Workbench {
                 self.angle_picks = Some(Vec::new());
                 self.mode = Mode::Model;
                 self.message(self.prompt());
+            }
+            Cmd::ControlNumbers => {
+                self.control_open = !self.control_open;
+                self.message(if self.control_open {
+                    "Контрольные номера: задайте префикс, начало и порядок"
+                } else {
+                    "Окно контрольных номеров закрыто"
+                });
             }
             Cmd::ObjectRepresentation => {
                 self.representation_open = !self.representation_open;
@@ -2081,6 +2094,71 @@ impl Workbench {
         }
     }
 
+    fn control_window(&mut self, ctx: &egui::Context, requests: &mut Vec<Request>) {
+        use crate::interaction::control_numbers::{Order, assemblies_of, clear};
+        if !self.control_open {
+            return;
+        }
+        let mut open = true;
+        let project = self.editor.document.project();
+        let targets = assemblies_of(project, &self.editor.selected);
+        let mut commands = None;
+        let c = &mut self.control;
+        egui::Window::new("Контрольные номера")
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .show(ctx, |ui| {
+                egui::Grid::new("control grid").num_columns(2).show(ui, |ui| {
+                    for (label, value) in [
+                        ("Префикс", &mut c.prefix),
+                        ("Начальный номер", &mut c.start),
+                        ("Шаг", &mut c.step),
+                    ] {
+                        let l = ui.label(label);
+                        ui.add(egui::TextEdit::singleline(value).desired_width(80.))
+                            .labelled_by(l.id);
+                        ui.end_row();
+                    }
+                    let l = ui.label("Порядок");
+                    egui::ComboBox::new("control order", "")
+                        .selected_text(c.order.label())
+                        .show_ui(ui, |ui| {
+                            for o in Order::ALL {
+                                ui.selectable_value(&mut c.order, o, o.label());
+                            }
+                        })
+                        .response
+                        .labelled_by(l.id);
+                    ui.end_row();
+                });
+                ui.label(if self.editor.selected.is_empty() {
+                    format!("Все сборки модели: {}", targets.len())
+                } else {
+                    format!("Сборки выбранных объектов: {}", targets.len())
+                });
+                ui.horizontal(|ui| {
+                    if ui.button("Присвоить").clicked() {
+                        commands = Some(c.commands(project, &targets).map(|cmds| ("Контрольные номера", cmds)));
+                    }
+                    if ui.button("Сбросить").clicked() {
+                        commands = Some(Ok(("Сбросить контрольные номера", clear(project, &targets))));
+                    }
+                });
+                ui.small("Номер — по положению основной детали; хранится в свойстве сборки «control_number».");
+            });
+        self.control_open = open;
+        match commands {
+            Some(Ok((label, cmds))) if !cmds.is_empty() => {
+                self.message(format!("{label}: сборок {}", cmds.len()));
+                requests.push(Request::Action(Action::Commit(label.into(), cmds)));
+            }
+            Some(Ok(_)) => self.message("Нечего менять"),
+            Some(Err(e)) => self.message(e),
+            None => {}
+        }
+    }
+
     fn inquiry_window(&mut self, ctx: &egui::Context) {
         let Some(i) = &self.inquiry else {
             return;
@@ -2619,6 +2697,7 @@ impl Workbench {
         self.document_window(&ctx, &mut requests);
         self.inquiry_window(&ctx);
         self.representation_window(&ctx);
+        self.control_window(&ctx, &mut requests);
         self.delete_window(&ctx, &mut requests);
         self.special_window(&ctx, &mut requests);
         self.filter_window(&ctx);

@@ -14,6 +14,8 @@ pub enum Tab {
     Fasteners,
     /// «Обработка поверхности»: area per treatment.
     Coatings,
+    /// Numbered welds.
+    Welds,
 }
 
 pub struct ReportsUi {
@@ -75,8 +77,11 @@ impl ReportsUi {
             ("ведомость-сборок.csv", csv::assemblies(r)),
             ("крепёж-и-сварка.csv", csv::fasteners(r)),
             ("покрытия.csv", csv::coatings(r)),
+            ("швы.csv", csv::welds(r)),
         ] {
-            if name == "покрытия.csv" && r.coatings.is_empty() {
+            if name == "покрытия.csv" && r.coatings.is_empty()
+                || name == "швы.csv" && r.welds.is_empty()
+            {
                 continue;
             }
             let path = dir.join(name);
@@ -145,6 +150,7 @@ impl ReportsUi {
             ui.selectable_value(&mut self.tab, Tab::Assemblies, "Сборки");
             ui.selectable_value(&mut self.tab, Tab::Fasteners, "Крепёж и сварка");
             ui.selectable_value(&mut self.tab, Tab::Coatings, "Покрытия");
+            ui.selectable_value(&mut self.tab, Tab::Welds, "Швы");
         });
         let Some(r) = &self.reports else {
             ui.centered_and_justified(|ui| {
@@ -260,7 +266,30 @@ impl ReportsUi {
                         })
                         .collect(),
                 ),
+                Tab::Welds => (
+                    vec!["№ шва", "Обозначение", "Длина, мм", "Детали", "Шов"],
+                    r.welds
+                        .iter()
+                        .map(|w| {
+                            vec![
+                                w.number.clone(),
+                                w.designation.clone(),
+                                open_bim_reports::fmt(w.length_mm),
+                                w.parts.clone(),
+                                if w.shop {
+                                    "заводской"
+                                } else {
+                                    "монтажный"
+                                }
+                                .into(),
+                            ]
+                        })
+                        .collect(),
+                ),
             };
+            if self.tab == Tab::Welds && r.welds.is_empty() {
+                ui.label("Швы не пронумерованы: выполните «Нумеровать» на панели проверки");
+            }
             egui::Grid::new("report grid")
                 .striped(true)
                 .num_columns(header.len())

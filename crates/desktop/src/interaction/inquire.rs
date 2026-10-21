@@ -97,6 +97,9 @@ pub fn inquire(project: &Project, id: ObjectId) -> Result<Rows, String> {
                 ""
             };
             row("Сборка", format!("{mark} {}{main}", a.name).trim().into());
+            if let Some(v) = a.properties.get(super::control_numbers::CONTROL_NUMBER) {
+                row("Контрольный номер", value(v));
+            }
         }
         for c in project.connections.values() {
             if c.children.values().any(|child| *child == id) {
@@ -133,6 +136,14 @@ pub fn inquire(project: &Project, id: ObjectId) -> Result<Rows, String> {
             }
             DetailKind::Weld { parts, path, .. } => {
                 row("Тип", "Сварной шов".into());
+                row(
+                    "Номер шва",
+                    project
+                        .numbering
+                        .get(&id)
+                        .cloned()
+                        .unwrap_or_else(|| "не пронумерован".into()),
+                );
                 let length: f64 = path.windows(2).map(|w| w[0].distance(w[1])).sum();
                 row("Длина, мм", open_bim_reports::fmt(length));
                 row("Детали", ids(parts.iter()));
@@ -174,6 +185,14 @@ pub fn inquire(project: &Project, id: ObjectId) -> Result<Rows, String> {
             mass += project.element_mass_kg(*m).map_err(|e| e.to_string())?;
         }
         row("Масса, кг", format!("{mass:.2}"));
+        for (k, v) in &a.properties {
+            let k = if k == super::control_numbers::CONTROL_NUMBER {
+                "Контрольный номер".to_string()
+            } else {
+                caption(k)
+            };
+            row(&k, value(v));
+        }
     } else if let Some(a) = project.axes.get(&id) {
         row("Тип", "Ось".into());
         row("Имя", a.name.clone());

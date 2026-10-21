@@ -63,6 +63,8 @@ everything still ⚠/❌ is listed in `docs/interaction.md` → «not implemente
 | Curved beam, polybeam, bent plate | not yet | ❌ |
 | Inquire object, compare parts | «Запросить объект» (part, bolt, weld, component, assembly), «Сравнить детали» by the numbering data | ✅ |
 | Object groups with AND/OR rules, object representation (colour, transparency, hidden), selection filter by group | same; groups and rows are kept for the session, not saved to the project or to files | ⚠ |
+| Control numbers (erection order) of assemblies | «Контрольные номера…»: prefix, start, step, axis order, selected or all | ✅ |
+| Weld numbering | numbers kept between runs, weld list and CSV; not printed on drawings | ⚠ |
 | Measure angle; clip plane by pick | «Измерить угол» (vertex and two sides); «Секущая плоскость по точке» facing the viewer, one plane | ⚠ |
 
 ## Drawings, management, sharing (DRA, MGE, SHA)
