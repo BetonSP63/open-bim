@@ -3,6 +3,7 @@ pub mod autosave;
 pub mod bench;
 pub mod drawing_editor;
 pub mod interaction;
+pub mod organizer;
 pub mod reports_ui;
 pub mod script;
 pub mod synthetic;

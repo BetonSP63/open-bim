@@ -230,6 +230,8 @@ pub struct Workbench {
     tree: ((usize, u64), TreeRows),
     /// The running open job restores an autosave snapshot.
     recovering: bool,
+    /// Grouping of the model tree («Органайзер»).
+    pub organizer: crate::organizer::Organizer,
 }
 
 impl Workbench {
@@ -308,6 +310,7 @@ impl Workbench {
             locks: Default::default(),
             cursor: None,
             recovering: false,
+            organizer: Default::default(),
         };
         let project = bench.editor.document.project().clone();
         bench.tools.autosave.mark_saved(&project);

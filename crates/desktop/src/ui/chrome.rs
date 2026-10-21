@@ -1655,12 +1655,85 @@ impl Workbench {
         ui.small("Ctrl+P — 3D / плоский вид · глубина плана ±1000 мм, фасада ±500 мм");
     }
 
+    /// Categories with count and mass; a header selects the whole category.
+    fn organizer_tree(&mut self, ui: &mut egui::Ui) {
+        let categories = self.organizer.categories(self.editor.document.project());
+        let total: f64 = categories.iter().map(|c| c.mass_kg).sum();
+        let count: usize = categories.iter().map(|c| c.parts.len()).sum();
+        ui.label(format!(
+            "Всего: {count} дет., {} кг",
+            crate::organizer::kg(total)
+        ));
+        egui::ScrollArea::vertical()
+            .id_salt("organizer rows")
+            .max_height(ui.available_height().max(120.))
+            .auto_shrink([false, true])
+            .show(ui, |ui| {
+                for category in categories.iter() {
+                    let header = format!(
+                        "{} — {} шт., {} кг",
+                        category.name,
+                        category.parts.len(),
+                        crate::organizer::kg(category.mass_kg)
+                    );
+                    egui::CollapsingHeader::new(header)
+                        .id_salt(("organizer", &category.name))
+                        .show(ui, |ui| {
+                            if ui.button("Выбрать все").clicked() {
+                                let extend = self.extend_selection
+                                    || ui.input(|i| i.modifiers.shift || i.modifiers.command);
+                                if !extend {
+                                    self.editor.selected.clear();
+                                }
+                                self.editor.selected.extend(category.parts.iter().copied());
+                            }
+                            let project = self.editor.document.project();
+                            let rows: Vec<(ObjectId, String)> = category
+                                .parts
+                                .iter()
+                                .map(|id| {
+                                    let name =
+                                        project.elements.get(id).map_or("", |e| e.name.as_str());
+                                    (*id, format!("{name} · #{}", id.0))
+                                })
+                                .collect();
+                            for (id, label) in rows {
+                                let row = ui.add(egui::Button::selectable(
+                                    self.editor.selected.contains(&id),
+                                    label,
+                                ));
+                                if row.clicked() {
+                                    let extend = self.extend_selection
+                                        || ui.input(|i| i.modifiers.shift || i.modifiers.command);
+                                    select(&mut self.editor.selected, Some(id), extend);
+                                }
+                            }
+                        });
+                }
+            });
+    }
+
     fn tree_panel(&mut self, ui: &mut egui::Ui) {
         ui.heading(SidePanel::Tree.title());
         let project = self.editor.document.project();
         if project.elements.is_empty() && project.axes.is_empty() {
             ui.label("Модель пуста: Alt+B — балка, ⌘O — открыть, ⌘P — все команды");
         }
+        let grouping_label = ui.label("Группировать");
+        egui::ComboBox::from_id_salt("organizer grouping")
+            .selected_text(self.organizer.grouping.label())
+            .show_ui(ui, |ui| {
+                for g in crate::organizer::Grouping::ALL {
+                    ui.selectable_value(&mut self.organizer.grouping, g, g.label());
+                }
+            })
+            .response
+            .labelled_by(grouping_label.id);
+        if self.organizer.grouping != crate::organizer::Grouping::None {
+            self.organizer_tree(ui);
+            return;
+        }
+        let project = self.editor.document.project();
         let key = (self.editor.events.len(), project.revision);
         if self.tree.0 != key {
             let rows: Vec<(ObjectId, String)> = project
