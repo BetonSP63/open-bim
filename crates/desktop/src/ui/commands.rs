@@ -61,6 +61,12 @@ pub enum Cmd {
     CopyByPicks,
     MirrorByPicks,
     RotateByPicks,
+    CopySpecial,
+    MoveSpecial,
+    SelectPrevious,
+    ToggleRollover,
+    SelectionFilter,
+    ToggleDragDrop,
     FitSelected,
     ShowOnlySelected,
     ToggleDirectModification,
@@ -121,6 +127,10 @@ const SHIFT_CMD: Modifiers = Modifiers {
     ..Modifiers::COMMAND
 };
 const ALT: Modifiers = Modifiers::ALT;
+const SHIFT_ALT: Modifiers = Modifiers {
+    shift: true,
+    ..Modifiers::ALT
+};
 /// The usual detailing shortcuts use Ctrl; on macOS this is the Control key,
 /// distinct from ⌘ (system clipboard, window commands).
 const CTRL: Modifiers = Modifiers::CTRL;
@@ -326,7 +336,7 @@ pub const ALL: &[Spec] = &[
         cmd: Cmd::ToolPlate,
         label: "Инструмент: контурная плита",
         category: "Моделирование",
-        shortcut: s(ALT, Key::P),
+        shortcut: s(SHIFT_ALT, Key::P),
         keywords: "пластина plate лист",
     },
     Spec {
@@ -384,6 +394,48 @@ pub const ALL: &[Spec] = &[
         category: "Правка",
         shortcut: None,
         keywords: "повернуть поворот rotate",
+    },
+    Spec {
+        cmd: Cmd::CopySpecial,
+        label: "Копировать — специальное",
+        category: "Правка",
+        shortcut: None,
+        keywords: "копировать специальное линейно поворот зеркало плоскость массив copy special",
+    },
+    Spec {
+        cmd: Cmd::MoveSpecial,
+        label: "Переместить — специальное",
+        category: "Правка",
+        shortcut: None,
+        keywords: "переместить специальное линейно поворот зеркало плоскость move special",
+    },
+    Spec {
+        cmd: Cmd::SelectPrevious,
+        label: "Предыдущий выбор",
+        category: "Выбор",
+        shortcut: s(ALT, Key::P),
+        keywords: "предыдущий выбор select previous",
+    },
+    Spec {
+        cmd: Cmd::ToggleRollover,
+        label: "Подсветка под курсором",
+        category: "Выбор",
+        shortcut: s(NONE, Key::H),
+        keywords: "подсветка наведение rollover highlight",
+    },
+    Spec {
+        cmd: Cmd::SelectionFilter,
+        label: "Фильтр выбора",
+        category: "Выбор",
+        shortcut: s(CTRL, Key::G),
+        keywords: "фильтр выбора профиль материал имя класс filter",
+    },
+    Spec {
+        cmd: Cmd::ToggleDragDrop,
+        label: "Перетаскивание",
+        category: "Выбор",
+        shortcut: None,
+        keywords: "перетаскивание drag drop переместить мышью",
     },
     Spec {
         cmd: Cmd::FitSelected,

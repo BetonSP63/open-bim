@@ -105,8 +105,8 @@ pub fn corners(project: &Project, id: ObjectId) -> Result<Vec<DVec3>, String> {
         .collect())
 }
 
-/// Screen segments of an object (for area selection).
-fn segments(project: &Project, id: ObjectId) -> Vec<(DVec3, DVec3)> {
+/// World segments of an object (area selection, rollover highlight).
+pub fn segments(project: &Project, id: ObjectId) -> Vec<(DVec3, DVec3)> {
     if let Some(axis) = project.axes.get(&id) {
         return vec![(v(axis.start), v(axis.end))];
     }
@@ -478,5 +478,94 @@ impl EditPicker {
         let was = self.op.is_some();
         *self = Self::default();
         was
+    }
+}
+
+/// Selection filter (Ctrl+G): with the filter on, only parts matching
+/// every filled field are selected (other objects follow the switches). A
+/// field holds one or more values separated by spaces, any of which may match;
+/// `*` and `?` are wildcards, and a value without them matches when the text
+/// contains it (case is ignored).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct PropertyFilter {
+    pub enabled: bool,
+    pub name: String,
+    pub profile: String,
+    pub material: String,
+    pub class: String,
+}
+
+/// `*` / `?` wildcard match (whole text), or substring without wildcards.
+pub fn wildcard(pattern: &str, text: &str) -> bool {
+    let (p, t): (Vec<char>, Vec<char>) = (
+        pattern.to_lowercase().chars().collect(),
+        text.to_lowercase().chars().collect(),
+    );
+    if !p.iter().any(|c| matches!(c, '*' | '?')) {
+        return t.windows(p.len().max(1)).any(|w| w == p.as_slice()) || p.is_empty();
+    }
+    // Greedy matcher with backtracking to the last star.
+    let (mut i, mut j, mut star, mut mark) = (0, 0, None, 0);
+    while j < t.len() {
+        if i < p.len() && (p[i] == '?' || p[i] == t[j]) {
+            i += 1;
+            j += 1;
+        } else if i < p.len() && p[i] == '*' {
+            star = Some(i);
+            mark = j;
+            i += 1;
+        } else if let Some(s) = star {
+            i = s + 1;
+            mark += 1;
+            j = mark;
+        } else {
+            return false;
+        }
+    }
+    p[i..].iter().all(|c| *c == '*')
+}
+
+impl PropertyFilter {
+    pub fn active(&self) -> bool {
+        self.enabled
+            && [&self.name, &self.profile, &self.material, &self.class]
+                .iter()
+                .any(|f| !f.trim().is_empty())
+    }
+
+    /// Whether the object passes; objects other than parts always pass.
+    pub fn allows(&self, project: &Project, id: ObjectId) -> bool {
+        if !self.active() {
+            return true;
+        }
+        let Some(e) = project.elements.get(&id) else {
+            return true;
+        };
+        let profile = match &e.shape {
+            ElementShape::Member { profile, .. } => project
+                .profiles
+                .get(profile)
+                .map_or(String::new(), |p| p.name.clone()),
+            ElementShape::Plate { thickness, .. } => format!("PL{}", thickness.value()),
+        };
+        let material = project
+            .materials
+            .get(&e.material)
+            .map_or(String::new(), |m| m.name.clone());
+        let class = match e.properties.get("class") {
+            Some(open_bim_model::PropertyValue::Text(t)) => t.clone(),
+            Some(open_bim_model::PropertyValue::Number(n)) => format!("{n:.0}"),
+            _ => String::new(),
+        };
+        [
+            (&self.name, &e.name),
+            (&self.profile, &profile),
+            (&self.material, &material),
+            (&self.class, &class),
+        ]
+        .iter()
+        .all(|(field, value)| {
+            field.trim().is_empty() || field.split_whitespace().any(|f| wildcard(f, value))
+        })
     }
 }
