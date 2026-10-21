@@ -220,10 +220,18 @@ pub fn grid_commands(project: &Project, spec: &GridSpec) -> Result<Vec<Command>,
     Ok(commands)
 }
 
-/// A new model with the usual defaults: default grid 1–5 × А–Г at 6000 mm,
-/// levels 0 and +3600, work plane at level 0.
+/// A new model with the usual defaults: steel С255 and common ГОСТ
+/// sections, default grid 1–5 × А–Г at 6000 mm, levels 0 and +3600, work
+/// plane at level 0.
 pub fn default_project() -> Result<Project, String> {
-    let project = Project::default();
+    let mut project = Project::default();
+    gost_starter(&mut project)?;
+    with_default_grid(project)
+}
+
+/// `project` with the default grid and levels added, as one undo step that
+/// is not counted as a revision.
+pub fn with_default_grid(project: Project) -> Result<Project, String> {
     let commands = grid_commands(&project, &GridSpec::default())?;
     let mut document = open_bim_commands::Document::new(project).map_err(|e| e.to_string())?;
     document
@@ -232,6 +240,35 @@ pub fn default_project() -> Result<Project, String> {
     let mut project = document.project().clone();
     project.revision = 0;
     Ok(project)
+}
+
+/// Sections of a new model, under the ids the tools start with (material 1,
+/// profile 2 for beams and columns): one of each common family.
+pub const STARTER_SECTIONS: [&str; 5] = [
+    "30Б1 (Р 57837)",
+    "L100×8",
+    "[20П",
+    "Труба 114×4,5",
+    "Гн 150×100×6",
+];
+
+/// Replace the built-in test material and sections of `Project::default`
+/// with С255 (ГОСТ 27772) and [`STARTER_SECTIONS`]; the bar keeps its id 7.
+fn gost_starter(project: &mut Project) -> Result<(), String> {
+    use open_bim_model::library;
+    let steel = library::steel(ObjectId(1), "С255").ok_or("Нет стали С255 в каталоге")?;
+    project.materials = [(steel.id, steel)].into();
+    for (i, name) in STARTER_SECTIONS.iter().enumerate() {
+        let id = ObjectId(i as u64 + 2);
+        let entry =
+            library::section(name).ok_or_else(|| format!("Нет профиля {name} в каталоге"))?;
+        project.profiles.insert(id, entry.profile(id));
+    }
+    if let Some(bar) = project.profiles.get_mut(&ObjectId(7)) {
+        bar.name = "Брус 100×50".into();
+        bar.source = "Прямоугольное сечение без стандарта".into();
+    }
+    Ok(())
 }
 
 /// Bolt group through `parts` («by parts and points»): the first

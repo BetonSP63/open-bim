@@ -1,7 +1,7 @@
 //! Bolts by parts and points with «3*80» spacing and a preview, welds with a
 //! type choice that join assemblies and show on drawings, assembly commands,
 //! gusset and stiffener presets, and the help texts.
-use open_bim_desktop::interaction::tools::{bolt_axes, bolt_pattern, default_project};
+use open_bim_desktop::interaction::tools::{bolt_axes, bolt_pattern, with_default_grid};
 use open_bim_desktop::tools::detailing_ui::spacings;
 use open_bim_desktop::tools::{Editor, ui::Action};
 use open_bim_desktop::ui::{Request, Workbench, commands::Cmd, palette::STEEL_WORKFLOWS};
@@ -11,6 +11,13 @@ use open_bim_model::{
 };
 use open_bim_renderer::DVec3;
 use std::collections::BTreeSet;
+
+/// The analytic test sections these geometry checks are written for
+/// (profile 2 is I 300×150×8×12), with the default grid; new models in the
+/// app start with ГОСТ sections instead.
+fn default_project() -> Result<open_bim_model::Project, String> {
+    with_default_grid(open_bim_model::Project::default())
+}
 
 fn bench() -> Workbench {
     Workbench::new(Editor::new(default_project().unwrap()).unwrap())
