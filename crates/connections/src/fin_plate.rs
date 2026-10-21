@@ -254,6 +254,7 @@ pub fn rebuild_fin_plates(project: &mut Project, previous: &Project) -> Result<(
                     shop: true,
                     sides: WeldSides::Both,
                     around: false,
+                    process: Default::default(),
                 },
             },
         );

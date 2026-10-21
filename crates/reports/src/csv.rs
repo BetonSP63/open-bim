@@ -1,10 +1,11 @@
-//! RFC 4180 CSV: comma separator, CRLF rows, fields with quotes, commas or
-//! line breaks quoted and inner quotes doubled; UTF-8 with BOM so Cyrillic
-//! opens correctly in spreadsheet software.
+//! CSV for spreadsheets with Russian regional settings: semicolon
+//! separator and decimal comma, CRLF rows, fields with quotes, separators or
+//! line breaks quoted and inner quotes doubled (RFC 4180); UTF-8 with BOM so
+//! Cyrillic opens correctly.
 use crate::{AssemblyRow, FastenerRow, PartRow, Reports, fmt};
 
 pub fn field(value: &str) -> String {
-    if value.contains([',', '"', '\n', '\r']) {
+    if value.contains([';', '"', '\n', '\r']) {
         format!("\"{}\"", value.replace('"', "\"\""))
     } else {
         value.into()
@@ -14,7 +15,7 @@ pub fn field(value: &str) -> String {
 pub(crate) fn table(header: &[&str], rows: impl Iterator<Item = Vec<String>>) -> String {
     let mut out = String::from("\u{feff}");
     let line =
-        |cells: Vec<String>| cells.iter().map(|c| field(c)).collect::<Vec<_>>().join(",") + "\r\n";
+        |cells: Vec<String>| cells.iter().map(|c| field(c)).collect::<Vec<_>>().join(";") + "\r\n";
     out.push_str(&line(header.iter().map(|h| (*h).to_string()).collect()));
     for row in rows {
         out.push_str(&line(row));
@@ -22,8 +23,14 @@ pub(crate) fn table(header: &[&str], rows: impl Iterator<Item = Vec<String>>) ->
     out
 }
 
-fn number(value: f64) -> String {
-    format!("{:.3}", value)
+/// A number cell with a decimal comma.
+pub(crate) fn number(value: f64) -> String {
+    format!("{:.3}", value).replace('.', ",")
+}
+
+/// A length cell: whole millimetres, else one decimal, with a comma.
+fn length(value: f64) -> String {
+    fmt(value).replace('.', ",")
 }
 
 pub fn parts(r: &Reports) -> String {
@@ -61,7 +68,7 @@ pub fn parts(r: &Reports) -> String {
                     p.section.clone(),
                     p.material.clone(),
                     p.quantity.to_string(),
-                    fmt(p.length_mm),
+                    length(p.length_mm),
                     number(p.unit_mass_kg),
                     number(p.total_mass_kg),
                 ]
@@ -119,7 +126,7 @@ pub fn fasteners(r: &Reports) -> String {
                 f.kind.clone(),
                 f.description.clone(),
                 f.quantity.to_string(),
-                fmt(f.length_mm),
+                length(f.length_mm),
             ]
         }),
     )

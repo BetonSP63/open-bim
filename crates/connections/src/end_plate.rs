@@ -369,6 +369,7 @@ pub fn rebuild_end_plates(project: &mut Project, previous: &Project) -> Result<(
                     shop: true,
                     sides: open_bim_model::WeldSides::One,
                     around: false,
+                    process: Default::default(),
                 },
             },
         );

@@ -1,9 +1,9 @@
 {
   "dxf": {
-    "accepted": 58,
+    "accepted": 64,
     "inputs": 1200,
     "panics": 0,
-    "rejected": 1142
+    "rejected": 1136
   },
   "ifc": {
     "accepted": 61,

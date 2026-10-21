@@ -355,13 +355,13 @@
 <polyline class="Section" points="185,74 185,84" fill="none" stroke="#000" stroke-width="0.7"/>
 <polyline class="Section" points="185,36 185,26" fill="none" stroke="#000" stroke-width="0.7"/>
 <polyline class="Thin" data-object="8" points="122.858,51.023 126.358,47.623" fill="none" stroke="#000" stroke-width="0.25"/>
-<polyline class="Thin" data-object="8" points="126.358,47.623 147.701,47.623" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" data-object="8" points="126.358,47.623 131.386,47.623" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline class="Thin" points="185,81.5 191,81.5" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline class="Thin" points="188.5,81.05 191,81.5 188.5,81.95" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline class="Thin" points="185,28.5 191,28.5" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline class="Thin" points="188.5,28.05 191,28.5 188.5,28.95" fill="none" stroke="#000" stroke-width="0.25"/>
 <text x="185" y="94" font-size="5" text-anchor="middle" fill="#000">Вид спереди 1:10</text>
-<text x="126.858" y="47.023" font-size="7.143" text-anchor="start" fill="#000" data-object="8">P0002</text>
+<text x="126.858" y="47.023" font-size="7.143" text-anchor="start" fill="#000" data-object="8">2</text>
 <text x="192.5" y="85.5" font-size="7.143" text-anchor="middle" fill="#000">1</text>
 <text x="192.5" y="29.5" font-size="7.143" text-anchor="middle" fill="#000">1</text>
 </g>

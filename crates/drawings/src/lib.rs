@@ -1224,6 +1224,7 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
                 shop,
                 sides,
                 around,
+                process,
             } = &detail.kind
             else {
                 continue;
@@ -1235,7 +1236,8 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
             let mid = [(a[0] + b[0]) / 2., (a[1] + b[1]) / 2., (a[2] + b[2]) / 2.];
             let q = context.basis.project(mid);
             let at = context.paper([q[0], q[1]]);
-            let text = open_bim_model::weld_mark(*weld_type, *sides, *size, *around, *shop);
+            let text =
+                open_bim_model::weld_mark(*process, *weld_type, *sides, *size, *around, *shop);
             let width = metrics.as_ref().map_or_else(
                 |_| text.chars().count() as f64 * TEXT_HEIGHT * 0.62,
                 |m| m.width(&text, TEXT_HEIGHT),

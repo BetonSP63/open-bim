@@ -538,6 +538,7 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
                 shop,
                 sides,
                 around,
+                process,
                 ..
             } => {
                 let points: Vec<[f64; 2]> = path.iter().filter_map(|q| p.screen(v(*q))).collect();
@@ -551,9 +552,14 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
                 }
                 if let (Some(a), Some(b)) = (points.first(), points.last()) {
                     let mid = [(a[0] + b[0]) / 2., (a[1] + b[1]) / 2. - 12.];
-                    let mark = open_bim_model::weld_mark(*weld_type, *sides, *size, *around, *shop);
+                    let mark = open_bim_model::weld_mark(
+                        *process, *weld_type, *sides, *size, *around, *shop,
+                    );
                     // The joint and leg only: «Т3-Δ6».
-                    let short = mark.trim_start_matches("ГОСТ 5264-80-").to_string();
+                    let short = mark
+                        .trim_start_matches(process.standard())
+                        .trim_start_matches('-')
+                        .to_string();
                     marks.push(text(mid, short, colour, [0, 1], 12.));
                 }
             }

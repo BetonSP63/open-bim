@@ -85,7 +85,9 @@ fn lists_match_independent_fixture_totals() {
 #[test]
 fn csv_escapes_quotes_line_breaks_commas_and_keeps_cyrillic() {
     assert_eq!(csv::field("Балка Б1"), "Балка Б1");
-    assert_eq!(csv::field("Б1, ряд А"), "\"Б1, ряд А\"");
+    // Commas are decimal commas or text: only semicolons need quotes.
+    assert_eq!(csv::field("Б1, ряд А"), "Б1, ряд А");
+    assert_eq!(csv::field("Б1; ряд А"), "\"Б1; ряд А\"");
     assert_eq!(csv::field("Балка \"Б1\""), "\"Балка \"\"Б1\"\"\"");
     assert_eq!(csv::field("строка 1\nстрока 2"), "\"строка 1\nстрока 2\"");
     let mut doc = assembled();

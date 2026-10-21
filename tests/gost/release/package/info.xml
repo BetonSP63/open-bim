@@ -2,7 +2,7 @@
 <package name="Контрольное здание" designation="2345-26" issued="22.10.26 12:00">
   <folder name="КМ" title="Конструкции металлические. Основной комплект рабочих чертежей">
     <document guid="b38e3fa3-7cc7-5c1a-990f-0b3c0b36a05b" designation="2345-26-КМ" title="Конструкции металлические. Основной комплект рабочих чертежей" version="3">
-      <file path="КМ/2345-26-КМ.pdf" size="189243" sha256="b18d3a726598f9914c2f45d8013dd642c68415d6c4835f88da5b70646e9cf843"/>
+      <file path="КМ/2345-26-КМ.pdf" size="189283" sha256="64cc47e0eac6b8d0a6e64adafd2055c3c3774cb053ad4eb6376172ff110362b5"/>
     </document>
     <document guid="d4fc589a-ff09-5504-a43b-bd3949f257d0" designation="2345-26-КМ" title="Обложка. Конструкции металлические. Основной комплект рабочих чертежей" version="3">
       <file path="КМ/2345-26-КМ-Обложка.pdf" size="175478" sha256="4a6034aaa19680ca741be576bbf7483def25a4827b499c157cac3771061ab2f1"/>
@@ -23,12 +23,12 @@
       <file path="КМ/Разрешение-16-26.pdf" size="175926" sha256="5694bd345ac414a041394b03d64f3621bfccaed3039e8541c4ab0bb7eb408288"/>
     </document>
     <document guid="b1e72c92-9688-5f8c-9088-20c922ccefe3" designation="2345-26-КМ-УЛ" title="Удостоверяющий лист" version="3">
-      <file path="КМ/2345-26-КМ-УЛ.pdf" size="180148" sha256="f39a3306ad70e90d63b1ae853f9e7bb748ff553d648665d8763b0a0909d92234"/>
+      <file path="КМ/2345-26-КМ-УЛ.pdf" size="180150" sha256="e7d87cb8913caecd625e0d96ecb096dbb3d97f86a709906fd939432e0496e14f"/>
     </document>
   </folder>
   <folder name="КМД" title="Конструкции металлические деталировочные. Основной комплект рабочих чертежей">
     <document guid="677e20d5-5124-5b76-b73b-e3f9ca3b2a92" designation="2345-26-КМД" title="Конструкции металлические деталировочные. Основной комплект рабочих чертежей" version="3">
-      <file path="КМД/2345-26-КМД.pdf" size="183951" sha256="9c3701a435df99c24cbe0a880655aa63cd531179e7aa9fa89447bcc5d03e0392"/>
+      <file path="КМД/2345-26-КМД.pdf" size="183980" sha256="32754f9608fd8e0c49b6c6fc988f04d01015720259b68933caa4113e599c31a7"/>
     </document>
     <document guid="a8320590-2954-5f37-8a7b-02ce18e195b2" designation="2345-26-КМД" title="Обложка. Конструкции металлические деталировочные. Основной комплект рабочих чертежей" version="3">
       <file path="КМД/2345-26-КМД-Обложка.pdf" size="175543" sha256="3c313f7b13076a1cf4d50c10182c19ecd4a2cf16760f7e0b5e5f9ca91116698f"/>
@@ -49,7 +49,7 @@
       <file path="КМД/Разрешение-16-26.pdf" size="175929" sha256="c3bf625e94db1974c22c1d6586a5cdfa5af55bebdd738ef905f16727092a62dd"/>
     </document>
     <document guid="07f4744d-3694-5cf4-a32d-bf16a7aff9c1" designation="2345-26-КМД-УЛ" title="Удостоверяющий лист" version="3">
-      <file path="КМД/2345-26-КМД-УЛ.pdf" size="180178" sha256="dba34bca4bbf7929d7a0d4f5e510b2612a1d056d0f3a5268e0959daa5786cd8b"/>
+      <file path="КМД/2345-26-КМД-УЛ.pdf" size="180179" sha256="28aa90cb466e6991e5a53ac16c17e73698e34ecdd665208d9b08b005e237faaa"/>
     </document>
   </folder>
 </package>

@@ -1,7 +1,9 @@
 use super::{number, point};
 use eframe::egui;
 use open_bim_commands::Command;
-use open_bim_model::{Detail, DetailKind, Frame, ObjectId, Project, WeldSides, WeldType};
+use open_bim_model::{
+    Detail, DetailKind, Frame, ObjectId, Project, WeldProcess, WeldSides, WeldType,
+};
 use std::collections::BTreeSet;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -39,6 +41,8 @@ pub struct DetailingUi {
     pub grade: String,
     pub weld_size: String,
     pub weld_type: WeldType,
+    /// Welding process; it gives the standard in the weld mark.
+    pub weld_process: WeldProcess,
     pub weld_sides: WeldSides,
     /// Welded all around («по контуру»).
     pub weld_around: bool,
@@ -67,10 +71,11 @@ impl Default for DetailingUi {
             clearance: "2".into(),
             steps_x: "50".into(),
             steps_y: "50".into(),
-            standard: "ISO 4014".into(),
+            standard: open_bim_connections::norms::DEFAULT_BOLT_STANDARD.into(),
             grade: "8.8".into(),
             weld_size: "6".into(),
             weld_type: WeldType::Fillet,
+            weld_process: WeldProcess::Manual,
             weld_sides: WeldSides::One,
             weld_around: false,
             shop: true,
@@ -154,6 +159,7 @@ impl DetailingUi {
                     shop: self.shop,
                     sides: self.weld_sides,
                     around: self.weld_around,
+                    process: self.weld_process,
                 },
                 DetailTool::Bolts => unreachable!(),
             };
@@ -297,6 +303,24 @@ impl DetailingUi {
             ui.selectable_value(&mut self.weld_sides, WeldSides::One, "Односторонний");
             ui.selectable_value(&mut self.weld_sides, WeldSides::Both, "Двусторонний");
         });
+        let l = ui.label("Способ сварки");
+        egui::ComboBox::from_id_salt("weld-process")
+            .selected_text(format!(
+                "{} ({})",
+                self.weld_process.label(),
+                self.weld_process.standard()
+            ))
+            .show_ui(ui, |ui| {
+                for p in WeldProcess::ALL {
+                    ui.selectable_value(
+                        &mut self.weld_process,
+                        p,
+                        format!("{} ({})", p.label(), p.standard()),
+                    );
+                }
+            })
+            .response
+            .labelled_by(l.id);
         field(ui, "Катет / размер шва, мм", &mut self.weld_size);
         ui.checkbox(&mut self.weld_around, "По контуру");
         ui.horizontal(|ui| {
@@ -307,6 +331,7 @@ impl DetailingUi {
             ui.small(format!(
                 "Обозначение: {}",
                 open_bim_model::weld_mark(
+                    self.weld_process,
                     self.weld_type,
                     self.weld_sides,
                     size,

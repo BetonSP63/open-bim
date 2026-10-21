@@ -227,7 +227,8 @@ pub fn assembly_parts(project: &Project, id: ObjectId) -> BTreeSet<ObjectId> {
 }
 
 fn fasteners(project: &Project) -> Vec<FastenerRow> {
-    let mut bolts: BTreeMap<String, usize> = BTreeMap::new();
+    // (kind, description): bolts with their nuts and washers, one each.
+    let mut bolts: BTreeMap<(&str, String), usize> = BTreeMap::new();
     let mut welds: BTreeMap<String, (usize, f64)> = BTreeMap::new();
     for detail in project.details.values() {
         match &detail.kind {
@@ -239,9 +240,16 @@ fn fasteners(project: &Project) -> Vec<FastenerRow> {
                 steps_y,
                 ..
             } => {
-                *bolts
-                    .entry(format!("М{} {standard} кл. {grade}", fmt(*diameter)))
-                    .or_default() += (steps_x.len() + 1) * (steps_y.len() + 1);
+                let count = (steps_x.len() + 1) * (steps_y.len() + 1);
+                let d = fmt(*diameter);
+                let (nut, washer) = open_bim_model::bolt_set(standard);
+                for key in [
+                    ("Болт", format!("М{d} {standard} кл. {grade}")),
+                    ("Гайка", format!("М{d} {nut}")),
+                    ("Шайба", format!("{d} {washer}")),
+                ] {
+                    *bolts.entry(key).or_default() += count;
+                }
             }
             DetailKind::Weld {
                 weld_type,
@@ -249,6 +257,7 @@ fn fasteners(project: &Project) -> Vec<FastenerRow> {
                 path,
                 shop,
                 sides,
+                process,
                 ..
             } => {
                 let kind = match weld_type {
@@ -258,8 +267,12 @@ fn fasteners(project: &Project) -> Vec<FastenerRow> {
                     WeldType::ButtX => "стыковой X",
                     WeldType::Lap => "нахлёсточный",
                 };
-                // Joint per ГОСТ 5264-80 (Т1, Т3, С2, …).
-                let kind = format!("{kind} {}", weld_type.joint(*sides));
+                // Joint per the process standard (Т1, Т3, С2, …).
+                let kind = format!(
+                    "{kind} {} {}",
+                    process.standard(),
+                    weld_type.joint(*sides, *process)
+                );
                 let place = if *shop {
                     "заводской"
                 } else {
@@ -276,8 +289,8 @@ fn fasteners(project: &Project) -> Vec<FastenerRow> {
     }
     bolts
         .into_iter()
-        .map(|(description, quantity)| FastenerRow {
-            kind: "Болт".into(),
+        .map(|((kind, description), quantity)| FastenerRow {
+            kind: kind.into(),
             description,
             quantity,
             length_mm: 0.,

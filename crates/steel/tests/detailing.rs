@@ -69,6 +69,7 @@ fn bolts_welds_roundtrip_history_and_deletion_dependencies() {
                     Point3([30., 40., 20.]),
                     Point3([30., 40., 40.]),
                 ],
+                process: Default::default(),
             },
         },
     });
