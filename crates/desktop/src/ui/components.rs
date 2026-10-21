@@ -53,6 +53,14 @@ pub fn catalog() -> Vec<Component> {
             thickness: 10.,
         },
         Component {
+            name: "Рёбра жёсткости колонны",
+            group: "Колонны",
+            description: "Четыре ребра между полками колонны на уровне полок балки, приварены к стенке и полкам. Выберите колонну, затем балку.",
+            needs_support: true,
+            kind: TemplateKind::ColumnStiffeners { chamfer: 20. },
+            thickness: 12.,
+        },
+        Component {
             name: "Уголковое соединение",
             group: "Балка — колонна / балка",
             description: "Уголок на двух болтах к стенке балки и двух болтах к опоре. Выберите балку, затем опору.",
@@ -98,7 +106,7 @@ impl ComponentState {
         let c = self.armed.as_ref()?;
         Some(match self.main {
             None => format!("{}: выберите главную деталь", c.name),
-            Some(_) => format!("{}: выберите второстепенную деталь (опору)", c.name),
+            Some(_) => format!("{}: выберите второстепенную деталь", c.name),
         })
     }
 
