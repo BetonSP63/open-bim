@@ -44,6 +44,10 @@ pub struct ToolsUi {
     pub connection: super::connection_ui::ConnectionUi,
     pub coordination: super::coordination_ui::CoordinationUi,
     pub detailing: super::detailing_ui::DetailingUi,
+    /// Property file row of the create and bolt dialogs.
+    pub files: super::property_files::FilesUi,
+    /// The bolt command ran in this session («standard» is loaded once).
+    pub bolts_used: bool,
     pub plate_contour: String,
     pub plate_thickness: String,
     pub delta: [String; 3],
@@ -69,6 +73,8 @@ impl Default for ToolsUi {
             connection: Default::default(),
             coordination: Default::default(),
             detailing: Default::default(),
+            files: Default::default(),
+            bolts_used: false,
             plate_contour: String::new(),
             plate_thickness: "20".into(),
             delta: ["1000".into(), "0".into(), "0".into()],
@@ -166,13 +172,19 @@ impl ToolsUi {
                         .selectable_label(editor.active && editor.draft.kind == kind, kind.label())
                         .clicked()
                     {
-                        editor.begin(kind);
+                        let _ = editor.begin(kind);
                     }
                 }
             });
             if editor.active {
                 ui.separator();
                 ui.strong(format!("Создать: {}", editor.draft.kind.label()));
+                if let Some(kind) = super::property_files::FileKind::of_tool(editor.draft.kind) {
+                    let dir = super::property_files::folder(&self.path);
+                    if let Some(request) = self.files.row(ui, &dir, kind) {
+                        self.message = Some(draft_file(&dir, kind, editor, request));
+                    }
+                }
                 let name_label = ui.label("Имя");
                 ui.text_edit_singleline(&mut editor.draft.name)
                     .labelled_by(name_label.id);
@@ -204,18 +216,8 @@ impl ToolsUi {
                         });
                     ui.small("Точки — в 3D-виде с привязкой; Enter или средняя кнопка замыкает контур, Backspace убирает последнюю точку.");
                 } else if editor.draft.kind == ToolKind::Column {
-                    ui.horizontal(|ui| {
-                        let b = ui.label("Низ, мм");
-                        ui.add(
-                            egui::TextEdit::singleline(&mut editor.draft.bottom).desired_width(70.),
-                        )
-                        .labelled_by(b.id);
-                        let t = ui.label("Верх, мм");
-                        ui.add(
-                            egui::TextEdit::singleline(&mut editor.draft.top).desired_width(70.),
-                        )
-                        .labelled_by(t.id);
-                    });
+                    let project = editor.document.project();
+                    column_ends(ui, project, &mut editor.draft);
                 } else {
                     ui.label("Конец, мм");
                     vector_fields(ui, "end", &mut editor.draft.end);
@@ -477,6 +479,111 @@ impl ToolsUi {
         action
     }
 }
+/// A millimetre value as typed in a field: «0», «-150», «12.5».
+pub fn mm_text(v: f64) -> String {
+    crate::ui::property_pane::number_text(v)
+}
+
+/// Load or save the create dialog of `kind` from/to a property file;
+/// returns the message for the user.
+pub fn draft_file(
+    dir: &std::path::Path,
+    kind: super::property_files::FileKind,
+    editor: &mut Editor,
+    request: super::property_files::FileRequest,
+) -> String {
+    use super::property_files::{
+        FileRequest, apply_to_draft, from_draft, import_catalogue, load, loaded_message, save,
+    };
+    match request {
+        FileRequest::Load(name) => {
+            match load(dir, kind, &name).and_then(|v| import_catalogue(editor, &v).map(|()| v)) {
+                Ok(values) => {
+                    let project = editor.document.project();
+                    loaded_message(&name, &apply_to_draft(project, &mut editor.draft, &values))
+                }
+                Err(e) => e,
+            }
+        }
+        FileRequest::Save(name) => {
+            let project = editor.document.project();
+            match save(dir, &name, &from_draft(project, &editor.draft, kind)) {
+                Ok(path) => format!("Свойства сохранены: {}", path.display()),
+                Err(e) => e,
+            }
+        }
+    }
+}
+
+/// Column «Низ»/«Верх»: a level (or absolute Z) and the value in mm, which
+/// is an offset from the level when one is chosen.
+pub fn column_ends(ui: &mut egui::Ui, project: &open_bim_model::Project, draft: &mut super::Draft) {
+    use open_bim_model::numbering_rules::level_mark;
+    let mut levels: Vec<&open_bim_model::Level> = project.levels.values().collect();
+    levels.sort_by(|a, b| a.elevation_mm.total_cmp(&b.elevation_mm));
+    let name = |id: Option<ObjectId>| match id.and_then(|id| project.levels.get(&id)) {
+        Some(l) if l.name == level_mark(l.elevation_mm) => l.name.clone(),
+        Some(l) => format!("{} ({})", l.name, level_mark(l.elevation_mm)),
+        None => "Абс. отметка".into(),
+    };
+    egui::Grid::new("column ends")
+        .num_columns(3)
+        .show(ui, |ui| {
+            for (caption, level, value) in [
+                ("Низ", &mut draft.bottom_level, &mut draft.bottom),
+                ("Верх", &mut draft.top_level, &mut draft.top),
+            ] {
+                let l = ui.label(caption);
+                egui::ComboBox::new(("column level", caption), "")
+                    .selected_text(name(*level))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(level, None, name(None));
+                        for l in &levels {
+                            ui.selectable_value(level, Some(l.id), name(Some(l.id)));
+                        }
+                    })
+                    .response
+                    .labelled_by(l.id);
+                let unit = if level.is_some() {
+                    "смещение, мм"
+                } else {
+                    "Z, мм"
+                };
+                ui.add(
+                    egui::TextEdit::singleline(value)
+                        .id(egui::Id::new(("column end", caption)))
+                        .desired_width(70.),
+                )
+                .on_hover_text(unit)
+                .widget_info(|| {
+                    egui::WidgetInfo::labeled(
+                        egui::WidgetType::TextEdit,
+                        true,
+                        format!("{caption}, {unit}"),
+                    )
+                });
+                ui.label(unit);
+                ui.end_row();
+            }
+        });
+    match draft
+        .column_ends()
+        .and_then(|(b, t)| super::column_levels::heights(project, b, t))
+    {
+        Ok((b, t)) => {
+            ui.small(format!(
+                "Низ {} · верх {} · высота {:.0} мм",
+                level_mark(b),
+                level_mark(t),
+                t - b
+            ));
+        }
+        Err(e) => {
+            ui.colored_label(ui.visuals().error_fg_color, e);
+        }
+    }
+}
+
 pub fn snap_label(mode: SnapMode) -> &'static str {
     match mode {
         SnapMode::All => "Все",

@@ -287,11 +287,10 @@ pub fn commands(
         }]),
         ToolKind::Beam | ToolKind::Column => {
             let (start, end) = if kind == ToolKind::Column {
-                // The pick gives X/Y; bottom and top are global Z values.
-                let (bottom, top) = (number(&draft.bottom)?, number(&draft.top)?);
-                if top <= bottom {
-                    return Err("Верх колонны должен быть выше низа".into());
-                }
+                // The pick gives X/Y; bottom and top are global Z
+                // values or offsets from the chosen levels.
+                let (b, t) = draft.column_ends()?;
+                let (bottom, top) = crate::tools::column_levels::heights(project, b, t)?;
                 (
                     DVec3::new(points[0].x, points[0].y, bottom),
                     DVec3::new(points[0].x, points[0].y, top),
@@ -313,7 +312,12 @@ pub fn commands(
                     name: draft.name.clone(),
                     material: draft.material,
                     shape,
-                    properties: Default::default(),
+                    properties: if kind == ToolKind::Column {
+                        let (b, t) = draft.column_ends()?;
+                        crate::tools::column_levels::binding(b, t)
+                    } else {
+                        Default::default()
+                    },
                 },
             }])
         }

@@ -1,7 +1,9 @@
 //! Model tools commit only validated documents and renderable geometry.
+pub mod column_levels;
 pub mod connection_ui;
 pub mod coordination_ui;
 pub mod detailing_ui;
+pub mod property_files;
 mod snap;
 pub mod ui;
 use open_bim_commands::{Command, Document, project_hash};
@@ -56,9 +58,12 @@ pub struct Draft {
     /// Beam/column position on the reference line («Положение»).
     pub position: open_bim_model::PartPosition,
     pub contour: String,
-    /// Column bottom and top, global Z in mm («Низ»/«Верх»).
+    /// Column bottom and top, mm («Низ»/«Верх»): global Z, or an
+    /// offset from the chosen level.
     pub bottom: String,
     pub top: String,
+    pub bottom_level: Option<ObjectId>,
+    pub top_level: Option<ObjectId>,
 }
 impl Default for Draft {
     fn default() -> Self {
@@ -76,6 +81,8 @@ impl Default for Draft {
             position: Default::default(),
             bottom: "0".into(),
             top: "3600".into(),
+            bottom_level: None,
+            top_level: None,
         }
     }
 }
@@ -110,6 +117,20 @@ pub fn parse_contour(text: &str) -> Result<Vec<[f64; 2]>, String> {
     contour
 }
 impl Draft {
+    /// Column bottom and top as entered: a level and an offset, or global Z.
+    pub fn column_ends(&self) -> Result<(column_levels::Height, column_levels::Height), String> {
+        let h = |level, text: &str| -> Result<column_levels::Height, String> {
+            Ok(column_levels::Height {
+                level,
+                value: number(&text.replace(',', "."))?,
+            })
+        };
+        Ok((
+            h(self.bottom_level, &self.bottom)?,
+            h(self.top_level, &self.top)?,
+        ))
+    }
+
     pub fn commands(&self, project: &Project) -> Result<Vec<Command>, String> {
         let id = ObjectId(project.next_id);
         let start = point(&self.start)?;
@@ -563,6 +584,11 @@ pub struct Editor {
     pub events: Vec<FlowEvent>,
     pub record_path: Option<PathBuf>,
     pub record_warning: Option<String>,
+    /// Each tool keeps its own properties, like separate beam and column
+    /// dialogs: the drafts of the other tools used in this session.
+    pub saved_drafts: Vec<Draft>,
+    /// Tools started at least once in this session.
+    pub used_tools: Vec<ToolKind>,
 }
 impl Editor {
     pub fn new(project: Project) -> Result<Self, String> {
@@ -577,11 +603,30 @@ impl Editor {
             events: Vec::new(),
             record_path: None,
             record_warning: None,
+            saved_drafts: Vec::new(),
+            used_tools: Vec::new(),
         })
     }
-    pub fn begin(&mut self, kind: ToolKind) {
+    /// Start a tool with the properties it was last used with; returns
+    /// true on its first use in the session (defaults, then «standard»).
+    pub fn begin(&mut self, kind: ToolKind) -> bool {
         self.active = true;
         self.picked.clear();
+        let first = !self.used_tools.contains(&kind);
+        if !first && self.draft.kind == kind {
+            return false;
+        }
+        let old = self.draft.kind;
+        if self.used_tools.contains(&old) {
+            self.saved_drafts.retain(|d| d.kind != old);
+            self.saved_drafts.push(self.draft.clone());
+        }
+        if let Some(i) = self.saved_drafts.iter().position(|d| d.kind == kind) {
+            self.draft = self.saved_drafts.remove(i);
+            return false;
+        }
+        self.used_tools.push(kind);
+        // First use: start from the current draft with the tool's defaults.
         self.draft.kind = kind;
         self.draft.name = kind.label().into();
         if kind == ToolKind::Gusset {
@@ -593,6 +638,7 @@ impl Editor {
         } else if kind == ToolKind::Column {
             self.draft.end = ["0".into(), "0".into(), "3000".into()];
         }
+        true
     }
     pub fn cancel(&mut self) {
         self.active = false;
