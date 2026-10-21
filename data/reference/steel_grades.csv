@@ -1,0 +1,84 @@
+grade,standard,sp16_table,product,thickness_from_mm,thickness_from_inclusive,thickness_to_mm,Ryn_MPa,Run_MPa,Ry_MPa,Ru_MPa,source,notes
+С235,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",2,yes,4,235,360,230,350,SP16-IZM3-B3,
+С245,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",2,yes,20,245,370,240,360,SP16-IZM3-B3,
+С255,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",2,yes,3.9,255,380,250,370,SP16-IZM3-B3,
+С255,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",4,yes,10,245,380,240,370,SP16-IZM3-B3,
+С255,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",10,no,20,245,370,240,360,SP16-IZM3-B3,
+С255,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",20,no,40,235,370,230,360,SP16-IZM3-B3,
+С345К,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",2,yes,10,355,470,350,460,SP16-IZM3-B3,printed this way in both copies (Ryn 355 for grade С345К in Table В.3)
+С355,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",2,yes,16,355,490,350,480,SP16-IZM3-B3,
+С355,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",16,no,40,345,490,340,480,SP16-IZM3-B3,
+С355,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",40,no,60,335,490,330,480,SP16-IZM3-B3,
+С355,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",60,no,80,325,490,320,480,SP16-IZM3-B3,
+С355,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",80,no,100,315,470,310,460,SP16-IZM3-B3,
+С355,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",100,no,160,295,470,285,460,SP16-IZM3-B3,
+С355,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",160,no,200,285,470,280,460,SP16-IZM3-B3,
+С355,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",200,no,260,270,450,265,440,SP16-IZM3-B3,
+С355,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",260,no,300,260,450,255,440,SP16-IZM3-B3,
+С355,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",300,no,360,245,440,240,430,SP16-IZM3-B3,
+С390,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",5,yes,16,390,520,380,505,SP16-IZM3-B3,same row covers С390-1
+С390,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",16,no,40,390,520,380,505,SP16-IZM3-B3,same row covers С390-1
+С390,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",40,no,60,385,520,375,505,SP16-IZM3-B3,same row covers С390-1
+С390,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",60,no,80,375,510,365,500,SP16-IZM3-B3,same row covers С390-1
+С390,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",80,no,100,365,510,355,500,SP16-IZM3-B3,same row covers С390-1
+С390,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",100,no,160,360,510,350,500,SP16-IZM3-B3,same row covers С390-1
+С440,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",5,yes,16,440,540,430,525,SP16-IZM3-B3,
+С440,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",16,no,40,440,540,430,525,SP16-IZM3-B3,
+С440,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",40,no,60,430,540,430,525,SP16-IZM3-B3,Ry 430 printed (same as thinner rows) in both copies
+С440,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",60,no,80,425,530,415,520,SP16-IZM3-B3,
+С440,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",80,no,100,415,530,405,520,SP16-IZM3-B3,
+С440,ГОСТ 27772,В.3,"sheet, wide-strip, bar, tubes",100,no,160,405,530,395,520,SP16-IZM3-B3,
+С255Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),,,10,255,380,250,370,SP16-IZM3-B4,same row covers С255Б-1
+С255Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),10,no,20,245,370,240,360,SP16-IZM3-B4,same row covers С255Б-1
+С255Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),20,no,40,235,370,230,360,SP16-IZM3-B4,same row covers С255Б-1
+С255Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),40,no,60,235,370,230,360,SP16-IZM3-B4,same row covers С255Б-1
+С255Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),60,no,80,225,370,220,360,SP16-IZM3-B4,same row covers С255Б-1
+С255Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),80,no,100,215,370,210,360,SP16-IZM3-B4,same row covers С255Б-1
+С255Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),100,no,,200,360,195,350,SP16-IZM3-B4,same row covers С255Б-1
+С345Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),,,10,345,480,335,470,SP16-IZM3-B4,
+С345Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),10,no,20,325,470,315,460,SP16-IZM3-B4,
+С345Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),20,no,40,305,460,300,450,SP16-IZM3-B4,
+С345Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),40,no,60,285,450,280,440,SP16-IZM3-B4,
+С345Б-1,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),,,10,345,490,335,480,SP16-IZM3-B4,single source (meganorm Изм.3 text); not in second copy
+С345Б-1,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),10,no,20,325,470,315,460,SP16-IZM3-B4,single source
+С345Б-1,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),20,no,40,305,460,300,450,SP16-IZM3-B4,single source
+С345Б-1,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),40,no,60,285,450,280,440,SP16-IZM3-B4,single source
+С355Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),,,20,355,470,345,460,SP16-IZM3-B4,
+С355Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),20,no,40,345,470,335,460,SP16-IZM3-B4,
+С355Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),40,no,60,340,470,325,460,SP16-IZM3-B4,
+С355Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),60,no,80,325,460,315,450,SP16-IZM3-B4,
+С355Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),80,no,100,315,460,305,450,SP16-IZM3-B4,
+С355Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),100,no,,295,460,290,450,SP16-IZM3-B4,
+С355Б-1,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),,,20,355,470,345,460,SP16-IZM3-B4,single source
+С355Б-1,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),20,no,40,345,470,335,460,SP16-IZM3-B4,single source
+С355Б-1,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),40,no,60,335,470,325,460,SP16-IZM3-B4,single source
+С390Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),,,30,390,520,380,505,SP16-IZM3-B4,
+С390Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),30,no,60,370,490,360,480,SP16-IZM3-B4,
+С390Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),60,no,80,360,480,350,470,SP16-IZM3-B4,
+С390Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),80,no,100,350,480,340,470,SP16-IZM3-B4,
+С390Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),100,no,,330,470,320,460,SP16-IZM3-B4,
+С440Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),,,20,440,600,430,585,SP16-IZM3-B4,
+С440Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),20,no,30,430,560,420,545,SP16-IZM3-B4,
+С440Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),30,no,80,420,520,410,505,SP16-IZM3-B4,
+С440Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),80,no,100,400,520,390,505,SP16-IZM3-B4,
+С440Б,ГОСТ 27772,В.4,I-beams with parallel flanges (thickness = flange),100,no,,380,500,370,490,SP16-IZM3-B4,
+С245,ГОСТ 27772,В.5,shaped sections except parallel-flange I-beams (thickness = flange),4,yes,20,245,370,240,360,SP16-IZM3-B5,
+С245,ГОСТ 27772,В.5,shaped sections except parallel-flange I-beams (thickness = flange),20,no,40,235,370,230,360,SP16-IZM3-B5,
+С255,ГОСТ 27772,В.5,shaped sections except parallel-flange I-beams (thickness = flange),4,yes,10,255,380,250,370,SP16-IZM3-B5,
+С255,ГОСТ 27772,В.5,shaped sections except parallel-flange I-beams (thickness = flange),10,no,20,245,370,240,360,SP16-IZM3-B5,
+С255,ГОСТ 27772,В.5,shaped sections except parallel-flange I-beams (thickness = flange),20,no,40,235,370,230,360,SP16-IZM3-B5,
+С345,ГОСТ 27772,В.5,shaped sections except parallel-flange I-beams (thickness = flange),4,yes,10,345,480,340,470,SP16-IZM3-B5,
+С345,ГОСТ 27772,В.5,shaped sections except parallel-flange I-beams (thickness = flange),10,no,20,325,470,320,460,SP16-IZM3-B5,
+С345,ГОСТ 27772,В.5,shaped sections except parallel-flange I-beams (thickness = flange),20,no,40,305,460,300,450,SP16-IZM3-B5,
+С345К,ГОСТ 27772,В.5,shaped sections except parallel-flange I-beams (thickness = flange),4,yes,10,345,480,340,470,SP16-IZM3-B5,
+С355,ГОСТ 27772,В.5,shaped sections except parallel-flange I-beams (thickness = flange),5,yes,16,355,490,350,480,SP16-IZM3-B5,same values for С355-1
+С355,ГОСТ 27772,В.5,shaped sections except parallel-flange I-beams (thickness = flange),16,no,40,345,480,340,470,SP16-IZM3-B5,same values for С355-1
+С355,ГОСТ 27772,В.5,shaped sections except parallel-flange I-beams (thickness = flange),40,no,60,340,470,330,460,SP16-IZM3-B5,same values for С355-1
+С390,ГОСТ 27772,В.5,shaped sections except parallel-flange I-beams (thickness = flange),5,yes,10,390,520,380,505,SP16-IZM3-B5,
+С390,ГОСТ 27772,В.5,shaped sections except parallel-flange I-beams (thickness = flange),10,no,20,380,500,370,480,SP16-IZM3-B5,
+С390,ГОСТ 27772,В.5,shaped sections except parallel-flange I-beams (thickness = flange),20,no,40,370,490,360,480,SP16-IZM3-B5,
+С390,ГОСТ 27772,В.5,shaped sections except parallel-flange I-beams (thickness = flange),40,no,60,365,485,350,475,SP16-IZM3-B5,
+С440,ГОСТ 27772,В.5,shaped sections except parallel-flange I-beams (thickness = flange),5,yes,10,440,600,430,585,SP16-IZM3-B5,
+С440,ГОСТ 27772,В.5,shaped sections except parallel-flange I-beams (thickness = flange),10,no,20,440,580,430,565,SP16-IZM3-B5,
+С440,ГОСТ 27772,В.5,shaped sections except parallel-flange I-beams (thickness = flange),20,no,40,430,550,420,535,SP16-IZM3-B5,
+С440,ГОСТ 27772,В.5,shaped sections except parallel-flange I-beams (thickness = flange),40,no,60,420,520,410,505,SP16-IZM3-B5,

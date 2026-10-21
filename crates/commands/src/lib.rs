@@ -190,6 +190,7 @@ impl Document {
         open_bim_connections::rebuild_base_plates(&mut staged, &self.project)?;
         open_bim_connections::rebuild_end_plates(&mut staged, &self.project)?;
         open_bim_connections::rebuild_clip_angles(&mut staged, &self.project)?;
+        open_bim_connections::rebuild_fin_plates(&mut staged, &self.project)?;
         staged.validate()?;
         staged.revision = staged
             .revision

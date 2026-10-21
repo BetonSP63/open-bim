@@ -1,0 +1,4 @@
+class,Rbun_MPa,Rbyn_MPa,k_shear,k_tension,Rbs_MPa,Rbt_MPa,source,notes
+5.6,500,300,0.42,0.45,210,225,SP16-IZM3-T5;SP16-G5-SEC,"Rbs, Rbt = k·Rbun (Table 5) agree with Table Г.5 as reproduced"
+8.8,830,664,0.40,0.54,332,451,SP16-IZM3-T5;SP16-G5-SEC,"Г.5 copy (secondary) prints Rbt 451; 0.54·830 = 448 - verify against official Г.5. SP 16.13330.2011 Г.5 had Rbyn 665, Rbs 330, Rbt 450"
+10.9,1040,936,0.35,0.7,416,728,SP16-IZM3-T5;SP16-G5-SEC,"Г.5 copy (secondary) prints Rbs 416 = 0.40·Rbun, Table 5 (Изм.3) gives 0.35·Rbun = 364 - CONFLICT, verify. SP 16.13330.2011 Г.5 had Rbyn 935, Rbs 415, Rbt 560"

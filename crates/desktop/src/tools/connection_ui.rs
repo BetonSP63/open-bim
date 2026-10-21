@@ -184,30 +184,26 @@ impl ConnectionUi {
                     });
             }
             ui.checkbox(&mut self.at_end, "Конец элемента (иначе начало)");
-            let labels = ["Опорная плита", "Торцевая пластина", "Уголковое соединение"];
-            let old = match self.template.kind {
-                TemplateKind::BasePlate { .. } => 0,
-                TemplateKind::EndPlate { .. } => 1,
-                TemplateKind::ClipAngle { .. } => 2,
+            // Types come from the component catalogue (same names and defaults).
+            let catalog = crate::ui::components::catalog();
+            let same = |a: &TemplateKind, b: &TemplateKind| {
+                std::mem::discriminant(a) == std::mem::discriminant(b)
             };
+            let old = catalog
+                .iter()
+                .position(|c| same(&c.kind, &self.template.kind))
+                .unwrap_or(0);
             let mut kind = old;
             egui::ComboBox::new("connection-kind", "Тип узла")
-                .selected_text(labels[kind])
+                .selected_text(catalog[kind].name)
                 .show_ui(ui, |ui| {
-                    for (i, label) in labels.iter().enumerate() {
-                        ui.selectable_value(&mut kind, i, *label);
+                    for (i, c) in catalog.iter().enumerate() {
+                        ui.selectable_value(&mut kind, i, c.name);
                     }
                 });
             if old != kind {
-                self.template.kind = match kind {
-                    0 => TemplateKind::BasePlate { overhang: 70. },
-                    1 => TemplateKind::EndPlate { overhang: 70. },
-                    _ => TemplateKind::ClipAngle {
-                        leg: 100.,
-                        height: 170.,
-                        pitch: 80.,
-                    },
-                };
+                self.template.kind = catalog[kind].kind.clone();
+                self.template.thickness = catalog[kind].thickness;
             }
             let field_label = ui.label("Имя узла");
             ui.text_edit_singleline(&mut self.template.name)
@@ -226,6 +222,22 @@ impl ConnectionUi {
                     dimension(ui, "Полка уголка, мм", leg);
                     dimension(ui, "Высота уголка, мм", height);
                     dimension(ui, "Шаг болтов, мм", pitch);
+                }
+                TemplateKind::FinPlate {
+                    height,
+                    lap,
+                    gap,
+                    pitch,
+                    rows,
+                } => {
+                    dimension(ui, "Высота пластины, мм", height);
+                    dimension(ui, "Нахлёст на балку, мм", lap);
+                    dimension(ui, "Зазор до опоры, мм", gap);
+                    dimension(ui, "Шаг болтов, мм", pitch);
+                    ui.horizontal(|ui| {
+                        ui.label("Болтов в ряду");
+                        ui.add(egui::DragValue::new(rows).range(1..=12));
+                    });
                 }
             }
             dimension(ui, "Толщина, мм", &mut self.template.thickness);

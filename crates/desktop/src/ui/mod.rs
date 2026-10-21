@@ -4,6 +4,7 @@
 pub mod catalog_picker;
 pub mod chrome;
 pub mod commands;
+pub mod components;
 pub mod icons;
 pub mod jobs;
 pub mod keytips;
@@ -136,6 +137,8 @@ pub struct Workbench {
     pub search: String,
     /// Bolt (two points) and weld (two parts) pick commands.
     pub detail: crate::interaction::tools::DetailPicker,
+    /// Component catalogue (Ctrl+F) and the armed component.
+    pub components: components::ComponentState,
     /// Open grid dialog («Сетка осей…»).
     pub grid: Option<crate::interaction::tools::GridSpec>,
     /// Fitting, cutting and construction commands in progress.
@@ -156,7 +159,7 @@ pub struct Workbench {
     pub keytips: keytips::KeyTips,
     pub alt_down: bool,
     pub alt_clean: bool,
-    /// F6 / Ctrl+F: area of the window that takes keyboard focus next frame.
+    /// F6 / ⌘F: area of the window that takes keyboard focus next frame.
     pub focus_target: Option<FocusArea>,
     pub focus_area: FocusArea,
     /// Edit buffer of the selected grid line in the property pane.
@@ -233,6 +236,7 @@ impl Workbench {
             light_theme: true,
             work_area: true,
             detail: Default::default(),
+            components: Default::default(),
             grid: None,
             trim: Default::default(),
             display: Default::default(),
@@ -277,6 +281,33 @@ impl Workbench {
 
     fn message(&mut self, text: impl Into<String>) {
         self.tools.message = Some(text.into());
+    }
+
+    /// The «standard» property file is loaded when a command starts.
+    fn load_standard(&mut self, kind: Option<crate::tools::property_files::FileKind>) {
+        use crate::tools::property_files::{self as files, FileKind, STANDARD};
+        let Some(kind) = kind else { return };
+        let dir = files::folder(&self.tools.path);
+        let Some(loaded) = files::standard(&dir, kind) else {
+            return;
+        };
+        let note = match loaded {
+            Ok(values) if kind == FileKind::Bolt => {
+                files::apply_to_bolts(&mut self.tools.detailing, &values);
+                files::loaded_message(STANDARD, &[])
+            }
+            Ok(values) => match files::import_catalogue(&mut self.editor, &values) {
+                Ok(()) => {
+                    let project = self.editor.document.project();
+                    let warnings = files::apply_to_draft(project, &mut self.editor.draft, &values);
+                    files::loaded_message(STANDARD, &warnings)
+                }
+                Err(e) => e,
+            },
+            Err(e) => e,
+        };
+        let prompt = self.tools.message.take().unwrap_or_default();
+        self.message(format!("{prompt}\n{note}").trim().to_string());
     }
 
     pub fn busy(&self) -> bool {
@@ -475,9 +506,12 @@ impl Workbench {
                 });
                 self.mode = mode;
                 self.detail.cancel();
-                self.editor.begin(kind);
+                let first = self.editor.begin(kind);
                 self.engine.start(kind);
                 self.message(self.engine.prompt());
+                if first {
+                    self.load_standard(crate::tools::property_files::FileKind::of_tool(kind));
+                }
             }
             Cmd::ToolBolt | Cmd::ToolWeld => {
                 self.engine.cancel();
@@ -492,6 +526,9 @@ impl Workbench {
                 // The command's properties show in the side pane.
                 self.side_panel = Some(chrome::SidePanel::Properties);
                 self.message(self.prompt());
+                if cmd == Cmd::ToolBolt && !std::mem::replace(&mut self.tools.bolts_used, true) {
+                    self.load_standard(Some(crate::tools::property_files::FileKind::Bolt));
+                }
             }
             Cmd::DocumentInfo => {
                 self.document_info = Some(self.editor.document.project().document.clone());
@@ -653,7 +690,11 @@ impl Workbench {
                 } else if self.measure.take().is_some() {
                     self.measured = None;
                     self.message("Измерение завершено");
-                } else if self.trim.cancel() || self.detail.cancel() || self.edit_pick.cancel() {
+                } else if self.trim.cancel()
+                    || self.detail.cancel()
+                    || self.edit_pick.cancel()
+                    || self.components.cancel()
+                {
                     self.message("Команда прервана");
                 } else if self.delete_confirm.take().is_some() {
                     self.message("Удаление отменено");
@@ -821,6 +862,13 @@ impl Workbench {
                 self.focus_target = Some(self.focus_area);
                 self.message(format!("Фокус: {}", self.focus_area.label()));
             }
+            Cmd::ComponentCatalog => {
+                self.trim.cancel();
+                self.detail.cancel();
+                self.components.cancel();
+                self.components.window = true;
+                self.message("Каталог компонентов: выберите узел");
+            }
             Cmd::FocusSearch => {
                 self.focus_area = FocusArea::Search;
                 self.focus_target = Some(FocusArea::Search);
@@ -926,7 +974,7 @@ impl Workbench {
                 if let Some(kind) = self.engine.tool
                     && !self.editor.active
                 {
-                    self.editor.begin(kind);
+                    let _ = self.editor.begin(kind);
                 }
                 return self.outcome(outcome);
             }
@@ -1141,6 +1189,7 @@ impl Workbench {
     /// fitting and cutting) instead of a point.
     pub fn picks_objects(&self) -> bool {
         self.detail.picks_objects()
+            || self.components.picks_objects()
             || self.trim.need() == Some(crate::interaction::trim::Need::Part)
     }
 
@@ -1220,6 +1269,9 @@ impl Workbench {
             self.message("Укажите деталь модели");
             return None;
         };
+        if self.components.armed.is_some() {
+            return self.pick_component_part(id);
+        }
         if self.trim.need() == Some(crate::interaction::trim::Need::Part) {
             self.trim.parts.push(id);
             if self.trim.complete() {
@@ -1806,6 +1858,7 @@ impl Workbench {
         }
         self.job_window(&ctx, &mut requests);
         self.grid_window(&ctx, &mut requests);
+        self.components_window(&ctx);
         self.document_window(&ctx, &mut requests);
         self.delete_window(&ctx, &mut requests);
         self.chrome(ui, &mut requests);
