@@ -195,10 +195,10 @@ impl ConnectionUi {
                 .unwrap_or(0);
             let mut kind = old;
             egui::ComboBox::new("connection-kind", "Тип узла")
-                .selected_text(catalog[kind].name)
+                .selected_text(catalog[kind].name.as_str())
                 .show_ui(ui, |ui| {
                     for (i, c) in catalog.iter().enumerate() {
-                        ui.selectable_value(&mut kind, i, c.name);
+                        ui.selectable_value(&mut kind, i, c.name.as_str());
                     }
                 });
             if old != kind {
