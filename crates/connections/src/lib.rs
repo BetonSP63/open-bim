@@ -12,6 +12,8 @@ mod beam_splice;
 pub use beam_splice::{
     BeamSpliceGeometry, MAX_SPLICE_GAP, SpliceBolts, beam_splice_geometry, rebuild_beam_splices,
 };
+mod haunch;
+pub use haunch::{HaunchGeometry, haunch_geometry, rebuild_haunches};
 mod clip_angle;
 pub use clip_angle::{ClipAngleGeometry, clip_angle_geometry, rebuild_clip_angles};
 
@@ -109,6 +111,59 @@ pub fn reject_generated_geometry_edits(
                 ));
             }
         }
+    }
+    Ok(())
+}
+
+/// Refuse unless `point` lies on the flat face of `support` that faces back
+/// along `outward` (the direction from the connected part to the support).
+pub(crate) fn touch_support_face(
+    project: &open_bim_model::Project,
+    support: open_bim_model::ObjectId,
+    point: open_bim_model::Point3,
+    outward: [f64; 3],
+    miss: &str,
+) -> Result<(), open_bim_model::ModelError> {
+    use open_bim_model::{ElementShape, Frame, ModelError, ProfileShape};
+    let host = project
+        .elements
+        .get(&support)
+        .ok_or(ModelError::MissingReference(support))?;
+    let hf = *host.shape.frame();
+    hf.validate()?;
+    let extent = end_plate::bounds(project, &host.shape)?;
+    let projected = hf
+        .axes
+        .map(|a| (0..3).map(|i| a[i] * outward[i]).sum::<f64>());
+    let axis = projected
+        .iter()
+        .position(|v| v.abs() > 1. - 1e-9)
+        .ok_or_else(|| {
+            ModelError::InvalidValue("Пластина требует плоскую грань опоры поперёк балки".into())
+        })?;
+    if axis != 2
+        && let ElementShape::Member { profile, .. } = &host.shape
+        && matches!(
+            project.profiles[profile].shape,
+            ProfileShape::CircularHollow { .. }
+        )
+    {
+        return Err(ModelError::InvalidValue(
+            "У круглой опоры нет плоской грани для пластины".into(),
+        ));
+    }
+    let contact = end_plate::local_frame(
+        Frame {
+            origin: point,
+            ..hf
+        },
+        hf,
+    )
+    .origin
+    .0[axis];
+    let expected = extent[axis][if projected[axis] > 0. { 0 } else { 1 }];
+    if (contact - expected).abs() > 0.001 {
+        return Err(ModelError::InvalidValue(miss.into()));
     }
     Ok(())
 }

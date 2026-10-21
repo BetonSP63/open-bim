@@ -17,7 +17,9 @@ mod validation;
 
 pub use catalog::{Material, Profile, ProfileShape};
 pub use changes::{Change, REASONS, SheetChange, SheetChangeKind};
-pub use connection::{ConnectionInstance, ConnectionTemplate, TemplateKind, beam_splice_roles};
+pub use connection::{
+    ConnectionInstance, ConnectionTemplate, HAUNCH_ROLES, TemplateKind, beam_splice_roles,
+};
 pub use construction::{Construction, ConstructionKind, DimPoint, ModelDimension};
 pub use detailing::{Detail, DetailKind, WeldSides, WeldType, weld_mark};
 pub use document_info::{

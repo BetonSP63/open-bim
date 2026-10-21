@@ -72,6 +72,17 @@ pub fn catalog() -> Vec<Component> {
             thickness: 10.,
         },
         Component {
+            name: "Вута",
+            group: "Балка — колонна / балка",
+            description: "Сварная вута под концом балки: треугольная стенка и наклонная полка, приварены к нижней полке балки и к опоре. Выберите балку, затем опору.",
+            needs_support: true,
+            kind: TemplateKind::Haunch {
+                length: 600.,
+                depth: 300.,
+            },
+            thickness: 10.,
+        },
+        Component {
             name: "Уголковое соединение",
             group: "Балка — колонна / балка",
             description: "Уголок на двух болтах к стенке балки и двух болтах к опоре. Выберите балку, затем опору.",

@@ -225,6 +225,10 @@ impl ConnectionUi {
                         ui.add(egui::DragValue::new(rows).range(1..=12));
                     });
                 }
+                TemplateKind::Haunch { length, depth } => {
+                    dimension(ui, "Длина вуты вдоль балки, мм", length);
+                    dimension(ui, "Высота вуты под балкой, мм", depth);
+                }
                 TemplateKind::ColumnStiffeners { chamfer } => {
                     dimension(ui, "Срез угла у стенки, мм", chamfer);
                 }
@@ -251,8 +255,11 @@ impl ConnectionUi {
                 }
             }
             dimension(ui, "Толщина, мм", &mut self.template.thickness);
-            // Stiffeners are welded only: no bolt fields.
-            if !matches!(self.template.kind, TemplateKind::ColumnStiffeners { .. }) {
+            // Stiffeners and haunches are welded only: no bolt fields.
+            if !matches!(
+                self.template.kind,
+                TemplateKind::ColumnStiffeners { .. } | TemplateKind::Haunch { .. }
+            ) {
                 dimension(ui, "Отступ от края, мм", &mut self.template.edge_distance);
                 dimension(ui, "Диаметр болта, мм", &mut self.template.bolt_diameter);
                 dimension(ui, "Зазор отверстия, мм", &mut self.template.clearance);
