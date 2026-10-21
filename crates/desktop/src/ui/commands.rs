@@ -107,6 +107,7 @@ pub enum Cmd {
     ExportIfc,
     ImportIfc,
     DocumentManager,
+    DrawingWizard,
     PartDrawing,
     AssemblyDrawing,
     GeneralDrawing,
@@ -691,6 +692,13 @@ pub const ALL: &[Spec] = &[
         category: "Проверка",
         shortcut: s(CMD, Key::K),
         keywords: "коллизии позиции марки clash",
+    },
+    Spec {
+        cmd: Cmd::DrawingWizard,
+        label: "Мастер чертежей",
+        category: "Чертежи",
+        shortcut: None,
+        keywords: "автоматически чертежи марки клонирование образец правила",
     },
     Spec {
         cmd: Cmd::DocumentManager,
