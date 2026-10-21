@@ -238,9 +238,10 @@ fn fasteners(project: &Project) -> Vec<FastenerRow> {
                 grade,
                 steps_x,
                 steps_y,
+                points,
                 ..
             } => {
-                let count = (steps_x.len() + 1) * (steps_y.len() + 1);
+                let count = open_bim_model::bolt_positions(steps_x, steps_y, points).len();
                 let d = fmt(*diameter);
                 let (nut, washer) = open_bim_model::bolt_set(standard);
                 for key in [

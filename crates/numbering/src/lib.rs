@@ -356,13 +356,18 @@ fn assembly_key(
                 steps_y,
                 standard,
                 grade,
+                points,
                 ..
             } if joined.is_subset(&assembly.members) => {
                 let mut keys: Vec<_> = joined.iter().map(|p| &parts[p]).collect();
                 keys.sort();
-                Some(
-                    json!({"kind":"bolts","parts":keys,"frame":frame_key(&relative_frame(main.shape.frame(),frame)),"diameter":dimensions(diameter),"clearance":dimensions(clearance),"steps_x":dimensions(steps_x),"steps_y":dimensions(steps_y),"standard":standard,"grade":grade}),
-                )
+                let mut key = json!({"kind":"bolts","parts":keys,"frame":frame_key(&relative_frame(main.shape.frame(),frame)),"diameter":dimensions(diameter),"clearance":dimensions(clearance),"steps_x":dimensions(steps_x),"steps_y":dimensions(steps_y),"standard":standard,"grade":grade});
+                // Only circle and list groups carry points: array keys stay as before.
+                if !points.is_empty() {
+                    let flat: Vec<f64> = points.iter().flatten().copied().collect();
+                    key["points"] = dimensions(&flat);
+                }
+                Some(key)
             }
             DetailKind::Weld {
                 parts: joined,

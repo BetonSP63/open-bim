@@ -293,6 +293,7 @@ fn bolt_groups_from_the_detailing_tools_export_as_holes() {
         clearance: 2.0,
         hole_depth: 100.0,
         steps_x: vec![80.0],
+        points: Vec::new(),
         steps_y: vec![70.0],
         standard: "ГОСТ 7798-70".into(),
         grade: "8.8".into(),

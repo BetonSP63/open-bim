@@ -252,19 +252,10 @@ fn shafts(project: &Project, reference: Point3) -> Result<Vec<(Bounds, Shaft)>, 
             holes,
             frame,
             diameter,
-            steps_x,
-            steps_y,
             ..
         } = &detail.kind
         else {
             continue;
-        };
-        let prefix = |steps: &[f64]| {
-            let mut values = vec![0.];
-            for step in steps {
-                values.push(values.last().copied().unwrap_or(0.) + step);
-            }
-            values
         };
         let dot = |a: [f64; 3], b: [f64; 3]| (0..3).map(|i| a[i] * b[i]).sum::<f64>();
         let radius = diameter / 2. - BOLT_SHAFT_MARGIN_MM;
@@ -272,90 +263,88 @@ fn shafts(project: &Project, reference: Point3) -> Result<Vec<(Bounds, Shaft)>, 
             return Err(invalid("диаметр болта меньше допуска"));
         }
         let mut index = 0;
-        for x in prefix(steps_x) {
-            for y in prefix(steps_y) {
-                let centre = frame.world(Point3([x, y, 0.]));
-                let (mut low, mut high) = (f64::INFINITY, f64::NEG_INFINITY);
-                for hole in holes {
-                    let Some(DetailKind::Hole {
-                        part,
-                        frame: local,
-                        depth,
-                        ..
-                    }) = project.details.get(hole).map(|d| &d.kind)
-                    else {
-                        continue;
-                    };
-                    let parent = project.elements[part].shape.frame();
-                    let start = parent.world(local.origin);
-                    let delta: [f64; 3] = std::array::from_fn(|i| start.0[i] - centre.0[i]);
-                    let along = dot(delta, frame.axes[2]);
-                    let lateral = (dot(delta, delta) - along * along).max(0.).sqrt();
-                    if lateral > 1e-6 {
-                        continue;
-                    }
-                    let end = along + depth * dot(world_axis(parent, local.axes[2]), frame.axes[2]);
-                    low = low.min(along.min(end));
-                    high = high.max(along.max(end));
+        for [x, y] in detail.kind.bolt_positions() {
+            let centre = frame.world(Point3([x, y, 0.]));
+            let (mut low, mut high) = (f64::INFINITY, f64::NEG_INFINITY);
+            for hole in holes {
+                let Some(DetailKind::Hole {
+                    part,
+                    frame: local,
+                    depth,
+                    ..
+                }) = project.details.get(hole).map(|d| &d.kind)
+                else {
+                    continue;
+                };
+                let parent = project.elements[part].shape.frame();
+                let start = parent.world(local.origin);
+                let delta: [f64; 3] = std::array::from_fn(|i| start.0[i] - centre.0[i]);
+                let along = dot(delta, frame.axes[2]);
+                let lateral = (dot(delta, delta) - along * along).max(0.).sqrt();
+                if lateral > 1e-6 {
+                    continue;
                 }
-                if !(low.is_finite() && high - low > CONTACT_TOLERANCE_MM) {
-                    return Err(invalid(format!(
-                        "болтовая группа #{} без отверстий в позиции {index}",
-                        detail.id.0
-                    )));
-                }
-                let mut local = Vec::with_capacity(BOLT_SHAFT_SEGMENTS * 2);
-                for z in [low, high] {
-                    for k in 0..BOLT_SHAFT_SEGMENTS {
-                        let angle = std::f64::consts::TAU * k as f64 / BOLT_SHAFT_SEGMENTS as f64;
-                        local.push(Point3([
-                            x + radius * angle.cos(),
-                            y + radius * angle.sin(),
-                            z,
-                        ]));
-                    }
-                }
-                let world: Vec<Point3> = local.iter().map(|p| frame.world(*p)).collect();
-                let n = BOLT_SHAFT_SEGMENTS as u32;
-                let mut indices = Vec::new();
-                for k in 1..n - 1 {
-                    indices.push([0, k + 1, k]);
-                    indices.push([n, n + k, n + k + 1]);
-                }
-                for k in 0..n {
-                    let next = (k + 1) % n;
-                    indices.push([k, next, n + next]);
-                    indices.push([k, n + next, n + k]);
-                }
-                let mesh = TriMesh::with_flags(
-                    world
-                        .iter()
-                        .map(|p| {
-                            Vector::new(
-                                p.0[0] - reference.0[0],
-                                p.0[1] - reference.0[1],
-                                p.0[2] - reference.0[2],
-                            )
-                        })
-                        .collect(),
-                    indices,
-                    TriMeshFlags::ORIENTED | TriMeshFlags::HALF_EDGE_TOPOLOGY,
-                )
-                .map_err(invalid)?;
-                let mid = frame.world(Point3([x, y, (low + high) / 2.]));
-                result.push((
-                    Bounds::points(world),
-                    Shaft {
-                        group: detail.id,
-                        index,
-                        parts: parts.clone(),
-                        mesh,
-                        centre: mid.0,
-                        axes: frame.axes,
-                    },
-                ));
-                index += 1;
+                let end = along + depth * dot(world_axis(parent, local.axes[2]), frame.axes[2]);
+                low = low.min(along.min(end));
+                high = high.max(along.max(end));
             }
+            if !(low.is_finite() && high - low > CONTACT_TOLERANCE_MM) {
+                return Err(invalid(format!(
+                    "болтовая группа #{} без отверстий в позиции {index}",
+                    detail.id.0
+                )));
+            }
+            let mut local = Vec::with_capacity(BOLT_SHAFT_SEGMENTS * 2);
+            for z in [low, high] {
+                for k in 0..BOLT_SHAFT_SEGMENTS {
+                    let angle = std::f64::consts::TAU * k as f64 / BOLT_SHAFT_SEGMENTS as f64;
+                    local.push(Point3([
+                        x + radius * angle.cos(),
+                        y + radius * angle.sin(),
+                        z,
+                    ]));
+                }
+            }
+            let world: Vec<Point3> = local.iter().map(|p| frame.world(*p)).collect();
+            let n = BOLT_SHAFT_SEGMENTS as u32;
+            let mut indices = Vec::new();
+            for k in 1..n - 1 {
+                indices.push([0, k + 1, k]);
+                indices.push([n, n + k, n + k + 1]);
+            }
+            for k in 0..n {
+                let next = (k + 1) % n;
+                indices.push([k, next, n + next]);
+                indices.push([k, n + next, n + k]);
+            }
+            let mesh = TriMesh::with_flags(
+                world
+                    .iter()
+                    .map(|p| {
+                        Vector::new(
+                            p.0[0] - reference.0[0],
+                            p.0[1] - reference.0[1],
+                            p.0[2] - reference.0[2],
+                        )
+                    })
+                    .collect(),
+                indices,
+                TriMeshFlags::ORIENTED | TriMeshFlags::HALF_EDGE_TOPOLOGY,
+            )
+            .map_err(invalid)?;
+            let mid = frame.world(Point3([x, y, (low + high) / 2.]));
+            result.push((
+                Bounds::points(world),
+                Shaft {
+                    group: detail.id,
+                    index,
+                    parts: parts.clone(),
+                    mesh,
+                    centre: mid.0,
+                    axes: frame.axes,
+                },
+            ));
+            index += 1;
         }
     }
     Ok(result)

@@ -640,14 +640,16 @@ impl Workbench {
                     self.load_standard(crate::tools::property_files::FileKind::of_tool(kind));
                 }
             }
-            Cmd::ToolBolt | Cmd::ToolWeld => {
+            Cmd::ToolBolt | Cmd::ToolWeld | Cmd::ToolWeldPolygon | Cmd::ToolWeldOnPart => {
                 self.engine.cancel();
                 self.editor.cancel();
                 self.mode = Mode::Model;
-                let tool = if cmd == Cmd::ToolBolt {
-                    crate::interaction::tools::DetailTool::Bolt
-                } else {
-                    crate::interaction::tools::DetailTool::Weld
+                use crate::interaction::tools::DetailTool;
+                let tool = match cmd {
+                    Cmd::ToolBolt => DetailTool::Bolt,
+                    Cmd::ToolWeldPolygon => DetailTool::WeldPolygon,
+                    Cmd::ToolWeldOnPart => DetailTool::WeldOnPart,
+                    _ => DetailTool::Weld,
                 };
                 self.detail = crate::interaction::tools::DetailPicker::start(tool);
                 // The command's properties show in the side pane.
@@ -1168,6 +1170,7 @@ impl Workbench {
                 self.message(self.prompt());
             }
             Cmd::FinishPicks if self.trim.tool.is_some() => return self.finish_trim(),
+            Cmd::FinishPicks if self.detail.weld_by_points() => return self.finish_weld(),
             Cmd::FinishPicks if self.detail.tool.is_some() => match self.detail.finish_parts() {
                 Ok(()) => self.message(self.prompt()),
                 Err(e) => self.message(e),
@@ -1366,6 +1369,11 @@ impl Workbench {
                 }
             };
         }
+        if self.detail.picks_points() && self.detail.weld_by_points() {
+            self.detail.points.push(point);
+            self.message(self.prompt());
+            return None;
+        }
         if self.detail.picks_points() {
             self.detail.points.push(point);
             if self.detail.points.len() < 2 {
@@ -1513,6 +1521,16 @@ impl Workbench {
             self.message(self.prompt());
             return None;
         }
+        if self.detail.weld_by_points() {
+            if self.detail.weld_parts.contains(&id) {
+                self.message("Привариваемая деталь должна отличаться от основной");
+                return None;
+            }
+            self.detail.weld_parts.push(id);
+            self.editor.selected = self.detail.weld_parts.iter().copied().collect();
+            self.message(self.prompt());
+            return None;
+        }
         if self.detail.tool == Some(crate::interaction::tools::DetailTool::Bolt) {
             self.detail.parts.insert(id);
             self.editor.selected = self.detail.parts.clone();
@@ -1562,7 +1580,6 @@ impl Workbench {
         Some(Request::ApplyView(Box::new(view)))
     }
 
-    /// Remember the selection it replaces when the selection changed (Alt+P).
     /// Double click on a component symbol: select the component and open its
     /// properties in the «Узлы» panel.
     pub fn open_component(&mut self, id: ObjectId) {
@@ -1578,6 +1595,33 @@ impl Workbench {
         self.message("Свойства узла: измените значения и нажмите «Изменить»");
     }
 
+    /// Enter / middle click in a weld by points: create the weld and start the
+    /// next one with the same command.
+    fn finish_weld(&mut self) -> Option<Request> {
+        let tool = self.detail.tool?;
+        let result = crate::interaction::tools::weld_by_points(
+            self.editor.document.project(),
+            &self.detail.weld_parts,
+            &self.detail.points,
+            &self.tools.detailing,
+        );
+        match result {
+            Ok(commands) => {
+                self.detail = crate::interaction::tools::DetailPicker::start(tool);
+                self.message("Сварной шов создан");
+                Some(Request::Action(Action::Commit(
+                    "Создать: сварной шов".into(),
+                    commands,
+                )))
+            }
+            Err(e) => {
+                self.message(e);
+                None
+            }
+        }
+    }
+
+    /// Remember the selection it replaces when the selection changed (Alt+P).
     pub fn sync_selection(&mut self) {
         if self.editor.selected != self.selection_seen {
             self.previous_selection =

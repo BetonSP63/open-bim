@@ -360,6 +360,7 @@ pub fn rebuild_end_plates(project: &mut Project, previous: &Project) -> Result<(
                     steps_y: recipe.plate.steps_y,
                     standard: t.bolt_standard.clone(),
                     grade: t.bolt_grade.clone(),
+                    points: Vec::new(),
                 },
             },
         );

@@ -563,34 +563,20 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
                     marks.push(text(mid, short, colour, [0, 1], 12.));
                 }
             }
-            open_bim_model::DetailKind::BoltGroup {
-                frame,
-                steps_x,
-                steps_y,
-                ..
-            } => {
-                let prefix = |s: &[f64]| {
-                    let mut out = vec![0.];
-                    for x in s {
-                        out.push(out.last().copied().unwrap_or(0.) + x);
-                    }
-                    out
-                };
+            open_bim_model::DetailKind::BoltGroup { frame, .. } => {
                 let colour = if selected {
                     SELECTED_AXIS
                 } else {
                     [20, 90, 30, 255]
                 };
-                for x in prefix(steps_x) {
-                    for y in prefix(steps_y) {
-                        if let Some(c) = p.screen(v(frame.world(Point3([x, y, 0.])))) {
-                            marks.push(Mark::Circle {
-                                center: c,
-                                radius: 4.,
-                                color: colour,
-                                fill: None,
-                            });
-                        }
+                for [x, y] in detail.kind.bolt_positions() {
+                    if let Some(c) = p.screen(v(frame.world(Point3([x, y, 0.])))) {
+                        marks.push(Mark::Circle {
+                            center: c,
+                            radius: 4.,
+                            color: colour,
+                            fill: None,
+                        });
                     }
                 }
             }

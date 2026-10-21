@@ -215,7 +215,12 @@ pub enum DetailKind {
         steps_y: Vec<f64>,
         standard: String,
         grade: String,
+        /// Bolt positions in the group frame for the «Окружность» and
+        /// «Список» shapes; empty for «Массив» (`steps_x`/`steps_y`).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        points: Vec<[f64; 2]>,
     },
+    /// `parts` has one part for a weld on a part («шов на детали»).
     Weld {
         parts: BTreeSet<ObjectId>,
         weld_type: WeldType,
@@ -232,7 +237,51 @@ pub enum DetailKind {
     },
 }
 
+/// Bolt positions of a group in its frame: the array of `steps_x` ×
+/// `steps_y` from the origin, or the explicit `points` when given.
+pub fn bolt_positions(steps_x: &[f64], steps_y: &[f64], points: &[[f64; 2]]) -> Vec<[f64; 2]> {
+    if !points.is_empty() {
+        return points.to_vec();
+    }
+    let prefix = |steps: &[f64]| {
+        let mut out = vec![0.0];
+        for step in steps {
+            out.push(out.last().unwrap() + step);
+        }
+        out
+    };
+    let ys = prefix(steps_y);
+    prefix(steps_x)
+        .into_iter()
+        .flat_map(|x| ys.iter().map(move |y| [x, *y]))
+        .collect()
+}
+
+/// Bolts on a circle of `diameter` around the group origin, the first on its X axis.
+pub fn circle_points(count: usize, diameter: f64) -> Vec<[f64; 2]> {
+    (0..count)
+        .map(|i| {
+            let a = std::f64::consts::TAU * i as f64 / count as f64;
+            let p = [diameter / 2.0 * a.cos(), diameter / 2.0 * a.sin()];
+            // Exact zeros keep saved files and hashes clean.
+            p.map(|v| if v.abs() < 1e-9 { 0.0 } else { v })
+        })
+        .collect()
+}
+
 impl DetailKind {
+    /// Bolt positions of a bolt group in its frame; empty for other details.
+    pub fn bolt_positions(&self) -> Vec<[f64; 2]> {
+        match self {
+            Self::BoltGroup {
+                steps_x,
+                steps_y,
+                points,
+                ..
+            } => bolt_positions(steps_x, steps_y, points),
+            _ => Vec::new(),
+        }
+    }
     pub fn part(&self) -> Option<ObjectId> {
         match self {
             Self::PlaneCut { part, .. }
@@ -326,9 +375,24 @@ impl DetailKind {
                 steps_y,
                 standard,
                 grade,
+                points,
             } => {
                 frame.validate()?;
-                if parts.is_empty()
+                let pitch = *diameter + clearance;
+                let points_ok = points.is_empty()
+                    || (steps_x.is_empty()
+                        && steps_y.is_empty()
+                        && points.len() <= 1000
+                        && points
+                            .iter()
+                            .all(|p| p.iter().all(|v| v.is_finite() && v.abs() <= 1e7))
+                        && points.iter().enumerate().all(|(i, a)| {
+                            points[i + 1..]
+                                .iter()
+                                .all(|b| (a[0] - b[0]).hypot(a[1] - b[1]) > pitch)
+                        }));
+                if !points_ok
+                    || parts.is_empty()
                     || !positive(*diameter)
                     || !clearance.is_finite()
                     || *clearance < 0.0
@@ -352,20 +416,12 @@ impl DetailKind {
                 for id in parts {
                     part(*id)?;
                 }
-                let count = (steps_x.len() + 1) * (steps_y.len() + 1);
+                let positions = bolt_positions(steps_x, steps_y, points);
+                let count = positions.len();
                 if holes.len() != count * parts.len() {
                     return Err(invalid());
                 }
                 let mut per_part = std::collections::BTreeMap::<ObjectId, usize>::new();
-                let coordinates = |steps: &[f64]| {
-                    let mut values = vec![0.0];
-                    for step in steps {
-                        values.push(values.last().unwrap() + step);
-                    }
-                    values
-                };
-                let xs = coordinates(steps_x);
-                let ys = coordinates(steps_y);
                 let mut occupied = std::collections::BTreeSet::new();
                 for id in holes {
                     let detail = project
@@ -397,15 +453,12 @@ impl DetailKind {
                     if dot(world_axis, frame.axes[2]).abs() < 1.0 - 1e-9 {
                         return Err(invalid());
                     }
-                    let ix = xs
+                    let (x, y) = (dot(delta, frame.axes[0]), dot(delta, frame.axes[1]));
+                    let index = positions
                         .iter()
-                        .position(|x| (*x - dot(delta, frame.axes[0])).abs() < 1e-6)
+                        .position(|p| (p[0] - x).abs() < 1e-6 && (p[1] - y).abs() < 1e-6)
                         .ok_or_else(invalid)?;
-                    let iy = ys
-                        .iter()
-                        .position(|y| (*y - dot(delta, frame.axes[1])).abs() < 1e-6)
-                        .ok_or_else(invalid)?;
-                    if !occupied.insert((*part, ix, iy)) {
+                    if !occupied.insert((*part, index)) {
                         return Err(invalid());
                     }
                     *per_part.entry(*part).or_default() += 1;
@@ -417,7 +470,7 @@ impl DetailKind {
             Self::Weld {
                 parts, size, path, ..
             } => {
-                if parts.len() < 2 || !positive(*size) || path.len() < 2 || path.len() > 10000 {
+                if parts.is_empty() || !positive(*size) || path.len() < 2 || path.len() > 10000 {
                     return Err(invalid());
                 }
                 for id in parts {

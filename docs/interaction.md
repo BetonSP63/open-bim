@@ -96,8 +96,8 @@ is claimed. See `docs/reference-docs-comparison.md` for each row's status.
 - **Rendering:** wireframe/shaded/grayscale/rendered modes (Ctrl+1…4, Shift+1…4), «show only selected» rendering modes.
 - **Columns:** binding to levels.
 - **Grids:** radial grids, picking the grid origin, editing a single grid line, grid lines drawn at every level as objects. Today they are drawn and snapped but stored once.
-- **Bolts:** «by face» and «by parts and face»; circle/list shapes; slotted, oversized, tapped and blind holes; Auto bolt.
-- **Welds:** polygon welds, weld to a part, weld preparation, weld marks in drawings.
+- **Bolts:** «by face» and «by parts and face»; slotted, oversized, tapped and blind holes; Auto bolt (circle and list shapes are done).
+- **Welds:** weld preparation (polygon welds and welds on a part are done).
 - **Selection:**
   - component-object switch (the component switch «Выбор узлов» and component symbols are done);
   - single-bolt, cuts, points and planes switches.

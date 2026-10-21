@@ -564,15 +564,13 @@ pub fn assembly_specification(project: &Project, assembly: ObjectId) -> Result<V
             diameter,
             standard,
             grade,
-            steps_x,
-            steps_y,
             ..
         } = &detail.kind
             && !joined.is_empty()
             && joined.is_subset(&parts)
         {
             // Each bolt comes with one nut and one washer.
-            let count = (steps_x.len() + 1) * (steps_y.len() + 1);
+            let count = detail.kind.bolt_positions().len();
             let d = crate::format_mm(*diameter);
             let (nut, washer) = open_bim_model::bolt_set(standard);
             for name in [

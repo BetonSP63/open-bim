@@ -245,6 +245,7 @@ pub fn rebuild_fin_plates(project: &mut Project, previous: &Project) -> Result<(
                     steps_y: vec![recipe.pitch; recipe.rows as usize - 1],
                     standard: t.bolt_standard.clone(),
                     grade: t.bolt_grade.clone(),
+                    points: Vec::new(),
                 },
             },
         );
