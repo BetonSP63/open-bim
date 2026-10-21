@@ -2270,6 +2270,7 @@ dependencies = [
  "open-bim-drawings",
  "open-bim-ifc",
  "open-bim-model",
+ "open-bim-nc",
  "open-bim-numbering",
  "open-bim-persistence",
  "open-bim-renderer",
@@ -2340,6 +2341,16 @@ dependencies = [
  "open-bim-geometry",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "open-bim-nc"
+version = "0.1.0"
+dependencies = [
+ "open-bim-commands",
+ "open-bim-model",
+ "open-bim-numbering",
+ "open-bim-steel",
 ]
 
 [[package]]

@@ -303,6 +303,12 @@ impl Desktop {
                     Some(self.bench.editor.export_ifc(&path).unwrap_or_else(|e| e));
                 return;
             }
+            Action::ExportNc => {
+                let path = std::path::Path::new(&self.bench.tools.path);
+                self.bench.tools.message =
+                    Some(self.bench.editor.export_nc(path).unwrap_or_else(|e| e));
+                return;
+            }
             Action::ImportIfc => {
                 // Any IFC file on disk; the project folder is where to start.
                 let folder = std::path::Path::new(&self.bench.tools.path)

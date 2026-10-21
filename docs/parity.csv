@@ -11,7 +11,7 @@ ga-drawings,Общие виды,drawings,Типовой рабочий проц�
 part-assembly-drawings,Чертежи деталей и сборок,drawings,Типовой рабочий процесс КМД,verified,initial,Выпустить связанные листы и обновить ревизию,"crates/drawings/tests/engine.rs; tests/fixtures/drawings/{beam-part,plate-part,assembly}.svg"
 drawing-edit,Редактор чертежей,drawings,Типовой рабочий процесс КМД,verified,initial,"Изменить размер, вид и текст, проверить undo",crates/desktop/tests/drawing_editor.rs; tests/drawing_flows/VERIFICATION.md; tests/fixtures/exports/verify.py
 reports,Спецификации и ведомости,fabrication,Типовой рабочий процесс КМД,verified,initial,Сверить массу и количество с моделью,crates/reports/tests/release.rs; tests/steel_release_flow/VERIFICATION.md; tests/fixtures/steel_release/verify.py
-nc-dstv,NC/DSTV для станков,fabrication,Типовой рабочий процесс КМД,open,later,Сверить координаты обработки независимым reader,
+nc-dstv,NC/DSTV для станков,fabrication,Типовой рабочий процесс КМД,open,later,Сверить координаты обработки независимым reader,"crates/nc/tests/nc1.rs (header, faces, trims, plate contour, bolt groups); crates/desktop/tests/nc_export.rs; open until checked in an independent DSTV viewer"
 ifc,IFC: заявленное подмножество,exchange,Типовой рабочий процесс КМД,verified,initial,"Независимая схема и viewer, round-trip GUID и единиц",crates/ifc/tests/roundtrip.rs; tests/fixtures/ifc/verify.py (IfcOpenShell 0.8.4); tests/ifc_flow/VERIFICATION.md; docs/ifc-support.md
 ifc43,Расширенное IFC4.3,exchange,Типовой рабочий процесс КМД,open,later,Корпус IFC4.3 и независимая проверка представлений,
 reference-models,Reference-модели и координация BCF,exchange,Типовой рабочий процесс КМД,open,later,Обновить reference без потери связей и замечаний,

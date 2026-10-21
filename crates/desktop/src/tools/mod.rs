@@ -792,6 +792,36 @@ impl Editor {
             }
         ))
     }
+    /// NC files (DSTV) for the machines: one `.nc1` per part mark in the
+    /// folder `<project>.nc` next to `project_path`. Older `.nc1` files there
+    /// are removed so the folder matches the model.
+    pub fn export_nc(&mut self, project_path: &Path) -> Result<String, String> {
+        let files = open_bim_nc::export(self.document.project())?;
+        let folder = project_path.with_extension("nc");
+        std::fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
+        for entry in std::fs::read_dir(&folder).map_err(|e| e.to_string())? {
+            let path = entry.map_err(|e| e.to_string())?.path();
+            if path.extension().is_some_and(|e| e == "nc1") {
+                std::fs::remove_file(&path).map_err(|e| e.to_string())?;
+            }
+        }
+        let mut notes = 0;
+        for file in &files {
+            std::fs::write(folder.join(&file.name), &file.text).map_err(|e| e.to_string())?;
+            notes += file.warnings.len();
+        }
+        self.record(&format!("Экспорт NC {}", folder.display()));
+        Ok(format!(
+            "NC (DSTV): файлов {} в {}; {}",
+            files.len(),
+            folder.display(),
+            if notes == 0 {
+                "все вырезы и отверстия переданы".into()
+            } else {
+                format!("не передано элементов обработки: {notes}, см. строки «**» в файлах")
+            }
+        ))
+    }
     /// IFC import (IFC2x3 or IFC4, from any program). An empty model is
     /// replaced by the file; otherwise the file's objects are added to the
     /// model as one undoable step. The message summarises sections matched to
