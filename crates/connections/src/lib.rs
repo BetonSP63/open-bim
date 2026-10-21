@@ -4,6 +4,8 @@ mod base_plate;
 pub use base_plate::{BasePlateGeometry, base_plate_geometry, rebuild_base_plates};
 mod end_plate;
 pub use end_plate::{EndPlateGeometry, end_plate_geometry, rebuild_end_plates};
+mod fin_plate;
+pub use fin_plate::{FinPlateGeometry, fin_plate_geometry, fin_plate_roles, rebuild_fin_plates};
 mod clip_angle;
 pub use clip_angle::{ClipAngleGeometry, clip_angle_geometry, rebuild_clip_angles};
 

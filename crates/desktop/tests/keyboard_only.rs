@@ -255,7 +255,8 @@ fn f6_moves_keyboard_focus_between_window_areas() {
         let mut e = key(egui::Key::F);
         for ev in &mut e {
             if let egui::Event::Key { modifiers, .. } = ev {
-                *modifiers = egui::Modifiers::CTRL;
+                // ⌘F (Ctrl+F opens the component catalogue).
+                *modifiers = egui::Modifiers::COMMAND;
             }
         }
         e

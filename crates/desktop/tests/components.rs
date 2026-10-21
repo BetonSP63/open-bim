@@ -1,0 +1,79 @@
+//! Component catalogue: arm a component, click the beam and the column, and
+//! the connection lands at the beam end next to the column.
+use open_bim_desktop::interaction::tools::default_project;
+use open_bim_desktop::tools::{Editor, ui::Action};
+use open_bim_desktop::ui::components::{catalog, search};
+use open_bim_desktop::ui::{Request, Workbench, commands::Cmd};
+use open_bim_model::{Element, ElementShape, Frame, MemberKind, ObjectId, Point3};
+
+fn member(b: &mut Workbench, kind: MemberKind, start: [f64; 3], end: [f64; 3]) -> ObjectId {
+    let project = b.editor.document.project();
+    let id = ObjectId(project.next_id);
+    let (frame, length) = Frame::along(Point3(start), Point3(end)).unwrap();
+    let element = Element {
+        id,
+        name: "Деталь".into(),
+        material: ObjectId(1),
+        shape: ElementShape::Member {
+            member_kind: kind,
+            profile: ObjectId(2),
+            length,
+            frame,
+            position: Default::default(),
+        },
+        properties: Default::default(),
+    };
+    b.editor
+        .commit("Деталь", &[open_bim_commands::Command::Create { element }])
+        .unwrap();
+    id
+}
+
+fn commit(b: &mut Workbench, r: Option<Request>) {
+    match r {
+        Some(Request::Action(Action::Commit(label, commands))) => {
+            b.editor.commit(&label, &commands).unwrap();
+        }
+        _ => panic!("nothing to commit"),
+    }
+}
+
+#[test]
+fn catalogue_search_finds_the_new_fin_plate() {
+    assert!(catalog().len() >= 4);
+    let found = search("шарнир");
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].name, "Шарнир на пластине");
+    assert!(search("колонн").iter().any(|c| c.name == "Опорная плита"));
+}
+
+#[test]
+fn fin_plate_by_two_clicks_goes_to_the_column_end_of_the_beam() {
+    let mut b = Workbench::new(Editor::new(default_project().unwrap()).unwrap());
+    // Column I 300 along Z: flange faces at Y = ±150. Beam along +Y, its
+    // start 15 mm off the flange face.
+    let column = member(&mut b, MemberKind::Column, [0., 0., 0.], [0., 0., 3600.]);
+    let beam = member(
+        &mut b,
+        MemberKind::Beam,
+        [0., 165., 3000.],
+        [0., 6000., 3000.],
+    );
+    b.execute(Cmd::ComponentCatalog);
+    assert!(b.components.window);
+    let fin = search("шарнир").remove(0);
+    b.arm_component(fin);
+    assert!(b.picks_objects());
+    assert!(b.pick_object(Some(beam)).is_none(), "waits for the support");
+    let r = b.pick_object(Some(column));
+    commit(&mut b, r);
+    let project = b.editor.document.project();
+    let c = project.connections.values().next().unwrap();
+    assert_eq!((c.primary, c.secondary), (beam, Some(column)));
+    assert!(!c.at_end, "the beam start is next to the column");
+    assert_eq!(c.children.len(), 3 + 2 * 2);
+    // The command stays armed for the next joint; Esc ends it.
+    assert!(b.components.armed.is_some());
+    b.execute(Cmd::CancelTool);
+    assert!(b.components.armed.is_none());
+}

@@ -77,6 +77,8 @@ impl Workbench {
             p
         } else if let Some(p) = self.detail.prompt() {
             p
+        } else if let Some(p) = self.components.prompt() {
+            p
         } else if let Some(p) = self.edit_pick.prompt() {
             p
         } else if let Some(m) = &self.measure {
@@ -113,7 +115,7 @@ impl Workbench {
         apply(&mut self.editor.selected, &ids, mode);
     }
 
-    /// Give keyboard focus to a field when its area was chosen by F6/Ctrl+F.
+    /// Give keyboard focus to a field when its area was chosen by F6/⌘F.
     fn take_focus(&mut self, ui: &egui::Ui, area: FocusArea, id: egui::Id) {
         if self.focus_target == Some(area) {
             self.focus_target = None;
