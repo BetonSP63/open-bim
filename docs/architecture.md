@@ -13,6 +13,7 @@
 | renderer | tessellation, камера, GPU, picking | model, geometry, wgpu |
 | drawings | виды, размеры, ссылки на модель | model, geometry |
 | exchange | IFC/DXF и диагностика покрытия | model, geometry |
+| api | объектный API: вставка/изменение/выборка, фиксация отдельно от сохранения, пакетный режим `open-bim-batch` | commands, persistence, exchange, reports |
 | desktop | русский интерфейс и маршрутизация команд | остальные слои |
 
 На этапе 1 созданы geometry, model и desktop. Остальные слои создаются при реализации своих функций, без фиктивных API. Для IFC/DXF могут использоваться отдельные crate в слое exchange.
