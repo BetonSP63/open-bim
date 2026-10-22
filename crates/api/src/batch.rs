@@ -19,6 +19,7 @@
 use crate::{ApiError, DrawingEdit, DrawingRules, Member, Plate, Query, Session};
 use open_bim_model::{DrawingKind, ObjectId, Project, PropertyValue};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -27,6 +28,9 @@ pub struct Macro {
     /// Model file to open; a new model when absent.
     #[serde(default)]
     pub open: Option<String>,
+    /// Folders with plugins; `plugins` next to the macro when empty.
+    #[serde(default)]
+    pub plugins: Vec<String>,
     pub steps: Vec<Step>,
 }
 
@@ -105,6 +109,15 @@ pub enum Step {
         path: String,
         #[serde(default)]
         drawings: Vec<ObjectId>,
+    },
+    /// Run a plugin by name with picked inputs and attribute values;
+    /// the created objects become the selection.
+    RunPlugin {
+        plugin: String,
+        #[serde(default)]
+        inputs: BTreeMap<String, serde_json::Value>,
+        #[serde(default)]
+        attributes: BTreeMap<String, serde_json::Value>,
     },
     /// Folder with one DXF per drawing (empty `drawings` = all).
     ExportDxf {
@@ -208,7 +221,15 @@ pub fn run(script: &Macro, base: &Path) -> Result<(Session, Report), BatchError>
         Some(path) => Session::open(resolve(base, path)).map_err(at(0))?,
         None => Session::new(Project::default()).map_err(at(0))?,
     };
-    let mut selection = Selection::default();
+    let dirs: Vec<PathBuf> = if script.plugins.is_empty() {
+        vec![base.join("plugins")]
+    } else {
+        script.plugins.iter().map(|d| resolve(base, d)).collect()
+    };
+    let mut selection = Selection {
+        plugins: crate::plugins::discover(&dirs).0,
+        ..Default::default()
+    };
     let mut steps = Vec::new();
     for (index, step) in script.steps.iter().enumerate() {
         let report = run_step(&mut session, &mut selection, step, base).map_err(at(index + 1))?;
@@ -264,6 +285,34 @@ pub(crate) fn write(path: &Path, bytes: &[u8]) -> crate::Result<()> {
 struct Selection {
     parts: Vec<ObjectId>,
     drawings: Vec<ObjectId>,
+    plugins: Vec<crate::plugins::Plugin>,
+}
+
+/// Steps a plugin answered with, on a fresh selection; returns the IDs of
+/// what they created.
+pub(crate) fn run_plugin_steps(
+    session: &mut Session,
+    steps: &[Step],
+    base: &Path,
+) -> crate::Result<Vec<ObjectId>> {
+    let mut current = Selection::default();
+    let mut created = Vec::new();
+    for (index, step) in steps.iter().enumerate() {
+        let report = run_step(session, &mut current, step, base).map_err(|e| match e {
+            ApiError::Invalid(m) => ApiError::Invalid(format!("шаг {}: {m}", index + 1)),
+            other => other,
+        })?;
+        if matches!(
+            step,
+            Step::InsertMember(_)
+                | Step::InsertPlate(_)
+                | Step::Copy { .. }
+                | Step::CreateDrawing(_)
+        ) {
+            created.extend(report.ids);
+        }
+    }
+    Ok(created)
 }
 
 fn run_step(
@@ -488,6 +537,35 @@ fn run_step(
                 Vec::new(),
                 format!("{}: файлов {n}", dir.display()),
             )
+        }
+        Step::RunPlugin {
+            plugin,
+            inputs,
+            attributes,
+        } => {
+            let found = current
+                .plugins
+                .iter()
+                .find(|p| p.manifest.name == *plugin)
+                .cloned()
+                .ok_or_else(|| ApiError::Invalid(format!("Плагин «{plugin}» не найден")))?;
+            let mut picked = BTreeMap::new();
+            for def in &found.manifest.inputs {
+                if let Some(value) = inputs.get(&def.name) {
+                    picked.insert(
+                        def.name.clone(),
+                        crate::plugins::InputValue::from_json(def.kind, value)?,
+                    );
+                }
+            }
+            if let Some(extra) = inputs.keys().find(|k| !picked.contains_key(*k)) {
+                return Err(ApiError::Invalid(format!(
+                    "Плагин «{plugin}» не знает входа «{extra}»"
+                )));
+            }
+            let ids = session.run_plugin(&found, &picked, attributes)?;
+            *selection = ids.clone();
+            report("run_plugin", ids, String::new())
         }
     })
 }
