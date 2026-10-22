@@ -10,9 +10,12 @@ workspace = true
 
 [dependencies]
 open-bim-commands.workspace = true
+open-bim-drawing-export.workspace = true
+open-bim-drawings.workspace = true
 open-bim-ifc.workspace = true
 open-bim-model.workspace = true
 open-bim-nc.workspace = true
+open-bim-numbering.workspace = true
 open-bim-persistence.workspace = true
 open-bim-reports.workspace = true
 serde.workspace = true

@@ -72,3 +72,8 @@ symbols, automatic mark collision avoidance or multi-sheet sets yet.
 листа; размеры остаются построенными по своим объектам. Логика —
 `crates/desktop/src/drawing_editor/wizard.rs`, тесты —
 `crates/desktop/tests/drawing_wizard.rs`.
+
+Правила мастера (`plan`, `build`, `clone_layout`) находятся в
+`crates/drawings/src/wizard.rs` и общие для интерфейса и пакетного режима.
+Чертежи через API и макросы (создание по типу, открытый чертёж, обновление,
+выдача, PDF/DXF) — `crates/api/src/drawings.rs`, `docs/help/batch-api.md`.

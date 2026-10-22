@@ -11,6 +11,7 @@ pub mod sheet_objects;
 pub mod svg;
 pub mod tables;
 pub mod title_block;
+pub mod wizard;
 
 pub use general_data::general_data_drawing;
 

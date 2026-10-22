@@ -2224,9 +2224,12 @@ name = "open-bim-api"
 version = "0.1.0"
 dependencies = [
  "open-bim-commands",
+ "open-bim-drawing-export",
+ "open-bim-drawings",
  "open-bim-ifc",
  "open-bim-model",
  "open-bim-nc",
+ "open-bim-numbering",
  "open-bim-persistence",
  "open-bim-reports",
  "serde",
