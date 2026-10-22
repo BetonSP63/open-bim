@@ -121,6 +121,7 @@ pub enum Cmd {
     ImportIfc,
     DocumentManager,
     DrawingWizard,
+    Plugins,
     PartDrawing,
     AssemblyDrawing,
     GeneralDrawing,
@@ -796,6 +797,13 @@ pub const ALL: &[Spec] = &[
         category: "Проверка",
         shortcut: s(CMD, Key::K),
         keywords: "коллизии позиции марки clash",
+    },
+    Spec {
+        cmd: Cmd::Plugins,
+        label: "Плагины",
+        category: "Моделирование",
+        shortcut: None,
+        keywords: "плагин расширение макрос программа ряд колонн",
     },
     Spec {
         cmd: Cmd::DrawingWizard,

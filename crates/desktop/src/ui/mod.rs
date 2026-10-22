@@ -12,6 +12,7 @@ pub mod icons;
 pub mod jobs;
 pub mod keytips;
 pub mod palette;
+pub mod plugins;
 pub mod property_pane;
 pub mod representation;
 pub mod ribbon;
@@ -108,6 +109,15 @@ pub enum ActiveJob {
     Open(Box<Job<(Project, Arc<Scene>)>>, PathBuf),
     Check(Job<(open_bim_numbering::Numbering, open_bim_coordination::Report)>),
     Release(Job<open_bim_reports::release::ReleaseSummary>),
+    /// Plugin run: label, staged commands, created objects, and the undo
+    /// depth the commands were built against.
+    Plugin(Job<PluginRun>, (usize, usize)),
+}
+
+pub struct PluginRun {
+    pub label: String,
+    pub commands: Vec<open_bim_commands::Command>,
+    pub created: Vec<ObjectId>,
 }
 
 impl ActiveJob {
@@ -116,6 +126,7 @@ impl ActiveJob {
             Self::Open(j, _) => (&j.label, &j.progress, j.started),
             Self::Check(j) => (&j.label, &j.progress, j.started),
             Self::Release(j) => (&j.label, &j.progress, j.started),
+            Self::Plugin(j, _) => (&j.label, &j.progress, j.started),
         }
     }
     fn cancel(&self) {
@@ -123,6 +134,7 @@ impl ActiveJob {
             Self::Open(j, _) => j.cancel(),
             Self::Check(j) => j.cancel(),
             Self::Release(j) => j.cancel(),
+            Self::Plugin(j, _) => j.cancel(),
         }
     }
 }
@@ -253,6 +265,7 @@ pub struct Workbench {
     pub measured_angle: Option<[open_bim_renderer::DVec3; 3]>,
     /// «Запросить объект» / «Сравнить детали» result window.
     pub inquiry: Option<crate::interaction::inquire::Inquiry>,
+    pub plugins: plugins::PluginsUi,
     /// The next pick places the clip plane.
     pub clip_pick: bool,
     /// Object groups, the object representation and its window.
@@ -364,6 +377,7 @@ impl Workbench {
             angle_picks: None,
             measured_angle: None,
             inquiry: None,
+            plugins: Default::default(),
             clip_pick: false,
             groups: crate::interaction::object_groups::default_groups(),
             representation: Vec::new(),
@@ -569,6 +583,7 @@ impl Workbench {
             ActiveJob::Open(j, _) => !matches!(j.poll(), Poll::Running),
             ActiveJob::Check(j) => !matches!(j.poll(), Poll::Running),
             ActiveJob::Release(j) => !matches!(j.poll(), Poll::Running),
+            ActiveJob::Plugin(j, _) => !matches!(j.poll(), Poll::Running),
         };
         if !finished {
             return None;
@@ -633,8 +648,54 @@ impl Workbench {
                 }
                 Err(e) => self.reports.message = Some(e),
             },
+            ActiveJob::Plugin(j, depth) => match j.wait() {
+                Ok(run) if self.editor.document.history_depth() != depth => {
+                    let _ = run;
+                    self.plugins.message = Some(
+                        "Модель изменилась во время работы плагина; запустите его снова".into(),
+                    );
+                }
+                Ok(run) if run.commands.is_empty() => {
+                    self.plugins.message = Some(format!("{}: изменений нет", run.label));
+                }
+                Ok(run) => {
+                    let text = format!("{}: создано объектов {}", run.label, run.created.len());
+                    self.plugins.message = Some(text.clone());
+                    self.message(text);
+                    self.editor.selected = run.created.into_iter().collect();
+                    return Some(Request::Action(Action::Commit(run.label, run.commands)));
+                }
+                Err(e) => self.plugins.message = Some(e),
+            },
         }
         None
+    }
+
+    /// Run a plugin in the background on a copy of the model.
+    pub fn start_plugin(&mut self, run: plugins::RunRequest) {
+        if self.busy() {
+            self.plugins.message = Some("Дождитесь завершения текущей операции".into());
+            return;
+        }
+        let project = self.editor.document.project().clone();
+        let label = format!("Плагин «{}»", run.plugin.manifest.name);
+        let depth = self.editor.document.history_depth();
+        let job_label = label.clone();
+        self.plugins.message = Some(format!("{label}: выполняется…"));
+        self.job = Some(ActiveJob::Plugin(
+            Job::spawn(job_label, move |_| {
+                let mut session = open_bim_api::Session::new(project).map_err(|e| e.to_string())?;
+                let created = session
+                    .run_plugin(&run.plugin, &run.inputs, &run.attributes)
+                    .map_err(|e| e.to_string())?;
+                Ok(PluginRun {
+                    label,
+                    commands: session.into_staged(),
+                    created,
+                })
+            }),
+            depth,
+        ));
     }
 
     /// Run a command; model-changing commands are refused while a job runs.
@@ -1347,6 +1408,14 @@ impl Workbench {
             Cmd::NumberAndCheck => {
                 self.mode = Mode::Model;
                 self.start_check();
+            }
+            Cmd::Plugins => {
+                self.plugins.open = !self.plugins.open;
+                self.message(if self.plugins.open {
+                    "Плагины: выберите плагин, задайте входы и атрибуты"
+                } else {
+                    "Окно плагинов закрыто"
+                });
             }
             Cmd::DrawingWizard => {
                 let wizard = &mut self.drawings.wizard;
@@ -2684,6 +2753,13 @@ impl Workbench {
         self.job_window(&ctx, &mut requests);
         self.recovery_window(&ctx);
         self.drawings.wizard.show(&ctx, &mut self.editor);
+        let busy = self.busy();
+        if let Some(run) = self
+            .plugins
+            .show(&ctx, &self.tools.path, &self.editor.selected, busy)
+        {
+            self.start_plugin(run);
+        }
         let export_dir = self.drawings.export_dir.clone();
         if let Some(id) = self
             .drawings

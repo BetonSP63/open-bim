@@ -2280,6 +2280,7 @@ dependencies = [
  "egui-wgpu",
  "epaint_default_fonts",
  "image",
+ "open-bim-api",
  "open-bim-commands",
  "open-bim-connections",
  "open-bim-coordination",
