@@ -16,8 +16,8 @@
 //! that take a `target` act on it unless another target is given. Relative
 //! paths are taken from the macro's folder. The first failing step stops
 //! the run; nothing staged after the last commit is saved.
-use crate::{ApiError, Member, Plate, Query, Session};
-use open_bim_model::{ObjectId, Project, PropertyValue};
+use crate::{ApiError, DrawingEdit, DrawingRules, Member, Plate, Query, Session};
+use open_bim_model::{DrawingKind, ObjectId, Project, PropertyValue};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -85,6 +85,69 @@ pub enum Step {
     ExportNc(String),
     /// Folder for the part, assembly and fastener lists (CSV).
     ExportReports(String),
+    /// A drawing of one type; it becomes the current drawing selection.
+    CreateDrawing(NewDrawing),
+    /// Drawings by the wizard rules, one per mark without a drawing.
+    CreateDrawings(DrawingRules),
+    /// Open a drawing for editing; without an ID, the last created one.
+    OpenDrawing(Option<ObjectId>),
+    /// Change the open drawing.
+    EditDrawing(DrawingEdit),
+    /// Close the open drawing, saving its changes (`true`) or not.
+    CloseDrawing(bool),
+    DeleteDrawing(ObjectId),
+    /// Regenerate drawings from the model (empty = all outdated).
+    UpdateDrawings(Vec<ObjectId>),
+    /// Issue drawings (empty = all up-to-date, not yet issued).
+    IssueDrawings(Vec<ObjectId>),
+    /// One PDF of the drawings (empty `drawings` = all).
+    ExportPdf {
+        path: String,
+        #[serde(default)]
+        drawings: Vec<ObjectId>,
+    },
+    /// Folder with one DXF per drawing (empty `drawings` = all).
+    ExportDxf {
+        dir: String,
+        #[serde(default)]
+        drawings: Vec<ObjectId>,
+    },
+}
+
+/// A drawing of one type: exactly one of `part`, `assembly`, `general`
+/// (parts of a general arrangement, empty = whole model) or `general_data`
+/// (set mark, «КМД» or «КМ»).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct NewDrawing {
+    pub part: Option<ObjectId>,
+    pub assembly: Option<ObjectId>,
+    pub general: Option<Vec<ObjectId>>,
+    pub general_data: Option<String>,
+    pub number: Option<String>,
+}
+
+impl NewDrawing {
+    pub fn kind(&self) -> crate::Result<DrawingKind> {
+        let kinds = [
+            self.part.map(|part| DrawingKind::Part { part }),
+            self.assembly
+                .map(|assembly| DrawingKind::Assembly { assembly }),
+            self.general
+                .clone()
+                .map(|objects| DrawingKind::General { objects }),
+            self.general_data
+                .clone()
+                .map(|mark| DrawingKind::GeneralData { mark }),
+        ];
+        let mut set = kinds.into_iter().flatten();
+        match (set.next(), set.next()) {
+            (Some(kind), None) => Ok(kind),
+            _ => Err(ApiError::Invalid(
+                "Чертёж: укажите ровно один тип — part, assembly, general или general_data".into(),
+            )),
+        }
+    }
 }
 
 fn one() -> u32 {
@@ -145,7 +208,7 @@ pub fn run(script: &Macro, base: &Path) -> Result<(Session, Report), BatchError>
         Some(path) => Session::open(resolve(base, path)).map_err(at(0))?,
         None => Session::new(Project::default()).map_err(at(0))?,
     };
-    let mut selection: Vec<ObjectId> = Vec::new();
+    let mut selection = Selection::default();
     let mut steps = Vec::new();
     for (index, step) in script.steps.iter().enumerate() {
         let report = run_step(&mut session, &mut selection, step, base).map_err(at(index + 1))?;
@@ -188,7 +251,7 @@ fn targets(
     Ok(ids)
 }
 
-fn write(path: &Path, bytes: &[u8]) -> crate::Result<()> {
+pub(crate) fn write(path: &Path, bytes: &[u8]) -> crate::Result<()> {
     if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
         std::fs::create_dir_all(parent)
             .map_err(|e| ApiError::Io(format!("{}: {e}", parent.display())))?;
@@ -196,12 +259,20 @@ fn write(path: &Path, bytes: &[u8]) -> crate::Result<()> {
     std::fs::write(path, bytes).map_err(|e| ApiError::Io(format!("{}: {e}", path.display())))
 }
 
+/// Current parts and the drawings created last.
+#[derive(Default)]
+struct Selection {
+    parts: Vec<ObjectId>,
+    drawings: Vec<ObjectId>,
+}
+
 fn run_step(
     session: &mut Session,
-    selection: &mut Vec<ObjectId>,
+    current: &mut Selection,
     step: &Step,
     base: &Path,
 ) -> crate::Result<StepReport> {
+    let selection = &mut current.parts;
     let report = |action: &'static str, ids: Vec<ObjectId>, message: String| StepReport {
         step: 0,
         action,
@@ -347,6 +418,75 @@ fn run_step(
                     dir.display(),
                     open_bim_reports::fmt(reports.total_part_mass_kg)
                 ),
+            )
+        }
+        Step::CreateDrawing(new) => {
+            let id = session.create_drawing(new.kind()?, new.number.as_deref())?;
+            current.drawings = vec![id];
+            report("create_drawing", vec![id], String::new())
+        }
+        Step::CreateDrawings(rules) => {
+            let ids = session.create_drawings(rules)?;
+            current.drawings = ids.clone();
+            report("create_drawings", ids, String::new())
+        }
+        Step::OpenDrawing(id) => {
+            let id = match id {
+                Some(id) => *id,
+                None => *current.drawings.last().ok_or_else(|| {
+                    ApiError::Invalid("Не указан чертёж и нет созданных в этом макросе".into())
+                })?,
+            };
+            session.open_drawing(id)?;
+            report("open_drawing", vec![id], String::new())
+        }
+        Step::EditDrawing(edit) => {
+            session.edit_drawing(edit)?;
+            report(
+                "edit_drawing",
+                session.active_drawing().into_iter().collect(),
+                String::new(),
+            )
+        }
+        Step::CloseDrawing(save) => {
+            let id = session.active_drawing();
+            let staged = session.close_drawing(*save)?;
+            let message = if staged {
+                "Изменения чертежа в очереди"
+            } else {
+                "Без изменений"
+            };
+            report("close_drawing", id.into_iter().collect(), message.into())
+        }
+        Step::DeleteDrawing(id) => {
+            session.delete_drawing(*id)?;
+            current.drawings.retain(|d| d != id);
+            report("delete_drawing", vec![*id], String::new())
+        }
+        Step::UpdateDrawings(ids) => {
+            let ids = session.update_drawings(ids)?;
+            report("update_drawings", ids, String::new())
+        }
+        Step::IssueDrawings(ids) => {
+            let ids = session.issue_drawings(ids)?;
+            report("issue_drawings", ids, String::new())
+        }
+        Step::ExportPdf { path, drawings } => {
+            let path = resolve(base, path);
+            let n = session.export_pdf(&path, drawings)?;
+            report(
+                "export_pdf",
+                Vec::new(),
+                format!("{}: листов {n}", path.display()),
+            )
+        }
+        Step::ExportDxf { dir, drawings } => {
+            let dir = resolve(base, dir);
+            let n = session.export_dxf(&dir, drawings)?;
+            report(
+                "export_dxf",
+                Vec::new(),
+                format!("{}: файлов {n}", dir.display()),
             )
         }
     })

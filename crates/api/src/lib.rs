@@ -20,6 +20,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 pub mod batch;
+pub mod drawings;
+
+pub use drawings::{DrawingEdit, DrawingInfo, DrawingRules, Note};
 
 /// Distance below which two points are the same point, mm.
 pub const POINT_TOLERANCE_MM: f64 = 0.001;
@@ -156,6 +159,7 @@ pub struct Session {
     working: Project,
     staged: Vec<Command>,
     path: Option<PathBuf>,
+    open_drawing: Option<drawings::OpenDrawing>,
 }
 
 impl Session {
@@ -166,6 +170,7 @@ impl Session {
             document,
             staged: Vec::new(),
             path: None,
+            open_drawing: None,
         })
     }
 
@@ -215,8 +220,9 @@ impl Session {
         Ok(Some(event))
     }
 
-    /// Drop all staged changes.
+    /// Drop all staged changes and close the open drawing without saving.
     pub fn rollback(&mut self) -> usize {
+        self.open_drawing = None;
         let n = self.staged.len();
         self.staged.clear();
         self.working = self.document.project().clone();
@@ -225,6 +231,7 @@ impl Session {
 
     pub fn undo(&mut self) -> Result<ChangeEvent> {
         self.require_committed()?;
+        self.refuse_any_open("отменить изменения")?;
         let event = self.document.undo()?;
         self.working = self.document.project().clone();
         Ok(event)
