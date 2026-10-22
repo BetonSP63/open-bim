@@ -2,9 +2,7 @@
 //! Curves retain the geometry kernel tessellation tolerance; errors remain explicit.
 mod csg;
 use open_bim_geometry::Body;
-use open_bim_model::{
-    DetailKind, ElementShape, Frame, ModelError, ObjectId, Point3, ProfileShape, Project,
-};
+use open_bim_model::{DetailKind, Frame, ModelError, ObjectId, Point3, Project};
 use open_bim_numbering::Numbering;
 use parry3d_f64::{
     math::{Pose, Vector},
@@ -97,49 +95,8 @@ fn invalid(message: impl std::fmt::Display) -> ModelError {
 }
 
 fn bounds(project: &Project, id: ObjectId) -> Result<Bounds, ModelError> {
-    let part = &project.elements[&id];
-    let (points, depth) = match &part.shape {
-        ElementShape::Plate {
-            contour, thickness, ..
-        } => (contour.clone(), thickness.value()),
-        ElementShape::Member {
-            profile, length, ..
-        } => {
-            let points = match project.profiles[profile].shape {
-                ProfileShape::CircularHollow { diameter, .. } => vec![
-                    [-diameter / 2., -diameter / 2.],
-                    [diameter / 2., diameter / 2.],
-                ],
-                ProfileShape::RectangularHollow { width, height, .. } => {
-                    vec![[-width / 2., -height / 2.], [width / 2., height / 2.]]
-                }
-                ref shape => shape.solid_contour()?,
-            };
-            (points, length.value())
-        }
-    };
-    // Use all corners of the local bounding box for rotated hollow sections too.
-    let lo = [
-        points.iter().map(|p| p[0]).fold(f64::INFINITY, f64::min),
-        points.iter().map(|p| p[1]).fold(f64::INFINITY, f64::min),
-    ];
-    let hi = [
-        points
-            .iter()
-            .map(|p| p[0])
-            .fold(f64::NEG_INFINITY, f64::max),
-        points
-            .iter()
-            .map(|p| p[1])
-            .fold(f64::NEG_INFINITY, f64::max),
-    ];
-    Ok(Bounds::points([lo[0], hi[0]].into_iter().flat_map(|x| {
-        [lo[1], hi[1]].into_iter().flat_map(move |y| {
-            [0., depth]
-                .into_iter()
-                .map(move |z| part.shape.frame().world(Point3([x, y, z])))
-        })
-    })))
+    let [min, max] = project.element_bounds(id)?;
+    Ok(Bounds { min, max })
 }
 
 fn mesh(body: Body, frame: &Frame, reference: Point3) -> Result<TriMesh, ModelError> {

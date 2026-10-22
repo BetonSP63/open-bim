@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/geometry", "crates/model", "crates/commands", "crates/persistence", "crates/renderer", "crates/desktop", "crates/steel", "crates/connections", "crates/numbering", "crates/coordination", "crates/drawings", "crates/drawing_export", "crates/reports", "crates/ifc", "crates/nc"]
+members = ["crates/geometry", "crates/model", "crates/commands", "crates/persistence", "crates/renderer", "crates/desktop", "crates/steel", "crates/connections", "crates/numbering", "crates/coordination", "crates/drawings", "crates/drawing_export", "crates/reports", "crates/ifc", "crates/nc", "crates/api"]
 exclude = ["vendor/truck-shapeops"]
 resolver = "3"
 
@@ -26,6 +26,7 @@ open-bim-drawing-export = { path = "crates/drawing_export" }
 open-bim-reports = { path = "crates/reports" }
 open-bim-ifc = { path = "crates/ifc" }
 open-bim-nc = { path = "crates/nc" }
+open-bim-api = { path = "crates/api" }
 eframe = { version = "=0.36.2", default-features = false, features = ["accesskit", "default_fonts", "wgpu"] }
 
 [workspace.lints.rust]
