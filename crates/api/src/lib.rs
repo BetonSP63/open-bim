@@ -21,6 +21,7 @@ use std::path::{Path, PathBuf};
 
 pub mod batch;
 pub mod drawings;
+pub mod plugins;
 
 pub use drawings::{DrawingEdit, DrawingInfo, DrawingRules, Note};
 
