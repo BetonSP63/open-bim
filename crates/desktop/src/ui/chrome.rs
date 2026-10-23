@@ -953,7 +953,27 @@ impl Workbench {
             .iter()
             .filter_map(|id| project.axes.get(id))
             .collect();
-        pane_header(ui, "Ось", axes.len());
+        pane_header(ui, "Прямоугольная сетка", axes.len());
+        // The whole grid, read again whenever the model changes.
+        let revision = project.revision;
+        if self.grid_pane.as_ref().is_none_or(|(r, _)| *r != revision)
+            && let Some(spec) = crate::interaction::grid_edit::spec_from_project(project)
+        {
+            self.grid_pane = Some((revision, spec));
+            self.grid_settings = project.grid.clone();
+        }
+        if let Some((_, spec)) = &mut self.grid_pane {
+            super::grid_pane::sections(ui, spec, &mut self.grid_settings);
+            if ui.button("Изменить").clicked() {
+                match super::grid_change(project, spec, &self.grid_settings) {
+                    Ok(commands) => requests.push(Request::Action(Action::Commit(
+                        "Изменить: сетка".into(),
+                        commands,
+                    ))),
+                    Err(e) => self.tools.message = Some(e),
+                }
+            }
+        }
         if axes.len() == 1 {
             let axis = axes[0].clone();
             if self.axis_buffer.as_ref().is_none_or(|b| b.id != axis.id) {
@@ -981,7 +1001,7 @@ impl Workbench {
                         ui.end_row();
                     }
                 });
-            if ui.button("Изменить").clicked() {
+            if ui.button("Изменить линию").clicked() {
                 let edited = buffer.clone();
                 match crate::interaction::grid_edit::validate_axis_name(&edited.name) {
                     Ok(()) if edited != axis => requests.push(Request::Action(Action::Commit(

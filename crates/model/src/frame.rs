@@ -111,3 +111,43 @@ pub struct Level {
     pub name: String,
     pub elevation_mm: f64,
 }
+
+/// Look and behaviour of the grid («Прямоугольная сетка» properties).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields, default)]
+pub struct GridSettings {
+    /// Part ends lying on a grid line move with it when the grid changes
+    /// («Магнитная плоскость сетки»).
+    pub magnetic: bool,
+    /// Line colour, RGB.
+    pub color: [u8; 3],
+    /// Label text height in points and its colour.
+    pub label_size: f32,
+    pub label_color: [u8; 3],
+}
+
+impl Default for GridSettings {
+    fn default() -> Self {
+        Self {
+            magnetic: false,
+            color: [0, 0, 0],
+            label_size: 12.,
+            label_color: [0, 0, 0],
+        }
+    }
+}
+
+impl GridSettings {
+    pub fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
+
+    pub fn validate(&self) -> Result<(), crate::ModelError> {
+        if !(6.0..=48.0).contains(&self.label_size) {
+            return Err(crate::ModelError::InvalidValue(
+                "Размер шрифта подписи сетки: от 6 до 48".into(),
+            ));
+        }
+        Ok(())
+    }
+}

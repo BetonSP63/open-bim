@@ -71,6 +71,8 @@ pub(crate) struct Patch {
     document: Option<Delta<(open_bim_model::DocumentInfo, Vec<open_bim_model::Change>)>>,
     /// Stored numbering marks before and after, when they differ.
     numbering: Option<Delta<BTreeMap<ObjectId, String>>>,
+    /// Grid properties before and after, when they differ.
+    grid: Option<Delta<open_bim_model::GridSettings>>,
     before_meta: (u64, u64, String),
     after_meta: (u64, u64, String),
     pub touched: BTreeSet<ObjectId>,
@@ -96,6 +98,10 @@ impl Patch {
                 before: Some((before.document.clone(), before.changes.clone())),
                 after: Some((after.document.clone(), after.changes.clone())),
             });
+        let grid = (before.grid != after.grid).then(|| Delta {
+            before: Some(before.grid.clone()),
+            after: Some(after.grid.clone()),
+        });
         let numbering = (before.numbering != after.numbering).then(|| Delta {
             before: Some(before.numbering.clone()),
             after: Some(after.numbering.clone()),
@@ -132,6 +138,7 @@ impl Patch {
             plugins,
             document,
             numbering,
+            grid,
             before_meta: (before.revision, before.next_id, before.name.clone()),
             after_meta: (after.revision, after.next_id, after.name.clone()),
             touched,
@@ -163,6 +170,12 @@ impl Patch {
             let side = if forward { &delta.after } else { &delta.before };
             if let Some(marks) = side {
                 project.numbering = marks.clone();
+            }
+        }
+        if let Some(delta) = &self.grid {
+            let side = if forward { &delta.after } else { &delta.before };
+            if let Some(grid) = side {
+                project.grid = grid.clone();
             }
         }
         let metadata = if forward {

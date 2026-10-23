@@ -132,8 +132,37 @@ pub struct GridSpec {
     pub labels_x: String,
     pub labels_y: String,
     pub labels_z: String,
-    /// Line extension beyond the outermost lines, mm.
-    pub extension: String,
+    /// Line extension beyond the outermost lines, mm: left and right
+    /// along X (lines А, Б…), bottom and top along Y (lines 1, 2…).
+    pub extension: [String; 4],
+    /// Grid origin, mm: X and Y coordinates count from it, Z (levels) too.
+    pub origin: [String; 3],
+}
+
+impl GridSpec {
+    /// Extensions [left, right, bottom, top] in mm.
+    pub fn extensions(&self) -> Result<[f64; 4], String> {
+        let mut out = [0.; 4];
+        for (o, text) in out.iter_mut().zip(&self.extension) {
+            *o = number(text)?;
+            if !(0.0..=1e6).contains(o) {
+                return Err("Выступающие части линий: 0…1 000 000 мм".into());
+            }
+        }
+        Ok(out)
+    }
+
+    /// Origin in mm.
+    pub fn origin(&self) -> Result<[f64; 3], String> {
+        let mut out = [0.; 3];
+        for (o, text) in out.iter_mut().zip(&self.origin) {
+            *o = number(text)?;
+            if o.abs() > 1e8 {
+                return Err("Начало координат сетки вне диапазона".into());
+            }
+        }
+        Ok(out)
+    }
 }
 
 impl Default for GridSpec {
@@ -145,19 +174,30 @@ impl Default for GridSpec {
             labels_x: "1 2 3 4 5".into(),
             labels_y: "А Б В Г".into(),
             labels_z: "0,000 +3,600".into(),
-            extension: "2000".into(),
+            extension: std::array::from_fn(|_| "2000".into()),
+            origin: std::array::from_fn(|_| "0".into()),
         }
     }
+}
+
+/// X line, Y line and level coordinates of a grid, mm.
+pub type GridCoordinates = (Vec<f64>, Vec<f64>, Vec<f64>);
+
+/// Line coordinates and level elevations of `spec`, shifted by its origin.
+pub fn absolute(spec: &GridSpec) -> Result<GridCoordinates, String> {
+    let o = spec.origin()?;
+    let shift = |v: Vec<f64>, d: f64| v.into_iter().map(|c| c + d).collect::<Vec<f64>>();
+    Ok((
+        shift(coordinates(&spec.x)?, o[0]),
+        shift(coordinates(&spec.y)?, o[1]),
+        shift(elevations(&spec.z)?, o[2]),
+    ))
 }
 
 /// One transaction: X lines (parallel to Y, labelled 1…), Y lines (parallel
 /// to X, labelled А…) at the lowest level, and the levels.
 pub fn grid_commands(project: &Project, spec: &GridSpec) -> Result<Vec<Command>, String> {
-    let (xs, ys, zs) = (
-        coordinates(&spec.x)?,
-        coordinates(&spec.y)?,
-        elevations(&spec.z)?,
-    );
+    let (xs, ys, zs) = absolute(spec)?;
     // Without labels, digits go along the side with more axes (ГОСТ Р
     // 21.101-2026, 5.3.2); missing level names are the marks («+3,600»).
     let (auto_x, auto_y) = if spec.labels_x.trim().is_empty() && spec.labels_y.trim().is_empty() {
@@ -174,10 +214,7 @@ pub fn grid_commands(project: &Project, spec: &GridSpec) -> Result<Vec<Command>,
         labels(auto_y, ys.len())?,
         level_labels(&spec.labels_z, &zs)?,
     );
-    let ext = number(&spec.extension)?;
-    if !(0.0..=1e6).contains(&ext) {
-        return Err("Удлинение линий вне диапазона".into());
-    }
+    let ext = spec.extensions()?;
     let min = |v: &[f64]| v.iter().copied().fold(f64::INFINITY, f64::min);
     let max = |v: &[f64]| v.iter().copied().fold(f64::NEG_INFINITY, f64::max);
     let z0 = min(&zs);
@@ -193,8 +230,8 @@ pub fn grid_commands(project: &Project, spec: &GridSpec) -> Result<Vec<Command>,
             axis: GridAxis {
                 id: id(),
                 name,
-                start: Point3([*x, min(&ys) - ext, z0]),
-                end: Point3([*x, max(&ys) + ext, z0]),
+                start: Point3([*x, min(&ys) - ext[2], z0]),
+                end: Point3([*x, max(&ys) + ext[3], z0]),
             },
         });
     }
@@ -203,8 +240,8 @@ pub fn grid_commands(project: &Project, spec: &GridSpec) -> Result<Vec<Command>,
             axis: GridAxis {
                 id: id(),
                 name,
-                start: Point3([min(&xs) - ext, *y, z0]),
-                end: Point3([max(&xs) + ext, *y, z0]),
+                start: Point3([min(&xs) - ext[0], *y, z0]),
+                end: Point3([max(&xs) + ext[1], *y, z0]),
             },
         });
     }

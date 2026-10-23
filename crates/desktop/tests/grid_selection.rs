@@ -165,7 +165,8 @@ fn grid_dialog_reads_the_grid_and_rebuilds_it_in_one_step() {
     assert_eq!(spec.y, "0 3*6000");
     assert_eq!(spec.labels_y, "А Б В Г");
     assert_eq!(spec.z, "0 3600");
-    assert_eq!(spec.extension, "2000");
+    assert_eq!(spec.extension, std::array::from_fn(|_| "2000".to_string()));
+    assert_eq!(spec.origin, std::array::from_fn(|_| "0".to_string()));
     let before = project_hash(&project).unwrap();
     let mut wider = spec.clone();
     wider.x = "0 4*7200".into();
@@ -228,7 +229,8 @@ fn default_grid_names_follow_gost() {
         labels_x: String::new(),
         labels_y: String::new(),
         labels_z: String::new(),
-        extension: "1000".into(),
+        extension: std::array::from_fn(|_| "1000".into()),
+        origin: std::array::from_fn(|_| "0".into()),
     };
     let commands = grid_commands(&open_bim_model::Project::default(), &spec).unwrap();
     let mut doc = open_bim_commands::Document::new(open_bim_model::Project::default()).unwrap();
@@ -261,4 +263,84 @@ fn default_grid_names_follow_gost() {
     marks.sort_by(|a, b| a.elevation_mm.total_cmp(&b.elevation_mm));
     let marks: Vec<&str> = marks.iter().map(|l| l.name.as_str()).collect();
     assert_eq!(marks, ["-2,800", "0,000", "+3,600"]);
+}
+
+#[test]
+fn grid_extensions_and_origin_read_back_from_the_model() {
+    use open_bim_desktop::interaction::tools::{GridSpec, grid_commands};
+    let spec = GridSpec {
+        extension: ["1000", "2000", "3000", "4000"].map(String::from),
+        origin: ["1500", "-500", "0"].map(String::from),
+        ..GridSpec::default()
+    };
+    let p = open_bim_model::Project::default();
+    let commands = grid_commands(&p, &spec).unwrap();
+    let mut doc = open_bim_commands::Document::new(p).unwrap();
+    doc.transact("Сетка", &commands).unwrap();
+    let p = doc.project();
+    let at = |n: &str| p.axes.values().find(|a| a.name == n).unwrap();
+    // Line 1 at the origin X, from Y −500 − 3000 to Y −500 + 18000 + 4000.
+    assert_eq!(at("1").start.0, [1500., -3500., 0.]);
+    assert_eq!(at("1").end.0, [1500., 21_500., 0.]);
+    // Line А from X 1500 − 1000 to X 1500 + 24000 + 2000.
+    assert_eq!(at("А").start.0, [500., -500., 0.]);
+    assert_eq!(at("А").end.0, [27_500., -500., 0.]);
+    let back = spec_from_project(p).unwrap();
+    assert_eq!(back.x, spec.x);
+    assert_eq!(back.extension, spec.extension);
+    assert_eq!(back.origin, spec.origin);
+}
+
+#[test]
+fn magnetic_grid_planes_carry_part_ends_and_settings_are_one_step() {
+    use open_bim_desktop::ui::grid_change;
+    let mut b = bench();
+    b.execute(Cmd::ToolColumn);
+    let r = b.pick(DVec3::new(6000., 6000., 0.));
+    assert!(apply(&mut b, r));
+    b.execute(Cmd::CancelTool);
+    // A beam from 2/Б to 3/Б at +3600.
+    b.execute(Cmd::ToolBeam);
+    b.pick(DVec3::new(6000., 6000., 3600.));
+    let r = b.pick(DVec3::new(12_000., 6000., 3600.));
+    assert!(apply(&mut b, r));
+    b.execute(Cmd::CancelTool);
+    let project = b.editor.document.project().clone();
+    let mut spec = spec_from_project(&project).unwrap();
+    spec.x = "0 4*7200".into();
+    let mut settings = project.grid.clone();
+    settings.magnetic = true;
+    settings.label_size = 14.;
+    let commands = grid_change(&project, &spec, &settings).unwrap();
+    let depth = b.editor.document.history_depth().0;
+    b.editor.commit("Изменить: сетка", &commands).unwrap();
+    assert_eq!(b.editor.document.history_depth().0, depth + 1);
+    let after = b.editor.document.project();
+    assert!(after.grid.magnetic);
+    assert_eq!(after.grid.label_size, 14.);
+    let ends: Vec<(f64, f64)> = after
+        .elements
+        .values()
+        .map(|e| {
+            let (s, t, _) = after.member_reference_line(&e.shape).unwrap();
+            (s.0[0], t.0[0])
+        })
+        .collect();
+    // Column on line 2 follows it to 7200; the beam spans 2–3 as 7200–14400.
+    assert!(ends.contains(&(7200., 7200.)), "{ends:?}");
+    assert!(ends.contains(&(7200., 14_400.)), "{ends:?}");
+    // Undo puts back the grid, the parts and the settings.
+    b.editor.history(false).unwrap();
+    assert_eq!(b.editor.document.project(), &project);
+    // A label size out of range is refused.
+    let mut bad = settings;
+    bad.label_size = 100.;
+    assert!(
+        b.editor
+            .commit(
+                "Сетка",
+                &[open_bim_commands::Command::SetGridSettings { settings: bad }]
+            )
+            .is_err()
+    );
 }

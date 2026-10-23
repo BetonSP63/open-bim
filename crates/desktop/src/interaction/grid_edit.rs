@@ -2,8 +2,7 @@
 //! selection switches): screen-space picking, axis name rules of ГОСТ Р
 //! 21.101-2026 5.3.2, reading the grid back into the dialog and rebuilding it
 //! in one transaction.
-use super::tools::{GridSpec, coordinates, elevations, labels, level_labels};
-use crate::tools::number;
+use super::tools::{GridSpec, absolute, labels, level_labels};
 use open_bim_commands::{Command, DeletePolicy};
 use open_bim_model::{GridAxis, Level, ObjectId, Point3, Project};
 use open_bim_renderer::DVec3;
@@ -166,12 +165,17 @@ pub fn spec_from_project(project: &Project) -> Option<GridSpec> {
     }
     let mut levels: Vec<&Level> = project.levels.values().collect();
     levels.sort_by(|a, b| a.elevation_mm.total_cmp(&b.elevation_mm));
-    let x0 = xs[0].start.0[0];
-    let ext = (x0 - ys[0].start.0[0].min(ys[0].end.0[0])).max(0.);
+    // The first lines are the origin, so coordinates read «0 4*6000».
+    let (x0, y0) = (xs[0].start.0[0], ys[0].start.0[1]);
+    let low = |a: &GridAxis, k: usize| a.start.0[k].min(a.end.0[k]);
+    let high = |a: &GridAxis, k: usize| a.start.0[k].max(a.end.0[k]);
+    let xmax = xs.last().map_or(x0, |a| a.start.0[0]);
+    let ymax = ys.last().map_or(y0, |a| a.start.0[1]);
+    let mm = |v: f64| format!("{}", v.max(0.).round() as i64);
     let fmt_z = |z: f64| format!("{}", z.round() as i64);
     Some(GridSpec {
-        x: spacing_string(xs.iter().map(|a| a.start.0[0]).collect()),
-        y: spacing_string(ys.iter().map(|a| a.start.0[1]).collect()),
+        x: spacing_string(xs.iter().map(|a| a.start.0[0] - x0).collect()),
+        y: spacing_string(ys.iter().map(|a| a.start.0[1] - y0).collect()),
         z: if levels.is_empty() {
             "0".into()
         } else {
@@ -196,19 +200,25 @@ pub fn spec_from_project(project: &Project) -> Option<GridSpec> {
             .map(|l| l.name.as_str())
             .collect::<Vec<_>>()
             .join(" "),
-        extension: format!("{}", ext.round() as i64),
+        extension: [
+            mm(x0 - low(ys[0], 0)),
+            mm(high(ys[0], 0) - xmax),
+            mm(y0 - low(xs[0], 1)),
+            mm(high(xs[0], 1) - ymax),
+        ],
+        origin: [mm_signed(x0), mm_signed(y0), "0".into()],
     })
+}
+
+fn mm_signed(v: f64) -> String {
+    format!("{}", v.round() as i64)
 }
 
 /// Rebuild the existing grid from the dialog in one transaction: lines and
 /// levels keep their IDs where they still exist, extra ones are removed, new
 /// ones created. Parts are not touched.
 pub fn update_commands(project: &Project, spec: &GridSpec) -> Result<Vec<Command>, String> {
-    let (xs_new, ys_new, zs) = (
-        coordinates(&spec.x)?,
-        coordinates(&spec.y)?,
-        elevations(&spec.z)?,
-    );
+    let (xs_new, ys_new, zs) = absolute(spec)?;
     let (lx, ly, lz) = (
         labels(&spec.labels_x, xs_new.len())?,
         labels(&spec.labels_y, ys_new.len())?,
@@ -217,7 +227,7 @@ pub fn update_commands(project: &Project, spec: &GridSpec) -> Result<Vec<Command
     for name in lx.iter().chain(&ly) {
         validate_axis_name(name)?;
     }
-    let ext = number(&spec.extension)?;
+    let ext = spec.extensions()?;
     let min = |v: &[f64]| v.iter().copied().fold(f64::INFINITY, f64::min);
     let max = |v: &[f64]| v.iter().copied().fold(f64::NEG_INFINITY, f64::max);
     let z0 = min(&zs);
@@ -247,8 +257,8 @@ pub fn update_commands(project: &Project, spec: &GridSpec) -> Result<Vec<Command
         .map(|(x, name)| GridAxis {
             id: ObjectId(0),
             name: name.clone(),
-            start: Point3([*x, min(&ys_new) - ext, z0]),
-            end: Point3([*x, max(&ys_new) + ext, z0]),
+            start: Point3([*x, min(&ys_new) - ext[2], z0]),
+            end: Point3([*x, max(&ys_new) + ext[3], z0]),
         })
         .collect();
     let ylines = ys_new
@@ -257,8 +267,8 @@ pub fn update_commands(project: &Project, spec: &GridSpec) -> Result<Vec<Command
         .map(|(y, name)| GridAxis {
             id: ObjectId(0),
             name: name.clone(),
-            start: Point3([min(&xs_new) - ext, *y, z0]),
-            end: Point3([max(&xs_new) + ext, *y, z0]),
+            start: Point3([min(&xs_new) - ext[0], *y, z0]),
+            end: Point3([max(&xs_new) + ext[1], *y, z0]),
         })
         .collect();
     place(&xs_old, xlines, &mut commands);
@@ -374,4 +384,55 @@ pub fn grid_node(project: &Project, text: &str, plane_z: f64) -> Option<Result<D
         }
     };
     Some(Ok(DVec3::new(x_line.start.0[0], y_line.start.0[1], z)))
+}
+
+/// Magnetic grid planes: member ends lying on a vertical grid plane (within
+/// half a millimetre) follow that plane to its new coordinate in `spec`.
+/// Lines are matched in order, as in [`update_commands`]; levels are
+/// followed by the level binding of columns instead. Plates stay. `before`
+/// holds the grid as it was, `project` the parts to move (the model after
+/// the grid change, so level binding is kept).
+pub fn magnet_commands(
+    before: &Project,
+    project: &Project,
+    spec: &GridSpec,
+) -> Result<Vec<Command>, String> {
+    let (xs_new, ys_new, _) = absolute(spec)?;
+    let (xs_old, ys_old) = split_axes(before);
+    let moves = |old: &[&GridAxis], new: &[f64], k: usize| -> Vec<(f64, f64)> {
+        old.iter()
+            .zip(new)
+            .map(|(a, n)| (a.start.0[k], *n))
+            .filter(|(o, n)| (o - n).abs() > 1e-9)
+            .collect()
+    };
+    let (mx, my) = (moves(&xs_old, &xs_new, 0), moves(&ys_old, &ys_new, 1));
+    if mx.is_empty() && my.is_empty() {
+        return Ok(Vec::new());
+    }
+    let follow = |p: Point3| -> Point3 {
+        let mut q = p.0;
+        for (k, m) in [(0, &mx), (1, &my)] {
+            if let Some((_, n)) = m.iter().find(|(o, _)| (q[k] - o).abs() <= 0.5) {
+                q[k] = *n;
+            }
+        }
+        Point3(q)
+    };
+    let mut commands = Vec::new();
+    for e in project.elements.values() {
+        let Some((start, end, _)) = project.member_reference_line(&e.shape) else {
+            continue;
+        };
+        let (a, b) = (follow(start), follow(end));
+        if a == start && b == end {
+            continue;
+        }
+        let mut element = e.clone();
+        element.shape = project
+            .replace_member(&e.shape, Some((a, b)), None, None)
+            .map_err(|err| format!("{}: {err}", e.name))?;
+        commands.push(Command::ReplaceElement { element });
+    }
+    Ok(commands)
 }
