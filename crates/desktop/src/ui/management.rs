@@ -14,6 +14,9 @@ pub enum Window {
     Lots,
     Sequences,
     Locks,
+    Tasks,
+    Status,
+    Hierarchy,
 }
 
 impl Window {
@@ -23,6 +26,9 @@ impl Window {
             Self::Lots => "Партии",
             Self::Sequences => "Последовательности",
             Self::Locks => "Блокировки",
+            Self::Tasks => "Задания",
+            Self::Status => "Статус проекта",
+            Self::Hierarchy => "Иерархия здания",
         }
     }
 }
@@ -46,6 +52,18 @@ pub struct ManagementUi {
     /// Sequence being numbered by picks: its name and the next number.
     pub picking: Option<(String, u32)>,
     pub message: Option<String>,
+    /// Dates of a new task, `ГГГГ-ММ-ДД`.
+    pub task_start: String,
+    pub task_end: String,
+    /// Elevation of a new storey, mm.
+    pub storey_elevation: String,
+    /// Project status shown in the model at this date.
+    pub status_date: String,
+    pub status_on: bool,
+    /// Set when the status colouring changed (the view recolours).
+    pub status_changed: bool,
+    /// Site and building names being edited.
+    pub spatial_names: Option<(String, String)>,
 }
 
 /// Phase of a part; a part without one is in phase 1.
@@ -57,7 +75,7 @@ pub fn phase_of(project: &Project, id: ObjectId) -> Option<u32> {
     })
 }
 
-fn number_of(project: &Project, id: ObjectId, key: &str) -> Option<u32> {
+pub(crate) fn number_of(project: &Project, id: ObjectId, key: &str) -> Option<u32> {
     match project.elements.get(&id)?.properties.get(key) {
         Some(PropertyValue::Number(n)) => Some(*n as u32),
         _ => None,
@@ -241,6 +259,9 @@ impl ManagementUi {
                     Window::Lots => self.list(ui, project, selected, true),
                     Window::Sequences => self.sequences(ui, project),
                     Window::Locks => self.locks(ui, project, selected),
+                    Window::Tasks => self.tasks(ui, project, selected),
+                    Window::Status => self.status(ui, project),
+                    Window::Hierarchy => self.hierarchy(ui, project, selected),
                 };
                 if let Some(m) = &self.message {
                     ui.separator();
