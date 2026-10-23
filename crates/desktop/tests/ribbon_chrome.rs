@@ -420,3 +420,73 @@ fn property_pane_titles_the_selection_and_filters_its_sections() {
     assert!(!shown(&mut b, "Обработка поверхности"));
     assert!(shown(&mut b, "Показать больше свойств"));
 }
+
+#[test]
+fn bottom_bar_filter_history_list_and_handle_count() {
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    theme::apply(&ctx);
+    let mut b = bench();
+    let size = [1280., 800.];
+    let find = |out: &egui::FullOutput, name: &str| {
+        nodes(out)
+            .into_iter()
+            .find(|(_, n, _, _)| n == name)
+            .map(|(_, _, enabled, at)| (enabled, at))
+    };
+    frame(&ctx, &mut b, size, vec![]);
+    let out = frame(&ctx, &mut b, size, vec![]).0;
+    // Status line counts objects and picked handles.
+    assert!(find(&out, "1 объектов и 0 ручек выбрано").is_some());
+    let id = *b.editor.selected.iter().next().unwrap();
+    b.editor.handles = vec![(id, open_bim_renderer::overlay::HandleKind::End)];
+    let out = frame(&ctx, &mut b, size, vec![]).0;
+    assert!(find(&out, "1 объектов и 1 ручек выбрано").is_some());
+    // Selection filter: «standard», then a saved object group.
+    let (_, at) = find(&out, "Фильтр выбора").expect("filter combo");
+    assert!(!b.filter.active());
+    frame(&ctx, &mut b, size, click(at));
+    let out = frame(&ctx, &mut b, size, vec![]).0;
+    let group = b.groups[0].name.clone();
+    let (_, item) = find(&out, &group).expect("group in the filter list");
+    frame(&ctx, &mut b, size, click(item));
+    assert!(b.filter.active());
+    assert_eq!(b.filter.group.as_ref().unwrap().name, group);
+    // Undo history: disabled with nothing to undo, then lists the steps.
+    let out = frame(&ctx, &mut b, size, vec![]).0;
+    assert_eq!(find(&out, "Журнал отмен").map(|f| f.0), Some(false));
+    b.editor.handles.clear();
+    for k in 1..=2 {
+        b.editor
+            .edit(&open_bim_desktop::tools::Edit::Move(
+                open_bim_model::Point3([0., 0., 10. * k as f64]),
+            ))
+            .unwrap();
+    }
+    frame(&ctx, &mut b, size, vec![]);
+    let out = frame(&ctx, &mut b, size, vec![]).0;
+    let (enabled, at) = find(&out, "Журнал отмен").unwrap();
+    assert!(enabled);
+    frame(&ctx, &mut b, size, click(at));
+    let out = frame(&ctx, &mut b, size, vec![]).0;
+    let steps: Vec<egui::Pos2> = nodes(&out)
+        .into_iter()
+        .filter(|(_, n, _, _)| n == "Переместить")
+        .map(|(_, _, _, at)| at)
+        .collect();
+    assert!(steps.len() >= 2, "{steps:?}");
+    // The lower entry is the older step: picking it undoes both.
+    let older = steps
+        .iter()
+        .copied()
+        .max_by(|a, b| a.y.total_cmp(&b.y))
+        .unwrap();
+    let (_, requests) = frame(&ctx, &mut b, size, click(older));
+    assert!(
+        requests.iter().any(|r| matches!(
+            r,
+            Request::Action(open_bim_desktop::tools::ui::Action::History(false, 2))
+        )),
+        "the older step undoes two steps"
+    );
+}

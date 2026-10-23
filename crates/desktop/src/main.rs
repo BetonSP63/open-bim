@@ -291,6 +291,7 @@ impl Desktop {
             Action::Edit(edit) => self.bench.editor.edit(&edit),
             Action::Undo => self.bench.editor.history(false),
             Action::Redo => self.bench.editor.history(true),
+            Action::History(redo, steps) => self.bench.editor.history_steps(redo, steps),
             Action::New => open_bim_desktop::interaction::tools::default_project()
                 .and_then(|p| self.bench.editor.replace(p, "Новый проект")),
             Action::Example => example_steel_frame()
@@ -941,7 +942,21 @@ impl eframe::App for Desktop {
                     // Navigation control: click an axis for that plane view.
                     self.pending.push(Request::View(view));
                     self.pending.push(Request::Fit);
+                } else if let Some(h) = response
+                    .interact_pointer_pos()
+                    .filter(|_| self.bench.direct_modification)
+                    .and_then(|p| {
+                        let handles = overlay::handles(
+                            self.bench.editor.document.project(),
+                            &self.bench.editor.selected,
+                            &projector,
+                        );
+                        selection::handle_at(&handles, [p.x as f64, p.y as f64], 8.)
+                    })
+                {
+                    self.bench.select_handle(h.object, h.kind, click_mode);
                 } else {
+                    self.bench.editor.handles.clear();
                     let id = hover.and_then(|ray| self.scene.pick(ray, &self.view));
                     // Keep the contextual toolbar inside the 3D view.
                     self.bench.context_at = response.interact_pointer_pos().map(|p| {
@@ -1238,6 +1253,7 @@ impl eframe::App for Desktop {
                     guide,
                     reference: self.bench.engine.reference,
                     direct: self.bench.direct_modification,
+                    picked_handles: self.bench.editor.selected_handles(),
                     light,
                 },
             );

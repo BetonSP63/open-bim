@@ -39,6 +39,7 @@ pub enum Icon {
     Undo,
     Redo,
     Help,
+    History,
     Menu,
     Select,
     SnapEnd,
@@ -598,6 +599,12 @@ pub fn paint(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32, en
                 ink,
                 Stroke::NONE,
             );
+        }
+        Icon::History => {
+            let c = at(r, 0.5, 0.5);
+            p.circle_stroke(c, r.width() * 0.38, s);
+            line(p, r, (0.5, 0.5), (0.5, 0.25), s);
+            line(p, r, (0.5, 0.5), (0.68, 0.6), s);
         }
         Icon::Help => {
             p.circle_filled(at(r, 0.5, 0.5), r.width() * 0.45, accent);

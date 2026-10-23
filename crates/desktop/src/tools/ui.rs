@@ -14,6 +14,8 @@ pub enum Action {
     Amend(Vec<open_bim_commands::Command>),
     Undo,
     Redo,
+    /// Several undo (false) or redo (true) steps from the undo history list.
+    History(bool, usize),
     Save,
     Open,
     ExportIfc,

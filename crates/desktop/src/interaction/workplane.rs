@@ -33,6 +33,18 @@ impl Workplane {
         })
     }
 
+    /// Plane through `origin` facing `normal` («Плоскость вида»: the screen
+    /// plane through the work plane origin).
+    pub fn facing(origin: DVec3, normal: DVec3) -> Option<Self> {
+        let z = normal.try_normalize()?;
+        let helper = if z.z.abs() < 0.9 { DVec3::Z } else { DVec3::X };
+        let x = helper.cross(z).try_normalize()?;
+        Some(Self {
+            origin,
+            axes: [x, z.cross(x), z],
+        })
+    }
+
     /// Horizontal plane at elevation `z` (plan views, levels).
     pub fn at_elevation(z: f64) -> Self {
         Self {

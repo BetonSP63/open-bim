@@ -187,6 +187,14 @@ impl Document {
     pub fn history_depth(&self) -> (usize, usize) {
         (self.undo.len(), self.redo.len())
     }
+    /// Labels of the undo steps (oldest first) and of the redo steps (the
+    /// next redo last), for the undo history list.
+    pub fn history_labels(&self) -> (Vec<&str>, Vec<&str>) {
+        (
+            self.undo.iter().map(|p| p.label.as_str()).collect(),
+            self.redo.iter().map(|p| p.label.as_str()).collect(),
+        )
+    }
     /// New transactions made so far (undo and redo do not count); a host
     /// compares it to notice edits it must follow up.
     pub fn transactions(&self) -> u64 {

@@ -97,6 +97,12 @@ pub struct Switches {
     pub line: bool,
     pub nearest: bool,
     pub ortho: bool,
+    /// Snap depth «Плоскость»: snapped points are carried along the line of
+    /// sight onto the snap plane; «Авто» (false) keeps them where they are.
+    pub depth_plane: bool,
+    /// Snap plane «Плоскость вида» (the screen plane through the work plane
+    /// origin) instead of «Рабочая плоскость».
+    pub view_plane: bool,
 }
 
 impl Default for Switches {
@@ -115,6 +121,8 @@ impl Default for Switches {
             line: false,
             nearest: false,
             ortho: false,
+            depth_plane: false,
+            view_plane: false,
         }
     }
 }
@@ -441,6 +449,17 @@ fn intersection(a: (DVec3, DVec3), b: (DVec3, DVec3), eps: f64) -> Option<DVec3>
     (p.distance(q) <= eps).then_some((p + q) * 0.5)
 }
 
+/// The plane free picks land on: the work plane, or with «Плоскость вида»
+/// the screen plane through the work plane origin.
+pub fn snap_plane(view: &View, workplane: &Workplane, view_plane: bool) -> Workplane {
+    if !view_plane {
+        return *workplane;
+    }
+    view.ray([view.size[0] / 2., view.size[1] / 2.])
+        .and_then(|r| Workplane::facing(workplane.origin, -r.direction))
+        .unwrap_or(*workplane)
+}
+
 /// Ortho constraint: direction from `previous` rounded to 45° in the work plane.
 pub fn ortho(previous: DVec3, point: DVec3, workplane: &Workplane) -> DVec3 {
     let local = workplane.to_local(point) - workplane.to_local(previous);
@@ -753,14 +772,27 @@ impl Snapper {
                 }
             }
         }
+        let plane = snap_plane(&view, workplane, switches.view_plane);
+        if switches.depth_plane {
+            // Same place on screen, depth of the snap plane.
+            for hit in &mut distinct {
+                if let Some(p) = view
+                    .screen(hit.point)
+                    .and_then(|s| view.ray(s))
+                    .and_then(|r| plane.intersect(r.origin, r.direction))
+                {
+                    hit.point = p;
+                }
+            }
+        }
         if !distinct.is_empty() {
             return distinct;
         }
-        let Some(free) = workplane.intersect(ray.origin, ray.direction) else {
+        let Some(free) = plane.intersect(ray.origin, ray.direction) else {
             return Vec::new();
         };
         let point = match (switches.ortho, previous) {
-            (true, Some(p)) => ortho(p, free, workplane),
+            (true, Some(p)) => ortho(p, free, &plane),
             _ => free,
         };
         vec![Hit {

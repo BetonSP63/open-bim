@@ -298,6 +298,30 @@ impl Workbench {
         }
     }
 
+    /// A click on a handle of a selected object picks that handle (Shift
+    /// adds, Ctrl toggles); «Переместить» then moves only the picked handles.
+    pub fn select_handle(
+        &mut self,
+        object: ObjectId,
+        kind: open_bim_renderer::overlay::HandleKind,
+        mode: crate::interaction::selection::Click,
+    ) {
+        use crate::interaction::selection::Click;
+        let key = (object, kind);
+        let had = self.editor.handles.contains(&key);
+        match mode {
+            Click::Replace => self.editor.handles = vec![key],
+            Click::Add if !had => self.editor.handles.push(key),
+            Click::Add => {}
+            Click::Toggle if had => self.editor.handles.retain(|h| *h != key),
+            Click::Toggle => self.editor.handles.push(key),
+        }
+        let n = self.editor.selected_handles().len();
+        self.message(format!(
+            "Ручек выбрано: {n}. «Переместить» сдвигает только выбранные ручки"
+        ));
+    }
+
     /// Area selection (left→right window, right→left crossing).
     pub fn select_area(
         &mut self,
@@ -411,6 +435,7 @@ impl Workbench {
                         self.run(cmd, requests);
                     }
                 }
+                self.history_button(ui, requests);
                 // Title in the middle of the row: program, file, active view.
                 let row = ui.max_rect();
                 ui.painter().text(
@@ -485,6 +510,59 @@ impl Workbench {
         });
     }
 
+    /// Undo history: the steps newest first, then the undone ones; a pick
+    /// undoes or redoes everything up to that step.
+    fn history_button(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
+        let (undo, redo) = self.editor.document.history_labels();
+        let (undo, redo): (Vec<String>, Vec<String>) = (
+            undo.iter().map(|l| l.to_string()).collect(),
+            redo.iter().map(|l| l.to_string()).collect(),
+        );
+        let response = icons::button(
+            ui,
+            Icon::History,
+            16.,
+            None,
+            "Журнал отмен",
+            "Журнал отмен: отменить или повторить сразу несколько шагов",
+            !(undo.is_empty() && redo.is_empty()) && !self.busy(),
+            false,
+        );
+        egui::Popup::menu(&response).show(|ui| {
+            ui.set_min_width(220.);
+            ui.label(egui::RichText::new("Журнал отмен").strong());
+            egui::ScrollArea::vertical()
+                .max_height(320.)
+                .show(ui, |ui| {
+                    // Redo steps on top, greyed: the next redo is nearest the line.
+                    for (i, label) in redo.iter().enumerate() {
+                        let steps = redo.len() - i;
+                        let text = egui::RichText::new(label).weak();
+                        if ui
+                            .selectable_label(false, text)
+                            .on_hover_text(format!("Повторить шагов: {steps}"))
+                            .clicked()
+                        {
+                            requests.push(Request::Action(Action::History(true, steps)));
+                        }
+                    }
+                    if !redo.is_empty() {
+                        ui.separator();
+                    }
+                    for (i, label) in undo.iter().rev().enumerate() {
+                        let steps = i + 1;
+                        if ui
+                            .selectable_label(i == 0, label)
+                            .on_hover_text(format!("Отменить шагов: {steps}"))
+                            .clicked()
+                        {
+                            requests.push(Request::Action(Action::History(false, steps)));
+                        }
+                    }
+                });
+        });
+    }
+
     fn status_bar(&mut self, ui: &mut egui::Ui) {
         egui::Panel::bottom("status")
             .frame(egui::Frame::side_top_panel(ui.style()).fill(theme::STATUS_BG))
@@ -502,8 +580,9 @@ impl Workbench {
                         };
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.label(white(format!(
-                            "{} объектов выбрано",
-                            self.editor.selected.len()
+                            "{} объектов и {} ручек выбрано",
+                            self.editor.selected.len(),
+                            self.editor.selected_handles().len()
                         )));
                         ui.label(white(format!(
                             "{} · {} объектов · рев. {}",
@@ -592,6 +671,59 @@ impl Workbench {
                     if icons::button(ui, icon, 18., None, name, tip, true, *flag).clicked() {
                         *flag = !*flag;
                     }
+                }
+                // Selection filter: «standard» or a saved object group.
+                let current = if !self.filter.active() {
+                    "standard".to_string()
+                } else {
+                    match &self.filter.group {
+                        Some(g)
+                            if [
+                                &self.filter.name,
+                                &self.filter.profile,
+                                &self.filter.material,
+                                &self.filter.class,
+                            ]
+                            .iter()
+                            .all(|f| f.trim().is_empty()) =>
+                        {
+                            g.name.clone()
+                        }
+                        _ => "свой фильтр".into(),
+                    }
+                };
+                let mut choice: Option<Option<usize>> = None;
+                egui::ComboBox::new("selection filter", "")
+                    .selected_text(current.clone())
+                    .width(110.)
+                    .show_ui(ui, |ui| {
+                        if ui
+                            .selectable_label(current == "standard", "standard")
+                            .clicked()
+                        {
+                            choice = Some(None);
+                        }
+                        for (i, g) in self.groups.iter().enumerate() {
+                            if ui.selectable_label(current == g.name, &g.name).clicked() {
+                                choice = Some(Some(i));
+                            }
+                        }
+                    })
+                    .response
+                    .widget_info_named("Фильтр выбора")
+                    .on_hover_text(
+                        "Фильтр выбора: «standard» — все объекты, иначе группа объектов",
+                    );
+                match choice {
+                    Some(None) => self.filter = Default::default(),
+                    Some(Some(i)) => {
+                        self.filter = crate::interaction::selection::PropertyFilter {
+                            enabled: true,
+                            group: self.groups.get(i).cloned(),
+                            ..Default::default()
+                        }
+                    }
+                    None => {}
                 }
                 let dm = self.direct_modification;
                 if icons::button(
@@ -771,6 +903,38 @@ impl Workbench {
                 {
                     self.run(Cmd::ToggleOrtho, requests);
                 }
+                let sw = &mut self.switches;
+                egui::ComboBox::new("snap depth", "")
+                    .selected_text(if sw.depth_plane {
+                        "Плоскость"
+                    } else {
+                        "Авто"
+                    })
+                    .width(90.)
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut sw.depth_plane, false, "Авто");
+                        ui.selectable_value(&mut sw.depth_plane, true, "Плоскость");
+                    })
+                    .response
+                    .widget_info_named("Глубина привязки")
+                    .on_hover_text(
+                        "Глубина привязки: «Авто» — точка там, где она есть; \
+                         «Плоскость» — точка переносится на плоскость привязки",
+                    );
+                egui::ComboBox::new("snap plane", "")
+                    .selected_text(if sw.view_plane {
+                        "Плоскость вида"
+                    } else {
+                        "Рабочая плоскость"
+                    })
+                    .width(140.)
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut sw.view_plane, true, "Плоскость вида");
+                        ui.selectable_value(&mut sw.view_plane, false, "Рабочая плоскость");
+                    })
+                    .response
+                    .widget_info_named("Плоскость привязки")
+                    .on_hover_text("Плоскость, на которую попадают свободные точки");
                 ui.add(
                     egui::DragValue::new(&mut self.snap_tolerance_px)
                         .range(4.0..=40.0)
@@ -2151,5 +2315,19 @@ fn object_title(kind: &str) -> String {
         "Колонна" => "Стальная колонна".into(),
         "Пластина" => "Контурная пластина".into(),
         other => other.into(),
+    }
+}
+
+/// Accessible name for a combo box shown without a caption.
+trait Named {
+    fn widget_info_named(self, name: &str) -> Self;
+}
+
+impl Named for egui::Response {
+    fn widget_info_named(self, name: &str) -> Self {
+        self.widget_info(|| {
+            egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, self.enabled(), name)
+        });
+        self
     }
 }
