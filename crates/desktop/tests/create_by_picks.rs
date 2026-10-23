@@ -96,7 +96,8 @@ fn grid_labels_continue_and_map_to_lines() {
         labels_x: "1".into(),
         labels_y: "А".into(),
         labels_z: "0 +3.6 +7.2".into(),
-        extension: "1000".into(),
+        extension: std::array::from_fn(|_| "1000".into()),
+        origin: std::array::from_fn(|_| "0".into()),
     };
     let commands = grid_commands(&p, &spec).unwrap();
     let mut doc = open_bim_commands::Document::new(p).unwrap();

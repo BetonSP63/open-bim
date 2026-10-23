@@ -155,6 +155,9 @@ pub struct Project {
     /// objects are still alike; new and changed objects get new numbers.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub numbering: BTreeMap<ObjectId, String>,
+    /// Grid colour, label size and magnetic grid planes.
+    #[serde(default, skip_serializing_if = "crate::GridSettings::is_default")]
+    pub grid: crate::GridSettings,
 }
 
 impl Default for Project {
@@ -181,6 +184,7 @@ impl Default for Project {
             document: crate::DocumentInfo::default(),
             changes: Vec::new(),
             numbering: BTreeMap::new(),
+            grid: Default::default(),
         }
     }
 }

@@ -43,7 +43,7 @@ pub use drawing::{
     standard_scale,
 };
 pub use drawing_objects::{HatchPattern, LineType, SheetObject, SheetObjectKind};
-pub use frame::{Frame, GridAxis, Level};
+pub use frame::{Frame, GridAxis, GridSettings, Level};
 pub use open_bim_geometry::{GeometryError, LengthMm, Point3};
 pub use plugin::{MAX_PLUGIN_INPUTS, PluginInput, PluginInstance, PluginValue};
 pub use position::{AtDepth, OnPlane, PartPosition, Rotation, place, reference_line};

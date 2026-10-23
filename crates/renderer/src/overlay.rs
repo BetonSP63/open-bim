@@ -10,9 +10,7 @@ use std::collections::BTreeSet;
 pub type Rgba = [u8; 4];
 
 pub const WORK_AREA: Rgba = [0, 150, 60, 255];
-/// Grid lines and labels: black dash-dot on the light background.
-pub const GRID: Rgba = [0, 0, 0, 255];
-pub const LABEL: Rgba = [0, 0, 0, 255];
+/// Grid lines: dash-dot (colours in the grid properties).
 pub const GRID_DASH: [f32; 4] = [12., 3., 1.5, 3.];
 pub const SNAP: Rgba = [230, 120, 0, 255];
 pub const RUBBER: Rgba = [200, 30, 160, 255];
@@ -408,16 +406,21 @@ pub fn glyph(c: [f64; 2], g: Glyph) -> Vec<Mark> {
 /// All marks for one frame, culled to the viewport.
 pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
     let mut marks = Vec::new();
+    // Grid colours and label size come from the grid properties; the dark
+    // theme keeps its light-on-dark pair.
+    let settings = &input.project.grid;
+    let rgba = |c: [u8; 3]| [c[0], c[1], c[2], 255];
     let label = if input.light {
-        LABEL
+        rgba(settings.label_color)
     } else {
         [190, 210, 235, 255]
     };
     let grid = if input.light {
-        GRID
+        rgba(settings.color)
     } else {
         [95, 135, 150, 255]
     };
+    let label_size = settings.label_size;
     // Work area box (green dashed).
     if let Some(area) = input.work_area {
         for (a, b) in box_edges(area) {
@@ -457,20 +460,10 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
         let d = [b[0] - a[0], b[1] - a[1]];
         let len = (d[0] * d[0] + d[1] * d[1]).sqrt().max(1e-9);
         let d = [d[0] / len, d[1] / len];
+        // Names just beyond both ends of the line.
         for (end, sign) in [(a, -1.), (b, 1.)] {
-            let c = add(end, d, sign * 14.);
-            marks.push(line(end, add(end, d, sign * 4.), grid, 1., None));
-            marks.push(Mark::Circle {
-                center: c,
-                radius: 10.,
-                color: grid,
-                fill: Some(if input.light {
-                    [255, 255, 255, 255]
-                } else {
-                    [15, 22, 32, 255]
-                }),
-            });
-            marks.push(text(c, axis.name.clone(), label, [0, 0], 12.));
+            let c = add(end, d, sign * (6. + label_size as f64 * 0.6));
+            marks.push(text(c, axis.name.clone(), label, [0, 0], label_size));
         }
     }
     // Construction lines and circles: dashed magenta (style).

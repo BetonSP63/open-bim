@@ -8,6 +8,7 @@ pub mod commands;
 pub mod component_editor;
 pub mod components;
 pub mod custom_form;
+pub mod grid_pane;
 pub mod icons;
 pub mod jobs;
 pub mod keytips;
@@ -180,6 +181,10 @@ pub struct Workbench {
     pub side_panel: Option<chrome::SidePanel>,
     /// Name of the active view shown in the window title.
     pub view_title: &'static str,
+    /// Grid properties being edited (window or pane).
+    pub grid_settings: open_bim_model::GridSettings,
+    /// Grid shown in the pane of selected grid lines, by model revision.
+    pub grid_pane: Option<(u64, crate::interaction::tools::GridSpec)>,
     /// Property pane: search text and «Показать меньше свойств».
     pub property_search: String,
     pub fewer_properties: bool,
@@ -338,6 +343,8 @@ impl Workbench {
             ribbon_tab: Default::default(),
             side_panel: Some(chrome::SidePanel::Properties),
             view_title: "Вид 1 — 3d",
+            grid_settings: Default::default(),
+            grid_pane: None,
             property_search: String::new(),
             fewer_properties: false,
             light_theme: true,
@@ -977,6 +984,7 @@ impl Workbench {
                 );
                 self.grid_editing = existing.is_some();
                 self.grid = Some(existing.unwrap_or_default());
+                self.grid_settings = self.editor.document.project().grid.clone();
                 self.message("Сетка: X/Y — шаги («0 4*6000»), Z — отметки");
             }
             Cmd::CreateElement => return Some(Request::Action(Action::Create)),
@@ -2464,36 +2472,16 @@ impl Workbench {
         let mut open = true;
         let mut create = false;
         let mut modify = false;
-        egui::Window::new("Сетка осей")
+        egui::Window::new("Прямоугольная сетка")
             .open(&mut open)
             .collapsible(false)
             .resizable(false)
             .show(ctx, |ui| {
-                egui::Grid::new("grid fields")
-                    .num_columns(3)
+                egui::ScrollArea::vertical()
+                    .max_height(520.)
                     .show(ui, |ui| {
-                        ui.label("");
-                        ui.label("Координаты, мм");
-                        ui.label("Метки");
-                        ui.end_row();
-                        for (axis, coords, names) in [
-                            ("X", &mut spec.x, &mut spec.labels_x),
-                            ("Y", &mut spec.y, &mut spec.labels_y),
-                            ("Z", &mut spec.z, &mut spec.labels_z),
-                        ] {
-                            let label = ui.label(axis);
-                            ui.add(egui::TextEdit::singleline(coords).desired_width(160.))
-                                .labelled_by(label.id);
-                            ui.add(egui::TextEdit::singleline(names).desired_width(140.))
-                                .labelled_by(label.id);
-                            ui.end_row();
-                        }
-                        let label = ui.label("Удлинение");
-                        ui.add(egui::TextEdit::singleline(&mut spec.extension).desired_width(80.))
-                            .labelled_by(label.id);
-                        ui.end_row();
+                        grid_pane::sections(ui, spec, &mut self.grid_settings);
                     });
-                ui.small("«0 4*6000» — начало 0 и четыре шага по 6000 мм");
                 ui.horizontal(|ui| {
                     if self.grid_editing && ui.button("Изменить сетку").clicked() {
                         modify = true;
@@ -2501,17 +2489,16 @@ impl Workbench {
                     create = ui.button("Создать новую сетку").clicked();
                 });
             });
+        let project = self.editor.document.project();
         let result = if modify {
-            Some(
-                crate::interaction::grid_edit::update_commands(
-                    self.editor.document.project(),
-                    spec,
-                )
-                .map(|c| ("Изменить: сетка", c)),
-            )
+            Some(grid_change(project, spec, &self.grid_settings).map(|c| ("Изменить: сетка", c)))
         } else if create {
             Some(
-                crate::interaction::tools::grid_commands(self.editor.document.project(), spec)
+                crate::interaction::tools::grid_commands(project, spec)
+                    .map(|mut c| {
+                        c.extend(settings_command(project, &self.grid_settings));
+                        c
+                    })
                     .map(|c| ("Создать: сетка", c)),
             )
         } else {
@@ -2960,4 +2947,41 @@ impl Workbench {
             Mode::Model => false,
         }
     }
+}
+
+/// The grid property command when `settings` differ from the model's.
+pub fn settings_command(
+    project: &open_bim_model::Project,
+    settings: &open_bim_model::GridSettings,
+) -> Option<open_bim_commands::Command> {
+    (project.grid != *settings).then(|| open_bim_commands::Command::SetGridSettings {
+        settings: settings.clone(),
+    })
+}
+
+/// One transaction for an edited grid: lines and levels, part ends on
+/// magnetic grid planes, then the grid properties.
+pub fn grid_change(
+    project: &open_bim_model::Project,
+    spec: &crate::interaction::tools::GridSpec,
+    settings: &open_bim_model::GridSettings,
+) -> Result<Vec<open_bim_commands::Command>, String> {
+    let mut commands = crate::interaction::grid_edit::update_commands(project, spec)?;
+    if settings.magnetic {
+        let mut after =
+            open_bim_commands::Document::new(project.clone()).map_err(|e| e.to_string())?;
+        after
+            .transact("Сетка", &commands)
+            .map_err(|e| e.to_string())?;
+        commands.extend(crate::interaction::grid_edit::magnet_commands(
+            project,
+            after.project(),
+            spec,
+        )?);
+    }
+    commands.extend(settings_command(project, settings));
+    if commands.is_empty() {
+        return Err("Нет изменений".into());
+    }
+    Ok(commands)
 }

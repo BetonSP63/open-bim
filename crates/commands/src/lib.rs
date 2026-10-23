@@ -107,6 +107,10 @@ pub enum Command {
     RenameProject {
         name: String,
     },
+    /// Grid colour, label size and magnetic grid planes.
+    SetGridSettings {
+        settings: open_bim_model::GridSettings,
+    },
     /// Fix the marks of a numbering run (replaces the stored marks).
     SetNumbering {
         marks: BTreeMap<ObjectId, String>,
@@ -644,6 +648,10 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
             }
         }
         Command::RenameProject { name } => project.name = name.clone(),
+        Command::SetGridSettings { settings } => {
+            settings.validate()?;
+            project.grid = settings.clone();
+        }
         Command::SetNumbering { marks } => project.numbering = marks.clone(),
         Command::SetDocumentInfo { info } => {
             info.validate()?;
