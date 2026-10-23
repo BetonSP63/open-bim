@@ -170,6 +170,9 @@ pub struct Project {
     /// Pour breaks and pour units («Бетонирование»).
     #[serde(default, skip_serializing_if = "crate::Concrete::is_default")]
     pub concrete: crate::Concrete,
+    /// Shape catalogue of items («Формы»).
+    #[serde(default, skip_serializing_if = "crate::Shapes::is_default")]
+    pub shapes: crate::Shapes,
 }
 
 impl Default for Project {
@@ -201,6 +204,7 @@ impl Default for Project {
             analysis: Default::default(),
             parametric: Default::default(),
             concrete: Default::default(),
+            shapes: Default::default(),
         }
     }
 }

@@ -1,7 +1,7 @@
 //! Chrome driven headlessly through real pointer and keyboard
-//! events: every ribbon button runs a registry command, unavailable concrete
-//! and rebar tools explain themselves, quick launch runs commands and the
-//! light theme keeps WCAG contrast.
+//! events: every ribbon button runs a registry command (no future tools are
+//! left), quick launch runs commands and the light theme keeps WCAG
+//! contrast.
 use eframe::egui::{self, accesskit::Role};
 use open_bim_desktop::interaction::selection::Click;
 use open_bim_desktop::tools::Editor;
@@ -196,53 +196,15 @@ fn every_ribbon_button_runs_its_registry_command_by_mouse() {
 }
 
 #[test]
-fn unavailable_concrete_and_rebar_explain_on_hover() {
-    // Every tab has working commands; the remaining future tools of the
-    // «Редактирование» tab still explain themselves.
-    assert!(RibbonTab::ALL.iter().all(|t| t.available()));
-    for tab in [RibbonTab::Edit] {
-        let ctx = egui::Context::default();
-        ctx.enable_accesskit();
-        theme::apply(&ctx);
-        let mut b = bench();
-        frame(&ctx, &mut b, [1280., 800.], vec![]);
-        let out2 = frame(&ctx, &mut b, [1280., 800.], vec![]).0;
-        let tab_node = nodes(&out2)
-            .into_iter()
-            .find(|(_, name, _, _)| name == tab.title())
-            .expect("tab");
-        // Clicking an unavailable tab still shows its (disabled) tools.
-        frame(&ctx, &mut b, [1280., 800.], click(tab_node.3));
-        assert_eq!(b.ribbon_tab, tab);
-        let out = frame(&ctx, &mut b, [1280., 800.], vec![]).0;
-        let tool = nodes(&out)
-            .into_iter()
-            .rfind(|(role, _, enabled, c)| {
-                *role == Role::Button && !enabled && (60. ..160.).contains(&c.y)
-            })
-            .expect("disabled tool");
-        let mut seen = false;
-        // egui hides tooltips when a click happened less than 0.1 s before the
-        // pointer moved; a user pauses after picking the tab.
-        std::thread::sleep(std::time::Duration::from_millis(200));
-        frame(
-            &ctx,
-            &mut b,
-            [1280., 800.],
-            vec![egui::Event::PointerMoved(tool.3)],
-        );
-        for _ in 0..60 {
-            let out = frame(&ctx, &mut b, [1280., 800.], vec![]).0;
-            if nodes(&out)
-                .iter()
-                .any(|(_, n, _, _)| n == chrome::UNAVAILABLE)
-            {
-                seen = true;
-                break;
+fn every_ribbon_button_runs_a_command() {
+    // No future tools are left: every tab and every button works.
+    for tab in RibbonTab::ALL {
+        assert!(tab.available(), "{}", tab.title());
+        for (group, items) in chrome::groups(tab) {
+            for i in items {
+                assert!(i.cmd.is_some(), "{} / {group} / {}", tab.title(), i.label);
             }
-            std::thread::sleep(std::time::Duration::from_millis(25));
         }
-        assert!(seen, "{tab:?}: tooltip «{}» not shown", chrome::UNAVAILABLE);
     }
 }
 

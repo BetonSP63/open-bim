@@ -51,6 +51,8 @@ pub enum TrimTool {
     RebarSingle,
     FormPanels,
     FormProps,
+    PlaceItem,
+    AddedMaterial,
 }
 
 /// What a command asks for next.
@@ -97,6 +99,8 @@ impl TrimTool {
             Self::RebarSingle => "Один стержень",
             Self::FormPanels => "Щиты опалубки",
             Self::FormProps => "Опоры",
+            Self::PlaceItem => "Элемент",
+            Self::AddedMaterial => "Добавленный материал",
         }
     }
 
@@ -116,6 +120,8 @@ impl TrimTool {
             | Self::FormProps => &[Part],
             Self::RebarGroup => &[Point, Point, Point],
             Self::RebarSingle => &[Point, Point],
+            Self::PlaceItem => &[Point],
+            Self::AddedMaterial => &[Part, Polygon],
             Self::CopyAnalysis => &[Part],
             Self::PointsOnLine
             | Self::ConstructionLine
@@ -174,6 +180,11 @@ impl TrimTool {
                 "Выберите железобетонную балку или колонну"
             }
             (Self::RebarMesh, _) => "Выберите перекрытие или панель",
+            (Self::PlaceItem, _) => "Укажите точку вставки элемента",
+            (Self::AddedMaterial, 0) => "Выберите деталь, к которой добавить материал",
+            (Self::AddedMaterial, _) => {
+                "Укажите контур добавляемого материала; Enter или средняя кнопка — завершить"
+            }
             (Self::FormPanels, _) => "Выберите железобетонную деталь для опалубки",
             (Self::FormProps, _) => "Выберите перекрытие или балку для опор",
             (Self::RebarGuide, _) => "Укажите точки стержня; Enter или средняя кнопка — завершить",

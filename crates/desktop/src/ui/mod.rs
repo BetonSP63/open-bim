@@ -319,6 +319,7 @@ pub struct Workbench {
     pub pours: crate::interaction::pours::PoursWindow,
     pub rebar: rebar_ui::RebarUi,
     pub formwork: formwork_ui::FormworkUi,
+    pub shapes: crate::interaction::items::ShapesWindow,
     /// «Изменить номер».
     pub change_number: crate::interaction::change_number::ChangeNumber,
     pub surfaces: crate::interaction::surfaces::Surfaces,
@@ -453,6 +454,7 @@ impl Workbench {
             pours: Default::default(),
             rebar: Default::default(),
             formwork: Default::default(),
+            shapes: Default::default(),
             change_number: Default::default(),
             surfaces: Default::default(),
             layout_manager: Default::default(),
@@ -1082,6 +1084,50 @@ impl Workbench {
             | Cmd::RebarVisibility
             | Cmd::RebarGroup
             | Cmd::RebarSingle => return self.rebar_command(cmd),
+            Cmd::Item | Cmd::AddedMaterial => {
+                use crate::interaction::trim::{TrimPicker, TrimTool};
+                if cmd == Cmd::Item {
+                    self.shapes.open = true;
+                    if self.editor.document.project().shapes.shapes.is_empty() {
+                        self.message(
+                            "Каталог форм пуст: выберите детали и выполните «Создать форму из геометрии»",
+                        );
+                        return None;
+                    }
+                }
+                self.engine.cancel();
+                self.detail.cancel();
+                self.mode = Mode::Model;
+                self.trim = TrimPicker::start(if cmd == Cmd::Item {
+                    TrimTool::PlaceItem
+                } else {
+                    TrimTool::AddedMaterial
+                });
+                self.message(self.prompt());
+            }
+            Cmd::ConvertToItem | Cmd::CreateShape => {
+                use crate::interaction::items;
+                let project = self.editor.document.project();
+                let r = if cmd == Cmd::CreateShape {
+                    items::create_shape(project, &self.editor.selected)
+                } else {
+                    items::convert(project, &self.editor.selected)
+                };
+                return match r {
+                    Ok((commands, name)) => {
+                        self.shapes.current = Some(name.clone());
+                        self.message(format!("Форма «{name}» добавлена в каталог"));
+                        Some(Request::Action(Action::Commit(
+                            commands::caption(cmd),
+                            commands,
+                        )))
+                    }
+                    Err(e) => {
+                        self.message(e);
+                        None
+                    }
+                };
+            }
             Cmd::FormworkPanels | Cmd::FormworkProps | Cmd::FormworkSchedule => {
                 return self.formwork_command(cmd);
             }
@@ -2267,6 +2313,20 @@ impl Workbench {
             (TrimTool::AnalysisNode, [], [a]) => {
                 crate::interaction::analysis::add_node(project, *a)
             }
+            (TrimTool::PlaceItem, [], [a]) => match &self.shapes.current {
+                Some(name) => crate::interaction::items::place(project, name, *a),
+                None => Err("Выберите форму в окне «Формы»".into()),
+            },
+            (TrimTool::AddedMaterial, [host], polygon) if polygon.len() >= 3 => {
+                crate::interaction::items::added_material(
+                    project,
+                    *host,
+                    polygon,
+                    &self.engine.workplane,
+                    &self.editor.draft,
+                )
+            }
+            (TrimTool::AddedMaterial, _, _) => Err("Нужно не меньше 3 вершин контура".into()),
             (TrimTool::PourBreak, [], [a, b]) => {
                 crate::interaction::pours::add_break(project, *a, *b)
             }
@@ -3412,6 +3472,17 @@ impl Workbench {
         self.analysis_windows(&ctx, &mut requests);
         self.rebar_window(&ctx, &mut requests);
         self.formwork_window(&ctx, &mut requests);
+        match self.shapes.show(&ctx, self.editor.document.project()) {
+            Some(crate::interaction::items::ShapesAction::Commit(label, commands)) => {
+                requests.push(Request::Action(Action::Commit(label, commands)));
+            }
+            Some(crate::interaction::items::ShapesAction::Place) => {
+                if let Some(r) = self.execute(Cmd::Item) {
+                    requests.push(r);
+                }
+            }
+            None => {}
+        }
         if let Some((label, commands)) =
             self.parametric
                 .show(&ctx, self.editor.document.project(), &self.editor.selected)

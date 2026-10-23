@@ -124,6 +124,9 @@ pub enum Command {
     SetConcrete {
         concrete: open_bim_model::Concrete,
     },
+    SetShapes {
+        shapes: open_bim_model::Shapes,
+    },
     /// Fix the marks of a numbering run (replaces the stored marks).
     SetNumbering {
         marks: BTreeMap<ObjectId, String>,
@@ -725,6 +728,10 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
         Command::SetConcrete { concrete } => {
             concrete.validate()?;
             project.concrete = concrete.clone();
+        }
+        Command::SetShapes { shapes } => {
+            shapes.validate()?;
+            project.shapes = shapes.clone();
         }
         Command::SetNumbering { marks } => project.numbering = marks.clone(),
         Command::SetDocumentInfo { info } => {
