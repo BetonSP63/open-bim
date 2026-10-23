@@ -1,5 +1,6 @@
 //! Concrete data that is not a part: pour breaks, the calculated pour
-//! units («Бетонирование») and reinforcing bar sets («Армирование»).
+//! units («Бетонирование»), reinforcing bar sets («Армирование») and the
+//! formwork panels and props («Опалубка»).
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
@@ -100,6 +101,54 @@ impl RebarSet {
     }
 }
 
+/// A formwork panel: the rectangle `origin + u·[0, width] + v·[0, height]`
+/// on a face of its concrete part, mm.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FormPanel {
+    pub host: ObjectId,
+    pub origin: Point3,
+    pub u: [f64; 3],
+    pub v: [f64; 3],
+    pub width: f64,
+    pub height: f64,
+}
+
+impl FormPanel {
+    pub fn area_m2(&self) -> f64 {
+        self.width * self.height / 1e6
+    }
+
+    pub fn corners(&self) -> [Point3; 4] {
+        let at = |a: f64, b: f64| {
+            Point3(std::array::from_fn(|k| {
+                self.origin.0[k] + self.u[k] * a + self.v[k] * b
+            }))
+        };
+        [
+            at(0., 0.),
+            at(self.width, 0.),
+            at(self.width, self.height),
+            at(0., self.height),
+        ]
+    }
+}
+
+/// A vertical formwork prop from `base` up to `top`, mm.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Prop {
+    pub host: ObjectId,
+    pub base: Point3,
+    pub top: Point3,
+}
+
+impl Prop {
+    pub fn length(&self) -> f64 {
+        self.top.0[2] - self.base.0[2]
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, default)]
 pub struct Concrete {
@@ -109,6 +158,10 @@ pub struct Concrete {
     pub units: Vec<PourUnit>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub rebars: Vec<RebarSet>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub forms: Vec<FormPanel>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub props: Vec<Prop>,
 }
 
 impl Concrete {
@@ -161,6 +214,24 @@ impl Concrete {
                 }
             }
             bars += r.bars.len();
+        }
+        let finite = |v: &[f64]| v.iter().all(|x| x.is_finite() && x.abs() <= 1e9);
+        for f in &self.forms {
+            let unit = |a: [f64; 3]| (a.iter().map(|x| x * x).sum::<f64>() - 1.).abs() < 1e-6;
+            if !finite(&f.origin.0) || !unit(f.u) || !unit(f.v) {
+                return bad("Щит опалубки: неверное положение");
+            }
+            if !(f.width > 0. && f.height > 0. && f.width <= 1e6 && f.height <= 1e6) {
+                return bad("Щит опалубки: размеры должны быть положительными");
+            }
+        }
+        for p in &self.props {
+            if !finite(&p.base.0) || !finite(&p.top.0) || p.length() < 1. {
+                return bad("Опора: верх должен быть выше низа");
+            }
+        }
+        if self.forms.len() > 1_000_000 || self.props.len() > 1_000_000 {
+            return bad("Слишком много щитов или опор");
         }
         if bars > 1_000_000 {
             return bad("Слишком много стержней");

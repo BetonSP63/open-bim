@@ -1370,6 +1370,13 @@ impl eframe::App for Desktop {
                 );
                 open_bim_desktop::viewport::paint(ui.painter(), &marks);
             }
+            if self.bench.formwork.show {
+                let marks = open_bim_desktop::interaction::formwork::marks(
+                    self.bench.editor.document.project(),
+                    &projector,
+                );
+                open_bim_desktop::viewport::paint(ui.painter(), &marks);
+            }
             if self.bench.show_components {
                 open_bim_desktop::viewport::paint_symbols(
                     ui.painter(),

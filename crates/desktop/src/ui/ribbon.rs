@@ -47,7 +47,10 @@ impl RibbonTab {
     }
     /// Tabs whose every button is still a future tool are drawn dimmed.
     pub fn available(self) -> bool {
-        !matches!(self, Self::Formwork)
+        groups(self)
+            .iter()
+            .flat_map(|(_, items)| items)
+            .any(|i| i.cmd.is_some())
     }
 }
 
@@ -99,14 +102,6 @@ const fn small(cmd: Cmd, icon: Icon, label: &'static str) -> Item {
         icon,
         label,
         small: true,
-    }
-}
-const fn future(icon: Icon, label: &'static str) -> Item {
-    Item {
-        cmd: None,
-        icon,
-        label,
-        small: false,
     }
 }
 const fn small_future(icon: Icon, label: &'static str) -> Item {
@@ -486,9 +481,9 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
         RibbonTab::Formwork => vec![(
             "Опалубка",
             vec![
-                future(Icon::Panel, "Щиты опалубки"),
-                future(Icon::Column, "Опоры"),
-                small_future(Icon::Report, "Ведомость опалубки"),
+                item(Cmd::FormworkPanels, Icon::Panel, "Щиты опалубки"),
+                item(Cmd::FormworkProps, Icon::Column, "Опоры"),
+                small(Cmd::FormworkSchedule, Icon::Report, "Ведомость опалубки"),
             ],
         )],
     }
