@@ -197,6 +197,12 @@ impl Session {
         self.staged.len()
     }
 
+    /// The staged commands, for a host that applies them in its own
+    /// document as one undo step (the desktop runs plugins this way).
+    pub fn into_staged(self) -> Vec<Command> {
+        self.staged
+    }
+
     fn stage(&mut self, commands: Vec<Command>) -> Result<()> {
         let mut next = self.working.clone();
         open_bim_commands::apply_staged(&mut next, &commands)?;
