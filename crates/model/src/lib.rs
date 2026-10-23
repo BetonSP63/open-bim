@@ -28,7 +28,7 @@ pub use analysis::{
 };
 pub use catalog::{Material, Profile, ProfileShape};
 pub use changes::{Change, REASONS, SheetChange, SheetChangeKind};
-pub use concrete::{Concrete, PourBreak, PourUnit, RebarKind, RebarSet};
+pub use concrete::{Concrete, FormPanel, PourBreak, PourUnit, Prop, RebarKind, RebarSet};
 pub use connection::{
     ComponentGeneral, ConnectionInstance, ConnectionTemplate, HAUNCH_ROLES, SEAT_ROLES,
     TemplateKind, beam_splice_roles, gusset_roles,

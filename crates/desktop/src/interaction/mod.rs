@@ -9,6 +9,7 @@ pub mod component_symbols;
 pub mod concrete;
 pub mod control_numbers;
 pub mod corners;
+pub mod formwork;
 pub mod grid_edit;
 pub mod ifc_convert;
 pub mod inquire;

@@ -10,6 +10,7 @@ pub mod commands;
 pub mod component_editor;
 pub mod components;
 pub mod custom_form;
+pub mod formwork_ui;
 pub mod grid_pane;
 pub mod icons;
 pub mod jobs;
@@ -317,6 +318,7 @@ pub struct Workbench {
     pub parametric: crate::interaction::parametric::ParametricWindow,
     pub pours: crate::interaction::pours::PoursWindow,
     pub rebar: rebar_ui::RebarUi,
+    pub formwork: formwork_ui::FormworkUi,
     /// «Изменить номер».
     pub change_number: crate::interaction::change_number::ChangeNumber,
     pub surfaces: crate::interaction::surfaces::Surfaces,
@@ -450,6 +452,7 @@ impl Workbench {
             parametric: Default::default(),
             pours: Default::default(),
             rebar: Default::default(),
+            formwork: Default::default(),
             change_number: Default::default(),
             surfaces: Default::default(),
             layout_manager: Default::default(),
@@ -1079,6 +1082,9 @@ impl Workbench {
             | Cmd::RebarVisibility
             | Cmd::RebarGroup
             | Cmd::RebarSingle => return self.rebar_command(cmd),
+            Cmd::FormworkPanels | Cmd::FormworkProps | Cmd::FormworkSchedule => {
+                return self.formwork_command(cmd);
+            }
             Cmd::PourObjects => {
                 self.pours.open = !self.pours.open;
                 let n = crate::interaction::pours::objects(self.editor.document.project()).len();
@@ -2210,7 +2216,9 @@ impl Workbench {
         let project = self.editor.document.project();
         let normal = self.engine.workplane.axes[2];
         let (parts, pts) = (self.trim.parts.clone(), self.trim.points.clone());
-        let rebar = self.finish_rebar(tool, &parts, &pts);
+        let rebar = self
+            .finish_rebar(tool, &parts, &pts)
+            .or_else(|| self.finish_formwork(tool, &parts));
         let result = match (tool, &parts[..], &pts[..]) {
             _ if rebar.is_some() => rebar?,
             (TrimTool::ConstructionPoint, [], [a]) => trim::points(project, *a, None, 0),
@@ -3403,6 +3411,7 @@ impl Workbench {
         self.visualizer_window(&ctx, &mut requests);
         self.analysis_windows(&ctx, &mut requests);
         self.rebar_window(&ctx, &mut requests);
+        self.formwork_window(&ctx, &mut requests);
         if let Some((label, commands)) =
             self.parametric
                 .show(&ctx, self.editor.document.project(), &self.editor.selected)

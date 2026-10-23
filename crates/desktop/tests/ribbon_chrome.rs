@@ -197,8 +197,10 @@ fn every_ribbon_button_runs_its_registry_command_by_mouse() {
 
 #[test]
 fn unavailable_concrete_and_rebar_explain_on_hover() {
-    for tab in [RibbonTab::Formwork] {
-        assert!(!tab.available());
+    // Every tab has working commands; the remaining future tools of the
+    // «Редактирование» tab still explain themselves.
+    assert!(RibbonTab::ALL.iter().all(|t| t.available()));
+    for tab in [RibbonTab::Edit] {
         let ctx = egui::Context::default();
         ctx.enable_accesskit();
         theme::apply(&ctx);

@@ -49,6 +49,8 @@ pub enum TrimTool {
     RebarGuide,
     RebarGroup,
     RebarSingle,
+    FormPanels,
+    FormProps,
 }
 
 /// What a command asks for next.
@@ -93,6 +95,8 @@ impl TrimTool {
             Self::RebarGuide => "Стержень по направляющим",
             Self::RebarGroup => "Группа стержней",
             Self::RebarSingle => "Один стержень",
+            Self::FormPanels => "Щиты опалубки",
+            Self::FormProps => "Опоры",
         }
     }
 
@@ -105,7 +109,11 @@ impl TrimTool {
                 &[Point, Point]
             }
             Self::AreaLoad | Self::RebarGuide => &[Polygon],
-            Self::RebarLongitudinal | Self::RebarStirrup | Self::RebarMesh => &[Part],
+            Self::RebarLongitudinal
+            | Self::RebarStirrup
+            | Self::RebarMesh
+            | Self::FormPanels
+            | Self::FormProps => &[Part],
             Self::RebarGroup => &[Point, Point, Point],
             Self::RebarSingle => &[Point, Point],
             Self::CopyAnalysis => &[Part],
@@ -166,6 +174,8 @@ impl TrimTool {
                 "Выберите железобетонную балку или колонну"
             }
             (Self::RebarMesh, _) => "Выберите перекрытие или панель",
+            (Self::FormPanels, _) => "Выберите железобетонную деталь для опалубки",
+            (Self::FormProps, _) => "Выберите перекрытие или балку для опор",
             (Self::RebarGuide, _) => "Укажите точки стержня; Enter или средняя кнопка — завершить",
             (Self::RebarGroup, 0) => "Укажите начало первого стержня",
             (Self::RebarGroup, 1) => "Укажите конец первого стержня",
