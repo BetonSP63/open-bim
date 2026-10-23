@@ -359,8 +359,12 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     small(Cmd::GeneralDrawing, Icon::Drawing, "Чертёж общего вида"),
                     small(Cmd::DrawingWizard, Icon::Drawing, "Мастер чертежей"),
                     small(Cmd::ModeDrawings, Icon::Drawing, "Список чертежей"),
-                    small_future(Icon::Properties, "Свойства чертежа"),
-                    small_future(Icon::Catalog, "Каталог чертежей-прототипов"),
+                    small(Cmd::DrawingProperties, Icon::Properties, "Свойства чертежа"),
+                    small(
+                        Cmd::DrawingPrototypes,
+                        Icon::Catalog,
+                        "Каталог чертежей-прототипов",
+                    ),
                     small_future(Icon::Drawing, "Комплексный чертёж"),
                     small(Cmd::UpdateDrawing, Icon::Drawing, "Обновить"),
                     small(Cmd::ExportPdf, Icon::Drawing, "PDF"),
@@ -373,7 +377,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     item(Cmd::NumberAndCheck, Icon::Numbering, "Выполнить нумерацию"),
                     small(Cmd::PanelClash, Icon::Numbering, "Настройки нумерации"),
                     small(Cmd::ControlNumbers, Icon::Numbering, "Контрольные номера"),
-                    small_future(Icon::Numbering, "Изменить номер"),
+                    small(Cmd::ChangeNumber, Icon::Numbering, "Изменить номер"),
                 ],
             ),
             (

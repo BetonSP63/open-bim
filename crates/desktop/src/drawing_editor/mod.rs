@@ -4,6 +4,8 @@ pub mod changes;
 pub mod manager;
 mod panel;
 mod preview;
+pub mod properties;
+pub mod prototypes;
 pub mod tools;
 pub mod wizard;
 
@@ -69,6 +71,10 @@ pub struct DrawingEditor {
     pub manager: manager::Manager,
     /// «Мастер чертежей» window.
     pub wizard: wizard::Wizard,
+    /// «Свойства чертежа».
+    pub properties: properties::PropertiesWindow,
+    /// «Каталог чертежей-прототипов».
+    pub prototypes: prototypes::Catalog,
     cache: Option<(Drawing, u64, Sheet)>,
 }
 
