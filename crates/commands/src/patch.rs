@@ -75,6 +75,7 @@ pub(crate) struct Patch {
     grid: Option<Delta<open_bim_model::GridSettings>>,
     management: Option<Delta<open_bim_model::Management>>,
     analysis: Option<Delta<open_bim_model::Analysis>>,
+    parametric: Option<Delta<open_bim_model::Parametric>>,
     before_meta: (u64, u64, String),
     after_meta: (u64, u64, String),
     pub touched: BTreeSet<ObjectId>,
@@ -111,6 +112,10 @@ impl Patch {
         let analysis = (before.analysis != after.analysis).then(|| Delta {
             before: Some(before.analysis.clone()),
             after: Some(after.analysis.clone()),
+        });
+        let parametric = (before.parametric != after.parametric).then(|| Delta {
+            before: Some(before.parametric.clone()),
+            after: Some(after.parametric.clone()),
         });
         let numbering = (before.numbering != after.numbering).then(|| Delta {
             before: Some(before.numbering.clone()),
@@ -151,6 +156,7 @@ impl Patch {
             grid,
             management,
             analysis,
+            parametric,
             before_meta: (before.revision, before.next_id, before.name.clone()),
             after_meta: (after.revision, after.next_id, after.name.clone()),
             touched,
@@ -200,6 +206,12 @@ impl Patch {
             let side = if forward { &delta.after } else { &delta.before };
             if let Some(a) = side {
                 project.analysis = a.clone();
+            }
+        }
+        if let Some(delta) = &self.parametric {
+            let side = if forward { &delta.after } else { &delta.before };
+            if let Some(p) = side {
+                project.parametric = p.clone();
             }
         }
         let metadata = if forward {

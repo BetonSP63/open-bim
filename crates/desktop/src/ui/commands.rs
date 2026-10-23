@@ -150,6 +150,7 @@ pub enum Cmd {
     CopyAnalysis,
     NodeNumbers,
     BarNumbers,
+    Parametric,
     Paint,
     Redraw,
     ZoomIn,
@@ -1148,6 +1149,13 @@ pub const ALL: &[Spec] = &[
         category: "Анализ",
         shortcut: None,
         keywords: "номера элементов стержней расчётная модель",
+    },
+    Spec {
+        cmd: Cmd::Parametric,
+        label: "Параметрическое моделирование",
+        category: "Построения",
+        shortcut: None,
+        keywords: "параметры переменные формула связать размер пролёт высота",
     },
     Spec {
         cmd: Cmd::AssemblyDrawing,
