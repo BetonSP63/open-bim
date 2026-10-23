@@ -20,6 +20,7 @@ pub mod parametric;
 mod plugin;
 mod position;
 mod project;
+pub mod shapes;
 mod validation;
 
 pub use analysis::{
@@ -62,4 +63,5 @@ pub use project::{
     Assembly, Element, ElementShape, MemberKind, ObjectId, Project, PropertyValue, Units,
     example_steel_frame,
 };
+pub use shapes::{ItemShape, ShapePart, Shapes};
 pub use validation::{ModelError, polygon_area};

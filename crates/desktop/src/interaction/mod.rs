@@ -13,6 +13,7 @@ pub mod formwork;
 pub mod grid_edit;
 pub mod ifc_convert;
 pub mod inquire;
+pub mod items;
 pub mod keyboard_cursor;
 pub mod layout_points;
 pub mod member_edit;

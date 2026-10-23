@@ -104,14 +104,6 @@ const fn small(cmd: Cmd, icon: Icon, label: &'static str) -> Item {
         small: true,
     }
 }
-const fn small_future(icon: Icon, label: &'static str) -> Item {
-    Item {
-        cmd: None,
-        icon,
-        label,
-        small: true,
-    }
-}
 
 pub const UNAVAILABLE: &str = "Будет в следующем выпуске";
 
@@ -130,7 +122,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     small(Cmd::ToolGusset, Icon::Plate, "Косынка"),
                     small(Cmd::ToolStiffener, Icon::Plate, "Ребро"),
                     small(Cmd::ToolTwin, Icon::Beam, "Сдвоенный профиль"),
-                    small_future(Icon::Plate, "Элемент"),
+                    small(Cmd::Item, Icon::Plate, "Элемент"),
                 ],
             ),
             (
@@ -182,7 +174,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
             (
                 "Элементы",
                 vec![
-                    small_future(Icon::Assembly, "Элемент"),
+                    small(Cmd::Item, Icon::Assembly, "Элемент"),
                     small(Cmd::CastUnit, Icon::Assembly, "ЖБ элемент"),
                 ],
             ),
@@ -231,14 +223,22 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     small(Cmd::CombineParts, Icon::Move, "Объединить"),
                     small(Cmd::ExtendTo, Icon::Move, "Удлинить"),
                     small(Cmd::EdgeChamfer, Icon::Plate, "Фаска кромки"),
-                    small_future(Icon::Plate, "Добавленный материал"),
+                    small(Cmd::AddedMaterial, Icon::Plate, "Добавленный материал"),
                 ],
             ),
             (
                 "Элементы и проверка",
                 vec![
-                    small_future(Icon::Assembly, "Преобразовать деталь в элемент"),
-                    small_future(Icon::Assembly, "Создать форму из геометрии"),
+                    small(
+                        Cmd::ConvertToItem,
+                        Icon::Assembly,
+                        "Преобразовать деталь в элемент",
+                    ),
+                    small(
+                        Cmd::CreateShape,
+                        Icon::Assembly,
+                        "Создать форму из геометрии",
+                    ),
                     small(
                         Cmd::ComponentEditor,
                         Icon::Component,
