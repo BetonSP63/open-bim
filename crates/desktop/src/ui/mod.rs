@@ -179,6 +179,9 @@ pub struct Workbench {
     pub side_panel: Option<chrome::SidePanel>,
     /// Name of the active view shown in the window title.
     pub view_title: &'static str,
+    /// Property pane: search text and «Показать меньше свойств».
+    pub property_search: String,
+    pub fewer_properties: bool,
     /// Light or dark theme; applied on the next frame.
     pub light_theme: bool,
     pub theme_applied: Option<bool>,
@@ -334,6 +337,8 @@ impl Workbench {
             ribbon_tab: Default::default(),
             side_panel: Some(chrome::SidePanel::Properties),
             view_title: "Вид 1 — 3d",
+            property_search: String::new(),
+            fewer_properties: false,
             light_theme: true,
             work_area: true,
             detail: Default::default(),
