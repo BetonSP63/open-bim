@@ -1,0 +1,16 @@
+{
+  "name": "Оголовок колонны",
+  "kind": "model",
+  "code": "ОГОЛОВОК",
+  "description": "Квадратная пластина на верхнем торце колонны; следует за колонной",
+  "program": "open-bim-plugin-column-cap",
+  "inputs": [
+    { "name": "column", "type": "part", "prompt": "Колонна" }
+  ],
+  "attributes": [
+    { "name": "size", "label": "Размер, мм", "type": "number", "default": 300 },
+    { "name": "thickness", "label": "Толщина, мм", "type": "number", "default": 20 },
+    { "name": "material", "label": "Сталь", "type": "material", "default": "С255" }
+  ],
+  "timeout_s": 30
+}

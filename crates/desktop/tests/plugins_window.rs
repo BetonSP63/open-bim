@@ -174,3 +174,130 @@ fn result_is_dropped_when_the_model_changed_meanwhile() {
     let message = b.plugins.message.clone().unwrap();
     assert!(message.contains("изменилась"), "{message}");
 }
+
+/// A placed plugin on a column: its program counts its runs and names the
+/// plate by the count, so a run again is visible.
+fn write_counting_plugin(project_dir: &Path) {
+    let dir = project_dir.join("plugins").join("cap");
+    std::fs::create_dir_all(&dir).unwrap();
+    let script = r#"cat > /dev/null
+n=$(cat count 2>/dev/null || echo 0); n=$((n+1)); echo $n > count
+echo "{\"steps\":[{\"insert_plate\":{\"name\":\"Пластина $n\",\"material\":\"С255\",\"thickness\":20,\"outline\":[[0,0,3000],[300,0,3000],[300,300,3000],[0,300,3000]]}}]}"
+"#;
+    std::fs::write(dir.join("run.sh"), script).unwrap();
+    let manifest = json!({
+        "name": "Оголовок", "kind": "model", "program": "/bin/sh", "args": ["run.sh"],
+        "inputs": [ { "name": "column", "type": "part", "prompt": "Колонна" } ],
+        "attributes": [ { "name": "size", "label": "Размер", "type": "number", "default": 300 } ],
+        "timeout_s": 20
+    });
+    std::fs::write(dir.join("plugin.json"), manifest.to_string()).unwrap();
+}
+
+#[test]
+fn moving_an_input_runs_the_placed_plugin_again_in_the_same_undo_step() {
+    use open_bim_commands::Command;
+    use open_bim_model::{Frame, MemberKind, Point3};
+    let dir = temp_dir("follow");
+    write_counting_plugin(&dir);
+    let mut session = open_bim_api::Session::new(Project::default()).unwrap();
+    let mut column = open_bim_api::Member {
+        id: None,
+        kind: MemberKind::Column,
+        name: "Колонна".into(),
+        profile: "Гн 150×100×6".into(),
+        material: "С255".into(),
+        start: Point3([0.; 3]),
+        end: Point3([0., 0., 3000.]),
+        position: Default::default(),
+        properties: Default::default(),
+    };
+    let column = session.insert_member(&mut column).unwrap();
+    session.commit("Колонна").unwrap();
+    let mut b = Workbench::new(Editor::new(session.committed().clone()).unwrap());
+    b.tools.path = dir.join("model.obim").to_string_lossy().into_owned();
+
+    b.plugins.rescan(&b.tools.path.clone());
+    b.plugins
+        .inputs
+        .insert("column".into(), column.0.to_string());
+    let run = b.plugins.request().unwrap();
+    b.start_plugin(run);
+    let Some(Request::Action(Action::Commit(label, commands))) = finish(&mut b) else {
+        panic!("no commit: {:?}", b.plugins.message);
+    };
+    b.editor.commit(&label, &commands).unwrap();
+    let instance = b
+        .editor
+        .document
+        .project()
+        .plugins
+        .values()
+        .next()
+        .unwrap()
+        .clone();
+    let plate = *instance.outputs.iter().next().unwrap();
+    let name = |b: &Workbench| b.editor.document.project().elements[&plate].name.clone();
+    assert_eq!(name(&b), "Пластина 1");
+    b.follow_plugins();
+    assert!(b.job.is_none(), "placing the plugin changed no input");
+
+    // The placed plugin is picked by its plate: its attributes are shown.
+    b.plugins
+        .follow_selection(b.editor.document.project(), &[plate].into());
+    assert_eq!(b.plugins.placed, Some(instance.id));
+    assert_eq!(b.plugins.placed_attributes["size"], "300");
+
+    // Move the column: the plugin runs again, the plate keeps its ID.
+    let depth = b.editor.document.history_depth();
+    b.editor
+        .commit(
+            "Сдвиг",
+            &[Command::Transform {
+                ids: vec![column],
+                rotation: Frame {
+                    origin: Point3([1000., 0., 0.]),
+                    ..Frame::default()
+                },
+                pivot: Point3([0.; 3]),
+            }],
+        )
+        .unwrap();
+    b.follow_plugins();
+    assert!(b.job.is_some(), "a run again started");
+    let Some(Request::Action(Action::Amend(commands))) = finish(&mut b) else {
+        panic!("no amend: {:?}", b.plugins.message);
+    };
+    b.editor.amend(&commands).unwrap();
+    assert_eq!(name(&b), "Пластина 2");
+    assert_eq!(b.editor.document.history_depth().0, depth.0 + 1, "one step");
+    b.follow_plugins();
+    assert!(b.job.is_none(), "the amendment does not start another run");
+
+    // One undo returns the column and the first plate.
+    b.editor.history(false).unwrap();
+    assert_eq!(name(&b), "Пластина 1");
+    b.follow_plugins();
+    assert!(b.job.is_none(), "undo does not run plugins");
+
+    // «Изменить» with new attributes runs it as a new step.
+    b.plugins
+        .follow_selection(b.editor.document.project(), &[plate].into());
+    b.plugins
+        .placed_attributes
+        .insert("size".into(), "400".into());
+    let run = b.plugins.edit_request(b.editor.document.project()).unwrap();
+    assert_eq!(run.placed, Some(instance.id));
+    b.start_plugin(run);
+    let Some(Request::Action(Action::Commit(label, commands))) = finish(&mut b) else {
+        panic!("no commit: {:?}", b.plugins.message);
+    };
+    assert!(label.starts_with("Изменить плагин"), "{label}");
+    b.editor.commit(&label, &commands).unwrap();
+    let stored = &b.editor.document.project().plugins[&instance.id];
+    assert_eq!(
+        stored.attributes["size"],
+        open_bim_model::PluginValue::Number(400.)
+    );
+    assert_eq!(stored.outputs, [plate].into());
+}

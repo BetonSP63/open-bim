@@ -715,6 +715,16 @@ impl Editor {
     }
     /// Commit commands that do not change model geometry (drawings, reports):
     /// the 3D scene stays valid, so it is not rebuilt.
+    /// Add commands to the last undo step and rebuild the scene.
+    pub fn amend(&mut self, commands: &[Command]) -> Result<Arc<Scene>, String> {
+        let mut candidate = self.document.clone();
+        candidate.amend(commands).map_err(|e| e.to_string())?;
+        let scene = Arc::new(Scene::from_project(candidate.project()).map_err(|e| e.to_string())?);
+        self.document = candidate;
+        self.snap = SnapIndex::new(self.document.project());
+        self.prune_selection();
+        Ok(scene)
+    }
     pub fn commit_data(&mut self, label: &str, commands: &[Command]) -> Result<(), String> {
         let mut candidate = self.document.clone();
         candidate

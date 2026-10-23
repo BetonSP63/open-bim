@@ -9,6 +9,9 @@ pub enum Action {
     Edit(Edit),
     /// Labelled transaction built by an interactive pick command.
     Commit(String, Vec<open_bim_commands::Command>),
+    /// Follow-up changes added to the last undo step (placed plugins run
+    /// again after their inputs changed).
+    Amend(Vec<open_bim_commands::Command>),
     Undo,
     Redo,
     Save,

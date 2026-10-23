@@ -118,6 +118,10 @@ pub struct PluginRun {
     pub label: String,
     pub commands: Vec<open_bim_commands::Command>,
     pub created: Vec<ObjectId>,
+    /// Follow-up of the last step (placed plugins whose inputs changed):
+    /// added to that undo step instead of a new one.
+    pub amend: bool,
+    pub problems: Vec<String>,
 }
 
 impl ActiveJob {
@@ -266,6 +270,8 @@ pub struct Workbench {
     /// «Запросить объект» / «Сравнить детали» result window.
     pub inquiry: Option<crate::interaction::inquire::Inquiry>,
     pub plugins: plugins::PluginsUi,
+    /// Transactions and revision already checked for placed plugins.
+    pub plugins_seen: (u64, u64),
     /// The next pick places the clip plane.
     pub clip_pick: bool,
     /// Object groups, the object representation and its window.
@@ -378,6 +384,7 @@ impl Workbench {
             measured_angle: None,
             inquiry: None,
             plugins: Default::default(),
+            plugins_seen: (0, 0),
             clip_pick: false,
             groups: crate::interaction::object_groups::default_groups(),
             representation: Vec::new(),
@@ -655,6 +662,20 @@ impl Workbench {
                         "Модель изменилась во время работы плагина; запустите его снова".into(),
                     );
                 }
+                Ok(run) if run.amend => {
+                    let mut text = run.label.clone();
+                    for p in &run.problems {
+                        text.push_str("; ");
+                        text.push_str(p);
+                    }
+                    self.plugins.message = Some(text.clone());
+                    if !run.problems.is_empty() {
+                        self.message(text);
+                    }
+                    if !run.commands.is_empty() {
+                        return Some(Request::Action(Action::Amend(run.commands)));
+                    }
+                }
                 Ok(run) if run.commands.is_empty() => {
                     self.plugins.message = Some(format!("{}: изменений нет", run.label));
                 }
@@ -678,20 +699,66 @@ impl Workbench {
             return;
         }
         let project = self.editor.document.project().clone();
-        let label = format!("Плагин «{}»", run.plugin.manifest.name);
+        let label = match run.placed {
+            Some(_) => format!("Изменить плагин «{}»", run.plugin.manifest.name),
+            None => format!("Плагин «{}»", run.plugin.manifest.name),
+        };
         let depth = self.editor.document.history_depth();
         let job_label = label.clone();
         self.plugins.message = Some(format!("{label}: выполняется…"));
         self.job = Some(ActiveJob::Plugin(
             Job::spawn(job_label, move |_| {
                 let mut session = open_bim_api::Session::new(project).map_err(|e| e.to_string())?;
-                let created = session
-                    .run_plugin(&run.plugin, &run.inputs, &run.attributes)
-                    .map_err(|e| e.to_string())?;
+                let created = match run.placed {
+                    Some(id) => session.rerun_plugin(&run.plugin, id, Some(&run.attributes)),
+                    None => session.run_plugin(&run.plugin, &run.inputs, &run.attributes),
+                }
+                .map_err(|e| e.to_string())?;
                 Ok(PluginRun {
                     label,
                     commands: session.into_staged(),
                     created,
+                    amend: false,
+                    problems: Vec::new(),
+                })
+            }),
+            depth,
+        ));
+    }
+
+    /// After a new undo step that changed input parts of placed plugins,
+    /// run those plugins again in the background; their changes are added
+    /// to the same undo step. Called every frame.
+    pub fn follow_plugins(&mut self) {
+        let document = &self.editor.document;
+        let seen = (document.transactions(), document.project().revision);
+        if seen == self.plugins_seen || self.busy() {
+            return;
+        }
+        let new_step = seen.0 > self.plugins_seen.0 && document.history_depth().1 == 0;
+        self.plugins_seen = seen;
+        let Some(touched) = document.last_touched().filter(|_| new_step) else {
+            return;
+        };
+        let project = document.project();
+        if open_bim_api::Session::dependent_plugins(project, touched).is_empty() {
+            return;
+        }
+        let (project, touched) = (project.clone(), touched.clone());
+        let dirs = plugins::search_dirs(&self.tools.path, &self.plugins.folder);
+        let depth = self.editor.document.history_depth();
+        let label = "Обновление плагинов".to_string();
+        self.job = Some(ActiveJob::Plugin(
+            Job::spawn(label.clone(), move |_| {
+                let mut session = open_bim_api::Session::new(project).map_err(|e| e.to_string())?;
+                session.set_plugins(open_bim_api::plugins::discover(&dirs).0);
+                let problems = session.rerun_dependent(&touched);
+                Ok(PluginRun {
+                    label: format!("{label}: готово"),
+                    commands: session.into_staged(),
+                    created: Vec::new(),
+                    amend: true,
+                    problems,
                 })
             }),
             depth,
@@ -2753,11 +2820,15 @@ impl Workbench {
         self.job_window(&ctx, &mut requests);
         self.recovery_window(&ctx);
         self.drawings.wizard.show(&ctx, &mut self.editor);
+        self.follow_plugins();
         let busy = self.busy();
-        if let Some(run) = self
-            .plugins
-            .show(&ctx, &self.tools.path, &self.editor.selected, busy)
-        {
+        if let Some(run) = self.plugins.show(
+            &ctx,
+            &self.tools.path,
+            self.editor.document.project(),
+            &self.editor.selected,
+            busy,
+        ) {
             self.start_plugin(run);
         }
         let export_dir = self.drawings.export_dir.clone();
