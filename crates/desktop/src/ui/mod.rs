@@ -22,6 +22,7 @@ pub mod representation;
 pub mod ribbon;
 pub mod schedule;
 pub mod theme;
+pub mod view_tools;
 pub mod views;
 
 use crate::drawing_editor::{DrawingEditor, ExportFormat};
@@ -61,6 +62,16 @@ pub enum Request {
     /// «Секущая плоскость по точке»: a clip plane through the point, facing
     /// the viewer; the part of the model in front of it is cut away.
     ClipAt(open_bim_renderer::DVec3),
+    /// Orthographic (true) or perspective camera.
+    Projection(bool),
+    /// «Увеличить» / «Уменьшить»: zoom about the view centre (wheel units).
+    Zoom(f64),
+    /// «Предыдущий вид»: the camera before the last view change.
+    PreviousView,
+    /// «Центр вращения»: turn the view to the point and orbit about it.
+    CenterAt(open_bim_renderer::DVec3),
+    /// «Снимок экрана»: save the 3D view as a PNG image.
+    Screenshot,
 }
 
 /// Clip plane through `point` facing the eye: what lies between the eye
@@ -294,6 +305,8 @@ pub struct Workbench {
     pub clipboard: Option<crate::interaction::clipboard::Clipboard>,
     /// «Вставить» waits for the insertion point.
     pub paste_pick: bool,
+    /// View tab tools (view properties, paint, fly, centre of rotation).
+    pub view_tools: view_tools::ViewTools,
     /// «Пакетный редактор» window.
     pub batch: batch::BatchEditor,
     /// Object groups, the object representation and its window.
@@ -416,6 +429,7 @@ impl Workbench {
             clip_pick: false,
             clipboard: None,
             paste_pick: false,
+            view_tools: Default::default(),
             batch: Default::default(),
             groups: crate::interaction::object_groups::default_groups(),
             representation: Vec::new(),
@@ -1073,6 +1087,10 @@ impl Workbench {
                     self.message("Измерение завершено");
                 } else if std::mem::take(&mut self.paste_pick) {
                     self.message("Вставка отменена");
+                } else if std::mem::take(&mut self.view_tools.centre_pick) {
+                    self.message("Центр вращения не задан");
+                } else if std::mem::take(&mut self.view_tools.fly) {
+                    self.message("Облёт завершён");
                 } else if std::mem::take(&mut self.clip_pick) {
                     self.message("Секущая плоскость не задана");
                 } else if self.angle_picks.take().is_some() {
@@ -1539,6 +1557,42 @@ impl Workbench {
                     self.message("Буфер пуст: сначала «Копировать в буфер»");
                 }
             }
+            Cmd::ViewProperties => {
+                self.view_tools.properties_open = !self.view_tools.properties_open;
+                let name = self
+                    .views
+                    .get(self.active_view)
+                    .map_or("3D", |v| v.name.as_str());
+                self.message(format!("Свойства вида: {name}"));
+            }
+            Cmd::Paint => {
+                self.view_tools.paint_open = true;
+                if !self.editor.selected.is_empty() {
+                    self.paint_selected();
+                }
+            }
+            Cmd::Redraw => self.redraw(),
+            Cmd::ZoomIn => return Some(Request::Zoom(300.)),
+            Cmd::ZoomOut => return Some(Request::Zoom(-300.)),
+            Cmd::PreviousView => return Some(Request::PreviousView),
+            Cmd::RotationCentre => {
+                self.mode = Mode::Model;
+                self.view_tools.centre_pick = true;
+                self.message(self.prompt());
+            }
+            Cmd::Fly => {
+                self.mode = Mode::Model;
+                self.view_tools.fly = !self.view_tools.fly;
+                self.message(if self.view_tools.fly {
+                    "Облёт: колесо мыши — вперёд и назад, Esc — выход"
+                } else {
+                    "Облёт завершён"
+                });
+            }
+            Cmd::Screenshot => {
+                self.mode = Mode::Model;
+                return Some(Request::Screenshot);
+            }
             Cmd::BatchEditor => {
                 self.batch.open = !self.batch.open;
                 self.message(if self.batch.open {
@@ -1703,6 +1757,11 @@ impl Workbench {
             }
             self.message(self.prompt());
             return None;
+        }
+        if self.view_tools.centre_pick {
+            self.view_tools.centre_pick = false;
+            self.message("Центр вращения задан");
+            return Some(Request::CenterAt(point));
         }
         if self.paste_pick {
             let Some(clip) = &self.clipboard else {
@@ -2984,6 +3043,8 @@ impl Workbench {
         {
             requests.push(Request::Action(Action::Commit(label, commands)));
         }
+        self.view_properties_window(&ctx, &mut requests);
+        self.paint_window(&ctx);
         if std::mem::take(&mut self.management.status_changed) {
             self.representation_version += 1;
         }

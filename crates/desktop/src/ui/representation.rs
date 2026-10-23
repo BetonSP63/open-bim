@@ -41,6 +41,17 @@ impl Workbench {
         {
             appearance.extend(status);
         }
+        // «Окрасить» colours win over both until «Перечертить».
+        for (id, colour) in &self.view_tools.painted {
+            let alpha = appearance.get(id).map_or(1., |a| a.alpha);
+            appearance.insert(
+                *id,
+                open_bim_renderer::Appearance {
+                    color: Some(*colour),
+                    alpha,
+                },
+            );
+        }
         let shared = Shared {
             appearance: Arc::new(appearance),
             hidden: Arc::new(applied.hidden),

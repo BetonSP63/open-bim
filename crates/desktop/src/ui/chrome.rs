@@ -66,6 +66,7 @@ impl Workbench {
             || self.angle_picks.is_some()
             || self.clip_pick
             || self.paste_pick
+            || self.view_tools.centre_pick
             || matches!(
                 self.trim.need(),
                 Some(
@@ -89,6 +90,8 @@ impl Workbench {
             p
         } else if let Some(p) = self.special.prompt() {
             p.into()
+        } else if self.view_tools.centre_pick {
+            "Центр вращения: укажите точку, вокруг которой вращать вид".into()
         } else if self.paste_pick {
             "Вставить: укажите точку вставки (базовая точка — начало первого объекта)".into()
         } else if self.clip_pick {
