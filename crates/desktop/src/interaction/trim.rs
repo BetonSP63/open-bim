@@ -6,7 +6,7 @@ use open_bim_model::{
     Construction, ConstructionKind, Detail, DetailKind, DimPoint, Element, ElementShape, Frame,
     LengthMm, ModelDimension, ObjectId, Point3, ProfileShape, Project,
 };
-use open_bim_renderer::DVec3;
+use open_bim_renderer::{DVec2, DVec3};
 
 fn v(p: Point3) -> DVec3 {
     DVec3::from_array(p.0)
@@ -28,6 +28,7 @@ pub enum TrimTool {
     CutLine,
     CutPart,
     CutPolygon,
+    EdgeChamfer,
     Split,
     Combine,
     Extend,
@@ -57,6 +58,7 @@ impl TrimTool {
             Self::CutLine => "Разрезать линией",
             Self::CutPart => "Разрезать деталью",
             Self::CutPolygon => "Разрезать многоугольником",
+            Self::EdgeChamfer => "Фаска кромки",
             Self::Split => "Разделить",
             Self::Combine => "Объединить",
             Self::Extend => "Удлинить до точки",
@@ -75,7 +77,7 @@ impl TrimTool {
             | Self::ConstructionLine
             | Self::ConstructionCircle
             | Self::Dimension => &[Point, Point],
-            Self::FitEnd => &[Part, Point, Point],
+            Self::FitEnd | Self::EdgeChamfer => &[Part, Point, Point],
             Self::CutLine => &[Part, Point, Point, Point],
             Self::CutPart | Self::Combine | Self::Gusset => &[Part, Part],
             Self::AddToAssembly => &[Part],
@@ -102,6 +104,9 @@ impl TrimTool {
             (Self::CutLine, 1) => "Укажите первую точку линии реза",
             (Self::CutLine, 2) => "Укажите вторую точку линии реза",
             (Self::CutLine, _) => "Укажите сторону, которая удаляется",
+            (Self::EdgeChamfer, 0) => "Выберите деталь, кромка которой скашивается",
+            (Self::EdgeChamfer, 1) => "Укажите начало кромки (угол детали)",
+            (Self::EdgeChamfer, _) => "Укажите конец кромки",
             (Self::CutPart, 0) => "Выберите разрезаемую деталь",
             (Self::CutPart, _) => "Выберите режущую деталь (она остаётся)",
             (Self::CutPolygon, 0) => "Выберите разрезаемую деталь",
@@ -401,6 +406,146 @@ fn prism_of(project: &Project, e: &Element) -> Result<(Vec<[f64; 2]>, f64), Stri
             Ok((contour, length.value()))
         }
     }
+}
+
+/// Point inside a polygon (even-odd rule).
+fn inside_polygon(p: [f64; 2], ring: &[[f64; 2]]) -> bool {
+    let mut inside = false;
+    for i in 0..ring.len() {
+        let (a, b) = (ring[i], ring[(i + 1) % ring.len()]);
+        if (a[1] > p[1]) != (b[1] > p[1])
+            && p[0] < a[0] + (p[1] - a[1]) / (b[1] - a[1]) * (b[0] - a[0])
+        {
+            inside = !inside;
+        }
+    }
+    inside
+}
+
+/// «Фаска кромки»: a chamfer `a` × `b` mm along a whole edge of the part's
+/// prism, picked by its two ends: a lengthwise edge at a corner of the
+/// section (legs along the two sides of the corner) or an edge of an end
+/// face (leg `a` on the end face, `b` along the part). Made as a prism cut.
+pub fn edge_chamfer(
+    project: &Project,
+    part: ObjectId,
+    p: DVec3,
+    q: DVec3,
+    a: f64,
+    b: f64,
+) -> Result<Vec<Command>, String> {
+    for leg in [a, b] {
+        if !(leg.is_finite() && (0.5..=1e4).contains(&leg)) {
+            return Err("Фаска: катеты 0,5…10 000 мм".into());
+        }
+    }
+    let e = element(project, part)?;
+    let (section, len) = prism_of(project, e)?;
+    let n = section.len();
+    let (_, point) = local(e.shape.frame());
+    let (p, q) = (point(p), point(q));
+    if p.distance(q) < 1. {
+        return Err("Концы кромки совпадают".into());
+    }
+    let tol = 1.0;
+    let xy = |v: DVec3| [v.x, v.y];
+    let near = |u: [f64; 2], w: [f64; 2]| (u[0] - w[0]).hypot(u[1] - w[1]) < tol;
+    let d2 = |u: [f64; 2]| DVec2::from_array(u);
+    let margin = 10.;
+    // Triangle contour (frame XY) oriented counter-clockwise.
+    let ccw = |mut c: Vec<[f64; 2]>| {
+        let area: f64 = (0..c.len())
+            .map(|i| {
+                let (u, w) = (c[i], c[(i + 1) % c.len()]);
+                u[0] * w[1] - w[0] * u[1]
+            })
+            .sum();
+        if area < 0. {
+            c.reverse();
+        }
+        c
+    };
+    // Lengthwise edge: both ends at the same section corner.
+    if let Some(i) = (0..n).find(|&i| near(xy(p), section[i]) && near(xy(q), section[i])) {
+        let v = d2(section[i]);
+        let e1 = (d2(section[(i + n - 1) % n]) - v).normalize_or_zero();
+        let e2 = (d2(section[(i + 1) % n]) - v).normalize_or_zero();
+        let centre = v + (e1 * a + e2 * b) / 3.;
+        if e1 == DVec2::ZERO || e2 == DVec2::ZERO || !inside_polygon(centre.to_array(), &section) {
+            return Err("Фаска: угол сечения вогнутый — снять нечего".into());
+        }
+        // The chamfer line runs past both faces so no cut face lies on
+        // a face of the part.
+        let (pa, pb) = (v + e1 * a, v + e2 * b);
+        let run = (pa - pb).normalize_or_zero() * margin;
+        let out = -(e1 + e2).normalize_or_zero() * 3. * margin;
+        let contour = ccw(vec![
+            (pa + run).to_array(),
+            (pb - run).to_array(),
+            (v + out).to_array(),
+        ]);
+        return Ok(detail(
+            project,
+            DetailKind::PrismCut {
+                part,
+                frame: Frame {
+                    origin: Point3([0., 0., -margin]),
+                    axes: [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]],
+                },
+                contour,
+                length: len + 2. * margin,
+            },
+        ));
+    }
+    // Edge of an end face: both ends at z = 0 (or the length) on one side
+    // of the section.
+    let z0 = [0., len]
+        .into_iter()
+        .find(|z| (p.z - z).abs() < tol && (q.z - z).abs() < tol)
+        .ok_or("Укажите концы одной кромки детали (углы сечения или торца)")?;
+    let on_side = |j: usize, u: [f64; 2]| {
+        let (s, t) = (d2(section[j]), d2(section[(j + 1) % n]));
+        let d = t - s;
+        let k = ((d2(u) - s).dot(d) / d.length_squared()).clamp(0., 1.);
+        (s + d * k).distance(d2(u)) < tol
+    };
+    let j = (0..n)
+        .find(|&j| on_side(j, xy(p)) && on_side(j, xy(q)))
+        .ok_or("Укажите концы одной кромки детали (углы сечения или торца)")?;
+    let (s, t) = (d2(section[j]), d2(section[(j + 1) % n]));
+    let along = (t - s).normalize_or_zero();
+    let mut normal = DVec2::new(along.y, -along.x);
+    let mid = (s + t) * 0.5;
+    if inside_polygon((mid + normal * 0.1).to_array(), &section) {
+        normal = -normal;
+    }
+    // Into the part along its length from this end.
+    let inward = if z0 == 0. { 1. } else { -1. };
+    let x = DVec3::new(normal.x, normal.y, 0.);
+    let zaxis = DVec3::new(along.x, along.y, 0.);
+    let y = zaxis.cross(x);
+    let origin = DVec3::new(s.x, s.y, z0) - zaxis * margin;
+    let to_frame = |w: DVec3| [(w - origin).dot(x), (w - origin).dot(y)];
+    let corner = DVec3::new(s.x, s.y, z0) - zaxis * margin;
+    let (pa, pb) = (corner - x * a, corner + DVec3::Z * inward * b);
+    let run = (pa - pb).normalize() * margin;
+    let contour = ccw(vec![
+        to_frame(pa + run),
+        to_frame(pb - run),
+        to_frame(corner + (x - DVec3::Z * inward).normalize() * 3. * margin),
+    ]);
+    Ok(detail(
+        project,
+        DetailKind::PrismCut {
+            part,
+            frame: Frame {
+                origin: p3(origin),
+                axes: [x.to_array(), y.to_array(), zaxis.to_array()],
+            },
+            contour,
+            length: s.distance(t) + 2. * margin,
+        },
+    ))
 }
 
 /// «Разрезать деталью»: the cutting part's solid is removed from the target;

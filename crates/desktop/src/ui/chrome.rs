@@ -1253,7 +1253,12 @@ impl Workbench {
         self.detail.tool.is_some()
             || matches!(
                 self.trim.tool,
-                Some(TrimTool::Gusset | TrimTool::Stiffener | TrimTool::PointsOnLine)
+                Some(
+                    TrimTool::Gusset
+                        | TrimTool::Stiffener
+                        | TrimTool::PointsOnLine
+                        | TrimTool::EdgeChamfer
+                )
             )
     }
 
@@ -1295,6 +1300,14 @@ impl Workbench {
                     "1. Щёлкните деталь, к которой приваривают",
                     "2. Щёлкните привариваемую деталь — шов создан",
                     "Заводской шов объединяет детали в сборку",
+                ],
+            ),
+            (_, Some(TrimTool::EdgeChamfer)) => (
+                "Фаска кромки",
+                &[
+                    "Скос вдоль всей кромки: у угла сечения — по двум граням,",
+                    "у торца — катет a по торцу и b вдоль детали.",
+                    "1. Щёлкните деталь, 2. начало кромки, 3. её конец",
                 ],
             ),
             (_, Some(TrimTool::PointsOnLine)) => (
@@ -1353,6 +1366,19 @@ impl Workbench {
             (Some(DetailTool::Bolt), _) => d.bolt_fields(ui),
             (Some(DetailTool::Weld | DetailTool::WeldPolygon | DetailTool::WeldOnPart), _) => {
                 d.weld_fields(ui)
+            }
+            (_, Some(TrimTool::EdgeChamfer)) => {
+                egui::Grid::new("edge chamfer fields")
+                    .num_columns(2)
+                    .show(ui, |ui| {
+                        for (caption, k) in [("Катет a, мм", 0), ("Катет b, мм (пусто = a)", 1)]
+                        {
+                            let l = ui.label(caption);
+                            ui.text_edit_singleline(&mut d.edge_chamfer[k])
+                                .labelled_by(l.id);
+                            ui.end_row();
+                        }
+                    });
             }
             (_, Some(TrimTool::PointsOnLine)) => {
                 ui.horizontal(|ui| {

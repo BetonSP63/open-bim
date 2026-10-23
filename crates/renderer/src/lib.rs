@@ -4,7 +4,7 @@ mod gpu;
 pub mod overlay;
 mod scene;
 pub use camera::{Camera, NamedView, Ray};
-pub use glam::{DMat4, DVec3};
+pub use glam::{DMat4, DVec2, DVec3};
 pub use gpu::{GpuRenderer, ViewportCallback};
 pub use scene::Appearance;
 pub use scene::{

@@ -234,7 +234,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     small(Cmd::SplitPart, Icon::Move, "Разбить"),
                     small(Cmd::CombineParts, Icon::Move, "Объединить"),
                     small(Cmd::ExtendTo, Icon::Move, "Удлинить"),
-                    small_future(Icon::Plate, "Фаска кромки"),
+                    small(Cmd::EdgeChamfer, Icon::Plate, "Фаска кромки"),
                     small_future(Icon::Plate, "Добавленный материал"),
                 ],
             ),
