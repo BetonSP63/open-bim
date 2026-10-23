@@ -227,3 +227,60 @@ fn batch_runs_a_plugin_by_name() {
     let unknown = r#"{ "steps": [ { "run_plugin": { "plugin": "Нет такого" } } ] }"#;
     assert!(batch::run(&batch::parse(unknown).unwrap(), &root).is_err());
 }
+
+#[test]
+fn local_frame_of_the_first_input() {
+    let defs: Vec<plugins::InputDef> = serde_json::from_value(serde_json::json!([
+        { "name": "start", "type": "point" },
+        { "name": "end", "type": "point" }
+    ]))
+    .unwrap();
+    let p = Project::default();
+    let f = plugins::input_frame(&p, &defs, &points([1000., 0., 0.], [1000., 5000., 0.]));
+    assert_eq!(f.origin, Point3([1000., 0., 0.]));
+    let close = |a: [f64; 3], b: [f64; 3]| (0..3).all(|i| (a[i] - b[i]).abs() < 1e-9);
+    assert!(close(f.axes[0], [0., 1., 0.]), "x towards the second point");
+    assert!(close(f.axes[2], [0., 0., 1.]), "z up");
+    f.validate().unwrap();
+    let none = plugins::input_frame(&p, &defs, &BTreeMap::new());
+    assert_eq!(none, Default::default());
+
+    // A vertical column: origin at its start, x up, z along world x.
+    let mut s = Session::new(Project::default()).unwrap();
+    let mut column = open_bim_api::Member {
+        id: None,
+        kind: MemberKind::Column,
+        name: String::new(),
+        profile: "Гн 150×100×6".into(),
+        material: "С255".into(),
+        start: Point3([0., 0., 0.]),
+        end: Point3([0., 0., 3000.]),
+        position: Default::default(),
+        properties: Default::default(),
+    };
+    let id = s.insert_member(&mut column).unwrap();
+    let defs: Vec<plugins::InputDef> =
+        serde_json::from_value(serde_json::json!([{ "name": "c", "type": "part" }])).unwrap();
+    let inputs = [("c".to_string(), InputValue::Part(id))].into();
+    let f = plugins::input_frame(s.project(), &defs, &inputs);
+    assert!(close(f.axes[0], [0., 0., 1.]));
+    assert!(close(f.axes[2], [1., 0., 0.]));
+    f.validate().unwrap();
+
+    // The frame goes to the program with the request.
+    let dir = temp("frame").join("probe");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("run.sh"),
+        "if grep -q '\"frame\":{\"origin\"'; then echo '{\"steps\":[]}'; \
+         else echo '{\"error\":\"нет frame\"}'; fi\n",
+    )
+    .unwrap();
+    let manifest = serde_json::json!({
+        "name": "Проба", "kind": "model", "program": "/bin/sh", "args": ["run.sh"]
+    });
+    std::fs::write(dir.join(plugins::MANIFEST), manifest.to_string()).unwrap();
+    let probe = plugins::load(&dir).unwrap();
+    s.run_plugin(&probe, &BTreeMap::new(), &BTreeMap::new())
+        .unwrap();
+}

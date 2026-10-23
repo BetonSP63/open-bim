@@ -298,7 +298,91 @@ struct Request<'a> {
     plugin: &'a str,
     inputs: &'a BTreeMap<String, InputValue>,
     attributes: BTreeMap<String, serde_json::Value>,
+    /// Local coordinate system of the first input (see [`input_frame`]).
+    frame: open_bim_model::Frame,
     model: &'a open_bim_model::Project,
+}
+
+/// The plugin's local coordinate system, from its first input: a point
+/// gives the origin and, with a second point, the x direction; a part
+/// gives its start point and its axis (a plate — its own frame). z keeps
+/// to the world vertical where it can; without inputs — the world frame.
+pub fn input_frame(
+    project: &Project,
+    order: &[InputDef],
+    inputs: &BTreeMap<String, InputValue>,
+) -> open_bim_model::Frame {
+    let values: Vec<&InputValue> = order.iter().filter_map(|d| inputs.get(&d.name)).collect();
+    let mut points = Vec::new();
+    for value in &values {
+        match value {
+            InputValue::Point(p) => points.push(*p),
+            InputValue::Points(v) => points.extend(v.iter().copied()),
+            InputValue::Part(_) | InputValue::Parts(_) => {
+                if !points.is_empty() {
+                    break;
+                }
+                let Some(element) = id_of(value).first().and_then(|id| project.elements.get(id))
+                else {
+                    break;
+                };
+                if let open_bim_model::ElementShape::Plate { frame, .. } = &element.shape {
+                    return *frame;
+                }
+                if let Some((start, end, _)) = project.member_reference_line(&element.shape) {
+                    return frame_along(start, end);
+                }
+                break;
+            }
+        }
+        if points.len() >= 2 {
+            break;
+        }
+    }
+    match points.as_slice() {
+        [] => open_bim_model::Frame::default(),
+        [p] => open_bim_model::Frame {
+            origin: *p,
+            ..Default::default()
+        },
+        [p, q, ..] => frame_along(*p, *q),
+    }
+}
+
+/// Origin at `p`, x towards `q`, z as close to the world vertical as x
+/// allows (world x for a vertical line).
+fn frame_along(p: Point3, q: Point3) -> open_bim_model::Frame {
+    let d: [f64; 3] = std::array::from_fn(|i| q.0[i] - p.0[i]);
+    let length = d.iter().map(|v| v * v).sum::<f64>().sqrt();
+    if length < 1e-9 {
+        return open_bim_model::Frame {
+            origin: p,
+            ..Default::default()
+        };
+    }
+    let x = d.map(|v| v / length);
+    let cross = |a: [f64; 3], b: [f64; 3]| {
+        [
+            a[1] * b[2] - a[2] * b[1],
+            a[2] * b[0] - a[0] * b[2],
+            a[0] * b[1] - a[1] * b[0],
+        ]
+    };
+    let unit = |v: [f64; 3]| {
+        let l = v.iter().map(|c| c * c).sum::<f64>().sqrt();
+        v.map(|c| c / l)
+    };
+    let up = if x[2].abs() > 1.0 - 1e-9 {
+        [1.0, 0.0, 0.0]
+    } else {
+        [0.0, 0.0, 1.0]
+    };
+    let y = unit(cross(up, x));
+    let z = cross(x, y);
+    open_bim_model::Frame {
+        origin: p,
+        axes: [x, y, z],
+    }
 }
 
 #[derive(Deserialize)]
@@ -636,6 +720,7 @@ impl Session {
             plugin: &plugin.manifest.name,
             inputs: &inputs,
             attributes: attributes.clone(),
+            frame: input_frame(self.project(), &plugin.manifest.inputs, &inputs),
             model: &model,
         };
         let request = serde_json::to_vec(&request).map_err(|e| ApiError::Invalid(e.to_string()))?;
