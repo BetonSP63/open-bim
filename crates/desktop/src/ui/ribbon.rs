@@ -1,5 +1,5 @@
-//! Ribbon: «Файл» menu, tabs (МЕТАЛЛ … УПРАВЛЕНИЕ; concrete and
-//! rebar shown but disabled) and button groups, each button running a command
+//! Ribbon: «Файл» menu, tabs (МЕТАЛЛ … ОПАЛУБКА; concrete, rebar,
+//! analysis and formwork shown but disabled) and button groups, each button running a command
 //! of the registry. Shift+click opens the tool's properties first.
 use super::chrome::{SidePanel, tooltip};
 use super::icons::{self, Icon};
@@ -16,10 +16,12 @@ pub enum RibbonTab {
     View,
     Drawings,
     Manage,
+    Analysis,
+    Formwork,
 }
 
 impl RibbonTab {
-    pub const ALL: [RibbonTab; 7] = [
+    pub const ALL: [RibbonTab; 9] = [
         Self::Steel,
         Self::Concrete,
         Self::Rebar,
@@ -27,6 +29,8 @@ impl RibbonTab {
         Self::View,
         Self::Drawings,
         Self::Manage,
+        Self::Analysis,
+        Self::Formwork,
     ];
     pub fn title(self) -> &'static str {
         match self {
@@ -37,14 +41,45 @@ impl RibbonTab {
             Self::View => "ВИД",
             Self::Drawings => "ЧЕРТЕЖИ И ОТЧЁТЫ",
             Self::Manage => "УПРАВЛЕНИЕ",
+            Self::Analysis => "РАСЧЁТ И ПРОЕКТИРОВАНИЕ",
+            Self::Formwork => "ОПАЛУБКА",
         }
     }
+    /// Tabs whose every button is still a future tool are drawn dimmed.
     pub fn available(self) -> bool {
-        !matches!(self, Self::Concrete | Self::Rebar)
+        !matches!(
+            self,
+            Self::Concrete | Self::Rebar | Self::Analysis | Self::Formwork
+        )
     }
 }
 
+/// Which groups fold into a single button so the ribbon fits `available`
+/// points: the rightmost groups go first, as in the usual ribbon. Groups not
+/// measured yet (width 0) count as expanded.
+pub fn collapse(widths: &[f32], available: f32) -> Vec<bool> {
+    const FOLDED: f32 = 96.;
+    let mut collapsed = vec![false; widths.len()];
+    let total = |c: &[bool]| -> f32 {
+        widths
+            .iter()
+            .zip(c)
+            .map(|(w, f)| if *f { FOLDED } else { *w } + 8.)
+            .sum()
+    };
+    for i in (0..widths.len()).rev() {
+        if total(&collapsed) <= available {
+            break;
+        }
+        if widths[i] > FOLDED {
+            collapsed[i] = true;
+        }
+    }
+    collapsed
+}
+
 /// A ribbon button: command (None = not available in this release).
+#[derive(Clone, Copy)]
 pub struct Item {
     pub cmd: Option<Cmd>,
     pub icon: Icon,
@@ -77,10 +112,20 @@ const fn future(icon: Icon, label: &'static str) -> Item {
         small: false,
     }
 }
+const fn small_future(icon: Icon, label: &'static str) -> Item {
+    Item {
+        cmd: None,
+        icon,
+        label,
+        small: true,
+    }
+}
 
 pub const UNAVAILABLE: &str = "Будет в следующем выпуске";
 
-/// Ribbon content: groups of buttons per tab.
+/// Ribbon content: groups of buttons per tab, in the order of the usual
+/// steel detailing workflow. Buttons without a command are tools of a later
+/// release: shown disabled with a tooltip so the layout stays complete.
 pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
     match tab {
         RibbonTab::Steel => vec![
@@ -90,8 +135,10 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     item(Cmd::ToolColumn, Icon::Column, "Колонна"),
                     item(Cmd::ToolBeam, Icon::Beam, "Балка"),
                     item(Cmd::ToolPlate, Icon::Plate, "Пластина"),
-                    item(Cmd::ToolGusset, Icon::Plate, "Косынка"),
-                    item(Cmd::ToolStiffener, Icon::Plate, "Ребро"),
+                    small(Cmd::ToolGusset, Icon::Plate, "Косынка"),
+                    small(Cmd::ToolStiffener, Icon::Plate, "Ребро"),
+                    small(Cmd::ToolTwin, Icon::Beam, "Сдвоенный профиль"),
+                    small_future(Icon::Plate, "Элемент"),
                 ],
             ),
             (
@@ -99,87 +146,144 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                 vec![
                     item(Cmd::ToolBolt, Icon::Bolt, "Болт"),
                     item(Cmd::ToolWeld, Icon::Weld, "Сварной шов"),
-                    item(
+                    small(
                         Cmd::PanelDetailing,
                         Icon::BoltDetail,
-                        "Детали болт. соединения",
+                        "Детали болтового соединения",
                     ),
+                    small(Cmd::ToolWeldPolygon, Icon::Weld, "Шов по ломаной"),
+                    small(Cmd::ToolWeldOnPart, Icon::Weld, "Шов на детали"),
                 ],
             ),
             (
-                "Сборки и узлы",
+                "Сборка",
                 vec![
-                    small(Cmd::AssemblyCreate, Icon::Assembly, "Создать сборку"),
+                    small(Cmd::AssemblyCreate, Icon::Assembly, "Сборка"),
                     small(Cmd::AssemblyAdd, Icon::Assembly, "Добавить в сборку"),
                     small(Cmd::AssemblyRemove, Icon::Assembly, "Удалить из сборки"),
                     small(Cmd::AssemblySetMain, Icon::Assembly, "Главная деталь"),
                     small(Cmd::AssemblyExplode, Icon::Assembly, "Разбить сборку"),
                     small(Cmd::AutoAssemblies, Icon::Assembly, "Сборки по швам"),
-                    item(Cmd::PanelConnections, Icon::Component, "Узлы"),
                 ],
             ),
             (
-                "Сетка",
+                "Компоненты",
                 vec![
-                    item(Cmd::GridDialog, Icon::Grid, "Сетка"),
-                    item(Cmd::ToolAxis, Icon::Grid, "Ось"),
+                    item(Cmd::ComponentCatalog, Icon::Catalog, "Компоненты"),
+                    small(Cmd::PanelConnections, Icon::Component, "Узлы"),
+                    small(Cmd::AutoConnections, Icon::Component, "Автосоединения"),
+                    small(Cmd::FitToProfile, Icon::Component, "Узлы по профилю"),
+                ],
+            ),
+        ],
+        RibbonTab::Concrete => vec![
+            (
+                "Детали",
+                vec![
+                    future(Icon::ConcreteColumn, "Колонна"),
+                    future(Icon::ConcreteBeam, "Балка"),
+                    future(Icon::Panel, "Панель"),
+                    future(Icon::Slab, "Перекрытие"),
+                    future(Icon::Footing, "Фундамент"),
+                ],
+            ),
+            (
+                "Элементы",
+                vec![
+                    small_future(Icon::Assembly, "Элемент"),
+                    small_future(Icon::Assembly, "ЖБ элемент"),
+                ],
+            ),
+            (
+                "Бетонирование",
+                vec![
+                    small_future(Icon::Slab, "Захватки бетонирования"),
+                    small_future(Icon::Slab, "Шов бетонирования"),
+                    small_future(Icon::Slab, "Рассчитать единицы бетонирования"),
+                ],
+            ),
+        ],
+        RibbonTab::Rebar => vec![
+            (
+                "Армирование",
+                vec![
+                    small_future(Icon::Rebar, "Поперечные"),
+                    small_future(Icon::Rebar, "Продольные"),
+                    small_future(Icon::Rebar, "По грани"),
+                    small_future(Icon::Rebar, "По направляющим"),
+                ],
+            ),
+            (
+                "Стержни",
+                vec![
+                    future(Icon::Rebar, "Ещё"),
+                    future(Icon::Show, "Видимость"),
+                    future(Icon::Rebar, "Группа стержней"),
+                    future(Icon::Rebar, "Один стержень"),
+                ],
+            ),
+        ],
+        RibbonTab::Edit => vec![
+            (
+                "Резка и подгонка",
+                vec![
+                    small(Cmd::CutPolygon, Icon::Delete, "Вырез по многоугольнику"),
+                    small(Cmd::CutLine, Icon::Delete, "Срез по линии"),
+                    small(Cmd::CutPart, Icon::Delete, "Вырез по детали"),
+                    small(Cmd::FitEnd, Icon::Move, "Подогнать торец детали"),
+                    small(Cmd::SplitPart, Icon::Move, "Разбить"),
+                    small(Cmd::CombineParts, Icon::Move, "Объединить"),
+                    small(Cmd::ExtendTo, Icon::Move, "Удлинить"),
+                    small_future(Icon::Plate, "Фаска кромки"),
+                    small_future(Icon::Plate, "Добавленный материал"),
+                ],
+            ),
+            (
+                "Элементы и проверка",
+                vec![
+                    small_future(Icon::Assembly, "Преобразовать деталь в элемент"),
+                    small_future(Icon::Assembly, "Создать форму из геометрии"),
+                    small(
+                        Cmd::ComponentEditor,
+                        Icon::Component,
+                        "Редактор компонентов",
+                    ),
+                    small_future(Icon::Plate, "Поверхности"),
+                    small(Cmd::CompareParts, Icon::Properties, "Сравнить"),
+                    small(Cmd::InquireObject, Icon::Properties, "Запросить"),
+                ],
+            ),
+            (
+                "Изменить",
+                vec![
+                    item(Cmd::Measure, Icon::Move, "Измерить"),
+                    item(Cmd::CopyByPicks, Icon::Copy, "Копировать"),
+                    future(Icon::Copy, "Вставить"),
+                    item(Cmd::MoveByPicks, Icon::Move, "Переместить"),
+                    small(Cmd::CopySpecial, Icon::Copy, "Копировать специально"),
+                    small(Cmd::MoveSpecial, Icon::Move, "Переместить специально"),
+                    small(Cmd::MeasureAngle, Icon::Rotate, "Измерить угол"),
+                    small(Cmd::MirrorByPicks, Icon::Mirror, "Зеркало"),
+                    small(Cmd::RotateByPicks, Icon::Rotate, "Повернуть"),
+                    small(Cmd::DeleteSelected, Icon::Delete, "Удалить"),
+                    small(Cmd::PanelEdit, Icon::Properties, "Изменить числами"),
+                    small_future(Icon::Properties, "Пакетный редактор"),
                 ],
             ),
             (
                 "Построения",
                 vec![
-                    small(Cmd::ConstructionLine, Icon::Grid, "Линия"),
-                    small(Cmd::ConstructionCircle, Icon::Grid, "Окружность"),
+                    item(Cmd::GridDialog, Icon::Grid, "Сетка"),
+                    small(Cmd::ToolAxis, Icon::Grid, "Ось"),
+                    small_future(Icon::SnapEnd, "Точки"),
+                    small_future(Icon::Grid, "Параметрическое моделирование"),
+                    small(Cmd::ConstructionLine, Icon::Grid, "Вспомогательная линия"),
+                    small(
+                        Cmd::ConstructionCircle,
+                        Icon::Grid,
+                        "Вспомогательная окружность",
+                    ),
                     small(Cmd::ModelDimension, Icon::Grid, "Размер"),
-                ],
-            ),
-        ],
-        RibbonTab::Concrete => vec![(
-            "Бетон",
-            vec![
-                future(Icon::ConcreteColumn, "Колонна"),
-                future(Icon::ConcreteBeam, "Балка"),
-                future(Icon::Panel, "Панель"),
-                future(Icon::Slab, "Перекрытие"),
-                future(Icon::Footing, "Фундамент"),
-            ],
-        )],
-        RibbonTab::Rebar => vec![(
-            "Арматура",
-            vec![
-                future(Icon::Rebar, "Стержень"),
-                future(Icon::Rebar, "Группа стержней"),
-            ],
-        )],
-        RibbonTab::Edit => vec![
-            (
-                "Изменить",
-                vec![
-                    item(Cmd::MoveByPicks, Icon::Move, "Переместить"),
-                    item(Cmd::CopyByPicks, Icon::Copy, "Копировать"),
-                    item(Cmd::MirrorByPicks, Icon::Mirror, "Зеркало"),
-                    item(Cmd::RotateByPicks, Icon::Rotate, "Повернуть"),
-                    item(Cmd::DeleteSelected, Icon::Delete, "Удалить"),
-                    item(Cmd::PanelEdit, Icon::Properties, "Числами"),
-                ],
-            ),
-            (
-                "Подгонка и резка",
-                vec![
-                    item(Cmd::FitEnd, Icon::Move, "Подогнать"),
-                    item(Cmd::CutLine, Icon::Delete, "Рез линией"),
-                    item(Cmd::CutPart, Icon::Delete, "Рез деталью"),
-                    item(Cmd::CutPolygon, Icon::Delete, "Рез контуром"),
-                    item(Cmd::SplitPart, Icon::Move, "Разделить"),
-                    item(Cmd::CombineParts, Icon::Move, "Объединить"),
-                    item(Cmd::ExtendTo, Icon::Move, "Удлинить"),
-                ],
-            ),
-            (
-                "Рабочая плоскость",
-                vec![
-                    item(Cmd::WorkPlaneThreePoints, Icon::WorkPlane, "По 3 точкам"),
-                    item(Cmd::WorkPlaneReset, Icon::WorkPlane, "Глобальная XY"),
                 ],
             ),
         ],
@@ -187,32 +291,57 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
             (
                 "Виды",
                 vec![
-                    item(Cmd::ViewIso, Icon::View3d, "3D"),
-                    item(Cmd::ViewFront, Icon::View3d, "Спереди"),
-                    item(Cmd::ViewTop, Icon::View3d, "Сверху"),
-                    item(Cmd::ViewRight, Icon::View3d, "Справа"),
-                    item(Cmd::Fit, Icon::WorkArea, "Вписать"),
-                    item(Cmd::ToggleProjection, Icon::View3d, "Перспектива"),
-                    item(Cmd::GridViews, Icon::Grid, "По сетке"),
-                    item(Cmd::PlaneOr3d, Icon::View3d, "3D / план"),
+                    item(Cmd::PanelViews, Icon::View3d, "Виды модели"),
+                    small(Cmd::ViewIso, Icon::View3d, "3D"),
+                    small(Cmd::ViewFront, Icon::View3d, "Спереди"),
+                    small(Cmd::ViewTop, Icon::View3d, "Сверху"),
+                    small(Cmd::ViewRight, Icon::View3d, "Справа"),
+                    small(Cmd::GridViews, Icon::Grid, "По сетке"),
+                    small(Cmd::PlaneOr3d, Icon::View3d, "3D/плоскость"),
+                    small(Cmd::ToggleProjection, Icon::View3d, "Перспектива"),
+                    small_future(Icon::Properties, "Свойства вида"),
                 ],
             ),
             (
-                "Видимость",
+                "Отсечение",
                 vec![
-                    item(Cmd::ShowAll, Icon::Show, "Показать все"),
-                    item(Cmd::HideSelected, Icon::Show, "Скрыть выбранные"),
-                    item(Cmd::ToggleWorkArea, Icon::WorkArea, "Рабочая область"),
-                    item(Cmd::ToggleSection, Icon::WorkArea, "Сечение"),
+                    item(Cmd::ClipPlanePick, Icon::WorkArea, "Отсечение"),
+                    small(Cmd::ClipPlaneRemove, Icon::WorkArea, "Убрать отсечение"),
+                    small(Cmd::ToggleSection, Icon::WorkArea, "Сечение"),
+                    small(Cmd::ToggleWorkArea, Icon::WorkArea, "Рабочая область"),
+                    item(
+                        Cmd::WorkPlaneThreePoints,
+                        Icon::WorkPlane,
+                        "Рабочая плоскость",
+                    ),
+                    small(Cmd::WorkPlaneReset, Icon::WorkPlane, "Глобальная XY"),
+                    small_future(Icon::View3d, "Перечертить"),
                 ],
             ),
             (
-                "Отображение",
+                "Визуализация",
                 vec![
-                    item(Cmd::DisplayWireframe, Icon::View3d, "Каркас"),
-                    item(Cmd::DisplayTransparent, Icon::View3d, "Прозрачный"),
-                    item(Cmd::DisplayShaded, Icon::View3d, "Тонированный"),
-                    item(Cmd::ToggleTheme, Icon::Show, "Тема"),
+                    small(Cmd::DisplayWireframe, Icon::View3d, "Каркас"),
+                    small(Cmd::DisplayTransparent, Icon::View3d, "Прозрачный"),
+                    small(Cmd::DisplayShaded, Icon::View3d, "Тонированный"),
+                    small(Cmd::ObjectRepresentation, Icon::Show, "Представление"),
+                    small_future(Icon::Show, "Окрасить"),
+                    small_future(Icon::View3d, "Визуализатор"),
+                    small(Cmd::ShowAll, Icon::Show, "Показать все"),
+                    small(Cmd::HideSelected, Icon::Show, "Скрыть выбранные"),
+                    small(Cmd::ShowOnlySelected, Icon::Show, "Только выбранные"),
+                ],
+            ),
+            (
+                "Навигация",
+                vec![
+                    small(Cmd::Fit, Icon::WorkArea, "Вписать"),
+                    small(Cmd::FitSelected, Icon::WorkArea, "Вписать выбранные"),
+                    small(Cmd::ToggleTheme, Icon::Show, "Тема"),
+                    small_future(Icon::View3d, "Переход"),
+                    small_future(Icon::Search, "Масштаб"),
+                    small_future(Icon::View3d, "Облёт"),
+                    small_future(Icon::View3d, "Снимок экрана"),
                 ],
             ),
         ],
@@ -220,15 +349,41 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
             (
                 "Чертежи",
                 vec![
-                    item(Cmd::ModeDrawings, Icon::Drawing, "Список чертежей"),
-                    item(Cmd::PartDrawing, Icon::Drawing, "Чертёж детали"),
-                    item(Cmd::AssemblyDrawing, Icon::Drawing, "Чертёж сборки"),
-                    item(Cmd::GeneralDrawing, Icon::Drawing, "Общий вид"),
+                    item(Cmd::DocumentManager, Icon::Drawing, "Диспетчер документов"),
+                    small(Cmd::PartDrawing, Icon::Drawing, "Чертёж детали"),
+                    small(Cmd::AssemblyDrawing, Icon::Drawing, "Чертёж сборки"),
+                    small(Cmd::GeneralDrawing, Icon::Drawing, "Чертёж общего вида"),
+                    small(Cmd::DrawingWizard, Icon::Drawing, "Мастер чертежей"),
+                    small(Cmd::ModeDrawings, Icon::Drawing, "Список чертежей"),
+                    small_future(Icon::Properties, "Свойства чертежа"),
+                    small_future(Icon::Catalog, "Каталог чертежей-прототипов"),
+                    small_future(Icon::Drawing, "Комплексный чертёж"),
                     small(Cmd::UpdateDrawing, Icon::Drawing, "Обновить"),
                     small(Cmd::ExportPdf, Icon::Drawing, "PDF"),
                     small(Cmd::ExportDxf, Icon::Drawing, "DXF"),
+                ],
+            ),
+            (
+                "Нумерация",
+                vec![
+                    item(Cmd::NumberAndCheck, Icon::Numbering, "Выполнить нумерацию"),
+                    small(Cmd::PanelClash, Icon::Numbering, "Настройки нумерации"),
+                    small(Cmd::ControlNumbers, Icon::Numbering, "Контрольные номера"),
+                    small_future(Icon::Numbering, "Изменить номер"),
+                ],
+            ),
+            (
+                "Отчёты и выпуск",
+                vec![
+                    item(Cmd::ModeReports, Icon::Report, "Отчёты"),
+                    small(Cmd::RefreshReports, Icon::Report, "Сформировать"),
+                    small(Cmd::ExportCsv, Icon::Report, "CSV"),
                     small(Cmd::GeneralData, Icon::Drawing, "Общие данные"),
                     small(Cmd::DocumentInfo, Icon::Drawing, "Основная надпись"),
+                    small(Cmd::ReleaseSet, Icon::Report, "Выпустить комплект"),
+                    small(Cmd::IssueSet, Icon::Report, "Выдать комплект"),
+                    small(Cmd::RecordChange, Icon::Report, "Записать изменение"),
+                    small(Cmd::ExportPackage, Icon::Report, "Пакет ПДЭ"),
                 ],
             ),
             (
@@ -245,34 +400,76 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     small(Cmd::DrawNode, Icon::Drawing, "Узел"),
                 ],
             ),
-            (
-                "Отчёты",
-                vec![
-                    small(Cmd::ModeReports, Icon::Report, "Ведомости"),
-                    small(Cmd::RefreshReports, Icon::Report, "Сформировать"),
-                    small(Cmd::ExportCsv, Icon::Report, "CSV"),
-                    small(Cmd::ReleaseSet, Icon::Report, "Выпустить комплект"),
-                ],
-            ),
         ],
         RibbonTab::Manage => vec![
             (
-                "Проверка",
+                "Проект",
                 vec![
-                    item(Cmd::NumberAndCheck, Icon::Numbering, "Нумерация"),
-                    item(Cmd::PanelClash, Icon::Clash, "Коллизии"),
-                    item(Cmd::AutoAssemblies, Icon::Assembly, "Сборки по швам"),
-                    item(Cmd::PanelModelTree, Icon::Grid, "Дерево модели"),
+                    item(Cmd::PanelModelTree, Icon::Grid, "Организатор"),
+                    small_future(Icon::Grid, "Иерархия здания"),
+                    small_future(Icon::Assembly, "Стадии"),
+                    small(Cmd::PanelClash, Icon::Clash, "Проверка на коллизии"),
                 ],
             ),
             (
                 "Обмен",
                 vec![
-                    item(Cmd::ExportIfc, Icon::Ifc, "Экспорт IFC"),
-                    item(Cmd::ImportIfc, Icon::Ifc, "Импорт IFC"),
+                    small(Cmd::ExportIfc, Icon::Ifc, "Экспорт IFC"),
+                    small(Cmd::ImportIfc, Icon::Ifc, "Импорт IFC"),
+                    small_future(Icon::Ifc, "Преобразовать объекты IFC"),
+                    small(Cmd::ExportNc, Icon::Ifc, "Экспорт NC"),
+                    small(Cmd::Plugins, Icon::Component, "Плагины"),
+                ],
+            ),
+            (
+                "Планирование",
+                vec![
+                    small_future(Icon::Grid, "Диспетчер разбивок"),
+                    small_future(Icon::Properties, "Блокировки"),
+                    small_future(Icon::Report, "Задания"),
+                    small_future(Icon::Numbering, "Последовательности"),
+                    small_future(Icon::Assembly, "Партии"),
+                    small_future(Icon::Report, "Статус проекта"),
                 ],
             ),
         ],
+        RibbonTab::Analysis => vec![
+            (
+                "Расчётная модель",
+                vec![
+                    future(Icon::Assembly, "Расчётные и проектные модели"),
+                    future(Icon::Properties, "Группы нагрузок"),
+                    future(Icon::Move, "Загрузить"),
+                ],
+            ),
+            (
+                "Узлы",
+                vec![
+                    future(Icon::Component, "Узел"),
+                    small_future(Icon::Component, "Жёсткая связь"),
+                    small_future(Icon::Component, "Объединить узлы"),
+                ],
+            ),
+            (
+                "Свойства",
+                vec![
+                    small_future(Icon::Properties, "Свойства детали в расчётах"),
+                    small_future(Icon::Properties, "Свойства нагрузки"),
+                    small_future(Icon::Properties, "Сбросить изменения"),
+                    small_future(Icon::Properties, "Получить расчётные свойства"),
+                    small_future(Icon::Numbering, "Номера узлов"),
+                    small_future(Icon::Numbering, "Номера элементов"),
+                ],
+            ),
+        ],
+        RibbonTab::Formwork => vec![(
+            "Опалубка",
+            vec![
+                future(Icon::Panel, "Щиты опалубки"),
+                future(Icon::Column, "Опоры"),
+                small_future(Icon::Report, "Ведомость опалубки"),
+            ],
+        )],
     }
 }
 
@@ -339,20 +536,58 @@ impl Workbench {
         egui::Panel::top("ribbon")
             .frame(egui::Frame::side_top_panel(ui.style()).fill(fill))
             .show(ui, |ui| {
+                let available = ui.available_width();
+                let tab = self.ribbon_tab;
+                let groups = groups(tab);
+                // Widths of the expanded groups, measured on earlier frames.
+                let widths_id = egui::Id::new(("ribbon group widths", tab.title()));
+                let mut widths: Vec<f32> = ui
+                    .data(|d| d.get_temp(widths_id))
+                    .unwrap_or_else(|| vec![0.; groups.len()]);
+                widths.resize(groups.len(), 0.);
+                let collapsed = collapse(&widths, available);
+                let all = super::keytips::tab_items(tab);
+                let tips = super::keytips::button_tips(&all.iter().collect::<Vec<_>>());
+                let mut k = 0;
                 egui::ScrollArea::horizontal()
                     .id_salt("ribbon scroll")
                     .show(ui, |ui| {
-                        let all = super::keytips::tab_items(self.ribbon_tab);
-                        let tips = super::keytips::button_tips(&all.iter().collect::<Vec<_>>());
-                        let mut k = 0;
                         ui.horizontal(|ui| {
-                            for (name, items) in groups(self.ribbon_tab) {
-                                ui.vertical(|ui| {
+                            for (i, (name, items)) in groups.iter().enumerate() {
+                                if collapsed[i] {
+                                    // Too narrow a window: the group folds into one
+                                    // button that lists its tools.
+                                    let response = icons::button(
+                                        ui,
+                                        items[0].icon,
+                                        30.,
+                                        Some(name),
+                                        name,
+                                        name,
+                                        true,
+                                        false,
+                                    );
+                                    egui::Popup::menu(&response).show(|ui| {
+                                        ui.vertical(|ui| {
+                                            for it in items {
+                                                let item = Item { small: true, ..*it };
+                                                self.ribbon_button(
+                                                    ui, &item, &tips, &mut k, requests,
+                                                );
+                                            }
+                                        });
+                                    });
+                                    // Keep the KeyTip numbering of the folded tools.
+                                    k = k.max(groups[..=i].iter().map(|(_, it)| it.len()).sum());
+                                    ui.separator();
+                                    continue;
+                                }
+                                let group = ui.vertical(|ui| {
                                     ui.horizontal(|ui| {
                                         // Large buttons in a row, small ones in columns of three.
                                         let mut column: Vec<&Item> = Vec::new();
                                         let mut cells: Vec<Vec<&Item>> = Vec::new();
-                                        for it in &items {
+                                        for it in items {
                                             if it.small {
                                                 column.push(it);
                                                 if column.len() == 3 {
@@ -372,71 +607,71 @@ impl Workbench {
                                             ui.vertical(|ui| {
                                                 ui.spacing_mut().item_spacing.y = 1.;
                                                 for it in cell {
-                                                    let enabled = it.cmd.is_some() && !self.busy();
-                                                    let tip = it
-                                                        .cmd
-                                                        .map_or(UNAVAILABLE.to_string(), tooltip);
-                                                    let selected = it
-                                                        .cmd
-                                                        .is_some_and(|c| self.ribbon_selected(c));
-                                                    let response = if it.small {
-                                                        icons::small_button(
-                                                            ui, it.icon, it.label, &tip, enabled,
-                                                            selected,
-                                                        )
-                                                    } else {
-                                                        icons::button(
-                                                            ui,
-                                                            it.icon,
-                                                            30.,
-                                                            Some(it.label),
-                                                            it.label,
-                                                            &tip,
-                                                            enabled,
-                                                            selected,
-                                                        )
-                                                    };
-                                                    if self.keytips
-                                                        == super::keytips::KeyTips::Buttons
-                                                        && let Some(t) =
-                                                            tips.get(k).copied().flatten()
-                                                    {
-                                                        super::keytips::badge(
-                                                            ui.ctx(),
-                                                            response.rect,
-                                                            t,
-                                                        );
-                                                    }
-                                                    k += 1;
-                                                    if response.clicked()
-                                                        && let Some(cmd) = it.cmd
-                                                    {
-                                                        self.run(cmd, requests);
-                                                        // Shift+click a tool opens its properties.
-                                                        if ui.input(|i| i.modifiers.shift) {
-                                                            self.mode = Mode::Model;
-                                                            self.side_panel = Some(match cmd {
-                                                                Cmd::ToolBolt
-                                                                | Cmd::ToolWeld
-                                                                | Cmd::ToolWeldPolygon
-                                                                | Cmd::ToolWeldOnPart => {
-                                                                    SidePanel::Detailing
-                                                                }
-                                                                _ => SidePanel::Properties,
-                                                            });
-                                                        }
-                                                    }
+                                                    self.ribbon_button(
+                                                        ui, it, &tips, &mut k, requests,
+                                                    );
                                                 }
                                             });
                                         }
                                     });
-                                    ui.small(name);
+                                    ui.small(*name);
                                 });
+                                widths[i] = group.response.rect.width();
                                 ui.separator();
                             }
                         })
                     });
+                ui.data_mut(|d| d.insert_temp(widths_id, widths));
             });
+    }
+
+    /// One ribbon button: runs its command, shows its KeyTip.
+    fn ribbon_button(
+        &mut self,
+        ui: &mut egui::Ui,
+        it: &Item,
+        tips: &[Option<char>],
+        k: &mut usize,
+        requests: &mut Vec<Request>,
+    ) {
+        let enabled = it.cmd.is_some() && !self.busy();
+        let tip = it.cmd.map_or(UNAVAILABLE.to_string(), tooltip);
+        let selected = it.cmd.is_some_and(|c| self.ribbon_selected(c));
+        let response = if it.small {
+            icons::small_button(ui, it.icon, it.label, &tip, enabled, selected)
+        } else {
+            icons::button(
+                ui,
+                it.icon,
+                30.,
+                Some(it.label),
+                it.label,
+                &tip,
+                enabled,
+                selected,
+            )
+        };
+        if self.keytips == super::keytips::KeyTips::Buttons
+            && let Some(t) = tips.get(*k).copied().flatten()
+        {
+            super::keytips::badge(ui.ctx(), response.rect, t);
+        }
+        *k += 1;
+        if response.clicked()
+            && let Some(cmd) = it.cmd
+        {
+            self.run(cmd, requests);
+            // Shift+click a tool opens its properties.
+            if ui.input(|i| i.modifiers.shift) {
+                self.mode = Mode::Model;
+                self.side_panel = Some(match cmd {
+                    Cmd::ToolBolt | Cmd::ToolWeld | Cmd::ToolWeldPolygon | Cmd::ToolWeldOnPart => {
+                        SidePanel::Detailing
+                    }
+                    _ => SidePanel::Properties,
+                });
+            }
+        }
     }
 
     fn ribbon_selected(&self, cmd: Cmd) -> bool {

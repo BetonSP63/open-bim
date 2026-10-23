@@ -133,12 +133,25 @@ fn every_ribbon_button_runs_its_registry_command_by_mouse() {
                 frame(&ctx, &mut b, [1280., 800.], vec![]);
                 let out = frame(&ctx, &mut b, [1280., 800.], vec![]).0;
                 // Ribbon buttons live in the top band; the side strip reuses some names.
-                let found = nodes(&out)
-                    .into_iter()
-                    .find(|(role, name, _, c)| {
-                        *role == Role::Button && name == it.label && (60. ..120.).contains(&c.y)
+                let in_band = |out: &egui::FullOutput, label: &str| {
+                    nodes(out).into_iter().find(|(role, name, _, c)| {
+                        *role == Role::Button && name == label && (60. ..160.).contains(&c.y)
                     })
-                    .unwrap_or_else(|| panic!("{tab:?}/{group}: no button {}", it.label));
+                };
+                let found = match in_band(&out, it.label) {
+                    Some(found) => found,
+                    // A group folded at this window width: open it first.
+                    None => {
+                        let folded = in_band(&out, group)
+                            .unwrap_or_else(|| panic!("{tab:?}/{group}: no button {}", it.label));
+                        frame(&ctx, &mut b, [1280., 800.], click(folded.3));
+                        let out = frame(&ctx, &mut b, [1280., 800.], vec![]).0;
+                        nodes(&out)
+                            .into_iter()
+                            .find(|(role, name, _, _)| *role == Role::Button && name == it.label)
+                            .unwrap_or_else(|| panic!("{tab:?}/{group}: no button {}", it.label))
+                    }
+                };
                 let before = state(&b);
                 let (_, requests) = frame(&ctx, &mut b, [1280., 800.], click(found.3));
                 let (_, later) = frame(&ctx, &mut b, [1280., 800.], vec![]);
@@ -180,7 +193,12 @@ fn every_ribbon_button_runs_its_registry_command_by_mouse() {
 
 #[test]
 fn unavailable_concrete_and_rebar_explain_on_hover() {
-    for tab in [RibbonTab::Concrete, RibbonTab::Rebar] {
+    for tab in [
+        RibbonTab::Concrete,
+        RibbonTab::Rebar,
+        RibbonTab::Analysis,
+        RibbonTab::Formwork,
+    ] {
         assert!(!tab.available());
         let ctx = egui::Context::default();
         ctx.enable_accesskit();
@@ -199,7 +217,7 @@ fn unavailable_concrete_and_rebar_explain_on_hover() {
         let tool = nodes(&out)
             .into_iter()
             .rfind(|(role, _, enabled, c)| {
-                *role == Role::Button && !enabled && (60. ..120.).contains(&c.y)
+                *role == Role::Button && !enabled && (60. ..160.).contains(&c.y)
             })
             .expect("disabled tool");
         let mut seen = false;
@@ -356,4 +374,18 @@ fn model_search_selects_matching_parts() {
     b.search = "нет такого объекта".into();
     assert_eq!(b.search_model(), 0);
     assert!(b.editor.selected.is_empty());
+}
+
+#[test]
+fn narrow_window_folds_the_rightmost_groups_first() {
+    use open_bim_desktop::ui::ribbon::collapse;
+    // Fits: nothing folds; unmeasured groups never fold.
+    assert_eq!(collapse(&[300., 300.], 1000.), vec![false, false]);
+    assert_eq!(collapse(&[0., 0., 0.], 10.), vec![false, false, false]);
+    // Too wide: fold from the right until the rest fits.
+    assert_eq!(
+        collapse(&[400., 400., 400.], 1000.),
+        vec![false, false, true]
+    );
+    assert_eq!(collapse(&[400., 400., 400.], 700.), vec![false, true, true]);
 }

@@ -26,10 +26,15 @@ Icons are original vector drawings (`ui/icons.rs`), no third-party artwork.
 | 14 | Selection switches toolbar | Детали / сборки целиком, «Добавлять к выбору». | test `selection_switches_pick_parts_assemblies_or_nothing` |
 | 15 | Blue status bar prompt | Blue bar: current pick prompt («Укажите начальную точку балки»), snap kind, selection count. | beam-prompt-1280x800.png |
 
-Ribbon tabs: МЕТАЛЛ, БЕТОН and АРМАТУРА (shown, tools disabled with tooltip «Будет в
-следующем выпуске»), ПРАВКА, ВИД, ЧЕРТЕЖИ И ОТЧЁТЫ, УПРАВЛЕНИЕ. Every enabled ribbon
-button is clicked by mouse in `every_ribbon_button_runs_its_registry_command_by_mouse`
-(`ribbon-commands.json`); light-theme contrast in `contrast-light.json`.
+Ribbon tabs: МЕТАЛЛ, БЕТОН, АРМАТУРА, ПРАВКА, ВИД, ЧЕРТЕЖИ И ОТЧЁТЫ, УПРАВЛЕНИЕ,
+РАСЧЁТ И ПРОЕКТИРОВАНИЕ, ОПАЛУБКА. Groups and buttons follow the reference ribbon;
+tools not built yet are shown disabled with the tooltip «Будет в следующем выпуске»
+(concrete, rebar, analysis and formwork tabs entirely). Long captions wrap onto two
+lines. When the window is too narrow the rightmost groups fold into one button that
+opens a list of their tools (`ribbon::collapse`). Every enabled ribbon button is
+clicked by mouse at 1280×800, opening its folded group first when needed, in
+`every_ribbon_button_runs_its_registry_command_by_mouse` (`ribbon-commands.json`);
+light-theme contrast in `contrast-light.json`.
 
 Defects found and fixed while capturing: ribbon groups stacked vertically and ran
 past 1280 pt (centred group captions took full width); selected disabled tab text was
