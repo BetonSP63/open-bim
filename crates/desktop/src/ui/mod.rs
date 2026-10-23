@@ -311,6 +311,7 @@ pub struct Workbench {
     pub change_number: crate::interaction::change_number::ChangeNumber,
     pub surfaces: crate::interaction::surfaces::Surfaces,
     pub layout_manager: crate::interaction::layout_points::LayoutManager,
+    pub ifc_convert: crate::interaction::ifc_convert::IfcConvert,
     /// «Пакетный редактор» window.
     pub batch: batch::BatchEditor,
     /// Object groups, the object representation and its window.
@@ -437,6 +438,7 @@ impl Workbench {
             change_number: Default::default(),
             surfaces: Default::default(),
             layout_manager: Default::default(),
+            ifc_convert: Default::default(),
             batch: Default::default(),
             groups: crate::interaction::object_groups::default_groups(),
             representation: Vec::new(),
@@ -1677,6 +1679,14 @@ impl Workbench {
                     "Диспетчер разбивок: точки и узлы сетки с координатами"
                 } else {
                     "Диспетчер разбивок закрыт"
+                });
+            }
+            Cmd::ConvertIfc => {
+                self.ifc_convert.open = !self.ifc_convert.open;
+                self.message(if self.ifc_convert.open {
+                    "Преобразовать объекты IFC: выберите файл и виды объектов"
+                } else {
+                    "Окно «Преобразовать объекты IFC» закрыто"
                 });
             }
             Cmd::ChangeNumber => {
@@ -3088,6 +3098,14 @@ impl Workbench {
         self.surfaces.show(&ctx, &mut self.editor);
         self.layout_manager
             .show(&ctx, &mut self.editor, &self.tools.path);
+        if let Some((label, conversion)) =
+            self.ifc_convert
+                .show(&ctx, self.editor.document.project(), &self.tools.path)
+        {
+            // Selected once the commit creates them.
+            self.editor.selected = conversion.parts;
+            requests.push(Request::Action(Action::Commit(label, conversion.commands)));
+        }
         if let Some((label, commands)) =
             self.change_number
                 .show(&ctx, self.editor.document.project(), &self.editor.selected)
