@@ -42,6 +42,7 @@ pub enum TrimTool {
     LineLoad,
     AreaLoad,
     CopyAnalysis,
+    PourBreak,
 }
 
 /// What a command asks for next.
@@ -79,6 +80,7 @@ impl TrimTool {
             Self::LineLoad => "Линейная нагрузка",
             Self::AreaLoad => "Нагрузка по площади",
             Self::CopyAnalysis => "Получить расчётные свойства",
+            Self::PourBreak => "Шов бетонирования",
         }
     }
 
@@ -87,7 +89,9 @@ impl TrimTool {
         use Need::*;
         match self {
             Self::ConstructionPoint | Self::AnalysisNode | Self::PointLoad => &[Point],
-            Self::RigidLink | Self::MergeNodes | Self::LineLoad => &[Point, Point],
+            Self::RigidLink | Self::MergeNodes | Self::LineLoad | Self::PourBreak => {
+                &[Point, Point]
+            }
             Self::AreaLoad => &[Polygon],
             Self::CopyAnalysis => &[Part],
             Self::PointsOnLine
@@ -143,6 +147,8 @@ impl TrimTool {
                 "Укажите деталь сборки, в которую добавить выбранные детали"
             }
             (Self::AnalysisNode, _) => "Укажите положение узла",
+            (Self::PourBreak, 0) => "Укажите начало шва бетонирования",
+            (Self::PourBreak, _) => "Укажите конец шва бетонирования",
             (Self::RigidLink, 0) => "Укажите первый узел",
             (Self::RigidLink, _) => "Укажите второй узел",
             (Self::MergeNodes, 0) => "Укажите узел, который остаётся",

@@ -167,6 +167,9 @@ pub struct Project {
     /// Model variables and part dimensions bound to them.
     #[serde(default, skip_serializing_if = "crate::Parametric::is_default")]
     pub parametric: crate::Parametric,
+    /// Pour breaks and pour units («Бетонирование»).
+    #[serde(default, skip_serializing_if = "crate::Concrete::is_default")]
+    pub concrete: crate::Concrete,
 }
 
 impl Default for Project {
@@ -197,6 +200,7 @@ impl Default for Project {
             management: Default::default(),
             analysis: Default::default(),
             parametric: Default::default(),
+            concrete: Default::default(),
         }
     }
 }

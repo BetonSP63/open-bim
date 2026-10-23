@@ -3,6 +3,7 @@ pub mod analysis;
 mod body;
 mod catalog;
 mod changes;
+pub mod concrete;
 mod connection;
 mod construction;
 mod custom_component;
@@ -27,6 +28,7 @@ pub use analysis::{
 };
 pub use catalog::{Material, Profile, ProfileShape};
 pub use changes::{Change, REASONS, SheetChange, SheetChangeKind};
+pub use concrete::{Concrete, PourBreak, PourUnit};
 pub use connection::{
     ComponentGeneral, ConnectionInstance, ConnectionTemplate, HAUNCH_ROLES, SEAT_ROLES,
     TemplateKind, beam_splice_roles, gusset_roles,

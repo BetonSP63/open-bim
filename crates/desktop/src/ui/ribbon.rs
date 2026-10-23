@@ -194,9 +194,13 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
             (
                 "Бетонирование",
                 vec![
-                    small_future(Icon::Slab, "Захватки бетонирования"),
-                    small_future(Icon::Slab, "Шов бетонирования"),
-                    small_future(Icon::Slab, "Рассчитать единицы бетонирования"),
+                    small(Cmd::PourObjects, Icon::Slab, "Захватки бетонирования"),
+                    small(Cmd::PourBreak, Icon::Slab, "Шов бетонирования"),
+                    small(
+                        Cmd::CalculatePours,
+                        Icon::Slab,
+                        "Рассчитать единицы бетонирования",
+                    ),
                 ],
             ),
         ],

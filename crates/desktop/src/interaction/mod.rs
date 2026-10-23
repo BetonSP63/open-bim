@@ -20,6 +20,7 @@ pub mod object_groups;
 pub mod orbit;
 pub mod parametric;
 pub mod polygon;
+pub mod pours;
 pub mod selection;
 pub mod snap;
 pub mod special;

@@ -159,3 +159,63 @@ fn section_parsing() {
     assert!(concrete::section("400").is_err());
     assert!(concrete::section("0x400").is_err());
 }
+
+#[test]
+fn pour_objects_breaks_and_units() {
+    use open_bim_desktop::interaction::pours;
+    let mut b = bench();
+    // Two touching columns under a slab, one more column apart.
+    b.execute(Cmd::ConcreteColumn);
+    for x in [0., 6000., 20000.] {
+        let r = b.pick(DVec3::new(x, 0., 0.));
+        commit(&mut b, r);
+    }
+    b.execute(Cmd::ConcreteSlab);
+    for p in [
+        [-200., -200., 3200.],
+        [6200., -200., 3200.],
+        [6200., 3000., 3200.],
+    ] {
+        b.pick(DVec3::from_array(p));
+    }
+    let r = b.execute(Cmd::FinishPicks);
+    commit(&mut b, r);
+    let objects = pours::objects(b.editor.document.project());
+    assert_eq!(objects.len(), 2);
+    assert_eq!(objects[0].parts.len(), 3);
+    assert_eq!(objects[0].grade, "В25");
+    // Columns 0.4×0.4×3 = 0.48 m³ each, the triangular slab 6.4×3.2/2×0.2.
+    let slab = 6.4 * 3.2 / 2. * 0.2;
+    assert!(
+        (objects[0].volume_m3 - (0.96 + slab)).abs() < 1e-6,
+        "{}",
+        objects[0].volume_m3
+    );
+    // A pour break between the two columns splits the first object.
+    b.execute(Cmd::PourBreak);
+    b.pick(DVec3::new(2000., -1000., 0.));
+    let r = b.pick(DVec3::new(2000., 4000., 0.));
+    commit(&mut b, r);
+    assert_eq!(pours::objects(b.editor.document.project()).len(), 3);
+    let r = b.execute(Cmd::CalculatePours);
+    commit(&mut b, r);
+    let units = &b.editor.document.project().concrete.units;
+    assert_eq!(units.len(), 3);
+    assert_eq!(
+        units.iter().map(|u| u.number).collect::<Vec<_>>(),
+        [1, 2, 3]
+    );
+    // Undo the units, then the break.
+    b.editor.history(false).unwrap();
+    assert!(b.editor.document.project().concrete.units.is_empty());
+    b.editor.history(false).unwrap();
+    assert!(b.editor.document.project().concrete.breaks.is_empty());
+    // Precast cast units are not poured.
+    let all: std::collections::BTreeSet<_> = pours::cast_in_place(b.editor.document.project())
+        .into_iter()
+        .collect();
+    let commands = concrete::cast_unit(b.editor.document.project(), &all, true).unwrap();
+    b.editor.commit("Сборный", &commands).unwrap();
+    assert!(pours::objects(b.editor.document.project()).is_empty());
+    assert!(b.execute(Cmd::CalculatePours).is_none());
+}
