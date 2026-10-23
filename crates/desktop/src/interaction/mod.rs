@@ -17,6 +17,7 @@ pub mod member_edit;
 pub mod numeric;
 pub mod object_groups;
 pub mod orbit;
+pub mod parametric;
 pub mod polygon;
 pub mod selection;
 pub mod snap;

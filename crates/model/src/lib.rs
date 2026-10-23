@@ -15,6 +15,7 @@ mod frame;
 pub mod library;
 pub mod management;
 pub mod numbering_rules;
+pub mod parametric;
 mod plugin;
 mod position;
 mod project;
@@ -52,6 +53,7 @@ pub use drawing_objects::{HatchPattern, LineType, SheetObject, SheetObjectKind};
 pub use frame::{Frame, GridAxis, GridSettings, Level};
 pub use management::{Hierarchy, ListEntry, Management, Storey, Task};
 pub use open_bim_geometry::{GeometryError, LengthMm, Point3};
+pub use parametric::{Binding, ParamField, Parametric};
 pub use plugin::{MAX_PLUGIN_INPUTS, PluginInput, PluginInstance, PluginValue};
 pub use position::{AtDepth, OnPlane, PartPosition, Rotation, place, reference_line};
 pub use project::{

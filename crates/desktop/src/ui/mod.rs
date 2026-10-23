@@ -313,6 +313,7 @@ pub struct Workbench {
     pub view_tools: view_tools::ViewTools,
     pub visualizer: visualizer::Visualizer,
     pub analysis: analysis_ui::AnalysisUi,
+    pub parametric: crate::interaction::parametric::ParametricWindow,
     /// «Изменить номер».
     pub change_number: crate::interaction::change_number::ChangeNumber,
     pub surfaces: crate::interaction::surfaces::Surfaces,
@@ -443,6 +444,7 @@ impl Workbench {
             view_tools: Default::default(),
             visualizer: Default::default(),
             analysis: Default::default(),
+            parametric: Default::default(),
             change_number: Default::default(),
             surfaces: Default::default(),
             layout_manager: Default::default(),
@@ -1685,6 +1687,14 @@ impl Workbench {
                     _ => TrimTool::CopyAnalysis,
                 });
                 self.message(self.prompt());
+            }
+            Cmd::Parametric => {
+                self.parametric.open = !self.parametric.open;
+                self.message(if self.parametric.open {
+                    "Параметры модели: задайте переменные и свяжите с ними размеры деталей"
+                } else {
+                    "Окно параметров закрыто"
+                });
             }
             Cmd::Visualizer => {
                 self.visualizer.open = !self.visualizer.open;
@@ -3305,6 +3315,12 @@ impl Workbench {
         self.paint_window(&ctx);
         self.visualizer_window(&ctx, &mut requests);
         self.analysis_windows(&ctx, &mut requests);
+        if let Some((label, commands)) =
+            self.parametric
+                .show(&ctx, self.editor.document.project(), &self.editor.selected)
+        {
+            requests.push(Request::Action(Action::Commit(label, commands)));
+        }
         if std::mem::take(&mut self.management.status_changed) {
             self.representation_version += 1;
         }

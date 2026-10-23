@@ -164,6 +164,9 @@ pub struct Project {
     /// Analysis models, loads and analysis properties («Анализ»).
     #[serde(default, skip_serializing_if = "crate::Analysis::is_default")]
     pub analysis: crate::Analysis,
+    /// Model variables and part dimensions bound to them.
+    #[serde(default, skip_serializing_if = "crate::Parametric::is_default")]
+    pub parametric: crate::Parametric,
 }
 
 impl Default for Project {
@@ -193,6 +196,7 @@ impl Default for Project {
             grid: Default::default(),
             management: Default::default(),
             analysis: Default::default(),
+            parametric: Default::default(),
         }
     }
 }
