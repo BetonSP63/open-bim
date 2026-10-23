@@ -47,7 +47,7 @@ impl RibbonTab {
     }
     /// Tabs whose every button is still a future tool are drawn dimmed.
     pub fn available(self) -> bool {
-        !matches!(self, Self::Concrete | Self::Rebar | Self::Formwork)
+        !matches!(self, Self::Rebar | Self::Formwork)
     }
 }
 
@@ -177,18 +177,18 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
             (
                 "Детали",
                 vec![
-                    future(Icon::ConcreteColumn, "Колонна"),
-                    future(Icon::ConcreteBeam, "Балка"),
-                    future(Icon::Panel, "Панель"),
-                    future(Icon::Slab, "Перекрытие"),
-                    future(Icon::Footing, "Фундамент"),
+                    item(Cmd::ConcreteColumn, Icon::ConcreteColumn, "Колонна"),
+                    item(Cmd::ConcreteBeam, Icon::ConcreteBeam, "Балка"),
+                    item(Cmd::ConcretePanel, Icon::Panel, "Панель"),
+                    item(Cmd::ConcreteSlab, Icon::Slab, "Перекрытие"),
+                    item(Cmd::ConcreteFooting, Icon::Footing, "Фундамент"),
                 ],
             ),
             (
                 "Элементы",
                 vec![
                     small_future(Icon::Assembly, "Элемент"),
-                    small_future(Icon::Assembly, "ЖБ элемент"),
+                    small(Cmd::CastUnit, Icon::Assembly, "ЖБ элемент"),
                 ],
             ),
             (
@@ -722,6 +722,11 @@ impl Workbench {
             Cmd::ToolBeam => Some(K::Beam),
             Cmd::ToolPlate => Some(K::Plate),
             Cmd::ToolAxis => Some(K::Axis),
+            Cmd::ConcreteColumn => Some(K::ConcreteColumn),
+            Cmd::ConcreteBeam => Some(K::ConcreteBeam),
+            Cmd::ConcretePanel => Some(K::Panel),
+            Cmd::ConcreteSlab => Some(K::Slab),
+            Cmd::ConcreteFooting => Some(K::Footing),
             _ => None,
         };
         tool.is_some() && self.engine.tool == tool

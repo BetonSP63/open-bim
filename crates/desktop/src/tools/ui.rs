@@ -176,6 +176,11 @@ impl ToolsUi {
                     ToolKind::Plate,
                     ToolKind::Gusset,
                     ToolKind::Stiffener,
+                    ToolKind::ConcreteColumn,
+                    ToolKind::ConcreteBeam,
+                    ToolKind::Panel,
+                    ToolKind::Slab,
+                    ToolKind::Footing,
                 ] {
                     if ui
                         .selectable_label(editor.active && editor.draft.kind == kind, kind.label())
@@ -224,12 +229,28 @@ impl ToolsUi {
                             }
                         });
                     ui.small("Точки — в 3D-виде с привязкой; Enter или средняя кнопка замыкает контур, Backspace убирает последнюю точку.");
-                } else if editor.draft.kind == ToolKind::Column {
+                } else if editor.draft.kind.base() == ToolKind::Column {
                     let project = editor.document.project();
                     column_ends(ui, project, &mut editor.draft);
                 } else {
                     ui.label("Конец, мм");
                     vector_fields(ui, "end", &mut editor.draft.end);
+                }
+                if editor.draft.kind.is_concrete() {
+                    if editor.draft.kind != ToolKind::Slab {
+                        ui.horizontal(|ui| {
+                            let l = ui.label("Сечение b x h, мм");
+                            ui.text_edit_singleline(&mut editor.draft.section)
+                                .labelled_by(l.id);
+                        });
+                    }
+                    egui::ComboBox::new("grade", "Класс бетона")
+                        .selected_text(editor.draft.grade.as_str())
+                        .show_ui(ui, |ui| {
+                            for g in crate::interaction::concrete::GRADES {
+                                ui.selectable_value(&mut editor.draft.grade, g.into(), g);
+                            }
+                        });
                 }
                 if matches!(editor.draft.kind, ToolKind::Beam | ToolKind::Column) {
                     egui::CollapsingHeader::new("Положение")
@@ -271,7 +292,7 @@ impl ToolsUi {
                             }
                         });
                 }
-                if editor.draft.kind != ToolKind::Axis {
+                if editor.draft.kind != ToolKind::Axis && !editor.draft.kind.is_concrete() {
                     let project = editor.document.project();
                     egui::ComboBox::new("material", "Материал")
                         .selected_text(

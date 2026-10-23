@@ -42,7 +42,7 @@ impl FileKind {
             ToolKind::Beam => Some(Self::Beam),
             ToolKind::Column => Some(Self::Column),
             ToolKind::Plate | ToolKind::Gusset | ToolKind::Stiffener => Some(Self::Plate),
-            ToolKind::Axis => None,
+            _ => None,
         }
     }
 }
