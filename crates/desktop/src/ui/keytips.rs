@@ -37,7 +37,7 @@ pub fn tab_tip(tab: RibbonTab) -> Option<char> {
         RibbonTab::View => Some('В'),
         RibbonTab::Drawings => Some('Ч'),
         RibbonTab::Manage => Some('У'),
-        RibbonTab::Concrete | RibbonTab::Rebar => None,
+        RibbonTab::Concrete | RibbonTab::Rebar | RibbonTab::Analysis | RibbonTab::Formwork => None,
     }
 }
 

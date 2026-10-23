@@ -773,17 +773,21 @@ pub fn small_button(
     enabled: bool,
     selected: bool,
 ) -> egui::Response {
-    let font = egui::FontId::proportional(12.);
-    let text = ui
+    // Long captions wrap onto two lines so three buttons still stack under
+    // one large button and the ribbon stays narrow.
+    let caption = two_lines(ui, name, &egui::FontId::proportional(12.), 90.);
+    let font = egui::FontId::proportional(if caption.contains('\n') { 11. } else { 12. });
+    let galley = ui
         .painter()
-        .layout_no_wrap(name.to_string(), font.clone(), Color32::BLACK)
-        .size();
-    let sense = if enabled {
-        egui::Sense::click()
-    } else {
-        egui::Sense::hover()
-    };
-    let (rect, response) = ui.allocate_exact_size(vec2(text.x + 28., 20.), sense);
+        .layout_no_wrap(caption.clone(), font.clone(), Color32::BLACK);
+    let (rect, response) = ui.allocate_exact_size(
+        vec2(galley.size().x + 28., galley.size().y.max(16.) + 4.),
+        if enabled {
+            egui::Sense::click()
+        } else {
+            egui::Sense::hover()
+        },
+    );
     let response = response.on_hover_text(tooltip);
     response.widget_info(|| {
         egui::WidgetInfo::selected(egui::WidgetType::Button, enabled, selected, name)
@@ -800,7 +804,8 @@ pub fn small_button(
             );
         }
         let ink = ui.visuals().widgets.inactive.fg_stroke.color;
-        let icon_rect = Rect::from_min_size(pos2(rect.min.x + 4., rect.min.y + 2.), vec2(16., 16.));
+        let icon_rect =
+            Rect::from_min_size(pos2(rect.min.x + 4., rect.center().y - 8.), vec2(16., 16.));
         paint(ui.painter(), icon_rect, icon, ink, enabled);
         let color = if enabled {
             ui.visuals().text_color()
@@ -810,12 +815,34 @@ pub fn small_button(
         ui.painter().text(
             pos2(rect.min.x + 24., rect.center().y),
             egui::Align2::LEFT_CENTER,
-            name,
+            caption,
             font,
             color,
         );
     }
     response
+}
+
+/// The caption, broken at the space nearest its middle when it is wider
+/// than `max` points.
+pub fn two_lines(ui: &egui::Ui, text: &str, font: &egui::FontId, max: f32) -> String {
+    let width = |t: &str| {
+        ui.painter()
+            .layout_no_wrap(t.to_string(), font.clone(), Color32::BLACK)
+            .size()
+            .x
+    };
+    if width(text) <= max || !text.contains(' ') {
+        return text.to_string();
+    }
+    let middle = text.chars().count() / 2;
+    let split = text
+        .char_indices()
+        .filter(|(_, c)| *c == ' ')
+        .min_by_key(|(i, _)| text[..*i].chars().count().abs_diff(middle))
+        .map(|(i, _)| i)
+        .unwrap_or(0);
+    format!("{}\n{}", &text[..split], &text[split + 1..])
 }
 
 /// Icon-only (or icon + caption) button with an accessible name and tooltip.
@@ -831,6 +858,8 @@ pub fn button(
     selected: bool,
 ) -> egui::Response {
     let font = egui::FontId::proportional(12.5);
+    let caption = caption.map(|c| two_lines(ui, c, &font, 70.));
+    let caption = caption.as_deref();
     let caption_size = caption.map(|c| {
         ui.painter()
             .layout_no_wrap(c.to_string(), font.clone(), Color32::BLACK)
