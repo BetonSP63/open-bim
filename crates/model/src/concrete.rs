@@ -1,5 +1,5 @@
-//! Concrete data that is not a part: pour breaks and the calculated pour
-//! units («Бетонирование»).
+//! Concrete data that is not a part: pour breaks, the calculated pour
+//! units («Бетонирование») and reinforcing bar sets («Армирование»).
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
@@ -30,6 +30,76 @@ pub struct PourUnit {
     pub parts: BTreeSet<ObjectId>,
 }
 
+/// How a bar set was made.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RebarKind {
+    /// «Продольные»: bars along a beam or column.
+    Longitudinal,
+    /// «Поперечные»: closed stirrups along a beam or column.
+    Stirrup,
+    /// «По грани»: meshes at the faces of a slab or panel.
+    Mesh,
+    /// «По направляющим»: a bent bar along picked points.
+    Guide,
+    /// «Группа стержней»: parallel bars distributed between picks.
+    Group,
+    /// «Один стержень».
+    Single,
+}
+
+impl RebarKind {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Longitudinal => "Продольные",
+            Self::Stirrup => "Поперечные",
+            Self::Mesh => "По грани",
+            Self::Guide => "По направляющим",
+            Self::Group => "Группа стержней",
+            Self::Single => "Один стержень",
+        }
+    }
+}
+
+/// Steel density of reinforcing bars, kg/m³.
+pub const REBAR_DENSITY: f64 = 7850.;
+
+/// A set of reinforcing bars of one diameter and grade; each bar is the
+/// polyline of its centre line, mm.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RebarSet {
+    pub number: u32,
+    pub kind: RebarKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host: Option<ObjectId>,
+    pub diameter: f64,
+    pub grade: String,
+    pub bars: Vec<Vec<Point3>>,
+}
+
+impl RebarSet {
+    pub fn bar_length(bar: &[Point3]) -> f64 {
+        bar.windows(2)
+            .map(|w| {
+                (0..3)
+                    .map(|k| (w[1].0[k] - w[0].0[k]).powi(2))
+                    .sum::<f64>()
+                    .sqrt()
+            })
+            .sum()
+    }
+
+    pub fn total_length_mm(&self) -> f64 {
+        self.bars.iter().map(|b| Self::bar_length(b)).sum()
+    }
+
+    pub fn mass_kg(&self) -> f64 {
+        let area = std::f64::consts::PI * self.diameter * self.diameter / 4.;
+        area * self.total_length_mm() * 1e-9 * REBAR_DENSITY
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, default)]
 pub struct Concrete {
@@ -37,6 +107,8 @@ pub struct Concrete {
     pub breaks: Vec<PourBreak>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub units: Vec<PourUnit>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub rebars: Vec<RebarSet>,
 }
 
 impl Concrete {
@@ -60,6 +132,38 @@ impl Concrete {
             if u.parts.iter().any(|p| !seen.insert(*p)) {
                 return bad("Деталь входит в две единицы бетонирования");
             }
+        }
+        let mut numbers = BTreeSet::new();
+        let mut bars = 0;
+        for r in &self.rebars {
+            if !numbers.insert(r.number) {
+                return bad("Номер арматурного набора повторяется");
+            }
+            if !(3.0..=60.).contains(&r.diameter) {
+                return bad("Диаметр арматуры от 3 до 60 мм");
+            }
+            if r.grade.trim().is_empty() || r.grade.len() > 32 {
+                return bad("Класс арматуры не задан");
+            }
+            if r.bars.is_empty() {
+                return bad("Арматурный набор без стержней");
+            }
+            for b in &r.bars {
+                if b.len() < 2
+                    || !b
+                        .iter()
+                        .all(|p| p.0.iter().all(|v| v.is_finite() && v.abs() <= 1e9))
+                {
+                    return bad("Стержень: нужно не меньше двух точек");
+                }
+                if RebarSet::bar_length(b) < 1. {
+                    return bad("Стержень нулевой длины");
+                }
+            }
+            bars += r.bars.len();
+        }
+        if bars > 1_000_000 {
+            return bad("Слишком много стержней");
         }
         if self.breaks.len() > 10_000 || self.units.len() > 100_000 {
             return bad("Слишком много швов или единиц бетонирования");

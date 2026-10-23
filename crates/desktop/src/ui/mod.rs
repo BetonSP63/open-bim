@@ -19,6 +19,7 @@ pub mod palette;
 pub mod plugins;
 pub mod property_fields;
 pub mod property_pane;
+pub mod rebar_ui;
 pub mod representation;
 pub mod ribbon;
 pub mod schedule;
@@ -315,6 +316,7 @@ pub struct Workbench {
     pub analysis: analysis_ui::AnalysisUi,
     pub parametric: crate::interaction::parametric::ParametricWindow,
     pub pours: crate::interaction::pours::PoursWindow,
+    pub rebar: rebar_ui::RebarUi,
     /// «Изменить номер».
     pub change_number: crate::interaction::change_number::ChangeNumber,
     pub surfaces: crate::interaction::surfaces::Surfaces,
@@ -447,6 +449,7 @@ impl Workbench {
             analysis: Default::default(),
             parametric: Default::default(),
             pours: Default::default(),
+            rebar: Default::default(),
             change_number: Default::default(),
             surfaces: Default::default(),
             layout_manager: Default::default(),
@@ -908,6 +911,8 @@ impl Workbench {
                 });
                 self.mode = mode;
                 self.detail.cancel();
+                // A still armed fitting or rebar command would take the picks.
+                self.trim.cancel();
                 let first = self.editor.begin(kind);
                 if cmd == Cmd::ToolBeam {
                     // «Сдвоенный профиль» is its own command.
@@ -1066,6 +1071,14 @@ impl Workbench {
                     }
                 };
             }
+            Cmd::RebarStirrup
+            | Cmd::RebarLongitudinal
+            | Cmd::RebarFace
+            | Cmd::RebarGuide
+            | Cmd::RebarMore
+            | Cmd::RebarVisibility
+            | Cmd::RebarGroup
+            | Cmd::RebarSingle => return self.rebar_command(cmd),
             Cmd::PourObjects => {
                 self.pours.open = !self.pours.open;
                 let n = crate::interaction::pours::objects(self.editor.document.project()).len();
@@ -2197,7 +2210,9 @@ impl Workbench {
         let project = self.editor.document.project();
         let normal = self.engine.workplane.axes[2];
         let (parts, pts) = (self.trim.parts.clone(), self.trim.points.clone());
+        let rebar = self.finish_rebar(tool, &parts, &pts);
         let result = match (tool, &parts[..], &pts[..]) {
+            _ if rebar.is_some() => rebar?,
             (TrimTool::ConstructionPoint, [], [a]) => trim::points(project, *a, None, 0),
             (TrimTool::PointsOnLine, [], [a, b]) => {
                 match self.tools.detailing.point_divisions.trim().parse::<usize>() {
@@ -3387,6 +3402,7 @@ impl Workbench {
         self.paint_window(&ctx);
         self.visualizer_window(&ctx, &mut requests);
         self.analysis_windows(&ctx, &mut requests);
+        self.rebar_window(&ctx, &mut requests);
         if let Some((label, commands)) =
             self.parametric
                 .show(&ctx, self.editor.document.project(), &self.editor.selected)

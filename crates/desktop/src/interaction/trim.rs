@@ -43,6 +43,12 @@ pub enum TrimTool {
     AreaLoad,
     CopyAnalysis,
     PourBreak,
+    RebarLongitudinal,
+    RebarStirrup,
+    RebarMesh,
+    RebarGuide,
+    RebarGroup,
+    RebarSingle,
 }
 
 /// What a command asks for next.
@@ -81,6 +87,12 @@ impl TrimTool {
             Self::AreaLoad => "Нагрузка по площади",
             Self::CopyAnalysis => "Получить расчётные свойства",
             Self::PourBreak => "Шов бетонирования",
+            Self::RebarLongitudinal => "Продольная арматура",
+            Self::RebarStirrup => "Поперечная арматура",
+            Self::RebarMesh => "Арматура по грани",
+            Self::RebarGuide => "Стержень по направляющим",
+            Self::RebarGroup => "Группа стержней",
+            Self::RebarSingle => "Один стержень",
         }
     }
 
@@ -92,7 +104,10 @@ impl TrimTool {
             Self::RigidLink | Self::MergeNodes | Self::LineLoad | Self::PourBreak => {
                 &[Point, Point]
             }
-            Self::AreaLoad => &[Polygon],
+            Self::AreaLoad | Self::RebarGuide => &[Polygon],
+            Self::RebarLongitudinal | Self::RebarStirrup | Self::RebarMesh => &[Part],
+            Self::RebarGroup => &[Point, Point, Point],
+            Self::RebarSingle => &[Point, Point],
             Self::CopyAnalysis => &[Part],
             Self::PointsOnLine
             | Self::ConstructionLine
@@ -147,6 +162,16 @@ impl TrimTool {
                 "Укажите деталь сборки, в которую добавить выбранные детали"
             }
             (Self::AnalysisNode, _) => "Укажите положение узла",
+            (Self::RebarLongitudinal | Self::RebarStirrup, _) => {
+                "Выберите железобетонную балку или колонну"
+            }
+            (Self::RebarMesh, _) => "Выберите перекрытие или панель",
+            (Self::RebarGuide, _) => "Укажите точки стержня; Enter или средняя кнопка — завершить",
+            (Self::RebarGroup, 0) => "Укажите начало первого стержня",
+            (Self::RebarGroup, 1) => "Укажите конец первого стержня",
+            (Self::RebarGroup, _) => "Укажите, до куда раскладывать стержни",
+            (Self::RebarSingle, 0) => "Укажите начало стержня",
+            (Self::RebarSingle, _) => "Укажите конец стержня",
             (Self::PourBreak, 0) => "Укажите начало шва бетонирования",
             (Self::PourBreak, _) => "Укажите конец шва бетонирования",
             (Self::RigidLink, 0) => "Укажите первый узел",
