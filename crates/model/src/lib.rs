@@ -45,7 +45,7 @@ pub use drawing::{
 };
 pub use drawing_objects::{HatchPattern, LineType, SheetObject, SheetObjectKind};
 pub use frame::{Frame, GridAxis, GridSettings, Level};
-pub use management::{ListEntry, Management};
+pub use management::{Hierarchy, ListEntry, Management, Storey, Task};
 pub use open_bim_geometry::{GeometryError, LengthMm, Point3};
 pub use plugin::{MAX_PLUGIN_INPUTS, PluginInput, PluginInstance, PluginValue};
 pub use position::{AtDepth, OnPlane, PartPosition, Rotation, place, reference_line};

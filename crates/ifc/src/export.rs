@@ -4,6 +4,7 @@ use crate::{
     ENTITIES, GOST_PSET_NAME, GUID_PROPERTY, IFC_ENTITY_PROPERTY, IFC_OBJECT_TYPE_PROPERTY,
     IFC_PREDEFINED_PROPERTY, KSI_PROPERTY, PSET_NAME,
 };
+use open_bim_model::management::STOREY_PROPERTY;
 use open_bim_model::{
     DetailKind, ElementShape, Frame, MemberKind, ObjectId, ProfileShape, Project, PropertyValue,
 };
@@ -182,6 +183,15 @@ fn part_extent(project: &Project, element: &open_bim_model::Element) -> f64 {
     }
 }
 
+/// Default site and building names stay as written by earlier versions.
+fn spatial_name(name: &str, default: &str) -> String {
+    if name == default {
+        format!("'{default}'")
+    } else {
+        encode(name)
+    }
+}
+
 pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
     project.validate().map_err(|e| e.to_string())?;
     let mut w = Writer {
@@ -189,6 +199,7 @@ pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
         next: 1,
     };
     let mut report = ExportReport::default();
+    let hierarchy = &project.management.hierarchy;
     let origin = w.placement([0.; 3], [0., 0., 1.], [1., 0., 0.]);
     let context = w.add(format!(
         "IFCGEOMETRICREPRESENTATIONCONTEXT($,'Model',3,1.E-05,#{origin},$)"
@@ -218,14 +229,16 @@ pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
     let site_place = w.placement(project.origin.0, [0., 0., 1.], [1., 0., 0.]);
     let site_lp = w.add(format!("IFCLOCALPLACEMENT($,#{site_place})"));
     let site = w.add(format!(
-        "IFCSITE('{}',$,'Площадка',$,$,#{site_lp},$,$,.ELEMENT.,$,$,$,$,$)",
-        derived_guid("site", 0)
+        "IFCSITE('{}',$,{},$,$,#{site_lp},$,$,.ELEMENT.,$,$,$,$,$)",
+        derived_guid("site", 0),
+        spatial_name(&hierarchy.site, "Площадка")
     ));
     let building_place = w.placement([0.; 3], [0., 0., 1.], [1., 0., 0.]);
     let building_lp = w.add(format!("IFCLOCALPLACEMENT(#{site_lp},#{building_place})"));
     let building = w.add(format!(
-        "IFCBUILDING('{}',$,'Здание',$,$,#{building_lp},$,$,.ELEMENT.,$,$,$)",
-        derived_guid("building", 0)
+        "IFCBUILDING('{}',$,{},$,$,#{building_lp},$,$,.ELEMENT.,$,$,$)",
+        derived_guid("building", 0),
+        spatial_name(&hierarchy.building, "Здание")
     ));
     let storey_place = w.placement([0.; 3], [0., 0., 1.], [1., 0., 0.]);
     let storey_lp = w.add(format!("IFCLOCALPLACEMENT(#{building_lp},#{storey_place})"));
@@ -241,9 +254,24 @@ pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
         "IFCRELAGGREGATES('{}',$,$,$,#{site},(#{building}))",
         derived_guid("aggregate", 1)
     ));
+    // Storeys of the building hierarchy; parts without one stay on «Уровень 0».
+    let mut storeys = vec![storey];
+    let mut storey_of: BTreeMap<u32, u64> = BTreeMap::new();
+    for s in &hierarchy.storeys {
+        let lp = w.add(format!("IFCLOCALPLACEMENT(#{building_lp},#{storey_place})"));
+        let id = w.add(format!(
+            "IFCBUILDINGSTOREY('{}',$,{},$,$,#{lp},$,$,.ELEMENT.,{})",
+            derived_guid("storey", u64::from(s.number)),
+            encode(&s.name),
+            real(s.elevation_mm)
+        ));
+        storeys.push(id);
+        storey_of.insert(s.number, id);
+    }
     w.add(format!(
-        "IFCRELAGGREGATES('{}',$,$,$,#{building},(#{storey}))",
-        derived_guid("aggregate", 2)
+        "IFCRELAGGREGATES('{}',$,$,$,#{building},({}))",
+        derived_guid("aggregate", 2),
+        refs(&storeys)
     ));
     let z = w.direction([0., 0., 1.]);
     let identity = w.placement([0.; 3], [0., 0., 1.], [1., 0., 0.]);
@@ -326,7 +354,11 @@ pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
             "{}('{gid}',$,{name},$,{object_type},#{lp},#{shape},{tag},.{predefined}.{tail})",
             entity.to_ascii_uppercase()
         ));
-        products.push(product);
+        let on = match element.properties.get(STOREY_PROPERTY) {
+            Some(PropertyValue::Number(n)) => storey_of.get(&(*n as u32)).copied(),
+            _ => None,
+        };
+        products.push((on.unwrap_or(storey), product));
         by_material
             .entry(element.material)
             .or_default()
@@ -584,12 +616,19 @@ pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
             .or_default()
             .push(*id);
     }
-    if !products.is_empty() {
-        w.add(format!(
-            "IFCRELCONTAINEDINSPATIALSTRUCTURE('{}',$,$,$,({}),#{storey})",
-            derived_guid("contained", 0),
-            refs(&products)
-        ));
+    for (k, container) in storeys.iter().enumerate() {
+        let inside: Vec<u64> = products
+            .iter()
+            .filter(|(s, _)| s == container)
+            .map(|p| p.1)
+            .collect();
+        if !inside.is_empty() {
+            w.add(format!(
+                "IFCRELCONTAINEDINSPATIALSTRUCTURE('{}',$,$,$,({}),#{container})",
+                derived_guid("contained", k as u64),
+                refs(&inside)
+            ));
+        }
     }
     for (material, items) in by_material {
         let m = &project.materials[&material];

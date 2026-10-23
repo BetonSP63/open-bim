@@ -33,8 +33,16 @@ impl Workbench {
             &self.groups,
             &self.representation,
         );
+        let mut appearance = applied.appearance;
+        // «Статус проекта» colours win over the representation rows.
+        if let Some(status) = self
+            .management
+            .status_colours(self.editor.document.project())
+        {
+            appearance.extend(status);
+        }
         let shared = Shared {
-            appearance: Arc::new(applied.appearance),
+            appearance: Arc::new(appearance),
             hidden: Arc::new(applied.hidden),
         };
         self.applied = Some((key, shared.clone()));

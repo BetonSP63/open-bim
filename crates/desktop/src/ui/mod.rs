@@ -19,6 +19,7 @@ pub mod property_fields;
 pub mod property_pane;
 pub mod representation;
 pub mod ribbon;
+pub mod schedule;
 pub mod theme;
 pub mod views;
 
@@ -1498,12 +1499,21 @@ impl Workbench {
                 self.mode = Mode::Model;
                 self.start_check();
             }
-            Cmd::Phases | Cmd::Lots | Cmd::Sequences | Cmd::Locks => {
+            Cmd::Phases
+            | Cmd::Lots
+            | Cmd::Sequences
+            | Cmd::Locks
+            | Cmd::Tasks
+            | Cmd::ProjectStatus
+            | Cmd::BuildingHierarchy => {
                 use management::Window;
                 let window = match cmd {
                     Cmd::Phases => Window::Phases,
                     Cmd::Lots => Window::Lots,
                     Cmd::Sequences => Window::Sequences,
+                    Cmd::Tasks => Window::Tasks,
+                    Cmd::ProjectStatus => Window::Status,
+                    Cmd::BuildingHierarchy => Window::Hierarchy,
                     _ => Window::Locks,
                 };
                 self.management.toggle(window);
@@ -2891,6 +2901,9 @@ impl Workbench {
             if let Some(p) = self.management.prompt() {
                 self.message(p);
             }
+        }
+        if std::mem::take(&mut self.management.status_changed) {
+            self.representation_version += 1;
         }
         self.grid_window(&ctx, &mut requests);
         self.components_window(&ctx);

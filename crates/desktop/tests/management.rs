@@ -191,3 +191,73 @@ fn sequence_numbers_follow_the_pick_order_and_go_with_the_sequence() {
     assert!(p.management.sequences.is_empty());
     assert!(sequence(p, "Монтаж").is_empty());
 }
+
+#[test]
+fn tasks_give_the_project_status_at_a_date() {
+    use open_bim_desktop::ui::schedule::{TaskState, add_task, status_at, with_number};
+    use open_bim_model::management::TASK_PROPERTY;
+    let mut editor = editor();
+    let p = editor.document.project();
+    assert!(add_task(&p.management, "Монтаж", "2026-11-10", "2026-11-01").is_err());
+    assert!(add_task(&p.management, "Монтаж", "2026-02-30", "2026-03-01").is_err());
+    let m = add_task(&p.management, "Колонны", "2026-11-01", "2026-11-10").unwrap();
+    let m = add_task(&m, "Балки", "2026-11-11", "2026-11-20").unwrap();
+    let ids = parts(&editor, 2);
+    let mut commands = vec![Command::SetManagement { management: m }];
+    for (id, task) in [(ids[0], 1.), (ids[1], 2.)] {
+        commands.extend(assign(
+            p,
+            &[id].into(),
+            TASK_PROPERTY,
+            Some(PropertyValue::Number(task)),
+        ));
+    }
+    editor.commit("Задания", &commands).unwrap();
+    let p = editor.document.project();
+    assert_eq!(with_number(p, TASK_PROPERTY, 2), [ids[1]].into());
+    let at = |date: &str| status_at(p, date).unwrap();
+    assert_eq!(at("2026-10-31")[&ids[0]], TaskState::Planned);
+    assert_eq!(at("2026-11-10")[&ids[0]], TaskState::InWork);
+    assert_eq!(at("2026-11-12")[&ids[0]], TaskState::Done);
+    assert_eq!(at("2026-11-12")[&ids[1]], TaskState::InWork);
+    // Parts without a task are not coloured; a bad date gives nothing.
+    assert_eq!(at("2026-11-12").len(), 2);
+    assert!(status_at(p, "12.11.2026").is_none());
+    let ui = ManagementUi {
+        status_on: true,
+        status_date: "2026-11-12".into(),
+        ..Default::default()
+    };
+    assert_eq!(ui.status_colours(p).unwrap().len(), 2);
+}
+
+#[test]
+fn storeys_hold_their_parts_in_the_ifc_spatial_structure() {
+    use open_bim_desktop::ui::schedule::add_storey;
+    use open_bim_model::management::STOREY_PROPERTY;
+    let mut editor = editor();
+    let p = editor.document.project();
+    let mut m = add_storey(&p.management, "Этаж 2", "3600").unwrap();
+    m = add_storey(&m, "", "0").unwrap();
+    // Sorted by elevation.
+    assert_eq!(m.hierarchy.storeys[0].elevation_mm, 0.);
+    m.hierarchy.building = "Корпус А".into();
+    let ids = parts(&editor, 2);
+    let mut commands = vec![Command::SetManagement { management: m }];
+    commands.extend(assign(
+        p,
+        &ids.iter().copied().collect(),
+        STOREY_PROPERTY,
+        Some(PropertyValue::Number(1.)),
+    ));
+    editor.commit("Этажи", &commands).unwrap();
+    let (ifc, _) = open_bim_ifc::export::export(editor.document.project()).unwrap();
+    assert_eq!(ifc.matches("IFCBUILDINGSTOREY(").count(), 3);
+    assert!(ifc.contains("3600."), "elevation written");
+    assert_eq!(ifc.matches("IFCRELCONTAINEDINSPATIALSTRUCTURE(").count(), 2);
+    assert!(!ifc.contains("'Здание'"));
+    // A storey goes with its numbers in one step.
+    editor.history_steps(false, 1).unwrap();
+    let (ifc, _) = open_bim_ifc::export::export(editor.document.project()).unwrap();
+    assert_eq!(ifc.matches("IFCBUILDINGSTOREY(").count(), 1);
+}
