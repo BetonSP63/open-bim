@@ -137,6 +137,10 @@ struct Desktop {
     bench: Workbench,
     capture_dir: Option<PathBuf>,
     manual_capture: Option<String>,
+    /// «Снимок экрана»: file and the 3D view rectangle to cut out.
+    user_capture: Option<(PathBuf, egui::Rect)>,
+    /// Cameras before view changes («Предыдущий вид»).
+    camera_history: Vec<Camera>,
     capture_count: usize,
     scene: Arc<Scene>,
     camera: Camera,
@@ -249,6 +253,8 @@ impl Desktop {
             bench,
             capture_dir: options.capture_dir,
             manual_capture: None,
+            user_capture: None,
+            camera_history: Vec::new(),
             capture_count: 0,
             scene,
             camera,
@@ -377,9 +383,51 @@ impl Desktop {
         self.camera.fit(bounds);
     }
 
-    fn handle(&mut self, requests: Vec<Request>) {
+    fn handle(&mut self, ctx: &egui::Context, requests: Vec<Request>) {
         for request in requests {
+            if matches!(
+                request,
+                Request::Fit
+                    | Request::ApplyView(_)
+                    | Request::FitSelected
+                    | Request::ToggleProjection
+                    | Request::View(_)
+                    | Request::Projection(_)
+                    | Request::Zoom(_)
+                    | Request::CenterAt(_)
+            ) {
+                self.camera_history.push(self.camera.clone());
+                if self.camera_history.len() > 50 {
+                    self.camera_history.remove(0);
+                }
+            }
             match request {
+                Request::Projection(orthographic) => self.camera.orthographic = orthographic,
+                Request::Zoom(delta) => self.camera.zoom(delta),
+                Request::CenterAt(point) => self.camera.look_at(point),
+                Request::PreviousView => match self.camera_history.pop() {
+                    Some(camera) => {
+                        self.camera = camera;
+                        self.bench.tools.message = Some("Предыдущий вид".into());
+                    }
+                    None => {
+                        self.bench.tools.message = Some("Предыдущего вида нет".into());
+                    }
+                },
+                Request::Screenshot => match self.viewport {
+                    Some(rect) => {
+                        let path = open_bim_desktop::ui::view_tools::screenshot_path(
+                            &self.bench.tools.path,
+                        );
+                        self.user_capture = Some((path, rect));
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(
+                            egui::UserData::default(),
+                        ));
+                    }
+                    None => {
+                        self.bench.tools.message = Some("Снимок: откройте 3D-вид".into());
+                    }
+                },
                 Request::Action(action) => self.action(action),
                 Request::Fit => self.fit(),
                 Request::ApplyView(view) => {
@@ -496,6 +544,31 @@ impl Desktop {
         }
         let events = ctx.input(|i| i.events.clone());
         for event in events {
+            if let egui::Event::Screenshot { image, .. } = &event
+                && let Some((path, rect)) = self.user_capture.take()
+            {
+                let view = image.region(&rect, Some(ctx.pixels_per_point()));
+                let rgba: Vec<_> = view.pixels.iter().flat_map(|p| p.to_array()).collect();
+                let saved = path
+                    .parent()
+                    .map_or(Ok(()), std::fs::create_dir_all)
+                    .map_err(|e| e.to_string())
+                    .and_then(|()| {
+                        image::save_buffer(
+                            &path,
+                            &rgba,
+                            view.size[0] as u32,
+                            view.size[1] as u32,
+                            image::ColorType::Rgba8,
+                        )
+                        .map_err(|e| e.to_string())
+                    });
+                self.bench.tools.message = Some(match saved {
+                    Ok(()) => format!("Снимок экрана сохранён: {}", path.display()),
+                    Err(e) => format!("Снимок экрана не сохранён: {e}"),
+                });
+                continue;
+            }
             if let egui::Event::Screenshot { image, .. } = event
                 && let Some(path) = self.capture.clone().or_else(|| self.manual_capture.take())
             {
@@ -561,7 +634,7 @@ impl eframe::App for Desktop {
         self.benchmark(&ctx);
         let mut requests = self.bench.panels(ui);
         requests.append(&mut self.pending);
-        self.handle(requests);
+        self.handle(&ctx, requests);
         let representation = self
             .bench
             .applied_representation(Arc::as_ptr(&self.scene) as usize);
@@ -693,7 +766,11 @@ impl eframe::App for Desktop {
                         open_bim_desktop::interaction::orbit::split_scroll(&input.raw.events);
                     let pinch = input.zoom_delta() as f64;
                     let now = input.time;
-                    if scroll.wheel != 0.0 {
+                    if scroll.wheel != 0.0 && self.bench.view_tools.fly {
+                        // «Облёт»: the wheel moves the eye forward and back.
+                        let step = scroll.wheel * self.camera.distance.max(1000.) * 0.002;
+                        self.camera.fly(step);
+                    } else if scroll.wheel != 0.0 {
                         // Zoom towards the model surface under the cursor.
                         self.camera.zoom_to(scroll.wheel, hover, surface());
                     }

@@ -301,7 +301,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     small(Cmd::GridViews, Icon::Grid, "По сетке"),
                     small(Cmd::PlaneOr3d, Icon::View3d, "3D/плоскость"),
                     small(Cmd::ToggleProjection, Icon::View3d, "Перспектива"),
-                    small_future(Icon::Properties, "Свойства вида"),
+                    small(Cmd::ViewProperties, Icon::Properties, "Свойства вида"),
                 ],
             ),
             (
@@ -317,7 +317,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                         "Рабочая плоскость",
                     ),
                     small(Cmd::WorkPlaneReset, Icon::WorkPlane, "Глобальная XY"),
-                    small_future(Icon::View3d, "Перечертить"),
+                    small(Cmd::Redraw, Icon::View3d, "Перечертить"),
                 ],
             ),
             (
@@ -327,7 +327,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     small(Cmd::DisplayTransparent, Icon::View3d, "Прозрачный"),
                     small(Cmd::DisplayShaded, Icon::View3d, "Тонированный"),
                     small(Cmd::ObjectRepresentation, Icon::Show, "Представление"),
-                    small_future(Icon::Show, "Окрасить"),
+                    small(Cmd::Paint, Icon::Show, "Окрасить"),
                     small_future(Icon::View3d, "Визуализатор"),
                     small(Cmd::ShowAll, Icon::Show, "Показать все"),
                     small(Cmd::HideSelected, Icon::Show, "Скрыть выбранные"),
@@ -340,10 +340,12 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     small(Cmd::Fit, Icon::WorkArea, "Вписать"),
                     small(Cmd::FitSelected, Icon::WorkArea, "Вписать выбранные"),
                     small(Cmd::ToggleTheme, Icon::Show, "Тема"),
-                    small_future(Icon::View3d, "Переход"),
-                    small_future(Icon::Search, "Масштаб"),
-                    small_future(Icon::View3d, "Облёт"),
-                    small_future(Icon::View3d, "Снимок экрана"),
+                    small(Cmd::ZoomIn, Icon::Search, "Увеличить"),
+                    small(Cmd::ZoomOut, Icon::Search, "Уменьшить"),
+                    small(Cmd::PreviousView, Icon::Search, "Предыдущий вид"),
+                    small(Cmd::RotationCentre, Icon::View3d, "Центр вращения"),
+                    small(Cmd::Fly, Icon::View3d, "Облёт"),
+                    small(Cmd::Screenshot, Icon::View3d, "Снимок экрана"),
                 ],
             ),
         ],
@@ -722,6 +724,7 @@ impl Workbench {
             || cmd == Cmd::ToolWeldOnPart
                 && self.detail.tool == Some(crate::interaction::tools::DetailTool::WeldOnPart)
             || cmd == Cmd::ToggleWorkArea && self.work_area
+            || cmd == Cmd::Fly && self.view_tools.fly
             || cmd == Cmd::ToolGusset
                 && self.trim.tool == Some(crate::interaction::trim::TrimTool::Gusset)
             || cmd == Cmd::ToolStiffener

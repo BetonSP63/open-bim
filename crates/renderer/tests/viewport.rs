@@ -159,3 +159,26 @@ fn hollow_display_mesh_is_closed_and_preserves_void() {
         None
     );
 }
+
+#[test]
+fn fly_moves_eye_and_target_and_look_at_keeps_the_eye() {
+    let mut camera = Camera::default();
+    let (eye, target) = (camera.eye(), camera.target);
+    let forward = (target - eye).normalize();
+    camera.fly(1000.);
+    assert!((camera.eye() - (eye + forward * 1000.)).length() < 1e-6);
+    assert!((camera.target - (target + forward * 1000.)).length() < 1e-6);
+    let eye = camera.eye();
+    let point = DVec3::new(3000., -2000., 500.);
+    camera.look_at(point);
+    assert_eq!(camera.target, point);
+    assert!(
+        (camera.eye() - eye).length() < 1e-6,
+        "{:?} {eye:?}",
+        camera.eye()
+    );
+    // Looking at the eye itself changes nothing.
+    let before = camera.clone();
+    camera.look_at(camera.eye());
+    assert_eq!(camera.target, before.target);
+}

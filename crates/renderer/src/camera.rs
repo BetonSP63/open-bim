@@ -216,6 +216,36 @@ impl Camera {
             self.zoom(delta);
         }
     }
+    /// «Облёт»: move the eye and the target together along the view
+    /// direction by `step` mm (negative backs away).
+    pub fn fly(&mut self, step: f64) {
+        if !step.is_finite() {
+            return;
+        }
+        let forward = (self.target - self.eye()).normalize_or_zero();
+        self.target += forward * step.clamp(-1e7, 1e7);
+    }
+
+    /// «Центр вращения»: the eye stays, the view turns to `point`, which
+    /// becomes the centre of rotation and zoom.
+    pub fn look_at(&mut self, point: DVec3) {
+        if !point.is_finite() {
+            return;
+        }
+        let eye = self.eye();
+        let d = eye - point;
+        let length = d.length();
+        if length < 1e-6 {
+            return;
+        }
+        self.pitch = (d.z / length).clamp(-1.0, 1.0).asin().clamp(-1.55, 1.55);
+        if d.x.hypot(d.y) > 1e-9 {
+            self.yaw = d.y.atan2(d.x);
+        }
+        self.distance = length.clamp(1.0, 1e9);
+        self.target = point;
+    }
+
     pub fn pan(&mut self, dx: f64, dy: f64, viewport_height: f64) {
         if !dx.is_finite() || !dy.is_finite() || viewport_height <= 0.0 {
             return;

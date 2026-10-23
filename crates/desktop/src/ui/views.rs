@@ -48,6 +48,42 @@ impl ModelView {
         )
     }
 
+    /// Normal and offset of the plane the view depth is measured from: the
+    /// level of a plan, the grid line of an elevation.
+    fn reference(&self) -> Option<(DVec3, f64)> {
+        match &self.kind {
+            ViewKind::Model3d => None,
+            ViewKind::Plan { elevation } => Some((DVec3::Z, *elevation)),
+            ViewKind::Elevation { from, to } => {
+                let n = (*to - *from).with_z(0.).try_normalize()?.cross(DVec3::Z);
+                Some((n, n.dot(*from)))
+            }
+        }
+    }
+
+    /// View depth below (behind) and above (in front of) the view plane, mm.
+    pub fn depth(&self) -> Option<[f64; 2]> {
+        let (_, offset) = self.reference()?;
+        let [Some(low), Some(high)] = &self.clip else {
+            return None;
+        };
+        Some([offset - low.offset, -high.offset - offset])
+    }
+
+    /// Set the view depth (each 0…1 000 000 mm).
+    pub fn set_depth(&mut self, below: f64, above: f64) -> Result<(), String> {
+        let (normal, offset) = self
+            .reference()
+            .ok_or("Глубина задаётся только для планов и фасадов")?;
+        for v in [below, above] {
+            if !(v.is_finite() && (0.0..=1e6).contains(&v)) {
+                return Err("Глубина вида: 0…1 000 000 мм".into());
+            }
+        }
+        self.clip = slab(normal, offset, below, above);
+        Ok(())
+    }
+
     /// Whether a world point lies inside the view depth.
     pub fn keeps(&self, p: DVec3) -> bool {
         self.clip.iter().flatten().all(|c| c.keeps(p))
