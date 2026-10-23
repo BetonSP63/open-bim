@@ -307,6 +307,8 @@ pub struct Workbench {
     pub paste_pick: bool,
     /// View tab tools (view properties, paint, fly, centre of rotation).
     pub view_tools: view_tools::ViewTools,
+    /// «Изменить номер».
+    pub change_number: crate::interaction::change_number::ChangeNumber,
     /// «Пакетный редактор» window.
     pub batch: batch::BatchEditor,
     /// Object groups, the object representation and its window.
@@ -430,6 +432,7 @@ impl Workbench {
             clipboard: None,
             paste_pick: false,
             view_tools: Default::default(),
+            change_number: Default::default(),
             batch: Default::default(),
             groups: crate::interaction::object_groups::default_groups(),
             representation: Vec::new(),
@@ -1632,6 +1635,36 @@ impl Workbench {
                     "Окно плагинов закрыто"
                 });
             }
+            Cmd::DrawingProperties => {
+                let window = &mut self.drawings.properties;
+                window.open = !window.open;
+                window.props = None;
+                let targets = self.drawing_targets();
+                self.message(match targets.len() {
+                    0 => "Свойства чертежа: откройте чертёж или отметьте чертежи в диспетчере"
+                        .to_string(),
+                    1 => "Свойства чертежа: формат, масштаб, обозначение".to_string(),
+                    n => format!("Свойства чертежа: отмечено чертежей {n}"),
+                });
+            }
+            Cmd::DrawingPrototypes => {
+                let catalog = &mut self.drawings.prototypes;
+                catalog.open = !catalog.open;
+                let open = catalog.open;
+                self.message(if open {
+                    "Прототипы: сохраните чертёж или создайте чертежи выбранных деталей"
+                } else {
+                    "Каталог прототипов закрыт"
+                });
+            }
+            Cmd::ChangeNumber => {
+                self.change_number.open = !self.change_number.open;
+                self.message(if self.change_number.open {
+                    "Изменить номер: выберите детали и задайте номер"
+                } else {
+                    "Окно «Изменить номер» закрыто"
+                });
+            }
             Cmd::DrawingWizard => {
                 let wizard = &mut self.drawings.wizard;
                 wizard.open = !wizard.open;
@@ -2071,6 +2104,20 @@ impl Workbench {
                 None
             }
         }
+    }
+
+    /// Drawings «Свойства чертежа» edits: those checked in the document
+    /// manager, else the open one.
+    pub fn drawing_targets(&mut self) -> BTreeSet<ObjectId> {
+        let project = self.editor.document.project();
+        let checked = self.drawings.manager.targets(project);
+        if !checked.is_empty() {
+            return checked;
+        }
+        self.drawings
+            .drawing(project)
+            .map(|d| BTreeSet::from([d.id]))
+            .unwrap_or_default()
     }
 
     /// Activate a model view: remember the work plane of the current one,
@@ -2997,6 +3044,20 @@ impl Workbench {
         self.job_window(&ctx, &mut requests);
         self.recovery_window(&ctx);
         self.drawings.wizard.show(&ctx, &mut self.editor);
+        let targets = self.drawing_targets();
+        self.drawings
+            .properties
+            .show(&ctx, &mut self.editor, targets);
+        let current = self.drawings.current;
+        self.drawings
+            .prototypes
+            .show(&ctx, &mut self.editor, &self.tools.path, current);
+        if let Some((label, commands)) =
+            self.change_number
+                .show(&ctx, self.editor.document.project(), &self.editor.selected)
+        {
+            requests.push(Request::Action(Action::Commit(label, commands)));
+        }
         self.follow_plugins();
         let busy = self.busy();
         if let Some(run) = self.plugins.show(
