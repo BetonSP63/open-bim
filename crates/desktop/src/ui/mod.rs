@@ -177,6 +177,8 @@ pub struct Workbench {
     /// Ribbon tab and the side panel opened from the side pane strip.
     pub ribbon_tab: chrome::RibbonTab,
     pub side_panel: Option<chrome::SidePanel>,
+    /// Name of the active view shown in the window title.
+    pub view_title: &'static str,
     /// Light or dark theme; applied on the next frame.
     pub light_theme: bool,
     pub theme_applied: Option<bool>,
@@ -331,6 +333,7 @@ impl Workbench {
             engine: Default::default(),
             ribbon_tab: Default::default(),
             side_panel: Some(chrome::SidePanel::Properties),
+            view_title: "Вид 1 — 3d",
             light_theme: true,
             work_area: true,
             detail: Default::default(),

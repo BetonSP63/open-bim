@@ -4,7 +4,7 @@ use crate::interaction::snap::SnapKind;
 use eframe::egui;
 use open_bim_renderer::overlay::{Glyph, Mark, Rgba};
 
-fn color(c: Rgba) -> egui::Color32 {
+pub fn color(c: Rgba) -> egui::Color32 {
     egui::Color32::from_rgba_unmultiplied(c[0], c[1], c[2], c[3])
 }
 
@@ -53,11 +53,12 @@ pub fn paint(painter: &egui::Painter, marks: &[Mark]) {
             } => {
                 let stroke = egui::Stroke::new(*width, color(*c));
                 match dash {
-                    Some([d, g]) => painter.extend(egui::Shape::dashed_line(
+                    Some([d1, g1, d2, g2]) => painter.extend(egui::Shape::dashed_line_with_offset(
                         &[pos(*a), pos(*b)],
                         stroke,
-                        *d,
-                        *g,
+                        &[*d1, *d2],
+                        &[*g1, *g2],
+                        0.,
                     )),
                     None => {
                         painter.line_segment([pos(*a), pos(*b)], stroke);

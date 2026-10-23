@@ -411,12 +411,15 @@ impl Workbench {
                         self.run(cmd, requests);
                     }
                 }
-                ui.separator();
-                ui.label(format!(
-                    "Open BIM — {} ({})",
-                    self.editor.document.project().name,
-                    self.tools.path
-                ));
+                // Title in the middle of the row: program, file, active view.
+                let row = ui.max_rect();
+                ui.painter().text(
+                    egui::pos2(row.center().x, ui.min_rect().center().y),
+                    egui::Align2::CENTER_CENTER,
+                    format!("Open BIM - {} - [{}]", self.tools.path, self.view_title),
+                    egui::FontId::proportional(12.5),
+                    ui.visuals().text_color(),
+                );
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if icons::button(
                         ui,

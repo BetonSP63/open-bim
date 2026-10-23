@@ -1467,21 +1467,19 @@ impl eframe::App for Desktop {
                     },
                 );
             }
-            ui.painter().text(
-                rect.left_top() + egui::vec2(15.0, 15.0),
-                egui::Align2::LEFT_TOP,
-                if self.camera.orthographic {
-                    "ОРТОГРАФИЯ"
-                } else {
-                    "ПЕРСПЕКТИВА"
-                },
-                egui::FontId::monospace(12.0),
-                if light {
-                    egui::Color32::from_rgb(40, 55, 80)
-                } else {
-                    egui::Color32::GRAY
-                },
+            // The active view is framed in yellow; its projection is named in
+            // the window title.
+            ui.painter().rect_stroke(
+                rect.shrink(1.),
+                0.,
+                egui::Stroke::new(2.5, open_bim_desktop::viewport::color(overlay::ACTIVE_VIEW)),
+                egui::StrokeKind::Inside,
             );
+            self.bench.view_title = if self.camera.orthographic {
+                "Вид 1 — ортогональный"
+            } else {
+                "Вид 1 — 3d"
+            };
         });
     }
 }
