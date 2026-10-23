@@ -407,7 +407,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                 vec![
                     item(Cmd::PanelModelTree, Icon::Grid, "Организатор"),
                     small_future(Icon::Grid, "Иерархия здания"),
-                    small_future(Icon::Assembly, "Стадии"),
+                    small(Cmd::Phases, Icon::Assembly, "Стадии"),
                     small(Cmd::PanelClash, Icon::Clash, "Проверка на коллизии"),
                 ],
             ),
@@ -425,10 +425,10 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                 "Планирование",
                 vec![
                     small_future(Icon::Grid, "Диспетчер разбивок"),
-                    small_future(Icon::Properties, "Блокировки"),
+                    small(Cmd::Locks, Icon::Properties, "Блокировки"),
                     small_future(Icon::Report, "Задания"),
-                    small_future(Icon::Numbering, "Последовательности"),
-                    small_future(Icon::Assembly, "Партии"),
+                    small(Cmd::Sequences, Icon::Numbering, "Последовательности"),
+                    small(Cmd::Lots, Icon::Assembly, "Партии"),
                     small_future(Icon::Report, "Статус проекта"),
                 ],
             ),

@@ -12,6 +12,7 @@ mod drawing_objects;
 pub mod formula;
 mod frame;
 pub mod library;
+pub mod management;
 pub mod numbering_rules;
 mod plugin;
 mod position;
@@ -44,6 +45,7 @@ pub use drawing::{
 };
 pub use drawing_objects::{HatchPattern, LineType, SheetObject, SheetObjectKind};
 pub use frame::{Frame, GridAxis, GridSettings, Level};
+pub use management::{ListEntry, Management};
 pub use open_bim_geometry::{GeometryError, LengthMm, Point3};
 pub use plugin::{MAX_PLUGIN_INPUTS, PluginInput, PluginInstance, PluginValue};
 pub use position::{AtDepth, OnPlane, PartPosition, Rotation, place, reference_line};

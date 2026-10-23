@@ -82,6 +82,8 @@ impl Workbench {
             p
         } else if let Some(p) = self.components.prompt() {
             p
+        } else if let Some(p) = self.management.prompt() {
+            p
         } else if let Some(p) = self.edit_pick.prompt() {
             p
         } else if let Some(p) = self.special.prompt() {
