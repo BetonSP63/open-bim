@@ -1,6 +1,7 @@
 //! Application shell shared by the native app and headless UI tests: menus,
 //! panels, command registry, palette, help and background jobs. The 3D
 //! viewport (GPU) is drawn by the binary inside the central panel.
+pub mod analysis_ui;
 pub mod auto_connections;
 pub mod batch;
 pub mod catalog_picker;
@@ -311,6 +312,7 @@ pub struct Workbench {
     /// View tab tools (view properties, paint, fly, centre of rotation).
     pub view_tools: view_tools::ViewTools,
     pub visualizer: visualizer::Visualizer,
+    pub analysis: analysis_ui::AnalysisUi,
     /// «Изменить номер».
     pub change_number: crate::interaction::change_number::ChangeNumber,
     pub surfaces: crate::interaction::surfaces::Surfaces,
@@ -440,6 +442,7 @@ impl Workbench {
             paste_pick: false,
             view_tools: Default::default(),
             visualizer: Default::default(),
+            analysis: Default::default(),
             change_number: Default::default(),
             surfaces: Default::default(),
             layout_manager: Default::default(),
@@ -989,7 +992,10 @@ impl Workbench {
                 });
                 // A selected part is taken as the first part.
                 if self.trim.need() == Some(crate::interaction::trim::Need::Part)
-                    && self.trim.tool != Some(TrimTool::AddToAssembly)
+                    && !matches!(
+                        self.trim.tool,
+                        Some(TrimTool::AddToAssembly | TrimTool::CopyAnalysis)
+                    )
                     && let [id] = self.editor.selected.iter().copied().collect::<Vec<_>>()[..]
                     && self.editor.document.project().elements.contains_key(&id)
                 {
@@ -1587,6 +1593,99 @@ impl Workbench {
                     self.paint_selected();
                 }
             }
+            Cmd::AnalysisModels => {
+                let a = &mut self.analysis;
+                a.models_open = !a.models_open;
+                a.show |= a.models_open;
+                self.message(if self.analysis.models_open {
+                    "Расчётные модели: состав, допуск узлов, группы нагрузок, экспорт"
+                } else {
+                    "Окно расчётных моделей закрыто"
+                });
+            }
+            Cmd::LoadGroups => {
+                self.analysis.groups_open = !self.analysis.groups_open;
+                self.message(if self.analysis.groups_open {
+                    "Группы нагрузок: вид воздействия и коэффициент надёжности"
+                } else {
+                    "Окно групп нагрузок закрыто"
+                });
+            }
+            Cmd::AddLoad => {
+                self.analysis.load_open = true;
+                self.analysis.show = true;
+                self.mode = Mode::Model;
+                self.start_load();
+            }
+            Cmd::LoadProperties => {
+                self.analysis.loads_open = !self.analysis.loads_open;
+                self.analysis.show |= self.analysis.loads_open;
+                self.message(if self.analysis.loads_open {
+                    "Свойства нагрузки: выберите нагрузку в списке"
+                } else {
+                    "Окно свойств нагрузки закрыто"
+                });
+            }
+            Cmd::AnalysisPart => {
+                self.analysis.part_open = !self.analysis.part_open;
+                self.message(if self.analysis.part_open {
+                    "Свойства детали в расчётах: выберите детали"
+                } else {
+                    "Окно свойств детали в расчётах закрыто"
+                });
+            }
+            Cmd::ResetAnalysis => {
+                let r = crate::interaction::analysis::reset_parts(
+                    self.editor.document.project(),
+                    &self.editor.selected,
+                );
+                match r {
+                    Ok(commands) => {
+                        self.message("Расчётные свойства выбранных деталей сброшены");
+                        return Some(Request::Action(Action::Commit(
+                            "Сбросить изменения".into(),
+                            commands,
+                        )));
+                    }
+                    Err(e) => self.message(e),
+                }
+            }
+            Cmd::NodeNumbers => {
+                let a = &mut self.analysis;
+                a.node_numbers = !a.node_numbers;
+                a.show |= a.node_numbers;
+                let on = a.node_numbers;
+                self.message(if on {
+                    "Номера узлов показаны"
+                } else {
+                    "Номера узлов скрыты"
+                });
+            }
+            Cmd::BarNumbers => {
+                let a = &mut self.analysis;
+                a.bar_numbers = !a.bar_numbers;
+                a.show |= a.bar_numbers;
+                let on = a.bar_numbers;
+                self.message(if on {
+                    "Номера элементов показаны"
+                } else {
+                    "Номера элементов скрыты"
+                });
+            }
+            Cmd::AnalysisNode | Cmd::RigidLink | Cmd::MergeNodes | Cmd::CopyAnalysis => {
+                use crate::interaction::trim::{TrimPicker, TrimTool};
+                self.engine.cancel();
+                self.detail.cancel();
+                self.mode = Mode::Model;
+                self.analysis.show = true;
+                self.trim = TrimPicker::start(match cmd {
+                    Cmd::AnalysisNode => TrimTool::AnalysisNode,
+                    Cmd::RigidLink => TrimTool::RigidLink,
+                    Cmd::MergeNodes => TrimTool::MergeNodes,
+                    _ => TrimTool::CopyAnalysis,
+                });
+                self.message(self.prompt());
+            }
             Cmd::Visualizer => {
                 self.visualizer.open = !self.visualizer.open;
                 self.message(if self.visualizer.open {
@@ -2071,6 +2170,31 @@ impl Workbench {
                 .and_then(|pr| trim::stiffener(project, *b, *at, pr)),
             (TrimTool::AddToAssembly, [target], []) => {
                 crate::interaction::assembly_edit::add_to(project, &self.editor.selected, *target)
+            }
+            (TrimTool::AnalysisNode, [], [a]) => {
+                crate::interaction::analysis::add_node(project, *a)
+            }
+            (TrimTool::RigidLink, [], [a, b]) => {
+                crate::interaction::analysis::add_link(project, self.analysis.active, *a, *b)
+            }
+            (TrimTool::MergeNodes, [], [a, b]) => {
+                crate::interaction::analysis::merge_nodes(project, self.analysis.active, *a, *b)
+            }
+            (TrimTool::PointLoad, [], [_]) | (TrimTool::LineLoad, [], [_, _]) => {
+                let points: Vec<[f64; 3]> = pts.iter().map(|p| p.to_array()).collect();
+                self.analysis.shape(&points).and_then(|shape| {
+                    crate::interaction::analysis::add_load(project, self.analysis.group, shape)
+                })
+            }
+            (TrimTool::AreaLoad, [], polygon) if polygon.len() >= 3 => {
+                let points: Vec<[f64; 3]> = polygon.iter().map(|p| p.to_array()).collect();
+                self.analysis.shape(&points).and_then(|shape| {
+                    crate::interaction::analysis::add_load(project, self.analysis.group, shape)
+                })
+            }
+            (TrimTool::AreaLoad, _, _) => Err("Нужно не меньше 3 вершин площади".into()),
+            (TrimTool::CopyAnalysis, [source], []) => {
+                crate::interaction::analysis::copy_from(project, *source, &self.editor.selected)
             }
             _ => return None,
         };
@@ -3180,6 +3304,7 @@ impl Workbench {
         self.view_properties_window(&ctx, &mut requests);
         self.paint_window(&ctx);
         self.visualizer_window(&ctx, &mut requests);
+        self.analysis_windows(&ctx, &mut requests);
         if std::mem::take(&mut self.management.status_changed) {
             self.representation_version += 1;
         }

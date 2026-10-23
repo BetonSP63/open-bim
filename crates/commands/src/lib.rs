@@ -115,6 +115,9 @@ pub enum Command {
     SetManagement {
         management: open_bim_model::Management,
     },
+    SetAnalysis {
+        analysis: open_bim_model::Analysis,
+    },
     /// Fix the marks of a numbering run (replaces the stored marks).
     SetNumbering {
         marks: BTreeMap<ObjectId, String>,
@@ -704,6 +707,10 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
         Command::SetManagement { management } => {
             management.validate()?;
             project.management = management.clone();
+        }
+        Command::SetAnalysis { analysis } => {
+            analysis.validate()?;
+            project.analysis = analysis.clone();
         }
         Command::SetNumbering { marks } => project.numbering = marks.clone(),
         Command::SetDocumentInfo { info } => {

@@ -1,6 +1,7 @@
 //! Pick-command engine: a command declares its picks and a
 //! Russian prompt per step; picks are projected onto the work plane; the
 //! object is created after the last pick and the command re-arms until Esc.
+pub mod analysis;
 pub mod assembly_edit;
 pub mod change_number;
 pub mod clipboard;
