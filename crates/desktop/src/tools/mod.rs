@@ -914,31 +914,7 @@ impl Editor {
             return Ok((scene, report.summary()));
         }
         let merge = open_bim_ifc::merge::merge(self.document.project(), &project);
-        let mut commands = Vec::new();
-        commands.extend(merge.materials.iter().map(|m| Command::CreateMaterial {
-            material: m.clone(),
-        }));
-        commands.extend(
-            merge
-                .profiles
-                .iter()
-                .map(|p| Command::CreateProfile { profile: p.clone() }),
-        );
-        commands.extend(
-            merge
-                .elements
-                .iter()
-                .map(|e| Command::Create { element: e.clone() }),
-        );
-        commands.extend(
-            merge
-                .details
-                .iter()
-                .map(|d| Command::CreateDetail { detail: d.clone() }),
-        );
-        commands.extend(merge.assemblies.iter().map(|a| Command::CreateAssembly {
-            assembly: a.clone(),
-        }));
+        let commands = merge_commands(&merge);
         let scene = self.commit(&label, &commands)?;
         let mut message = format!("Добавлено в текущую модель. {}", report.summary());
         if merge.shift != [0.; 3] {
@@ -996,4 +972,35 @@ impl Editor {
             }
         }
     }
+}
+
+/// Commands adding an IFC merge (materials, sections, parts, cuts and
+/// assemblies) to the model, in dependency order.
+pub fn merge_commands(merge: &open_bim_ifc::merge::Merge) -> Vec<Command> {
+    let mut commands = Vec::new();
+    commands.extend(merge.materials.iter().map(|m| Command::CreateMaterial {
+        material: m.clone(),
+    }));
+    commands.extend(
+        merge
+            .profiles
+            .iter()
+            .map(|p| Command::CreateProfile { profile: p.clone() }),
+    );
+    commands.extend(
+        merge
+            .elements
+            .iter()
+            .map(|e| Command::Create { element: e.clone() }),
+    );
+    commands.extend(
+        merge
+            .details
+            .iter()
+            .map(|d| Command::CreateDetail { detail: d.clone() }),
+    );
+    commands.extend(merge.assemblies.iter().map(|a| Command::CreateAssembly {
+        assembly: a.clone(),
+    }));
+    commands
 }

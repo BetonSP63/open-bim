@@ -134,6 +134,7 @@ pub enum Cmd {
     ChangeNumber,
     Surfaces,
     LayoutManager,
+    ConvertIfc,
     Paint,
     Redraw,
     ZoomIn,
@@ -999,6 +1000,13 @@ pub const ALL: &[Spec] = &[
         category: "Управление",
         shortcut: None,
         keywords: "разбивка разбивочные точки координаты узлы сетки геодезия csv",
+    },
+    Spec {
+        cmd: Cmd::ConvertIfc,
+        label: "Преобразовать объекты IFC",
+        category: "Файл",
+        shortcut: None,
+        keywords: "ifc преобразовать конвертировать импорт объекты guid опорная модель",
     },
     Spec {
         cmd: Cmd::DrawingWizard,

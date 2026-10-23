@@ -8,6 +8,7 @@ pub mod component_symbols;
 pub mod control_numbers;
 pub mod corners;
 pub mod grid_edit;
+pub mod ifc_convert;
 pub mod inquire;
 pub mod keyboard_cursor;
 pub mod layout_points;
