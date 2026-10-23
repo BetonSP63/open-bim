@@ -258,7 +258,8 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                 vec![
                     item(Cmd::Measure, Icon::Move, "Измерить"),
                     item(Cmd::CopyByPicks, Icon::Copy, "Копировать"),
-                    future(Icon::Copy, "Вставить"),
+                    item(Cmd::Paste, Icon::Copy, "Вставить"),
+                    small(Cmd::CopyToClipboard, Icon::Copy, "Копировать в буфер"),
                     item(Cmd::MoveByPicks, Icon::Move, "Переместить"),
                     small(Cmd::CopySpecial, Icon::Copy, "Копировать специально"),
                     small(Cmd::MoveSpecial, Icon::Move, "Переместить специально"),
@@ -267,7 +268,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     small(Cmd::RotateByPicks, Icon::Rotate, "Повернуть"),
                     small(Cmd::DeleteSelected, Icon::Delete, "Удалить"),
                     small(Cmd::PanelEdit, Icon::Properties, "Изменить числами"),
-                    small_future(Icon::Properties, "Пакетный редактор"),
+                    small(Cmd::BatchEditor, Icon::Properties, "Пакетный редактор"),
                 ],
             ),
             (

@@ -65,6 +65,7 @@ impl Workbench {
             || self.measure.is_some()
             || self.angle_picks.is_some()
             || self.clip_pick
+            || self.paste_pick
             || matches!(
                 self.trim.need(),
                 Some(
@@ -88,6 +89,8 @@ impl Workbench {
             p
         } else if let Some(p) = self.special.prompt() {
             p.into()
+        } else if self.paste_pick {
+            "Вставить: укажите точку вставки (базовая точка — начало первого объекта)".into()
         } else if self.clip_pick {
             "Секущая плоскость: укажите точку, через которую она пройдёт".into()
         } else if let Some(m) = &self.angle_picks {

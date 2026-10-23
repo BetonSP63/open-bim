@@ -2,6 +2,7 @@
 //! panels, command registry, palette, help and background jobs. The 3D
 //! viewport (GPU) is drawn by the binary inside the central panel.
 pub mod auto_connections;
+pub mod batch;
 pub mod catalog_picker;
 pub mod chrome;
 pub mod commands;
@@ -289,6 +290,12 @@ pub struct Workbench {
     pub plugins_seen: (u64, u64),
     /// The next pick places the clip plane.
     pub clip_pick: bool,
+    /// «Копировать в буфер» / «Вставить».
+    pub clipboard: Option<crate::interaction::clipboard::Clipboard>,
+    /// «Вставить» waits for the insertion point.
+    pub paste_pick: bool,
+    /// «Пакетный редактор» window.
+    pub batch: batch::BatchEditor,
     /// Object groups, the object representation and its window.
     pub groups: Vec<crate::interaction::object_groups::Group>,
     pub representation: Vec<crate::interaction::object_groups::RepresentationRow>,
@@ -407,6 +414,9 @@ impl Workbench {
             management: Default::default(),
             plugins_seen: (0, 0),
             clip_pick: false,
+            clipboard: None,
+            paste_pick: false,
+            batch: Default::default(),
             groups: crate::interaction::object_groups::default_groups(),
             representation: Vec::new(),
             representation_open: false,
@@ -1057,6 +1067,8 @@ impl Workbench {
                 } else if self.measure.take().is_some() {
                     self.measured = None;
                     self.message("Измерение завершено");
+                } else if std::mem::take(&mut self.paste_pick) {
+                    self.message("Вставка отменена");
                 } else if std::mem::take(&mut self.clip_pick) {
                     self.message("Секущая плоскость не задана");
                 } else if self.angle_picks.take().is_some() {
@@ -1499,6 +1511,38 @@ impl Workbench {
                 self.mode = Mode::Model;
                 self.start_check();
             }
+            Cmd::CopyToClipboard => {
+                match crate::interaction::clipboard::Clipboard::copy(
+                    self.editor.document.project(),
+                    &self.editor.selected,
+                ) {
+                    Some(clip) => {
+                        self.message(format!(
+                            "В буфере объектов: {}. «Вставить» — укажите точку вставки",
+                            clip.len()
+                        ));
+                        self.clipboard = Some(clip);
+                    }
+                    None => self.message("Выберите детали или оси для копирования"),
+                }
+            }
+            Cmd::Paste => {
+                if self.clipboard.is_some() {
+                    self.mode = Mode::Model;
+                    self.paste_pick = true;
+                    self.message(self.prompt());
+                } else {
+                    self.message("Буфер пуст: сначала «Копировать в буфер»");
+                }
+            }
+            Cmd::BatchEditor => {
+                self.batch.open = !self.batch.open;
+                self.message(if self.batch.open {
+                    "Пакетный редактор: изменение выбранных деталей одним шагом"
+                } else {
+                    "Пакетный редактор закрыт"
+                });
+            }
             Cmd::Phases
             | Cmd::Lots
             | Cmd::Sequences
@@ -1655,6 +1699,27 @@ impl Workbench {
             }
             self.message(self.prompt());
             return None;
+        }
+        if self.paste_pick {
+            let Some(clip) = &self.clipboard else {
+                self.paste_pick = false;
+                return None;
+            };
+            return match clip.paste(self.editor.document.project(), point) {
+                Ok(commands) => {
+                    // Stays armed: each pick pastes again until Esc.
+                    self.message(format!(
+                        "Вставлено объектов: {}. Укажите следующую точку или Esc",
+                        clip.len()
+                    ));
+                    Some(Request::Action(Action::Commit("Вставить".into(), commands)))
+                }
+                Err(e) => {
+                    self.paste_pick = false;
+                    self.message(e);
+                    None
+                }
+            };
         }
         if self.clip_pick {
             self.clip_pick = false;
@@ -2901,6 +2966,12 @@ impl Workbench {
             if let Some(p) = self.management.prompt() {
                 self.message(p);
             }
+        }
+        if let Some((label, commands)) =
+            self.batch
+                .show(&ctx, self.editor.document.project(), &self.editor.selected)
+        {
+            requests.push(Request::Action(Action::Commit(label, commands)));
         }
         if std::mem::take(&mut self.management.status_changed) {
             self.representation_version += 1;

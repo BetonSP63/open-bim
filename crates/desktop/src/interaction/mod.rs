@@ -2,6 +2,7 @@
 //! Russian prompt per step; picks are projected onto the work plane; the
 //! object is created after the last pick and the command re-arms until Esc.
 pub mod assembly_edit;
+pub mod clipboard;
 pub mod component_symbols;
 pub mod control_numbers;
 pub mod corners;
