@@ -197,12 +197,7 @@ fn every_ribbon_button_runs_its_registry_command_by_mouse() {
 
 #[test]
 fn unavailable_concrete_and_rebar_explain_on_hover() {
-    for tab in [
-        RibbonTab::Concrete,
-        RibbonTab::Rebar,
-        RibbonTab::Analysis,
-        RibbonTab::Formwork,
-    ] {
+    for tab in [RibbonTab::Concrete, RibbonTab::Rebar, RibbonTab::Formwork] {
         assert!(!tab.available());
         let ctx = egui::Context::default();
         ctx.enable_accesskit();

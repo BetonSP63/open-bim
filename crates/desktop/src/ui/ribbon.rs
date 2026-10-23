@@ -47,10 +47,7 @@ impl RibbonTab {
     }
     /// Tabs whose every button is still a future tool are drawn dimmed.
     pub fn available(self) -> bool {
-        !matches!(
-            self,
-            Self::Concrete | Self::Rebar | Self::Analysis | Self::Formwork
-        )
+        !matches!(self, Self::Concrete | Self::Rebar | Self::Formwork)
     }
 }
 
@@ -445,28 +442,40 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
             (
                 "Расчётная модель",
                 vec![
-                    future(Icon::Assembly, "Расчётные и проектные модели"),
-                    future(Icon::Properties, "Группы нагрузок"),
-                    future(Icon::Move, "Загрузить"),
+                    item(
+                        Cmd::AnalysisModels,
+                        Icon::Assembly,
+                        "Расчётные и проектные модели",
+                    ),
+                    item(Cmd::LoadGroups, Icon::Properties, "Группы нагрузок"),
+                    item(Cmd::AddLoad, Icon::Move, "Загрузить"),
                 ],
             ),
             (
                 "Узлы",
                 vec![
-                    future(Icon::Component, "Узел"),
-                    small_future(Icon::Component, "Жёсткая связь"),
-                    small_future(Icon::Component, "Объединить узлы"),
+                    item(Cmd::AnalysisNode, Icon::Component, "Узел"),
+                    small(Cmd::RigidLink, Icon::Component, "Жёсткая связь"),
+                    small(Cmd::MergeNodes, Icon::Component, "Объединить узлы"),
                 ],
             ),
             (
                 "Свойства",
                 vec![
-                    small_future(Icon::Properties, "Свойства детали в расчётах"),
-                    small_future(Icon::Properties, "Свойства нагрузки"),
-                    small_future(Icon::Properties, "Сбросить изменения"),
-                    small_future(Icon::Properties, "Получить расчётные свойства"),
-                    small_future(Icon::Numbering, "Номера узлов"),
-                    small_future(Icon::Numbering, "Номера элементов"),
+                    small(
+                        Cmd::AnalysisPart,
+                        Icon::Properties,
+                        "Свойства детали в расчётах",
+                    ),
+                    small(Cmd::LoadProperties, Icon::Properties, "Свойства нагрузки"),
+                    small(Cmd::ResetAnalysis, Icon::Properties, "Сбросить изменения"),
+                    small(
+                        Cmd::CopyAnalysis,
+                        Icon::Properties,
+                        "Получить расчётные свойства",
+                    ),
+                    small(Cmd::NodeNumbers, Icon::Numbering, "Номера узлов"),
+                    small(Cmd::BarNumbers, Icon::Numbering, "Номера элементов"),
                 ],
             ),
         ],

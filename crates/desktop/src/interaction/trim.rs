@@ -35,6 +35,13 @@ pub enum TrimTool {
     Gusset,
     Stiffener,
     AddToAssembly,
+    AnalysisNode,
+    RigidLink,
+    MergeNodes,
+    PointLoad,
+    LineLoad,
+    AreaLoad,
+    CopyAnalysis,
 }
 
 /// What a command asks for next.
@@ -65,6 +72,13 @@ impl TrimTool {
             Self::Gusset => "Косынка",
             Self::Stiffener => "Ребро жёсткости",
             Self::AddToAssembly => "Добавить в сборку",
+            Self::AnalysisNode => "Узел",
+            Self::RigidLink => "Жёсткая связь",
+            Self::MergeNodes => "Объединить узлы",
+            Self::PointLoad => "Сосредоточенная нагрузка",
+            Self::LineLoad => "Линейная нагрузка",
+            Self::AreaLoad => "Нагрузка по площади",
+            Self::CopyAnalysis => "Получить расчётные свойства",
         }
     }
 
@@ -72,7 +86,10 @@ impl TrimTool {
     pub fn steps(self) -> &'static [Need] {
         use Need::*;
         match self {
-            Self::ConstructionPoint => &[Point],
+            Self::ConstructionPoint | Self::AnalysisNode | Self::PointLoad => &[Point],
+            Self::RigidLink | Self::MergeNodes | Self::LineLoad => &[Point, Point],
+            Self::AreaLoad => &[Polygon],
+            Self::CopyAnalysis => &[Part],
             Self::PointsOnLine
             | Self::ConstructionLine
             | Self::ConstructionCircle
@@ -124,6 +141,19 @@ impl TrimTool {
             (Self::Stiffener, _) => "Укажите место ребра на балке со стороны стенки",
             (Self::AddToAssembly, _) => {
                 "Укажите деталь сборки, в которую добавить выбранные детали"
+            }
+            (Self::AnalysisNode, _) => "Укажите положение узла",
+            (Self::RigidLink, 0) => "Укажите первый узел",
+            (Self::RigidLink, _) => "Укажите второй узел",
+            (Self::MergeNodes, 0) => "Укажите узел, который остаётся",
+            (Self::MergeNodes, _) => "Укажите узел, который к нему присоединяется",
+            (Self::PointLoad, _) => "Укажите точку приложения",
+            (Self::LineLoad, 0) => "Укажите начало нагрузки",
+            (Self::LineLoad, _) => "Укажите конец нагрузки",
+            (Self::AreaLoad, _) if points < 3 => "Укажите вершины площади загружения",
+            (Self::AreaLoad, _) => "Следующая вершина или Enter — замкнуть площадь",
+            (Self::CopyAnalysis, _) => {
+                "Укажите деталь, расчётные свойства которой получат выбранные"
             }
         };
         format!("{}: {step} (Esc — прервать)", self.label())

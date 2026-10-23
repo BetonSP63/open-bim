@@ -161,6 +161,9 @@ pub struct Project {
     /// Phases, lots and sequences («Управление»).
     #[serde(default, skip_serializing_if = "crate::Management::is_default")]
     pub management: crate::Management,
+    /// Analysis models, loads and analysis properties («Анализ»).
+    #[serde(default, skip_serializing_if = "crate::Analysis::is_default")]
+    pub analysis: crate::Analysis,
 }
 
 impl Default for Project {
@@ -189,6 +192,7 @@ impl Default for Project {
             numbering: BTreeMap::new(),
             grid: Default::default(),
             management: Default::default(),
+            analysis: Default::default(),
         }
     }
 }

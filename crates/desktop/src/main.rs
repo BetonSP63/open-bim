@@ -1347,6 +1347,22 @@ impl eframe::App for Desktop {
                 },
             );
             open_bim_desktop::viewport::paint(ui.painter(), &marks);
+            if self.bench.analysis.show {
+                let analytical = self.bench.analytical();
+                let span = (self.scene.bounds.max - self.scene.bounds.min).length();
+                let marks = open_bim_desktop::interaction::analysis::marks(
+                    &analytical,
+                    &projector,
+                    self.bench.analysis.node_numbers,
+                    self.bench.analysis.bar_numbers,
+                    if span.is_finite() {
+                        span.max(1000.)
+                    } else {
+                        10_000.
+                    },
+                );
+                open_bim_desktop::viewport::paint(ui.painter(), &marks);
+            }
             if self.bench.show_components {
                 open_bim_desktop::viewport::paint_symbols(
                     ui.painter(),

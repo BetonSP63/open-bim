@@ -1,4 +1,5 @@
 //! Serializable BIM domain; no dependency on desktop, drawing or GPU libraries.
+pub mod analysis;
 mod body;
 mod catalog;
 mod changes;
@@ -19,6 +20,10 @@ mod position;
 mod project;
 mod validation;
 
+pub use analysis::{
+    Analysis, AnalysisModel, Load, LoadGroup, LoadKind, LoadShape, Members, PartAnalysis, PartRole,
+    RigidLink,
+};
 pub use catalog::{Material, Profile, ProfileShape};
 pub use changes::{Change, REASONS, SheetChange, SheetChangeKind};
 pub use connection::{
