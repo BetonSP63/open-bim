@@ -102,10 +102,9 @@ fn edited_fields_go_to_parts_and_assemblies_in_one_step() {
     editor.document.undo().unwrap();
     editor.document.undo().unwrap();
     assert!(
-        editor.document.project().elements[&parts[0]]
+        !editor.document.project().elements[&parts[0]]
             .properties
-            .get(CAMBER)
-            .is_none()
+            .contains_key(CAMBER)
     );
 }
 
