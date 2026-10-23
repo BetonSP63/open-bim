@@ -919,7 +919,9 @@ impl Workbench {
                     "Сведения о документе: графы основной надписи (ГОСТ Р 21.101, прил. Е)",
                 );
             }
-            Cmd::ConstructionLine
+            Cmd::ConstructionPoint
+            | Cmd::PointsOnLine
+            | Cmd::ConstructionLine
             | Cmd::ConstructionCircle
             | Cmd::ModelDimension
             | Cmd::FitEnd
@@ -938,6 +940,8 @@ impl Workbench {
                 self.mode = Mode::Model;
                 self.side_panel = Some(chrome::SidePanel::Properties);
                 self.trim = TrimPicker::start(match cmd {
+                    Cmd::ConstructionPoint => TrimTool::ConstructionPoint,
+                    Cmd::PointsOnLine => TrimTool::PointsOnLine,
                     Cmd::ConstructionLine => TrimTool::ConstructionLine,
                     Cmd::ConstructionCircle => TrimTool::ConstructionCircle,
                     Cmd::ModelDimension => TrimTool::Dimension,
@@ -1882,6 +1886,13 @@ impl Workbench {
         let normal = self.engine.workplane.axes[2];
         let (parts, pts) = (self.trim.parts.clone(), self.trim.points.clone());
         let result = match (tool, &parts[..], &pts[..]) {
+            (TrimTool::ConstructionPoint, [], [a]) => trim::points(project, *a, None, 0),
+            (TrimTool::PointsOnLine, [], [a, b]) => {
+                match self.tools.detailing.point_divisions.trim().parse::<usize>() {
+                    Ok(n) => trim::points(project, *a, Some(*b), n),
+                    Err(_) => Err("Число частей: целое число".into()),
+                }
+            }
             (TrimTool::ConstructionLine | TrimTool::ConstructionCircle, [], [a, b]) => {
                 trim::construction(project, tool, *a, *b, normal)
             }

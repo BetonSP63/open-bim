@@ -7,6 +7,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ConstructionKind {
+    /// A construction point («Точки»): a snap and reference point.
+    Point {
+        at: Point3,
+    },
     Line {
         a: Point3,
         b: Point3,
@@ -50,6 +54,8 @@ impl Construction {
     /// Line segments that draw the object (a circle as 48 chords).
     pub fn segments(&self) -> Vec<([f64; 3], [f64; 3])> {
         match &self.kind {
+            // A zero-length segment: picked and area-selected as a point.
+            ConstructionKind::Point { at } => vec![(at.0, at.0)],
             ConstructionKind::Line { a, b } => vec![(a.0, b.0)],
             ConstructionKind::Circle {
                 center,
@@ -94,6 +100,11 @@ impl Construction {
             )))
         };
         match &self.kind {
+            ConstructionKind::Point { at } => {
+                if !finite(at) {
+                    return invalid("точка вне диапазона");
+                }
+            }
             ConstructionKind::Line { a, b } => {
                 if !finite(a) || !finite(b) {
                     return invalid("точка вне диапазона");

@@ -374,3 +374,52 @@ fn ribbon_commands_run_by_picks_and_ifc_keeps_the_cut_volume() {
         "IFC {imported} vs model {cut}"
     );
 }
+
+#[test]
+fn points_divide_a_segment_and_are_snap_points() {
+    let mut b = bench();
+    // «Точка»: one point per click, the command stays armed.
+    b.execute(Cmd::ConstructionPoint);
+    let one = DVec3::new(1500., 2500., 0.);
+    let r = b.pick(one);
+    assert!(apply(&mut b, r));
+    let r = b.pick(DVec3::new(2500., 2500., 0.));
+    assert!(apply(&mut b, r));
+    b.execute(Cmd::CancelTool);
+    assert_eq!(p(&b).construction.len(), 2);
+    // «Точки на линии»: ends and division points.
+    b.tools.detailing.point_divisions = "4".into();
+    b.execute(Cmd::PointsOnLine);
+    b.pick(DVec3::new(0., 1000., 0.));
+    let r = b.pick(DVec3::new(6000., 1000., 0.));
+    assert!(apply(&mut b, r));
+    b.execute(Cmd::CancelTool);
+    let points: Vec<DVec3> = p(&b)
+        .construction
+        .values()
+        .filter_map(|c| match c.kind {
+            ConstructionKind::Point { at } => Some(DVec3::from_array(at.0)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(points.len(), 7);
+    for x in [0., 1500., 3000., 4500., 6000.] {
+        assert!(points.iter().any(|q| close(*q, DVec3::new(x, 1000., 0.))));
+    }
+    // Points are snap points and are not lines.
+    let snaps = open_bim_desktop::interaction::snap::construction_points(p(&b));
+    assert!(snaps.iter().any(|q| close(*q, one)));
+    assert!(open_bim_desktop::interaction::snap::construction_segments(p(&b)).is_empty());
+    // Bad input is refused, nothing is created.
+    let n = p(&b).construction.len();
+    b.tools.detailing.point_divisions = "0".into();
+    b.execute(Cmd::PointsOnLine);
+    b.pick(DVec3::ZERO);
+    let r = b.pick(DVec3::new(1000., 0., 0.));
+    assert!(!apply(&mut b, r));
+    assert_eq!(p(&b).construction.len(), n);
+    // Saved and loaded unchanged.
+    let bytes = open_bim_persistence::encode(p(&b)).unwrap();
+    let back = open_bim_persistence::decode(&bytes).unwrap();
+    assert_eq!(back.construction, p(&b).construction);
+}
