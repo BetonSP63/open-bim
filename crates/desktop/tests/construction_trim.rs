@@ -423,3 +423,81 @@ fn points_divide_a_segment_and_are_snap_points() {
     let back = open_bim_persistence::decode(&bytes).unwrap();
     assert_eq!(back.construction, p(&b).construction);
 }
+
+#[test]
+fn edge_chamfer_removes_the_triangle_along_the_whole_edge() {
+    use open_bim_desktop::interaction::trim::edge_chamfer;
+    let mut b = bench();
+    // A 300 × 200 × 20 plate.
+    let mut project = p(&b).clone();
+    let id = ObjectId(project.next_id);
+    let material = *project.materials.keys().next().unwrap();
+    project.elements.insert(
+        id,
+        open_bim_model::Element {
+            id,
+            name: "Пластина".into(),
+            material,
+            shape: open_bim_model::ElementShape::Plate {
+                contour: vec![[0., 0.], [300., 0.], [300., 200.], [0., 200.]],
+                thickness: open_bim_model::LengthMm::new(20.).unwrap(),
+                frame: Default::default(),
+            },
+            properties: Default::default(),
+        },
+    );
+    project.next_id += 1;
+    b = Workbench::new(Editor::new(project).unwrap());
+    let full = volume(&b, id);
+    assert!((full - 300. * 200. * 20.).abs() < 1e-3);
+    // Corner edge through the thickness at (300, 0): 30 × 30 triangle.
+    let cmds = edge_chamfer(
+        p(&b),
+        id,
+        DVec3::new(300., 0., 0.),
+        DVec3::new(300., 0., 20.),
+        30.,
+        30.,
+    )
+    .unwrap();
+    commit(&mut b, cmds);
+    let removed = full - volume(&b, id);
+    assert!((removed - 0.5 * 30. * 30. * 20.).abs() < 1e-3, "{removed}");
+    // Top edge along y = 200 (end face z = 20): 10 on the face × 5 deep.
+    let cmds = edge_chamfer(
+        p(&b),
+        id,
+        DVec3::new(0., 200., 20.),
+        DVec3::new(300., 200., 20.),
+        10.,
+        5.,
+    )
+    .unwrap();
+    commit(&mut b, cmds);
+    let removed = full - volume(&b, id);
+    let expected = 0.5 * 30. * 30. * 20. + 0.5 * 10. * 5. * 300.;
+    assert!((removed - expected).abs() < 1e-3, "{removed} vs {expected}");
+    // Points not on one edge, zero legs: refused.
+    assert!(
+        edge_chamfer(
+            p(&b),
+            id,
+            DVec3::new(0., 0., 0.),
+            DVec3::new(300., 200., 20.),
+            10.,
+            10.
+        )
+        .is_err()
+    );
+    assert!(
+        edge_chamfer(
+            p(&b),
+            id,
+            DVec3::new(0., 0., 0.),
+            DVec3::new(0., 0., 20.),
+            0.,
+            10.
+        )
+        .is_err()
+    );
+}

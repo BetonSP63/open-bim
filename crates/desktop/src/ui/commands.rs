@@ -128,6 +128,7 @@ pub enum Cmd {
     Paste,
     BatchEditor,
     ViewProperties,
+    EdgeChamfer,
     DrawingProperties,
     DrawingPrototypes,
     ChangeNumber,
@@ -1150,6 +1151,13 @@ pub const ALL: &[Spec] = &[
         category: "Подгонка",
         shortcut: None,
         keywords: "рез контур многоугольник вырез",
+    },
+    Spec {
+        cmd: Cmd::EdgeChamfer,
+        label: "Фаска кромки",
+        category: "Подгонка",
+        shortcut: None,
+        keywords: "фаска кромки скос разделка под сварку срезать ребро",
     },
     Spec {
         cmd: Cmd::SplitPart,

@@ -85,6 +85,8 @@ pub struct DetailingUi {
     pub stiffener_snip: String,
     /// «Точки на линии»: number of equal parts.
     pub point_divisions: String,
+    /// «Фаска кромки»: legs, mm (the second empty = equal legs).
+    pub edge_chamfer: [String; 2],
 }
 impl Default for DetailingUi {
     fn default() -> Self {
@@ -118,6 +120,7 @@ impl Default for DetailingUi {
             gusset_chamfer: "30".into(),
             stiffener_snip: "20".into(),
             point_divisions: "4".into(),
+            edge_chamfer: ["10".into(), String::new()],
         }
     }
 }

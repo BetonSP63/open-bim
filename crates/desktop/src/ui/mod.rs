@@ -945,6 +945,7 @@ impl Workbench {
             | Cmd::CutLine
             | Cmd::CutPart
             | Cmd::CutPolygon
+            | Cmd::EdgeChamfer
             | Cmd::SplitPart
             | Cmd::CombineParts
             | Cmd::ExtendTo
@@ -966,6 +967,7 @@ impl Workbench {
                     Cmd::CutLine => TrimTool::CutLine,
                     Cmd::CutPart => TrimTool::CutPart,
                     Cmd::CutPolygon => TrimTool::CutPolygon,
+                    Cmd::EdgeChamfer => TrimTool::EdgeChamfer,
                     Cmd::SplitPart => TrimTool::Split,
                     Cmd::CombineParts => TrimTool::Combine,
                     Cmd::ExtendTo => TrimTool::Extend,
@@ -1998,6 +2000,17 @@ impl Workbench {
                 trim::cut_polygon(project, *p, polygon, normal)
             }
             (TrimTool::CutPolygon, _, _) => Err("Нужно не меньше 3 вершин выреза".into()),
+            (TrimTool::EdgeChamfer, [part], [a, b]) => {
+                let legs = &self.tools.detailing.edge_chamfer;
+                crate::tools::number(&legs[0]).and_then(|first| {
+                    let second = if legs[1].trim().is_empty() {
+                        first
+                    } else {
+                        crate::tools::number(&legs[1])?
+                    };
+                    trim::edge_chamfer(project, *part, *a, *b, first, second)
+                })
+            }
             (TrimTool::Split, [p], [a]) => trim::split(project, *p, *a),
             (TrimTool::Combine, [a, b], []) => trim::combine(project, *a, *b),
             (TrimTool::Extend, [p], [a]) => trim::extend_to(project, *p, *a),
