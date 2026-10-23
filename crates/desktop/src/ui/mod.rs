@@ -12,6 +12,7 @@ pub mod grid_pane;
 pub mod icons;
 pub mod jobs;
 pub mod keytips;
+pub mod management;
 pub mod palette;
 pub mod plugins;
 pub mod property_fields;
@@ -281,6 +282,8 @@ pub struct Workbench {
     /// «Запросить объект» / «Сравнить детали» result window.
     pub inquiry: Option<crate::interaction::inquire::Inquiry>,
     pub plugins: plugins::PluginsUi,
+    /// Phases, lots, sequences and locks windows.
+    pub management: management::ManagementUi,
     /// Transactions and revision already checked for placed plugins.
     pub plugins_seen: (u64, u64),
     /// The next pick places the clip plane.
@@ -400,6 +403,7 @@ impl Workbench {
             measured_angle: None,
             inquiry: None,
             plugins: Default::default(),
+            management: Default::default(),
             plugins_seen: (0, 0),
             clip_pick: false,
             groups: crate::interaction::object_groups::default_groups(),
@@ -1061,6 +1065,7 @@ impl Workbench {
                     || self.detail.cancel()
                     || self.edit_pick.cancel()
                     || self.components.cancel()
+                    || self.management.cancel()
                     || self.special.cancel_pick()
                 {
                     self.message("Команда прервана");
@@ -1493,6 +1498,20 @@ impl Workbench {
                 self.mode = Mode::Model;
                 self.start_check();
             }
+            Cmd::Phases | Cmd::Lots | Cmd::Sequences | Cmd::Locks => {
+                use management::Window;
+                let window = match cmd {
+                    Cmd::Phases => Window::Phases,
+                    Cmd::Lots => Window::Lots,
+                    Cmd::Sequences => Window::Sequences,
+                    _ => Window::Locks,
+                };
+                self.management.toggle(window);
+                self.message(match self.management.open {
+                    Some(w) => format!("{}: выберите детали и назначьте", w.title()),
+                    None => format!("Окно «{}» закрыто", window.title()),
+                });
+            }
             Cmd::Plugins => {
                 self.plugins.open = !self.plugins.open;
                 self.message(if self.plugins.open {
@@ -1760,6 +1779,7 @@ impl Workbench {
     pub fn picks_objects(&self) -> bool {
         self.detail.picks_objects()
             || self.components.picks_objects()
+            || self.management.picks_objects()
             || self.trim.need() == Some(crate::interaction::trim::Need::Part)
     }
 
@@ -1841,6 +1861,22 @@ impl Workbench {
         };
         if self.components.armed.is_some() {
             return self.pick_component_part(id);
+        }
+        if self.management.picks_objects() {
+            let out = self.management.pick(self.editor.document.project(), id);
+            let text = self
+                .management
+                .message
+                .take()
+                .or_else(|| self.management.prompt())
+                .unwrap_or_default();
+            self.message(text);
+            return match out {
+                Some(management::Outcome::Commit(label, commands)) => {
+                    Some(Request::Action(Action::Commit(label, commands)))
+                }
+                _ => None,
+            };
         }
         if self.trim.need() == Some(crate::interaction::trim::Need::Part) {
             self.trim.parts.push(id);
@@ -2835,6 +2871,26 @@ impl Workbench {
         {
             self.mode = Mode::Drawings;
             self.drawings.select(self.editor.document.project(), id);
+        }
+        if let Some(outcome) =
+            self.management
+                .show(&ctx, self.editor.document.project(), &self.editor.selected)
+        {
+            match outcome {
+                management::Outcome::Commit(label, commands) => {
+                    requests.push(Request::Action(Action::Commit(label, commands)));
+                }
+                management::Outcome::Select(ids) => {
+                    let n = ids.len();
+                    self.editor.selected = ids;
+                    self.sync_selection();
+                    self.message(format!("Выбрано деталей: {n}"));
+                }
+                management::Outcome::PickSequence => {}
+            }
+            if let Some(p) = self.management.prompt() {
+                self.message(p);
+            }
         }
         self.grid_window(&ctx, &mut requests);
         self.components_window(&ctx);

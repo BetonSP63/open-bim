@@ -73,6 +73,7 @@ pub(crate) struct Patch {
     numbering: Option<Delta<BTreeMap<ObjectId, String>>>,
     /// Grid properties before and after, when they differ.
     grid: Option<Delta<open_bim_model::GridSettings>>,
+    management: Option<Delta<open_bim_model::Management>>,
     before_meta: (u64, u64, String),
     after_meta: (u64, u64, String),
     pub touched: BTreeSet<ObjectId>,
@@ -101,6 +102,10 @@ impl Patch {
         let grid = (before.grid != after.grid).then(|| Delta {
             before: Some(before.grid.clone()),
             after: Some(after.grid.clone()),
+        });
+        let management = (before.management != after.management).then(|| Delta {
+            before: Some(before.management.clone()),
+            after: Some(after.management.clone()),
         });
         let numbering = (before.numbering != after.numbering).then(|| Delta {
             before: Some(before.numbering.clone()),
@@ -139,6 +144,7 @@ impl Patch {
             document,
             numbering,
             grid,
+            management,
             before_meta: (before.revision, before.next_id, before.name.clone()),
             after_meta: (after.revision, after.next_id, after.name.clone()),
             touched,
@@ -176,6 +182,12 @@ impl Patch {
             let side = if forward { &delta.after } else { &delta.before };
             if let Some(grid) = side {
                 project.grid = grid.clone();
+            }
+        }
+        if let Some(delta) = &self.management {
+            let side = if forward { &delta.after } else { &delta.before };
+            if let Some(m) = side {
+                project.management = m.clone();
             }
         }
         let metadata = if forward {

@@ -91,7 +91,7 @@ fn click(at: egui::Pos2) -> Vec<egui::Event> {
 
 fn state(b: &Workbench) -> String {
     format!(
-        "{:?} {} {} {} {} {} {:?} {:?} {:?} {} {} {:?} {} {} {} {}",
+        "{:?} {} {} {} {} {} {:?} {:?} {:?} {} {} {:?} {} {} {} {} {:?}",
         b.mode,
         b.palette.open,
         b.help,
@@ -108,6 +108,7 @@ fn state(b: &Workbench) -> String {
         b.switches.ortho,
         b.section_enabled,
         b.hidden.len(),
+        b.management.open,
     )
 }
 

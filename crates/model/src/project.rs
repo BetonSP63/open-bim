@@ -158,6 +158,9 @@ pub struct Project {
     /// Grid colour, label size and magnetic grid planes.
     #[serde(default, skip_serializing_if = "crate::GridSettings::is_default")]
     pub grid: crate::GridSettings,
+    /// Phases, lots and sequences («Управление»).
+    #[serde(default, skip_serializing_if = "crate::Management::is_default")]
+    pub management: crate::Management,
 }
 
 impl Default for Project {
@@ -185,6 +188,7 @@ impl Default for Project {
             changes: Vec::new(),
             numbering: BTreeMap::new(),
             grid: Default::default(),
+            management: Default::default(),
         }
     }
 }

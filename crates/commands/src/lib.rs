@@ -111,6 +111,10 @@ pub enum Command {
     SetGridSettings {
         settings: open_bim_model::GridSettings,
     },
+    /// Phases, lots and sequences («Управление»).
+    SetManagement {
+        management: open_bim_model::Management,
+    },
     /// Fix the marks of a numbering run (replaces the stored marks).
     SetNumbering {
         marks: BTreeMap<ObjectId, String>,
@@ -289,6 +293,7 @@ impl Document {
         open_bim_connections::rebuild_custom(&mut staged, &self.project)?;
         open_bim_connections::rebuild_gussets(&mut staged, &self.project)?;
         open_bim_connections::apply_component_classes(&mut staged);
+        guard_locked_and_phase(&self.project, &mut staged)?;
         staged.validate()?;
         staged.revision = staged
             .revision
@@ -334,6 +339,42 @@ impl Document {
         }
         Ok(event)
     }
+}
+
+/// Locked parts refuse changes and deletion (unlocking in the same step is
+/// allowed); new parts get the current phase once phases are in use.
+fn guard_locked_and_phase(before: &Project, staged: &mut Project) -> Result<(), CommandError> {
+    use open_bim_model::management::{LOCK_PROPERTY, PHASE_PROPERTY};
+    let locked = |e: &open_bim_model::Element| {
+        e.properties.get(LOCK_PROPERTY) == Some(&PropertyValue::Boolean(true))
+    };
+    for (id, old) in before.elements.iter().filter(|(_, e)| locked(e)) {
+        match staged.elements.get(id) {
+            None => {
+                return Err(CommandError::InvalidTransaction(format!(
+                    "Деталь «{}» заблокирована: удаление запрещено",
+                    old.name
+                )));
+            }
+            Some(new) if locked(new) && new != old => {
+                return Err(CommandError::InvalidTransaction(format!(
+                    "Деталь «{}» заблокирована: снимите блокировку, чтобы изменить её",
+                    old.name
+                )));
+            }
+            _ => {}
+        }
+    }
+    let phase = staged.management.current_phase;
+    if phase != 1 {
+        for (id, e) in staged.elements.iter_mut() {
+            if !before.elements.contains_key(id) && !e.properties.contains_key(PHASE_PROPERTY) {
+                e.properties
+                    .insert(PHASE_PROPERTY.into(), PropertyValue::Number(phase as f64));
+            }
+        }
+    }
+    Ok(())
 }
 
 pub fn project_hash(project: &Project) -> Result<String, ModelError> {
@@ -659,6 +700,10 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
         Command::SetGridSettings { settings } => {
             settings.validate()?;
             project.grid = settings.clone();
+        }
+        Command::SetManagement { management } => {
+            management.validate()?;
+            project.management = management.clone();
         }
         Command::SetNumbering { marks } => project.numbering = marks.clone(),
         Command::SetDocumentInfo { info } => {
