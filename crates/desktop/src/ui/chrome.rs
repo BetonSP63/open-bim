@@ -1735,6 +1735,42 @@ impl Workbench {
                     );
                 });
         }
+        for (section, main) in [
+            (super::property_fields::SERIES, true),
+            (super::property_fields::DEFORMATION, false),
+            (super::property_fields::IFC, false),
+        ] {
+            if !shows(main, &super::property_fields::labels(section)) {
+                continue;
+            }
+            egui::CollapsingHeader::new(section)
+                .default_open(main)
+                .show(ui, |ui| {
+                    self.pane.fields.section(ui, section);
+                    if section == super::property_fields::SERIES {
+                        // Marks of the last numbering run; «(?)» = not numbered yet.
+                        let project = self.editor.document.project();
+                        let mark = |id: &ObjectId| {
+                            project
+                                .numbering
+                                .get(id)
+                                .cloned()
+                                .unwrap_or_else(|| "(?)".into())
+                        };
+                        if let [id] = c.parts.as_slice() {
+                            let assembly = project
+                                .assemblies
+                                .values()
+                                .find(|a| a.members.contains(id))
+                                .map_or("—".to_string(), |a| mark(&a.id));
+                            ui.small(format!(
+                                "Марка детали: {}, марка сборки: {assembly}",
+                                mark(id)
+                            ));
+                        }
+                    }
+                });
+        }
         if shows(false, &["Обработка поверхности", "Покрытие"]) {
             egui::CollapsingHeader::new("Обработка поверхности")
                 .default_open(false)
@@ -1840,11 +1876,26 @@ impl Workbench {
         let project = self.editor.document.project();
         ui.horizontal(|ui| {
             if ui.button("Изменить").clicked() || apply_length {
-                match self
+                let main = self
                     .pane
                     .changes(&c)
-                    .and_then(|changes| modify(project, &c.parts, &changes))
-                {
+                    .and_then(|changes| modify(project, &c.parts, &changes));
+                let fields = self.pane.fields.commands(project, &c.fields, &c.parts);
+                // Fields kept as properties go in the same transaction.
+                let all = match (main, fields) {
+                    (Err(e), _) if e != "Нет изменений" => Err(e),
+                    (_, Err(e)) => Err(e),
+                    (main, Ok(fields)) => {
+                        let mut all = main.unwrap_or_default();
+                        all.extend(fields);
+                        if all.is_empty() {
+                            Err("Нет изменений".to_string())
+                        } else {
+                            Ok(all)
+                        }
+                    }
+                };
+                match all {
                     Ok(commands) => requests.push(Request::Action(Action::Commit(
                         format!("Изменить свойства ({})", c.parts.len()),
                         commands,

@@ -1,6 +1,6 @@
 //! IFC import of the declared subset; everything else is listed in the report.
 use crate::step::{Entity, File, Value, parse, valid_guid};
-use crate::{GOST_PSET_NAME, GUID_PROPERTY, PSET_NAME, mapping};
+use crate::{GOST_PSET_NAME, GUID_PROPERTY, IFC_ENTITY_PROPERTY, PSET_NAME, mapping};
 use open_bim_model::library;
 use open_bim_model::{
     Detail, DetailKind, Element, ElementShape, Frame, LengthMm, Material, MemberKind, ObjectId,
@@ -1383,6 +1383,13 @@ pub fn import(text: &str) -> Result<(Project, ImportReport), String> {
                         .issues
                         .push(format!("{label}: неверный или повторный GUID «{g}»"));
                 }
+            }
+            // A member keeps its class on the next export.
+            if kind_name == "IFCMEMBER" {
+                properties.insert(
+                    IFC_ENTITY_PROPERTY.into(),
+                    PropertyValue::Text("IfcMember".into()),
+                );
             }
             // Openings are placed in the element's own frame.
             let part_frame = match &shape {

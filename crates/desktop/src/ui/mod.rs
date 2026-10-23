@@ -13,6 +13,7 @@ pub mod jobs;
 pub mod keytips;
 pub mod palette;
 pub mod plugins;
+pub mod property_fields;
 pub mod property_pane;
 pub mod representation;
 pub mod ribbon;
