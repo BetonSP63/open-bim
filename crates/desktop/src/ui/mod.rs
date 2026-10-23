@@ -309,6 +309,8 @@ pub struct Workbench {
     pub view_tools: view_tools::ViewTools,
     /// «Изменить номер».
     pub change_number: crate::interaction::change_number::ChangeNumber,
+    pub surfaces: crate::interaction::surfaces::Surfaces,
+    pub layout_manager: crate::interaction::layout_points::LayoutManager,
     /// «Пакетный редактор» window.
     pub batch: batch::BatchEditor,
     /// Object groups, the object representation and its window.
@@ -433,6 +435,8 @@ impl Workbench {
             paste_pick: false,
             view_tools: Default::default(),
             change_number: Default::default(),
+            surfaces: Default::default(),
+            layout_manager: Default::default(),
             batch: Default::default(),
             groups: crate::interaction::object_groups::default_groups(),
             representation: Vec::new(),
@@ -1657,6 +1661,22 @@ impl Workbench {
                     "Прототипы: сохраните чертёж или создайте чертежи выбранных деталей"
                 } else {
                     "Каталог прототипов закрыт"
+                });
+            }
+            Cmd::Surfaces => {
+                self.surfaces.open = !self.surfaces.open;
+                self.message(if self.surfaces.open {
+                    "Поверхности: выберите детали и назначьте покрытие"
+                } else {
+                    "Окно «Поверхности» закрыто"
+                });
+            }
+            Cmd::LayoutManager => {
+                self.layout_manager.open = !self.layout_manager.open;
+                self.message(if self.layout_manager.open {
+                    "Диспетчер разбивок: точки и узлы сетки с координатами"
+                } else {
+                    "Диспетчер разбивок закрыт"
                 });
             }
             Cmd::ChangeNumber => {
@@ -3065,6 +3085,9 @@ impl Workbench {
         self.drawings
             .prototypes
             .show(&ctx, &mut self.editor, &self.tools.path, current);
+        self.surfaces.show(&ctx, &mut self.editor);
+        self.layout_manager
+            .show(&ctx, &mut self.editor, &self.tools.path);
         if let Some((label, commands)) =
             self.change_number
                 .show(&ctx, self.editor.document.project(), &self.editor.selected)

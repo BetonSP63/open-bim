@@ -248,7 +248,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                         Icon::Component,
                         "Редактор компонентов",
                     ),
-                    small_future(Icon::Plate, "Поверхности"),
+                    small(Cmd::Surfaces, Icon::Plate, "Поверхности"),
                     small(Cmd::CompareParts, Icon::Properties, "Сравнить"),
                     small(Cmd::InquireObject, Icon::Properties, "Запросить"),
                 ],
@@ -432,7 +432,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
             (
                 "Планирование",
                 vec![
-                    small_future(Icon::Grid, "Диспетчер разбивок"),
+                    small(Cmd::LayoutManager, Icon::Grid, "Диспетчер разбивок"),
                     small(Cmd::Locks, Icon::Properties, "Блокировки"),
                     small(Cmd::Tasks, Icon::Report, "Задания"),
                     small(Cmd::Sequences, Icon::Numbering, "Последовательности"),
