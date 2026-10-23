@@ -21,6 +21,7 @@ pub mod orbit;
 pub mod parametric;
 pub mod polygon;
 pub mod pours;
+pub mod rebar;
 pub mod selection;
 pub mod snap;
 pub mod special;

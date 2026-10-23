@@ -47,7 +47,7 @@ impl RibbonTab {
     }
     /// Tabs whose every button is still a future tool are drawn dimmed.
     pub fn available(self) -> bool {
-        !matches!(self, Self::Rebar | Self::Formwork)
+        !matches!(self, Self::Formwork)
     }
 }
 
@@ -208,19 +208,19 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
             (
                 "Армирование",
                 vec![
-                    small_future(Icon::Rebar, "Поперечные"),
-                    small_future(Icon::Rebar, "Продольные"),
-                    small_future(Icon::Rebar, "По грани"),
-                    small_future(Icon::Rebar, "По направляющим"),
+                    small(Cmd::RebarStirrup, Icon::Rebar, "Поперечные"),
+                    small(Cmd::RebarLongitudinal, Icon::Rebar, "Продольные"),
+                    small(Cmd::RebarFace, Icon::Rebar, "По грани"),
+                    small(Cmd::RebarGuide, Icon::Rebar, "По направляющим"),
                 ],
             ),
             (
                 "Стержни",
                 vec![
-                    future(Icon::Rebar, "Ещё"),
-                    future(Icon::Show, "Видимость"),
-                    future(Icon::Rebar, "Группа стержней"),
-                    future(Icon::Rebar, "Один стержень"),
+                    item(Cmd::RebarMore, Icon::Rebar, "Ещё"),
+                    item(Cmd::RebarVisibility, Icon::Show, "Видимость"),
+                    item(Cmd::RebarGroup, Icon::Rebar, "Группа стержней"),
+                    item(Cmd::RebarSingle, Icon::Rebar, "Один стержень"),
                 ],
             ),
         ],
