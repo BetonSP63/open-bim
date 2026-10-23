@@ -158,6 +158,52 @@ impl DrawingEditor {
         self.create(editor, drawing)
     }
 
+    /// «Комплексный чертёж» of the selected parts, one per part mark; with
+    /// `assemblies`, of the assemblies holding them, one per assembly mark.
+    pub fn create_multi(&mut self, editor: &mut Editor, assemblies: bool) -> Result<(), String> {
+        let project = editor.document.project();
+        let numbering = open_bim_numbering::number(project).map_err(|e| e.to_string())?;
+        let candidates: Vec<ObjectId> = if assemblies {
+            project
+                .assemblies
+                .values()
+                .filter(|a| a.members.iter().any(|m| editor.selected.contains(m)))
+                .map(|a| a.id)
+                .collect()
+        } else {
+            editor
+                .selected
+                .iter()
+                .copied()
+                .filter(|id| project.elements.contains_key(id))
+                .collect()
+        };
+        let marks = if assemblies {
+            &numbering.assemblies
+        } else {
+            &numbering.parts
+        };
+        let mut seen = std::collections::BTreeSet::new();
+        let objects: Vec<ObjectId> = candidates
+            .into_iter()
+            .filter(|id| seen.insert(marks.get(id).cloned().unwrap_or_else(|| id.0.to_string())))
+            .collect();
+        if objects.is_empty() {
+            return Err(if assemblies {
+                "Выберите детали сборок в модели".into()
+            } else {
+                "Выберите детали в модели".into()
+            });
+        }
+        if objects.len() > 64 {
+            return Err("На комплексном чертеже до 64 марок".into());
+        }
+        let id = ObjectId(project.next_id);
+        let number = format!("КМД-{}", project.drawings.len() + 1);
+        let drawing = open_bim_drawings::multi_drawing(project, id, objects, &number)?;
+        self.create(editor, drawing)
+    }
+
     /// Assembly drawing of the assembly owning the selection (or the first one).
     pub fn create_assembly(&mut self, editor: &mut Editor) -> Result<(), String> {
         let project = editor.document.project();
@@ -496,6 +542,7 @@ impl DrawingEditor {
             DrawingKind::Part { .. } => "Деталь",
             DrawingKind::Assembly { .. } => "Сборка",
             DrawingKind::GeneralData { .. } => "Общие данные",
+            DrawingKind::Multi { .. } => "Комплексный",
         }
     }
 }

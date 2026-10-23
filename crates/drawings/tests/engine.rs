@@ -65,6 +65,7 @@ fn part_views_hidden_lines_sections_and_reference_svg() {
         position: [330., 90.],
         scale: Some(10.),
         node: None,
+        source: None,
     });
     let sheet = generate(&f.project, &d).unwrap();
     let s = d.scale;

@@ -428,6 +428,18 @@ impl Desktop {
                         self.bench.tools.message = Some("Снимок: откройте 3D-вид".into());
                     }
                 },
+                Request::Visualize(settings) => {
+                    let (scene, camera, view) =
+                        (self.scene.clone(), self.camera.clone(), self.view.clone());
+                    let (tx, rx) = std::sync::mpsc::channel();
+                    std::thread::spawn(move || {
+                        let image =
+                            open_bim_renderer::visualize::render(&scene, &camera, &view, &settings);
+                        let _ = tx.send(image);
+                    });
+                    self.bench.visualizer.job = Some((rx, std::time::Instant::now()));
+                    ctx.request_repaint();
+                }
                 Request::Action(action) => self.action(action),
                 Request::Fit => self.fit(),
                 Request::ApplyView(view) => {

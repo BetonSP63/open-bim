@@ -18,6 +18,7 @@ pub fn ga(project: &Project) -> Drawing {
         position: [620., 500.],
         scale: Some(100.),
         node: None,
+        source: None,
     });
     // «Узел 1»: the joint of column 1/А and the beam at +3,600 at 1:20.
     d.views.push(DrawingView {
@@ -31,6 +32,7 @@ pub fn ga(project: &Project) -> Drawing {
             centre: [0., 3600.],
             radius: 500.,
         }),
+        source: None,
     });
     d
 }

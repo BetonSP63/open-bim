@@ -167,6 +167,9 @@ impl Session {
             DrawingKind::GeneralData { mark } => {
                 open_bim_drawings::general_data_drawing(p, id, &mark)
             }
+            DrawingKind::Multi { objects } => {
+                open_bim_drawings::multi_drawing(p, id, objects, &number)
+            }
         }
         .map_err(ApiError::Invalid)?;
         self.stage(vec![Command::CreateDrawing { drawing }])?;
