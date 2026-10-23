@@ -348,3 +348,55 @@ fn snap_queries_on_100k_corpus_are_fast() {
     );
     assert!(p95 <= 5.0, "p95 {p95} ms");
 }
+
+#[test]
+fn depth_plane_carries_snaps_onto_the_snap_plane_and_view_plane_faces_the_eye() {
+    let (p, scene) = fixture();
+    let cam = camera(&scene, NamedView::Isometric);
+    let view = View {
+        camera: &cam,
+        origin: scene.origin,
+        size: SIZE,
+    };
+    let end = DVec3::new(6000., 0., 0.);
+    let s = view.screen(end).unwrap();
+    let plane = Workplane::at_elevation(1000.);
+    let snap = |switches: Switches, at: [f64; 2]| {
+        Snapper::default()
+            .snap(&p, &scene, view, at, switches, 12., None, &plane)
+            .unwrap()
+    };
+    // «Авто»: the end point where it is.
+    let auto = snap(Switches::default(), [s[0] + 3., s[1]]);
+    assert!(auto.point.distance(end) <= 1e-6, "{:?}", auto.point);
+    // «Плоскость»: same place on screen, on the snap plane.
+    let depth = Switches {
+        depth_plane: true,
+        ..Switches::default()
+    };
+    let carried = snap(depth, [s[0] + 3., s[1]]);
+    assert_eq!(carried.kind, auto.kind);
+    assert!(
+        (carried.point.z - 1000.).abs() <= 1e-6,
+        "{:?}",
+        carried.point
+    );
+    let back = view.screen(carried.point).unwrap();
+    assert!((back[0] - s[0]).hypot(back[1] - s[1]) <= 1e-3);
+    // «Плоскость вида»: free points lie in the screen plane through the
+    // work plane origin.
+    let free_at = [40., 40.];
+    let free = snap(
+        Switches {
+            view_plane: true,
+            ..Switches::default()
+        },
+        free_at,
+    );
+    assert_eq!(free.kind, SnapKind::Free);
+    let eye = view.ray([SIZE[0] / 2., SIZE[1] / 2.]).unwrap().direction;
+    assert!((free.point - plane.origin).dot(eye).abs() <= 1e-6 * free.point.length().max(1.));
+    let on_work = snap(Switches::default(), free_at);
+    assert!((on_work.point.z - 1000.).abs() <= 1e-6);
+    assert!(on_work.point.distance(free.point) > 1.);
+}

@@ -12,6 +12,7 @@ use open_bim_model::{
     DetailKind, Element, ElementShape, Frame, GridAxis, LengthMm, MemberKind, ObjectId, Point3,
     Project, PropertyValue,
 };
+use open_bim_renderer::overlay::HandleKind;
 use open_bim_renderer::{DVec3, Scene};
 use serde::Serialize;
 pub use snap::{SnapHit, SnapIndex, SnapMode};
@@ -626,6 +627,9 @@ pub struct Editor {
     pub saved_drafts: Vec<Draft>,
     /// Tools started at least once in this session.
     pub used_tools: Vec<ToolKind>,
+    /// Handles picked on the selected objects; «Переместить» then moves
+    /// only these points. See [`Editor::selected_handles`].
+    pub handles: Vec<(ObjectId, HandleKind)>,
 }
 impl Editor {
     pub fn new(project: Project) -> Result<Self, String> {
@@ -642,6 +646,7 @@ impl Editor {
             record_warning: None,
             saved_drafts: Vec::new(),
             used_tools: Vec::new(),
+            handles: Vec::new(),
         })
     }
     /// Start a tool with the properties it was last used with; returns
@@ -744,7 +749,30 @@ impl Editor {
         self.cancel();
         Ok(scene)
     }
+    /// The picked handles that still belong to a selected object.
+    pub fn selected_handles(&self) -> Vec<(ObjectId, HandleKind)> {
+        let project = self.document.project();
+        self.handles
+            .iter()
+            .filter(|(id, kind)| {
+                self.selected.contains(id)
+                    && open_bim_renderer::overlay::handle_points(project, *id)
+                        .iter()
+                        .any(|(k, _)| k == kind)
+            })
+            .copied()
+            .collect()
+    }
     pub fn edit(&mut self, edit: &Edit) -> Result<Arc<Scene>, String> {
+        let handles = self.selected_handles();
+        if let (Edit::Move(delta), false) = (edit, handles.is_empty()) {
+            let commands = crate::interaction::selection::move_handles(
+                self.document.project(),
+                &handles,
+                DVec3::from_array(delta.0),
+            )?;
+            return self.commit("Переместить ручки", &commands);
+        }
         let commands = edit_commands(self.document.project(), &self.selected, edit)?;
         self.commit(
             match edit {
@@ -760,13 +788,19 @@ impl Editor {
         )
     }
     pub fn history(&mut self, redo: bool) -> Result<Arc<Scene>, String> {
+        self.history_steps(redo, 1)
+    }
+    /// Undo (or redo) `steps` steps at once: a pick in the undo history list.
+    pub fn history_steps(&mut self, redo: bool, steps: usize) -> Result<Arc<Scene>, String> {
         let mut candidate = self.document.clone();
-        if redo {
-            candidate.redo()
-        } else {
-            candidate.undo()
+        for _ in 0..steps.max(1) {
+            if redo {
+                candidate.redo()
+            } else {
+                candidate.undo()
+            }
+            .map_err(|e| e.to_string())?;
         }
-        .map_err(|e| e.to_string())?;
         let scene = Arc::new(Scene::from_project(candidate.project()).map_err(|e| e.to_string())?);
         self.document = candidate;
         self.snap = SnapIndex::new(self.document.project());

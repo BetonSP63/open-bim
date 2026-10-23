@@ -355,6 +355,43 @@ pub fn move_handle(
     Ok(vec![Command::ReplaceElement { element }])
 }
 
+/// Move the selected handles (not whole objects) by `delta`: each member end,
+/// plate vertex or grid line end goes alone; one command per object.
+pub fn move_handles(
+    project: &Project,
+    handles: &[(ObjectId, HandleKind)],
+    delta: DVec3,
+) -> Result<Vec<Command>, String> {
+    let mut staged = project.clone();
+    let mut out: std::collections::BTreeMap<ObjectId, Command> = Default::default();
+    for (object, kind) in handles {
+        let world = open_bim_renderer::overlay::handle_points(&staged, *object)
+            .into_iter()
+            .find(|(k, _)| k == kind)
+            .map(|(_, p)| p)
+            .ok_or("Ручка не найдена")?;
+        let handle = Handle {
+            object: *object,
+            kind: *kind,
+            world,
+            screen: [0.; 2],
+        };
+        for command in move_handle(&staged, &handle, world + delta)? {
+            match &command {
+                Command::ReplaceElement { element } => {
+                    staged.elements.insert(element.id, element.clone());
+                }
+                Command::ReplaceAxis { axis } => {
+                    staged.axes.insert(axis.id, axis.clone());
+                }
+                _ => {}
+            }
+            out.insert(*object, command);
+        }
+    }
+    Ok(out.into_values().collect())
+}
+
 /// Objects removed by deleting `ids` with their dependants (the user is asked first).
 pub fn delete_count(project: &Project, ids: &BTreeSet<ObjectId>) -> Result<usize, String> {
     let mut doc = Document::new(project.clone()).map_err(|e| e.to_string())?;

@@ -18,6 +18,8 @@ pub const START_HANDLE: Rgba = [240, 200, 0, 255];
 pub const END_HANDLE: Rgba = [210, 0, 200, 255];
 /// Direct modification handles (blue).
 pub const DIRECT_HANDLE: Rgba = [30, 110, 230, 255];
+/// Rim of a picked handle.
+pub const PICKED_HANDLE: Rgba = [20, 20, 20, 255];
 /// Selected grid line.
 pub const SELECTED_AXIS: Rgba = [255, 107, 20, 255];
 /// Line the snapped point belongs to (turquoise).
@@ -218,57 +220,56 @@ fn v(p: Point3) -> DVec3 {
     DVec3::from_array(p.0)
 }
 
+/// World positions of the handles of one object: member reference line
+/// ends, plate contour vertices, grid line ends.
+pub fn handle_points(project: &Project, id: ObjectId) -> Vec<(HandleKind, DVec3)> {
+    let Some(e) = project.elements.get(&id) else {
+        // Grid lines have start/end handles too.
+        return project
+            .axes
+            .get(&id)
+            .map(|axis| {
+                vec![
+                    (HandleKind::Start, v(axis.start)),
+                    (HandleKind::End, v(axis.end)),
+                ]
+            })
+            .unwrap_or_default();
+    };
+    let frame = e.shape.frame();
+    match &e.shape {
+        ElementShape::Member { length, .. } => match project.member_reference_line(&e.shape) {
+            // Handles sit on the reference line.
+            Some((start, end, _)) => {
+                vec![(HandleKind::Start, v(start)), (HandleKind::End, v(end))]
+            }
+            None => vec![
+                (HandleKind::Start, v(frame.origin)),
+                (
+                    HandleKind::End,
+                    v(frame.world(Point3([0., 0., length.value()]))),
+                ),
+            ],
+        },
+        ElementShape::Plate { contour, .. } => contour
+            .iter()
+            .enumerate()
+            .map(|(i, c)| {
+                (
+                    HandleKind::Vertex(i),
+                    v(frame.world(Point3([c[0], c[1], 0.]))),
+                )
+            })
+            .collect(),
+    }
+}
+
 /// Start/end handles of selected members and vertex handles of selected
 /// plates, in screen space (bounded by [`MAX_HANDLES`] objects).
 pub fn handles(project: &Project, selected: &BTreeSet<ObjectId>, p: &Projector) -> Vec<Handle> {
     let mut out = Vec::new();
     for id in selected.iter().take(MAX_HANDLES) {
-        let Some(e) = project.elements.get(id) else {
-            // Grid lines have start/end handles too.
-            if let Some(axis) = project.axes.get(id) {
-                for (kind, world) in [
-                    (HandleKind::Start, v(axis.start)),
-                    (HandleKind::End, v(axis.end)),
-                ] {
-                    if let Some(screen) = p.screen(world) {
-                        out.push(Handle {
-                            object: *id,
-                            kind,
-                            world,
-                            screen,
-                        });
-                    }
-                }
-            }
-            continue;
-        };
-        let frame = e.shape.frame();
-        let points: Vec<(HandleKind, DVec3)> = match &e.shape {
-            ElementShape::Member { length, .. } => match project.member_reference_line(&e.shape) {
-                // Handles sit on the reference line.
-                Some((start, end, _)) => {
-                    vec![(HandleKind::Start, v(start)), (HandleKind::End, v(end))]
-                }
-                None => vec![
-                    (HandleKind::Start, v(frame.origin)),
-                    (
-                        HandleKind::End,
-                        v(frame.world(Point3([0., 0., length.value()]))),
-                    ),
-                ],
-            },
-            ElementShape::Plate { contour, .. } => contour
-                .iter()
-                .enumerate()
-                .map(|(i, c)| {
-                    (
-                        HandleKind::Vertex(i),
-                        v(frame.world(Point3([c[0], c[1], 0.]))),
-                    )
-                })
-                .collect(),
-        };
-        for (kind, world) in points {
+        for (kind, world) in handle_points(project, *id) {
             if let Some(screen) = p.screen(world) {
                 out.push(Handle {
                     object: *id,
@@ -304,6 +305,8 @@ pub struct Input<'a> {
     pub reference: Option<DVec3>,
     /// Direct modification on: handles are blue and draggable.
     pub direct: bool,
+    /// Handles picked for «Переместить», drawn larger with a dark rim.
+    pub picked_handles: Vec<(ObjectId, HandleKind)>,
     /// Plate being picked: contour points (with the cursor) and whether the
     /// next point is accepted (red when it would cross the contour).
     pub plate_preview: Option<(Vec<DVec3>, bool)>,
@@ -679,6 +682,15 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
                 HandleKind::End | HandleKind::Vertex(_) => END_HANDLE,
             }
         };
+        let picked = input.picked_handles.contains(&(h.object, h.kind));
+        if picked {
+            marks.push(Mark::Square {
+                center: h.screen,
+                half: 6.5,
+                color: PICKED_HANDLE,
+                fill: true,
+            });
+        }
         marks.push(Mark::Square {
             center: h.screen,
             half: 4.,
@@ -973,6 +985,7 @@ mod tests {
             guide: None,
             reference: None,
             direct: false,
+            picked_handles: Vec::new(),
             plate_preview: None,
             light: true,
         };
