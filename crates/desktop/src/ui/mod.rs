@@ -314,6 +314,7 @@ pub struct Workbench {
     pub visualizer: visualizer::Visualizer,
     pub analysis: analysis_ui::AnalysisUi,
     pub parametric: crate::interaction::parametric::ParametricWindow,
+    pub pours: crate::interaction::pours::PoursWindow,
     /// «Изменить номер».
     pub change_number: crate::interaction::change_number::ChangeNumber,
     pub surfaces: crate::interaction::surfaces::Surfaces,
@@ -445,6 +446,7 @@ impl Workbench {
             visualizer: Default::default(),
             analysis: Default::default(),
             parametric: Default::default(),
+            pours: Default::default(),
             change_number: Default::default(),
             surfaces: Default::default(),
             layout_manager: Default::default(),
@@ -884,11 +886,24 @@ impl Workbench {
                     self.display.transparency * 100.
                 ));
             }
-            Cmd::ToolAxis | Cmd::ToolBeam | Cmd::ToolColumn | Cmd::ToolPlate => {
+            Cmd::ToolAxis
+            | Cmd::ToolBeam
+            | Cmd::ToolColumn
+            | Cmd::ToolPlate
+            | Cmd::ConcreteColumn
+            | Cmd::ConcreteBeam
+            | Cmd::ConcretePanel
+            | Cmd::ConcreteSlab
+            | Cmd::ConcreteFooting => {
                 let (mode, kind) = tool(match cmd {
                     Cmd::ToolAxis => ToolKind::Axis,
                     Cmd::ToolBeam => ToolKind::Beam,
                     Cmd::ToolColumn => ToolKind::Column,
+                    Cmd::ConcreteColumn => ToolKind::ConcreteColumn,
+                    Cmd::ConcreteBeam => ToolKind::ConcreteBeam,
+                    Cmd::ConcretePanel => ToolKind::Panel,
+                    Cmd::ConcreteSlab => ToolKind::Slab,
+                    Cmd::ConcreteFooting => ToolKind::Footing,
                     _ => ToolKind::Plate,
                 });
                 self.mode = mode;
@@ -1028,6 +1043,51 @@ impl Workbench {
                         commands::caption(cmd),
                         commands,
                     ))),
+                    Err(e) => {
+                        self.message(e);
+                        None
+                    }
+                };
+            }
+            Cmd::CastUnit => {
+                let r = crate::interaction::concrete::cast_unit(
+                    self.editor.document.project(),
+                    &self.editor.selected,
+                    false,
+                );
+                return match r {
+                    Ok(commands) => Some(Request::Action(Action::Commit(
+                        commands::caption(cmd),
+                        commands,
+                    ))),
+                    Err(e) => {
+                        self.message(e);
+                        None
+                    }
+                };
+            }
+            Cmd::PourObjects => {
+                self.pours.open = !self.pours.open;
+                let n = crate::interaction::pours::objects(self.editor.document.project()).len();
+                self.message(format!("Захваток бетонирования: {n}"));
+            }
+            Cmd::PourBreak => {
+                use crate::interaction::trim::{TrimPicker, TrimTool};
+                self.engine.cancel();
+                self.detail.cancel();
+                self.mode = Mode::Model;
+                self.trim = TrimPicker::start(TrimTool::PourBreak);
+                self.message(self.prompt());
+            }
+            Cmd::CalculatePours => {
+                return match crate::interaction::pours::calculate(self.editor.document.project()) {
+                    Ok((commands, n)) => {
+                        self.message(format!("Единиц бетонирования: {n}"));
+                        Some(Request::Action(Action::Commit(
+                            commands::caption(cmd),
+                            commands,
+                        )))
+                    }
                     Err(e) => {
                         self.message(e);
                         None
@@ -2184,6 +2244,9 @@ impl Workbench {
             (TrimTool::AnalysisNode, [], [a]) => {
                 crate::interaction::analysis::add_node(project, *a)
             }
+            (TrimTool::PourBreak, [], [a, b]) => {
+                crate::interaction::pours::add_break(project, *a, *b)
+            }
             (TrimTool::RigidLink, [], [a, b]) => {
                 crate::interaction::analysis::add_link(project, self.analysis.active, *a, *b)
             }
@@ -3264,6 +3327,15 @@ impl Workbench {
                 .show(&ctx, self.editor.document.project(), &self.editor.selected)
         {
             requests.push(Request::Action(Action::Commit(label, commands)));
+        }
+        match self.pours.show(&ctx, self.editor.document.project()) {
+            Some(crate::interaction::pours::PourAction::Commit(label, commands)) => {
+                requests.push(Request::Action(Action::Commit(label, commands)));
+            }
+            Some(crate::interaction::pours::PourAction::Select(parts)) => {
+                self.editor.selected = parts;
+            }
+            None => {}
         }
         self.follow_plugins();
         let busy = self.busy();

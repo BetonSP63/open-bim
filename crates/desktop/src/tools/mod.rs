@@ -28,10 +28,37 @@ pub enum ToolKind {
     Gusset,
     Stiffener,
     Axis,
+    /// Concrete parts: built like their steel base kind with a rectangular
+    /// section and a concrete grade.
+    ConcreteColumn,
+    ConcreteBeam,
+    Panel,
+    Slab,
+    Footing,
 }
 impl ToolKind {
     pub fn is_plate(self) -> bool {
-        matches!(self, Self::Plate | Self::Gusset | Self::Stiffener)
+        matches!(
+            self,
+            Self::Plate | Self::Gusset | Self::Stiffener | Self::Slab
+        )
+    }
+
+    pub fn is_concrete(self) -> bool {
+        matches!(
+            self,
+            Self::ConcreteColumn | Self::ConcreteBeam | Self::Panel | Self::Slab | Self::Footing
+        )
+    }
+
+    /// The steel kind whose picks and geometry a concrete kind uses.
+    pub fn base(self) -> Self {
+        match self {
+            Self::ConcreteColumn | Self::Footing => Self::Column,
+            Self::ConcreteBeam | Self::Panel => Self::Beam,
+            Self::Slab => Self::Plate,
+            k => k,
+        }
     }
 
     pub fn label(self) -> &'static str {
@@ -42,6 +69,11 @@ impl ToolKind {
             Self::Gusset => "Косынка",
             Self::Stiffener => "Ребро жёсткости",
             Self::Axis => "Ось",
+            Self::ConcreteColumn => "Колонна ЖБ",
+            Self::ConcreteBeam => "Балка ЖБ",
+            Self::Panel => "Панель",
+            Self::Slab => "Перекрытие",
+            Self::Footing => "Фундамент",
         }
     }
 }
@@ -69,6 +101,9 @@ pub struct Draft {
     pub top: String,
     pub bottom_level: Option<ObjectId>,
     pub top_level: Option<ObjectId>,
+    /// Concrete section «ширина x высота», mm, and grade («В25»).
+    pub section: String,
+    pub grade: String,
 }
 impl Default for Draft {
     fn default() -> Self {
@@ -90,6 +125,8 @@ impl Default for Draft {
             top: "3600".into(),
             bottom_level: None,
             top_level: None,
+            section: "400x400".into(),
+            grade: "В25".into(),
         }
     }
 }
@@ -139,6 +176,14 @@ impl Draft {
     }
 
     pub fn commands(&self, project: &Project) -> Result<Vec<Command>, String> {
+        if self.kind.is_concrete() {
+            let (mut out, staged, draft) =
+                crate::interaction::concrete::prepare(project, self.kind, self)?;
+            let mut rest = draft.commands(&staged)?;
+            crate::interaction::concrete::mark(&mut rest, self.kind);
+            out.extend(rest);
+            return Ok(out);
+        }
         let id = ObjectId(project.next_id);
         let start = point(&self.start)?;
         if self.kind == ToolKind::Axis {
@@ -679,6 +724,9 @@ impl Editor {
             self.draft.thickness = "10".into();
         } else if kind == ToolKind::Column {
             self.draft.end = ["0".into(), "0".into(), "3000".into()];
+        }
+        if kind.is_concrete() {
+            crate::interaction::concrete::defaults(kind, &mut self.draft);
         }
         true
     }

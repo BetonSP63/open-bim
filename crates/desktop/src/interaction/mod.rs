@@ -6,6 +6,7 @@ pub mod assembly_edit;
 pub mod change_number;
 pub mod clipboard;
 pub mod component_symbols;
+pub mod concrete;
 pub mod control_numbers;
 pub mod corners;
 pub mod grid_edit;
@@ -19,6 +20,7 @@ pub mod object_groups;
 pub mod orbit;
 pub mod parametric;
 pub mod polygon;
+pub mod pours;
 pub mod selection;
 pub mod snap;
 pub mod special;
@@ -44,10 +46,11 @@ pub enum Picks {
 }
 
 pub fn picks(kind: ToolKind) -> Picks {
-    match kind {
+    match kind.base() {
         ToolKind::Column => Picks::Exactly(1),
         ToolKind::Beam | ToolKind::Axis => Picks::Exactly(2),
         ToolKind::Plate | ToolKind::Gusset | ToolKind::Stiffener => Picks::AtLeast(3),
+        _ => Picks::Exactly(1),
     }
 }
 
@@ -76,6 +79,11 @@ pub fn prompt(kind: ToolKind, picked: usize) -> String {
         ToolKind::Plate => "пластины",
         ToolKind::Gusset => "косынки",
         ToolKind::Stiffener => "ребра жёсткости",
+        ToolKind::ConcreteColumn => "железобетонной колонны",
+        ToolKind::ConcreteBeam => "железобетонной балки",
+        ToolKind::Panel => "панели",
+        ToolKind::Slab => "перекрытия",
+        ToolKind::Footing => "фундамента",
     };
     match (picks(kind), picked) {
         (Picks::Exactly(1), _) => format!("Укажите положение {object}"),
@@ -286,6 +294,13 @@ pub fn commands(
     workplane: &Workplane,
     draft: &crate::tools::Draft,
 ) -> Result<Vec<Command>, String> {
+    if kind.is_concrete() {
+        let (mut out, staged, draft) = concrete::prepare(project, kind, draft)?;
+        let mut rest = commands(&staged, kind.base(), points, workplane, &draft)?;
+        concrete::mark(&mut rest, kind);
+        out.extend(rest);
+        return Ok(out);
+    }
     let id = ObjectId(project.next_id);
     let p = |v: DVec3| Point3(v.to_array());
     let number = |s: &str| crate::tools::number(s);
@@ -345,7 +360,7 @@ pub fn commands(
                 })
                 .collect())
         }
-        ToolKind::Plate | ToolKind::Gusset | ToolKind::Stiffener => {
+        _ => {
             // Rectangle modes turn their picks into the four corners.
             let local = |q: DVec3| {
                 let l = workplane.to_local(q);
