@@ -219,11 +219,11 @@ impl DrawingEditor {
             .copied()
             .find(|s| *s >= 1. && 2. * radius / s <= 60.)
             .unwrap_or(scale);
-        let direction = d
+        let (direction, host_source) = d
             .views
             .iter()
             .find(|v| v.id == host)
-            .map(|v| v.direction)
+            .map(|v| (v.direction, v.source))
             .ok_or("Вид не найден")?;
         let side = 2. * radius / node_scale;
         let [w, h] = d.sheet_mm();
@@ -239,6 +239,7 @@ impl DrawingEditor {
             ],
             scale: Some(node_scale),
             node: Some(open_bim_model::NodeRegion { centre, radius }),
+            source: host_source,
         });
         d.validate().map_err(|e| e.to_string())?;
         self.selected_view = Some(id);

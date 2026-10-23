@@ -24,6 +24,7 @@ pub mod schedule;
 pub mod theme;
 pub mod view_tools;
 pub mod views;
+pub mod visualizer;
 
 use crate::drawing_editor::{DrawingEditor, ExportFormat};
 use crate::reports_ui::ReportsUi;
@@ -72,6 +73,8 @@ pub enum Request {
     CenterAt(open_bim_renderer::DVec3),
     /// «Снимок экрана»: save the 3D view as a PNG image.
     Screenshot,
+    /// «Визуализатор»: ray-trace the current view in the background.
+    Visualize(open_bim_renderer::visualize::Settings),
 }
 
 /// Clip plane through `point` facing the eye: what lies between the eye
@@ -307,6 +310,7 @@ pub struct Workbench {
     pub paste_pick: bool,
     /// View tab tools (view properties, paint, fly, centre of rotation).
     pub view_tools: view_tools::ViewTools,
+    pub visualizer: visualizer::Visualizer,
     /// «Изменить номер».
     pub change_number: crate::interaction::change_number::ChangeNumber,
     pub surfaces: crate::interaction::surfaces::Surfaces,
@@ -435,6 +439,7 @@ impl Workbench {
             clipboard: None,
             paste_pick: false,
             view_tools: Default::default(),
+            visualizer: Default::default(),
             change_number: Default::default(),
             surfaces: Default::default(),
             layout_manager: Default::default(),
@@ -1582,6 +1587,14 @@ impl Workbench {
                     self.paint_selected();
                 }
             }
+            Cmd::Visualizer => {
+                self.visualizer.open = !self.visualizer.open;
+                self.message(if self.visualizer.open {
+                    "Визуализатор: настройте свет и визуализируйте текущий вид"
+                } else {
+                    "Визуализатор закрыт"
+                });
+            }
             Cmd::Redraw => self.redraw(),
             Cmd::ZoomIn => return Some(Request::Zoom(300.)),
             Cmd::ZoomOut => return Some(Request::Zoom(-300.)),
@@ -1724,6 +1737,12 @@ impl Workbench {
             Cmd::AssemblyDrawing => {
                 self.mode = Mode::Drawings;
                 let r = self.drawings.create_assembly(&mut self.editor);
+                report(r, self);
+            }
+            Cmd::MultiDrawing | Cmd::MultiAssemblyDrawing => {
+                self.mode = Mode::Drawings;
+                let assemblies = cmd == Cmd::MultiAssemblyDrawing;
+                let r = self.drawings.create_multi(&mut self.editor, assemblies);
                 report(r, self);
             }
             Cmd::GeneralData => {
@@ -3160,6 +3179,7 @@ impl Workbench {
         }
         self.view_properties_window(&ctx, &mut requests);
         self.paint_window(&ctx);
+        self.visualizer_window(&ctx, &mut requests);
         if std::mem::take(&mut self.management.status_changed) {
             self.representation_version += 1;
         }

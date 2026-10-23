@@ -131,6 +131,15 @@ pub struct Appearance {
     pub alpha: f32,
 }
 
+/// A ray hit on the scene ([`Scene::trace`]).
+#[derive(Clone, Copy, Debug)]
+pub struct Hit {
+    /// Index into [`Scene::instances`].
+    pub instance: usize,
+    pub distance: f64,
+    pub normal: DVec3,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct ViewState {
     pub hidden: BTreeSet<ObjectId>,
@@ -467,8 +476,15 @@ impl Scene {
 
     /// Nearest visible part along the ray and the hit distance.
     pub fn pick_hit(&self, ray: Ray, state: &ViewState) -> Option<(ObjectId, f64)> {
+        self.trace(ray, state)
+            .map(|h| (self.instances[h.instance].id, h.distance))
+    }
+
+    /// Nearest visible surface along the ray: the instance, the distance and
+    /// the unit world normal of the hit triangle (not oriented to the ray).
+    pub fn trace(&self, ray: Ray, state: &ViewState) -> Option<Hit> {
         let mut nearest = f64::INFINITY;
-        let mut selected = None;
+        let mut best: Option<(usize, DVec3)> = None;
         let mut stack = Vec::new();
         if let Some(root) = &self.bvh {
             stack.push(root);
@@ -516,14 +532,21 @@ impl Scene {
                                     continue;
                                 }
                                 nearest = distance;
-                                selected = Some(instance.id);
+                                let n = (b - a).cross(c - a);
+                                let axes = frame.axes.map(DVec3::from_array);
+                                let world_normal = axes[0] * n.x + axes[1] * n.y + axes[2] * n.z;
+                                best = Some((*index, world_normal.normalize_or_zero()));
                             }
                         }
                     }
                 }
             }
         }
-        selected.map(|id| (id, nearest))
+        best.map(|(instance, normal)| Hit {
+            instance,
+            distance: nearest,
+            normal,
+        })
     }
     pub fn visible_triangles(&self, state: &ViewState) -> usize {
         self.instances

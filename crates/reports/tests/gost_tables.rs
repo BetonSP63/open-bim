@@ -198,6 +198,7 @@ fn reference_sheets_for_the_independent_check() {
                 DrawingKind::General { .. } => "km-scheme",
                 DrawingKind::Assembly { .. } => "kmd-assembly",
                 DrawingKind::Part { .. } => "kmd-part",
+                DrawingKind::Multi { .. } => "kmd-multi",
             };
             (d.id, name)
         })

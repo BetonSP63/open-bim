@@ -170,7 +170,9 @@ pub fn drawing_basis(project: &Project, kind: &DrawingKind) -> Result<Basis, Err
         z: [0., -1., 0.],
     };
     let part = match kind {
-        DrawingKind::General { .. } | DrawingKind::GeneralData { .. } => return Ok(world),
+        DrawingKind::General { .. }
+        | DrawingKind::GeneralData { .. }
+        | DrawingKind::Multi { .. } => return Ok(world),
         DrawingKind::Part { part } => *part,
         DrawingKind::Assembly { assembly } => {
             project
@@ -201,6 +203,16 @@ pub fn drawing_basis(project: &Project, kind: &DrawingKind) -> Result<Basis, Err
     })
 }
 
+/// What one object of a «Комплексный чертёж» is drawn as: an assembly
+/// drawing for an assembly id, else a part drawing.
+pub fn source_kind(project: &Project, object: ObjectId) -> DrawingKind {
+    if project.assemblies.contains_key(&object) {
+        DrawingKind::Assembly { assembly: object }
+    } else {
+        DrawingKind::Part { part: object }
+    }
+}
+
 /// Parts shown by a drawing (existing ones only).
 pub fn drawing_parts(project: &Project, kind: &DrawingKind) -> Vec<ObjectId> {
     let mut parts = BTreeSet::new();
@@ -210,6 +222,11 @@ pub fn drawing_parts(project: &Project, kind: &DrawingKind) -> Vec<ObjectId> {
         }
         DrawingKind::General { objects } => parts.extend(objects),
         DrawingKind::GeneralData { .. } => {}
+        DrawingKind::Multi { objects } => {
+            for o in objects {
+                parts.extend(drawing_parts(project, &source_kind(project, *o)));
+            }
+        }
         DrawingKind::Part { part } => {
             parts.insert(*part);
         }
@@ -244,6 +261,11 @@ pub fn referenced_objects(project: &Project, drawing: &Drawing) -> BTreeSet<Obje
         DrawingKind::Assembly { assembly } => {
             let mut set: BTreeSet<_> = drawing_parts(project, &drawing.kind).into_iter().collect();
             set.insert(*assembly);
+            set
+        }
+        DrawingKind::Multi { objects } => {
+            let mut set: BTreeSet<_> = drawing_parts(project, &drawing.kind).into_iter().collect();
+            set.extend(objects);
             set
         }
     };
@@ -851,7 +873,9 @@ fn place_marks(
 pub fn set_mark(kind: &DrawingKind) -> &'static str {
     match kind {
         DrawingKind::General { .. } => "КМ",
-        DrawingKind::Part { .. } | DrawingKind::Assembly { .. } => "КМД",
+        DrawingKind::Part { .. } | DrawingKind::Assembly { .. } | DrawingKind::Multi { .. } => {
+            "КМД"
+        }
         DrawingKind::GeneralData { mark } if mark == "КМД" => "КМД",
         DrawingKind::GeneralData { .. } => "КМ",
     }
@@ -1011,6 +1035,52 @@ fn title_block(
     Ok(tb)
 }
 
+/// Frames and meshes a drawing's views are drawn from: the drawing's own,
+/// or on a «Комплексный чертёж» the frame of each view's object.
+struct Frames {
+    main: (Basis, Vec<ObjectId>, Vec<PartMesh>),
+    sources: BTreeMap<ObjectId, (Basis, Vec<ObjectId>, Vec<PartMesh>)>,
+}
+
+impl Frames {
+    fn new(project: &Project, drawing: &Drawing) -> Result<Self, Error> {
+        let load = |kind: &DrawingKind| -> Result<(Basis, Vec<ObjectId>, Vec<PartMesh>), Error> {
+            let parts = drawing_parts(project, kind);
+            let meshes = parts
+                .iter()
+                .map(|id| PartMesh::new(project, *id))
+                .collect::<Result<Vec<_>, _>>()?;
+            let basis = drawing_basis(project, kind).unwrap_or(Basis {
+                origin: project.origin.0,
+                x: [1., 0., 0.],
+                y: [0., 0., 1.],
+                z: [0., -1., 0.],
+            });
+            Ok((basis, parts, meshes))
+        };
+        let mut sources = BTreeMap::new();
+        let main = if let DrawingKind::Multi { objects } = &drawing.kind {
+            for o in objects {
+                sources.insert(*o, load(&source_kind(project, *o))?);
+            }
+            let world = drawing_basis(project, &drawing.kind)?;
+            (world, Vec::new(), Vec::new())
+        } else {
+            load(&drawing.kind)?
+        };
+        Ok(Self { main, sources })
+    }
+
+    /// Basis, parts and meshes of one view.
+    fn of(&self, view: &DrawingView) -> (&Basis, &[ObjectId], &[PartMesh]) {
+        let (b, p, m) = view
+            .source
+            .and_then(|s| self.sources.get(&s))
+            .unwrap_or(&self.main);
+        (b, p, m)
+    }
+}
+
 /// The view (not a node or section) under a sheet point and the point in
 /// that view's plane, model mm.
 pub fn view_at(
@@ -1018,19 +1088,15 @@ pub fn view_at(
     drawing: &Drawing,
     paper: [f64; 2],
 ) -> Result<Option<(u32, [f64; 2], f64)>, Error> {
-    let parts = drawing_parts(project, &drawing.kind);
-    let basis = drawing_basis(project, &drawing.kind)?;
-    let meshes = parts
-        .iter()
-        .map(|id| PartMesh::new(project, *id))
-        .collect::<Result<Vec<_>, _>>()?;
+    let frames = Frames::new(project, drawing)?;
     let marks = BTreeMap::new();
     for view in drawing
         .views
         .iter()
         .filter(|v| v.node.is_none() && v.section.is_none())
     {
-        let (g, ctx) = view_graphic(drawing, view, &basis, &meshes, &marks);
+        let (basis, _, meshes) = frames.of(view);
+        let (g, ctx) = view_graphic(drawing, view, basis, meshes, &marks);
         let [lo, hi] = g.bounds;
         if paper[0] >= lo[0] - 5.
             && paper[0] <= hi[0] + 5.
@@ -1054,11 +1120,7 @@ pub fn anchor_candidates(
     drawing: &Drawing,
 ) -> Result<Vec<(u32, Anchor, [f64; 2])>, Error> {
     let parts = drawing_parts(project, &drawing.kind);
-    let basis = drawing_basis(project, &drawing.kind)?;
-    let meshes = parts
-        .iter()
-        .map(|id| PartMesh::new(project, *id))
-        .collect::<Result<Vec<_>, _>>()?;
+    let frames = Frames::new(project, drawing)?;
     let marks = BTreeMap::new();
     let mut anchors = Vec::new();
     for id in &parts {
@@ -1096,8 +1158,13 @@ pub fn anchor_candidates(
     }
     let mut out = Vec::new();
     for view in &drawing.views {
-        let (_, context) = view_graphic(drawing, view, &basis, &meshes, &marks);
-        for a in &anchors {
+        let (basis, shown, meshes) = frames.of(view);
+        let (_, context) = view_graphic(drawing, view, basis, meshes, &marks);
+        let multi = matches!(drawing.kind, DrawingKind::Multi { .. });
+        for a in anchors
+            .iter()
+            .filter(|a| !multi || shown.contains(&a.object))
+        {
             if let Some(w) = anchor_point(project, a) {
                 let q = context.basis.project(w);
                 out.push((view.id, *a, context.paper([q[0], q[1]])));
@@ -1112,23 +1179,15 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
     drawing.validate().map_err(|e| e.to_string())?;
     let status = status(project, drawing);
     let parts = drawing_parts(project, &drawing.kind);
-    let basis = drawing_basis(project, &drawing.kind).unwrap_or(Basis {
-        origin: project.origin.0,
-        x: [1., 0., 0.],
-        y: [0., 0., 1.],
-        z: [0., -1., 0.],
-    });
-    let meshes = parts
-        .iter()
-        .map(|id| PartMesh::new(project, *id))
-        .collect::<Result<Vec<_>, _>>()?;
+    let frames = Frames::new(project, drawing)?;
     let marks = open_bim_numbering::number(project)
         .map(|n| n.parts)
         .unwrap_or_default();
     let mut views: Vec<ViewGraphic> = Vec::new();
     let mut contexts = BTreeMap::new();
     for view in &drawing.views {
-        let (graphic, context) = view_graphic(drawing, view, &basis, &meshes, &marks);
+        let (basis, _, meshes) = frames.of(view);
+        let (graphic, context) = view_graphic(drawing, view, basis, meshes, &marks);
         views.push(graphic);
         contexts.insert(view.id, context);
     }
@@ -1594,6 +1653,7 @@ fn views(directions: &[(ViewDirection, &str)], positions: &[[f64; 2]]) -> Vec<Dr
             position: *position,
             scale: None,
             node: None,
+            source: None,
         })
         .collect()
 }
@@ -1824,6 +1884,170 @@ pub fn general_drawing(
             sheet,
             scale,
             views: views(&directions, &positions),
+            dimensions,
+            texts: Vec::new(),
+            objects: Vec::new(),
+            fingerprints: BTreeMap::new(),
+            generated_revision: 0,
+            issued_revision: None,
+            multiple: 1,
+            portrait: false,
+        },
+    ))
+}
+
+/// Default «Комплексный чертёж»: for each part or assembly of `objects` a
+/// front view (and a view from above for members and assemblies) with the
+/// overall length, packed in rows on the smallest sheet from A3 to A1 at
+/// the largest standard scale that fits.
+pub fn multi_drawing(
+    project: &Project,
+    id: ObjectId,
+    objects: Vec<ObjectId>,
+    number: &str,
+) -> Result<Drawing, Error> {
+    if objects.is_empty() {
+        return Err("Выберите детали или сборки".into());
+    }
+    let numbering = open_bim_numbering::number(project).ok();
+    let mark = |o: ObjectId| {
+        numbering
+            .as_ref()
+            .and_then(|n| n.parts.get(&o).or_else(|| n.assemblies.get(&o)))
+            .cloned()
+            .unwrap_or_else(|| format!("#{}", o.0))
+    };
+    // Per object: views (direction, size in model mm) and the length anchor.
+    struct Block {
+        object: ObjectId,
+        views: Vec<(ViewDirection, [f64; 2])>,
+        length: Option<ObjectId>,
+    }
+    let mut blocks = Vec::new();
+    for object in &objects {
+        let kind = source_kind(project, *object);
+        let main = match kind {
+            DrawingKind::Assembly { assembly } => project.assemblies[&assembly].main_part,
+            _ => *object,
+        };
+        let member = matches!(
+            project
+                .elements
+                .get(&main)
+                .ok_or_else(|| format!("Деталь #{} не найдена", main.0))?
+                .shape,
+            ElementShape::Member { .. }
+        );
+        let basis = drawing_basis(project, &kind)?;
+        let meshes = drawing_parts(project, &kind)
+            .iter()
+            .map(|id| PartMesh::new(project, *id))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut directions = vec![ViewDirection::Front];
+        if member || matches!(kind, DrawingKind::Assembly { .. }) {
+            directions.push(ViewDirection::Top);
+        }
+        blocks.push(Block {
+            object: *object,
+            views: directions
+                .into_iter()
+                .map(|d| (d, extents(&meshes, &basis, d)))
+                .collect(),
+            length: member.then_some(main),
+        });
+    }
+    let gap = 30.;
+    // Block size on paper at scale 1:s, the views stacked.
+    let size = |b: &Block, s: f64| {
+        let w = b.views.iter().map(|v| v.1[0] / s).fold(0., f64::max);
+        let h = b.views.iter().map(|v| v.1[1] / s).sum::<f64>() + gap * (b.views.len() - 1) as f64;
+        [w, h]
+    };
+    // Rows of blocks inside the field above the title block, or None.
+    let pack = |sheet: SheetSize, s: f64| -> Option<Vec<[f64; 2]>> {
+        let [w, h] = sheet.landscape_mm();
+        let (left, right, top) = (MARGIN_LEFT + 15., w - MARGIN - 10., h - MARGIN - 35.);
+        let bottom = MARGIN + TITLE_BLOCK[1] + 10.;
+        let mut corners = Vec::new();
+        let (mut x, mut y, mut row) = (left, top, 0.0_f64);
+        for b in &blocks {
+            let [bw, bh] = size(b, s);
+            if x > left && x + bw > right {
+                x = left;
+                y -= row + gap;
+                row = 0.;
+            }
+            if x + bw > right || y - bh < bottom {
+                return None;
+            }
+            corners.push([x, y]);
+            x += bw + gap;
+            row = row.max(bh);
+        }
+        Some(corners)
+    };
+    let (sheet, scale, corners) = [SheetSize::A3, SheetSize::A2, SheetSize::A1]
+        .into_iter()
+        .find_map(|sheet| {
+            SCALES
+                .iter()
+                .find_map(|s| pack(sheet, *s).map(|c| (sheet, *s, c)))
+        })
+        .ok_or("Объекты не помещаются на листе A1 даже в масштабе 1:400")?;
+    let mut views = Vec::new();
+    let mut dimensions = Vec::new();
+    for (b, corner) in blocks.iter().zip(corners) {
+        let width = size(b, scale)[0];
+        let mut top = corner[1];
+        for (k, (direction, extent)) in b.views.iter().enumerate() {
+            let id = views.len() as u32 + 1;
+            let h = extent[1] / scale;
+            views.push(DrawingView {
+                id,
+                name: match direction {
+                    ViewDirection::Top => format!("{} — вид сверху", mark(b.object)),
+                    _ => mark(b.object),
+                },
+                direction: *direction,
+                section: None,
+                position: [corner[0] + width / 2., top - h / 2.],
+                scale: None,
+                node: None,
+                source: Some(b.object),
+            });
+            top -= h + gap;
+            if k == 0
+                && let Some(part) = b.length
+            {
+                dimensions.push(DimensionDef {
+                    id: dimensions.len() as u32 + 1,
+                    view: id,
+                    anchors: vec![
+                        Anchor {
+                            object: part,
+                            point: AnchorPoint::Start,
+                        },
+                        Anchor {
+                            object: part,
+                            point: AnchorPoint::End,
+                        },
+                    ],
+                    axis: DimensionAxis::Horizontal,
+                    offset: 12.,
+                });
+            }
+        }
+    }
+    Ok(updated(
+        project,
+        &Drawing {
+            id,
+            kind: DrawingKind::Multi { objects },
+            number: number.into(),
+            title: "Комплексный чертёж".into(),
+            sheet,
+            scale,
+            views,
             dimensions,
             texts: Vec::new(),
             objects: Vec::new(),

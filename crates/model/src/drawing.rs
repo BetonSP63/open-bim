@@ -61,6 +61,9 @@ pub enum DrawingKind {
     /// sheet lists, referenced documents and general notes. `mark` is the
     /// set mark, «КМ» or «КМД».
     GeneralData { mark: String },
+    /// «Комплексный чертёж»: several parts or assemblies on one sheet; each
+    /// view shows its own `source`, drawn in that object's frame.
+    Multi { objects: Vec<ObjectId> },
 }
 
 /// Set marks Open BIM issues (appendix В).
@@ -97,6 +100,9 @@ pub struct DrawingView {
     /// view plane is drawn, and its place is marked on the main view.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub node: Option<NodeRegion>,
+    /// Part or assembly the view shows on a «Комплексный чертёж».
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<ObjectId>,
 }
 
 /// Square region of a view plane: centre (u, v) and half side, model mm.
@@ -266,6 +272,19 @@ impl Drawing {
             && objects.len() > 1_000_000
         {
             return invalid("количество объектов");
+        }
+        if let DrawingKind::Multi { objects } = &self.kind {
+            let unique: std::collections::BTreeSet<_> = objects.iter().collect();
+            if objects.is_empty() || objects.len() > 64 || unique.len() != objects.len() {
+                return invalid("объекты комплексного чертежа");
+            }
+            if self
+                .views
+                .iter()
+                .any(|v| !v.source.is_some_and(|s| unique.contains(&s)))
+            {
+                return invalid("вид комплексного чертежа без объекта");
+            }
         }
         if self.multiple != 1 && !self.sheet.multiples().contains(&self.multiple) {
             return invalid("кратность формата вне ГОСТ 2.301");
