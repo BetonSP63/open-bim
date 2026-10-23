@@ -11,7 +11,8 @@ and 4.3-specific entities listed as unsupported. Import also reads **IFC2X3**
 
 | Model data | IFC |
 |---|---|
-| Beam / column members | `IfcBeam` (.BEAM.) / `IfcColumn` (.COLUMN.); `IfcMember` imported as beam; `*StandardCase` read as the base entity |
+| Beam / column members | `IfcBeam` (.BEAM.) / `IfcColumn` (.COLUMN.); `IfcMember` imported as beam (keeps `ifc_entity = IfcMember`); `*StandardCase` read as the base entity |
+| Chosen IFC class | Part properties `ifc_entity`, `ifc_predefined_type`, `ifc_object_type` (property pane «Экспорт в IFC») export the part as IfcBeam, IfcColumn, IfcMember, IfcPlate, IfcRailing, IfcFooting, IfcPile, IfcSlab or IfcBuildingElementProxy; a predefined type not allowed for the class becomes NOTDEFINED; USERDEFINED writes ObjectType. Import reads back only beam, column, member and plate |
 | Plates | `IfcPlate` (.SHEET.) |
 | Body | `IfcShapeRepresentation` 'Body' 'SweptSolid' → one `IfcExtrudedAreaSolid` along profile Z |
 | Profiles | `IfcIShapeProfileDef`, `IfcLShapeProfileDef`, `IfcUShapeProfileDef`, `IfcRectangleProfileDef`, `IfcCircleHollowProfileDef`, `IfcRectangleHollowProfileDef`; plates `IfcArbitraryClosedProfileDef` + `IfcPolyline` (rectangle accepted on import) |

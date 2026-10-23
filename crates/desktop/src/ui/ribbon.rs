@@ -477,7 +477,11 @@ impl Workbench {
     pub(super) fn ribbon(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
         egui::Panel::top("ribbon tabs").show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
-                ui.menu_button("Файл", |ui| {
+                // «Файл»: white on the blue of the status bar, at the left edge.
+                let file =
+                    egui::Button::new(egui::RichText::new("☰ Файл").color(theme::STATUS_TEXT))
+                        .fill(theme::STATUS_BG);
+                egui::containers::menu::MenuButton::from_button(file).ui(ui, |ui| {
                     for cmd in [
                         Cmd::NewProject,
                         Cmd::OpenProject,
@@ -501,7 +505,27 @@ impl Workbench {
                     } else {
                         text.color(ui.visuals().weak_text_color())
                     };
-                    let response = ui.selectable_label(self.ribbon_tab == tab, text);
+                    // The open tab is blue text with a blue underline, not a filled box.
+                    let open = self.ribbon_tab == tab;
+                    let accent = if ui.visuals().dark_mode {
+                        theme::FOCUS
+                    } else {
+                        theme::LIGHT_FOCUS
+                    };
+                    let response = ui
+                        .scope(|ui| {
+                            ui.visuals_mut().selection.bg_fill = egui::Color32::TRANSPARENT;
+                            ui.visuals_mut().selection.stroke.color = accent;
+                            ui.selectable_label(open, text)
+                        })
+                        .inner;
+                    if open {
+                        let r = response.rect;
+                        ui.painter().line_segment(
+                            [r.left_bottom(), r.right_bottom()],
+                            egui::Stroke::new(2.5, accent),
+                        );
+                    }
                     let response = if tab.available() {
                         response
                     } else {

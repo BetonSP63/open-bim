@@ -389,3 +389,34 @@ fn narrow_window_folds_the_rightmost_groups_first() {
     );
     assert_eq!(collapse(&[400., 400., 400.], 700.), vec![false, true, true]);
 }
+
+#[test]
+fn property_pane_titles_the_selection_and_filters_its_sections() {
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    theme::apply(&ctx);
+    let mut b = bench();
+    let shown = |b: &mut Workbench, name: &str| {
+        frame(&ctx, b, [1280., 800.], vec![]);
+        let out = frame(&ctx, b, [1280., 800.], vec![]).0;
+        nodes(&out).iter().any(|(_, n, _, _)| n == name)
+    };
+    assert!(shown(&mut b, "Общие"));
+    assert!(shown(&mut b, "Обработка поверхности"));
+    assert!(
+        nodes(&frame(&ctx, &mut b, [1280., 800.], vec![]).0)
+            .iter()
+            .any(|(_, n, _, _)| n.ends_with("(1 выбрано)")),
+        "title names the type and the count"
+    );
+    // Search keeps only the sections holding a matching property.
+    b.property_search = "покрыт".into();
+    assert!(shown(&mut b, "Обработка поверхности"));
+    assert!(!shown(&mut b, "Общие"));
+    // «Показать меньше свойств» keeps the main sections.
+    b.property_search.clear();
+    b.fewer_properties = true;
+    assert!(shown(&mut b, "Общие"));
+    assert!(!shown(&mut b, "Обработка поверхности"));
+    assert!(shown(&mut b, "Показать больше свойств"));
+}

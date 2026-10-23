@@ -1,6 +1,9 @@
 //! IFC4 export of the declared subset (see docs/ifc-support.md).
 use crate::step::{encode, guid, real, valid_guid};
-use crate::{GOST_PSET_NAME, GUID_PROPERTY, KSI_PROPERTY, PSET_NAME};
+use crate::{
+    ENTITIES, GOST_PSET_NAME, GUID_PROPERTY, IFC_ENTITY_PROPERTY, IFC_OBJECT_TYPE_PROPERTY,
+    IFC_PREDEFINED_PROPERTY, KSI_PROPERTY, PSET_NAME,
+};
 use open_bim_model::{
     DetailKind, ElementShape, Frame, MemberKind, ObjectId, ProfileShape, Project, PropertyValue,
 };
@@ -299,23 +302,30 @@ pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
         let gid = element_guid(project, element.id);
         let name = encode(&element.name);
         let tag = format!("'{}'", element.id.0);
-        let product = w.add(match &element.shape {
+        let (default_entity, default_type) = match &element.shape {
             ElementShape::Member {
                 member_kind: MemberKind::Column,
                 ..
             } => {
                 report.columns += 1;
-                format!("IFCCOLUMN('{gid}',$,{name},$,$,#{lp},#{shape},{tag},.COLUMN.)")
+                ("IfcColumn", "COLUMN")
             }
             ElementShape::Member { .. } => {
                 report.beams += 1;
-                format!("IFCBEAM('{gid}',$,{name},$,$,#{lp},#{shape},{tag},.BEAM.)")
+                ("IfcBeam", "BEAM")
             }
             ElementShape::Plate { .. } => {
                 report.plates += 1;
-                format!("IFCPLATE('{gid}',$,{name},$,$,#{lp},#{shape},{tag},.SHEET.)")
+                ("IfcPlate", "SHEET")
             }
-        });
+        };
+        let (entity, predefined, object_type) = ifc_class(element, default_entity, default_type);
+        // IfcPile carries one more attribute, its construction type.
+        let tail = if entity == "IfcPile" { ",$" } else { "" };
+        let product = w.add(format!(
+            "{}('{gid}',$,{name},$,{object_type},#{lp},#{shape},{tag},.{predefined}.{tail})",
+            entity.to_ascii_uppercase()
+        ));
         products.push(product);
         by_material
             .entry(element.material)
@@ -324,7 +334,15 @@ pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
         let props: Vec<u64> = element
             .properties
             .iter()
-            .filter(|(k, _)| k.as_str() != GUID_PROPERTY)
+            .filter(|(k, _)| {
+                ![
+                    GUID_PROPERTY,
+                    IFC_ENTITY_PROPERTY,
+                    IFC_PREDEFINED_PROPERTY,
+                    IFC_OBJECT_TYPE_PROPERTY,
+                ]
+                .contains(&k.as_str())
+            })
             .map(|(k, v)| {
                 w.add(format!(
                     "IFCPROPERTYSINGLEVALUE({},$,{},$)",
@@ -620,4 +638,49 @@ pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
     text.push_str(&w.out);
     text.push_str("ENDSEC;\nEND-ISO-10303-21;\n");
     Ok((text, report))
+}
+
+/// IFC class, predefined type and ObjectType of a part: the class chosen in
+/// its properties when it is one of [`ENTITIES`], else the one by shape. A
+/// predefined type not allowed for the class falls back to NOTDEFINED;
+/// USERDEFINED takes the user type as ObjectType.
+fn ifc_class(
+    element: &open_bim_model::Element,
+    default_entity: &'static str,
+    default_type: &'static str,
+) -> (&'static str, &'static str, String) {
+    let text = |key: &str| match element.properties.get(key) {
+        Some(PropertyValue::Text(t)) if !t.trim().is_empty() => Some(t.trim().to_string()),
+        _ => None,
+    };
+    let chosen = text(IFC_ENTITY_PROPERTY).and_then(|e| {
+        ENTITIES
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case(&e))
+    });
+    let (entity, types) = match chosen {
+        Some((entity, types)) => (*entity, *types),
+        None => (
+            default_entity,
+            ENTITIES
+                .iter()
+                .find(|(name, _)| *name == default_entity)
+                .map_or(&[][..], |(_, t)| *t),
+        ),
+    };
+    let predefined = match text(IFC_PREDEFINED_PROPERTY) {
+        Some(t) => types
+            .iter()
+            .find(|p| p.eq_ignore_ascii_case(&t))
+            .copied()
+            .unwrap_or("NOTDEFINED"),
+        None if chosen.is_none() => default_type,
+        None => "NOTDEFINED",
+    };
+    let object_type = match text(IFC_OBJECT_TYPE_PROPERTY) {
+        Some(t) => encode(&t),
+        None if predefined == "USERDEFINED" => encode(&element.name),
+        None => "$".into(),
+    };
+    (entity, predefined, object_type)
 }

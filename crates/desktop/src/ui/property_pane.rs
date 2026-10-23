@@ -52,6 +52,8 @@ pub struct Common {
     pub length: Option<Shared<String>>,
     /// Members only: «Положение».
     pub position: Option<PositionShared>,
+    /// Series, deformation and IFC fields by key.
+    pub fields: std::collections::BTreeMap<&'static str, Shared<String>>,
 }
 
 /// Position fields of the selected members, each shared or «— разные —».
@@ -112,8 +114,10 @@ pub fn common(project: &Project, selected: &BTreeSet<ObjectId>) -> Option<Common
             _ => None,
         })
         .collect();
+    let ids: Vec<ObjectId> = parts.iter().map(|e| e.id).collect();
     Some(Common {
-        parts: parts.iter().map(|e| e.id).collect(),
+        fields: super::property_fields::common(project, &ids),
+        parts: ids.clone(),
         kind: Shared::of(parts.iter().map(|e| {
             match &e.shape {
                 ElementShape::Member { member_kind, .. } => match member_kind {
@@ -327,6 +331,7 @@ pub struct PropertyPane {
     /// Which end the length field moves; kept between selections.
     pub length_mode: LengthMode,
     pub position: PositionBuffer,
+    pub fields: super::property_fields::FieldBuffer,
     /// Catalogue picks not yet in the project.
     pub pending_profile: Option<open_bim_model::Profile>,
     pub pending_material: Option<open_bim_model::Material>,
@@ -422,6 +427,7 @@ impl PropertyPane {
             Some(p) => self.position.fill(p),
             None => self.position = PositionBuffer::default(),
         }
+        self.fields.fill(&c.fields);
     }
 
     /// Fields edited relative to what the selection shows.

@@ -329,6 +329,7 @@ fn every_caption_glyph_exists_in_the_proportional_fonts() {
         .map(|s| commands::caption(s.cmd))
         .collect();
     texts.push("↑/↓ — выбор, Enter — выполнить, Esc — закрыть".into());
+    texts.push("☰ Файл".into());
     for t in texts {
         let missing: String = t.chars().filter(|c| !covered(*c)).collect();
         assert!(missing.is_empty(), "{t}: {missing}");

@@ -10,8 +10,10 @@ use std::collections::BTreeSet;
 pub type Rgba = [u8; 4];
 
 pub const WORK_AREA: Rgba = [0, 150, 60, 255];
-pub const GRID: Rgba = [70, 100, 140, 255];
-pub const LABEL: Rgba = [20, 40, 70, 255];
+/// Grid lines and labels: black dash-dot on the light background.
+pub const GRID: Rgba = [0, 0, 0, 255];
+pub const LABEL: Rgba = [0, 0, 0, 255];
+pub const GRID_DASH: [f32; 4] = [12., 3., 1.5, 3.];
 pub const SNAP: Rgba = [230, 120, 0, 255];
 pub const RUBBER: Rgba = [200, 30, 160, 255];
 pub const START_HANDLE: Rgba = [240, 200, 0, 255];
@@ -23,8 +25,10 @@ pub const SELECTED_AXIS: Rgba = [255, 107, 20, 255];
 /// Line the snapped point belongs to (turquoise).
 pub const SNAP_LINE: Rgba = [0, 185, 195, 255];
 pub const AXIS_COLORS: [Rgba; 3] = [[210, 40, 40, 255], [20, 150, 50, 255], [30, 80, 220, 255]];
-/// Light theme background: grey-blue at the top fading to near white.
-pub const GRADIENT_LIGHT: [Rgba; 2] = [[150, 168, 196, 255], [236, 240, 245, 255]];
+/// Light theme background: white at the top fading to light lavender.
+pub const GRADIENT_LIGHT: [Rgba; 2] = [[253, 253, 255, 255], [196, 197, 222, 255]];
+/// Frame of the active view.
+pub const ACTIVE_VIEW: Rgba = [250, 190, 30, 255];
 pub const GRADIENT_DARK: [Rgba; 2] = [[20, 28, 40, 255], [6, 9, 13, 255]];
 /// At most this many selected objects get handles (bounded overlay cost).
 pub const MAX_HANDLES: usize = 500;
@@ -51,8 +55,9 @@ pub enum Mark {
         b: [f64; 2],
         color: Rgba,
         width: f32,
-        /// Dash and gap length in pixels; `None` = solid.
-        dash: Option<[f32; 2]>,
+        /// Dash, gap, second dash, second gap in pixels (a short second
+        /// dash gives the dash-dot of grid lines); `None` = solid.
+        dash: Option<[f32; 4]>,
     },
     Circle {
         center: [f64; 2],
@@ -308,6 +313,10 @@ pub struct Input<'a> {
 }
 
 fn line(a: [f64; 2], b: [f64; 2], color: Rgba, width: f32, dash: Option<[f32; 2]>) -> Mark {
+    pattern(a, b, color, width, dash.map(|[d, g]| [d, g, d, g]))
+}
+
+fn pattern(a: [f64; 2], b: [f64; 2], color: Rgba, width: f32, dash: Option<[f32; 4]>) -> Mark {
     Mark::Line {
         a,
         b,
@@ -417,7 +426,7 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
             }
         }
     }
-    // Grid: dotted lines, bubbles with names at both ends.
+    // Grid: dash-dot lines, bubbles with names at both ends.
     let mut first_axis = None;
     for axis in input.project.axes.values() {
         if input.hidden.contains(&axis.id) {
@@ -434,7 +443,7 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
         if input.selected.contains(&axis.id) {
             marks.push(line(a, b, SELECTED_AXIS, 3., None));
         }
-        marks.push(line(a, b, grid, 1., Some([2., 4.])));
+        marks.push(pattern(a, b, grid, 1., Some(GRID_DASH)));
         // The same grid line at the other levels, fainter.
         let faint = [grid[0], grid[1], grid[2], 110];
         for level in input.project.levels.values() {
@@ -442,7 +451,7 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
             if dz.length() > 1e-6
                 && let (Some(la), Some(lb)) = (p.screen(wa + dz), p.screen(wb + dz))
             {
-                marks.push(line(la, lb, faint, 1., Some([2., 6.])));
+                marks.push(pattern(la, lb, faint, 1., Some(GRID_DASH)));
             }
         }
         let d = [b[0] - a[0], b[1] - a[1]];
