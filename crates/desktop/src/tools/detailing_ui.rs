@@ -83,6 +83,8 @@ pub struct DetailingUi {
     pub gusset_leg: String,
     pub gusset_chamfer: String,
     pub stiffener_snip: String,
+    /// «Точки на линии»: number of equal parts.
+    pub point_divisions: String,
 }
 impl Default for DetailingUi {
     fn default() -> Self {
@@ -115,6 +117,7 @@ impl Default for DetailingUi {
             gusset_leg: "300".into(),
             gusset_chamfer: "30".into(),
             stiffener_snip: "20".into(),
+            point_divisions: "4".into(),
         }
     }
 }

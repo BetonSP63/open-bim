@@ -1248,7 +1248,10 @@ impl Workbench {
     fn tool_pane_active(&self) -> bool {
         use crate::interaction::trim::TrimTool;
         self.detail.tool.is_some()
-            || matches!(self.trim.tool, Some(TrimTool::Gusset | TrimTool::Stiffener))
+            || matches!(
+                self.trim.tool,
+                Some(TrimTool::Gusset | TrimTool::Stiffener | TrimTool::PointsOnLine)
+            )
     }
 
     /// Properties of the running bolt, weld, gusset or stiffener command
@@ -1289,6 +1292,13 @@ impl Workbench {
                     "1. Щёлкните деталь, к которой приваривают",
                     "2. Щёлкните привариваемую деталь — шов создан",
                     "Заводской шов объединяет детали в сборку",
+                ],
+            ),
+            (_, Some(TrimTool::PointsOnLine)) => (
+                "Точки на линии",
+                &[
+                    "Точки в концах отрезка и делящие его на равные части.",
+                    "1. Укажите начало, 2. конец отрезка",
                 ],
             ),
             (_, Some(TrimTool::Gusset)) => (
@@ -1340,6 +1350,13 @@ impl Workbench {
             (Some(DetailTool::Bolt), _) => d.bolt_fields(ui),
             (Some(DetailTool::Weld | DetailTool::WeldPolygon | DetailTool::WeldOnPart), _) => {
                 d.weld_fields(ui)
+            }
+            (_, Some(TrimTool::PointsOnLine)) => {
+                ui.horizontal(|ui| {
+                    let l = ui.label("Число частей");
+                    ui.text_edit_singleline(&mut d.point_divisions)
+                        .labelled_by(l.id);
+                });
             }
             (_, Some(TrimTool::Gusset)) => {
                 egui::Grid::new("gusset fields")

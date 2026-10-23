@@ -477,6 +477,26 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
     };
     for c in input.project.construction.values() {
         let selected = input.selected.contains(&c.id);
+        // Points: a small cross of constant size on screen.
+        if let open_bim_model::ConstructionKind::Point { at } = &c.kind {
+            if let Some(s) = p.screen(DVec3::from_array(at.0)) {
+                let (colour, width) = if selected {
+                    (SELECTED_AXIS, 2.5)
+                } else {
+                    (construction, 1.5)
+                };
+                for (dx, dy) in [(5., 5.), (5., -5.)] {
+                    marks.push(line(
+                        [s[0] - dx, s[1] - dy],
+                        [s[0] + dx, s[1] + dy],
+                        colour,
+                        width,
+                        None,
+                    ));
+                }
+            }
+            continue;
+        }
         for (a, b) in c.segments() {
             if let (Some(sa), Some(sb)) = (
                 p.screen(DVec3::from_array(a)),

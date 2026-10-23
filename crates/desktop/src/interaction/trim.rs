@@ -19,6 +19,8 @@ fn p3(v: DVec3) -> Point3 {
 /// Commands in «Подгонка и резка» and «Построения».
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TrimTool {
+    ConstructionPoint,
+    PointsOnLine,
     ConstructionLine,
     ConstructionCircle,
     Dimension,
@@ -46,6 +48,8 @@ pub enum Need {
 impl TrimTool {
     pub fn label(self) -> &'static str {
         match self {
+            Self::ConstructionPoint => "Точка",
+            Self::PointsOnLine => "Точки на линии",
             Self::ConstructionLine => "Вспомогательная линия",
             Self::ConstructionCircle => "Вспомогательная окружность",
             Self::Dimension => "Размер в модели",
@@ -66,7 +70,11 @@ impl TrimTool {
     pub fn steps(self) -> &'static [Need] {
         use Need::*;
         match self {
-            Self::ConstructionLine | Self::ConstructionCircle | Self::Dimension => &[Point, Point],
+            Self::ConstructionPoint => &[Point],
+            Self::PointsOnLine
+            | Self::ConstructionLine
+            | Self::ConstructionCircle
+            | Self::Dimension => &[Point, Point],
             Self::FitEnd => &[Part, Point, Point],
             Self::CutLine => &[Part, Point, Point, Point],
             Self::CutPart | Self::Combine | Self::Gusset => &[Part, Part],
@@ -80,6 +88,9 @@ impl TrimTool {
     /// Prompt for step `i`.
     pub fn prompt(self, i: usize, points: usize) -> String {
         let step = match (self, i) {
+            (Self::ConstructionPoint, _) => "Укажите положение точки",
+            (Self::PointsOnLine, 0) => "Укажите начало делимого отрезка",
+            (Self::PointsOnLine, _) => "Укажите конец делимого отрезка",
             (Self::ConstructionLine, 0) | (Self::Dimension, 0) => "Укажите первую точку",
             (Self::ConstructionLine, _) | (Self::Dimension, _) => "Укажите вторую точку",
             (Self::ConstructionCircle, 0) => "Укажите центр окружности",
@@ -499,6 +510,41 @@ pub fn construction(
     };
     construction.validate().map_err(|e| e.to_string())?;
     Ok(vec![Command::CreateConstruction { construction }])
+}
+
+/// Construction points: one at `a`, or with `divisions` the ends and the
+/// points dividing the segment `a`–`b` into equal parts.
+pub fn points(
+    project: &Project,
+    a: DVec3,
+    b: Option<DVec3>,
+    divisions: usize,
+) -> Result<Vec<Command>, String> {
+    let at: Vec<DVec3> = match b {
+        None => vec![a],
+        Some(b) => {
+            if a.distance(b) < 1. {
+                return Err("Концы отрезка совпадают".into());
+            }
+            if !(1..=1000).contains(&divisions) {
+                return Err("Число частей: от 1 до 1000".into());
+            }
+            (0..=divisions)
+                .map(|k| a.lerp(b, k as f64 / divisions as f64))
+                .collect()
+        }
+    };
+    at.iter()
+        .enumerate()
+        .map(|(k, p)| {
+            let construction = Construction {
+                id: ObjectId(project.next_id + k as u64),
+                kind: ConstructionKind::Point { at: p3(*p) },
+            };
+            construction.validate().map_err(|e| e.to_string())?;
+            Ok(Command::CreateConstruction { construction })
+        })
+        .collect()
 }
 
 /// A model dimension; ends picked on a member end follow that member.

@@ -276,7 +276,8 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                 vec![
                     item(Cmd::GridDialog, Icon::Grid, "Сетка"),
                     small(Cmd::ToolAxis, Icon::Grid, "Ось"),
-                    small_future(Icon::SnapEnd, "Точки"),
+                    small(Cmd::ConstructionPoint, Icon::SnapEnd, "Точка"),
+                    small(Cmd::PointsOnLine, Icon::SnapEnd, "Точки на линии"),
                     small_future(Icon::Grid, "Параметрическое моделирование"),
                     small(Cmd::ConstructionLine, Icon::Grid, "Вспомогательная линия"),
                     small(

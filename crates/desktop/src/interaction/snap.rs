@@ -359,6 +359,7 @@ pub fn construction_segments(project: &Project) -> Vec<(ObjectId, (DVec3, DVec3)
     project
         .construction
         .values()
+        .filter(|c| !matches!(c.kind, open_bim_model::ConstructionKind::Point { .. }))
         .flat_map(|c| {
             c.segments()
                 .into_iter()
@@ -374,6 +375,9 @@ fn construction_marks(project: &Project) -> Vec<(ObjectId, DVec3, SnapKind)> {
     let mut out = Vec::new();
     for c in project.construction.values() {
         match &c.kind {
+            ConstructionKind::Point { at } => {
+                out.push((c.id, DVec3::from_array(at.0), SnapKind::Reference));
+            }
             ConstructionKind::Line { a, b } => {
                 let (a, b) = (DVec3::from_array(a.0), DVec3::from_array(b.0));
                 out.push((c.id, a, SnapKind::Reference));
