@@ -280,6 +280,16 @@ impl Project {
             register(*key, value.id)?;
             value.validate(self)?;
         }
+        let mut plugin_outputs = BTreeSet::new();
+        for (key, value) in &self.plugins {
+            register(*key, value.id)?;
+            value.validate(self)?;
+            for id in &value.outputs {
+                if !plugin_outputs.insert(*id) {
+                    return Err(ModelError::MultipleOwners(*id));
+                }
+            }
+        }
         let mut owners = BTreeMap::new();
         for (key, value) in &self.assemblies {
             register(*key, value.id)?;

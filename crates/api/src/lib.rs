@@ -161,6 +161,13 @@ pub struct Session {
     staged: Vec<Command>,
     path: Option<PathBuf>,
     open_drawing: Option<drawings::OpenDrawing>,
+    /// Plugins known to the session: placed plugins are run again by name.
+    plugins: Vec<plugins::Plugin>,
+    /// Problems of the last dependent plugin runs at commit.
+    plugin_problems: Vec<String>,
+    /// IDs of the previous outputs a plugin run gives again to the objects
+    /// it creates, in order.
+    reuse: std::collections::VecDeque<ObjectId>,
 }
 
 impl Session {
@@ -172,6 +179,9 @@ impl Session {
             staged: Vec::new(),
             path: None,
             open_drawing: None,
+            plugins: Vec::new(),
+            plugin_problems: Vec::new(),
+            reuse: Default::default(),
         })
     }
 
@@ -211,7 +221,18 @@ impl Session {
         Ok(())
     }
 
+    /// Plugins the session runs again when their inputs change.
+    pub fn set_plugins(&mut self, plugins: Vec<plugins::Plugin>) {
+        self.plugins = plugins;
+    }
+
+    /// Placed plugins the last commit could not run again.
+    pub fn plugin_problems(&self) -> &[String] {
+        &self.plugin_problems
+    }
+
     /// One undoable step from all staged changes. Nothing staged → `None`.
+    /// Placed plugins whose input parts changed run again in the same step.
     pub fn commit(&mut self, label: &str) -> Result<Option<ChangeEvent>> {
         if self.staged.is_empty() {
             return Ok(None);
@@ -221,10 +242,33 @@ impl Session {
         } else {
             label
         };
-        let event = self.document.transact(label, &self.staged)?;
+        let mut event = self.document.transact(label, &self.staged)?;
         self.staged.clear();
         self.working = self.document.project().clone();
+        self.plugin_problems.clear();
+        if !Self::dependent_plugins(&self.working, &event.touched).is_empty() {
+            self.plugin_problems = self.rerun_dependent(&event.touched);
+            if !self.staged.is_empty() {
+                match self.document.amend(&self.staged) {
+                    Ok(amended) => event = amended,
+                    Err(e) => self.plugin_problems.push(e.to_string()),
+                }
+                self.staged.clear();
+                self.working = self.document.project().clone();
+            }
+        }
         Ok(Some(event))
+    }
+
+    /// ID for a created part: the next previous output of a plugin being
+    /// run again, else a new one. `true` when the part already exists.
+    fn element_id(&mut self, next: &mut u64) -> (ObjectId, bool) {
+        while let Some(id) = self.reuse.pop_front() {
+            if self.working.elements.contains_key(&id) {
+                return (id, true);
+            }
+        }
+        (take_id(next), false)
     }
 
     /// Drop all staged changes and close the open drawing without saving.
@@ -358,16 +402,17 @@ impl Session {
         let mut next = self.working.next_id;
         let mut commands = Vec::new();
         let (shape, material) = self.member_shape(member, &mut commands, &mut next)?;
-        let id = take_id(&mut next);
-        commands.push(Command::Create {
-            element: Element {
+        let (id, existing) = self.element_id(&mut next);
+        commands.push(place(
+            Element {
                 id,
                 name: member.name.clone(),
                 material,
                 shape,
                 properties: member.properties.clone(),
             },
-        });
+            existing,
+        ));
         self.stage(commands)?;
         member.id = Some(id);
         Ok(id)
@@ -452,16 +497,17 @@ impl Session {
         let mut next = self.working.next_id;
         let mut commands = Vec::new();
         let (shape, material) = self.plate_shape(plate, &mut commands, &mut next)?;
-        let id = take_id(&mut next);
-        commands.push(Command::Create {
-            element: Element {
+        let (id, existing) = self.element_id(&mut next);
+        commands.push(place(
+            Element {
                 id,
                 name: plate.name.clone(),
                 material,
                 shape,
                 properties: plate.properties.clone(),
             },
-        });
+            existing,
+        ));
         self.stage(commands)?;
         plate.id = Some(id);
         Ok(id)
@@ -657,9 +703,10 @@ impl Session {
         let mut copies = Vec::new();
         for id in &ids {
             let mut element = self.working.elements[id].clone();
-            element.id = take_id(&mut next);
+            let existing;
+            (element.id, existing) = self.element_id(&mut next);
             copies.push(element.id);
-            commands.push(Command::Create { element });
+            commands.push(place(element, existing));
         }
         commands.push(Command::Transform {
             ids: copies.clone(),
@@ -672,6 +719,14 @@ impl Session {
 
     pub fn copy_by(&mut self, ids: &[ObjectId], vector: [f64; 3]) -> Result<Vec<ObjectId>> {
         self.copy_between(ids, &Frame::default(), &shifted(vector)?)
+    }
+}
+
+fn place(element: Element, existing: bool) -> Command {
+    if existing {
+        Command::ReplaceElement { element }
+    } else {
+        Command::Create { element }
     }
 }
 

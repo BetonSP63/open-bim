@@ -55,8 +55,12 @@ fn sample_manifest_is_valid_and_found() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("plugins");
     let (found, problems) = plugins::discover(&[root]);
     assert!(problems.is_empty(), "{problems:?}");
-    assert_eq!(found.len(), 1);
-    let m = &found[0].manifest;
+    assert_eq!(found.len(), 2);
+    let m = &found
+        .iter()
+        .find(|p| p.manifest.name == "Ряд колонн")
+        .unwrap()
+        .manifest;
     assert_eq!(m.name, "Ряд колонн");
     assert_eq!(m.inputs.len(), 2);
     assert_eq!(m.code.as_deref(), Some("КОЛ-РЯД"));

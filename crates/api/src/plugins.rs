@@ -23,7 +23,8 @@
 //! drawing edits are allowed — no commit, save, export or nested plugins.
 use crate::batch::{self, Step};
 use crate::{ApiError, Result, Session, invalid};
-use open_bim_model::{ObjectId, Point3};
+use open_bim_commands::Command as ModelCommand;
+use open_bim_model::{ObjectId, PluginInput, PluginInstance, PluginValue, Point3, Project};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{Read, Write};
@@ -236,6 +237,43 @@ pub enum InputValue {
     Points(Vec<Point3>),
     Part(ObjectId),
     Parts(Vec<ObjectId>),
+}
+
+impl From<&InputValue> for PluginInput {
+    fn from(value: &InputValue) -> Self {
+        match value {
+            InputValue::Point(p) => Self::Point(*p),
+            InputValue::Points(v) => Self::Points(v.clone()),
+            InputValue::Part(id) => Self::Part(*id),
+            InputValue::Parts(ids) => Self::Parts(ids.clone()),
+        }
+    }
+}
+
+impl From<&PluginInput> for InputValue {
+    fn from(value: &PluginInput) -> Self {
+        match value {
+            PluginInput::Point(p) => Self::Point(*p),
+            PluginInput::Points(v) => Self::Points(v.clone()),
+            PluginInput::Part(id) => Self::Part(*id),
+            PluginInput::Parts(ids) => Self::Parts(ids.clone()),
+        }
+    }
+}
+
+fn stored(value: &serde_json::Value) -> Option<PluginValue> {
+    match value {
+        serde_json::Value::Number(n) => n.as_f64().map(PluginValue::Number),
+        serde_json::Value::String(s) => Some(PluginValue::Text(s.clone())),
+        _ => None,
+    }
+}
+
+fn json(value: &PluginValue) -> serde_json::Value {
+    match value {
+        PluginValue::Number(n) => serde_json::json!(n),
+        PluginValue::Text(s) => serde_json::Value::String(s.clone()),
+    }
 }
 
 impl InputValue {
@@ -451,8 +489,9 @@ fn allowed(step: &Step) -> bool {
 
 impl Session {
     /// Run a plugin with picked inputs and attribute values (missing
-    /// attributes take their defaults). Its steps are staged together;
-    /// returns the IDs of the created objects. Nothing is staged on error.
+    /// attributes take their defaults). Its steps and the placed plugin
+    /// object that remembers them are staged together; returns the IDs of
+    /// the created objects. Nothing is staged on error.
     pub fn run_plugin(
         &mut self,
         plugin: &Plugin,
@@ -460,27 +499,210 @@ impl Session {
         attributes: &BTreeMap<String, serde_json::Value>,
     ) -> Result<Vec<ObjectId>> {
         self.refuse_any_open("запустить плагин")?;
+        let snapshot = (self.staged.len(), self.working.clone());
+        let result = self
+            .call_plugin(plugin, inputs, attributes, &BTreeSet::new())
+            .and_then(|(inputs, attributes, created)| {
+                let instance = PluginInstance {
+                    id: ObjectId(self.working.next_id),
+                    plugin: plugin.manifest.name.clone(),
+                    inputs: inputs.iter().map(|(k, v)| (k.clone(), v.into())).collect(),
+                    attributes,
+                    outputs: created.iter().copied().collect(),
+                };
+                self.stage(vec![ModelCommand::CreatePlugin { instance }])?;
+                Ok(created)
+            });
+        if result.is_err() {
+            self.restore(snapshot);
+        }
+        result
+    }
+
+    /// Placed plugins of the model.
+    pub fn plugin_instances(&self) -> impl Iterator<Item = &PluginInstance> {
+        self.working.plugins.values()
+    }
+
+    /// Run a placed plugin again with its stored inputs (and new attribute
+    /// values when given). Its outputs are replaced: objects made again keep
+    /// their IDs in creation order, the rest are deleted. Nothing is staged
+    /// on error.
+    pub fn rerun_plugin(
+        &mut self,
+        plugin: &Plugin,
+        id: ObjectId,
+        attributes: Option<&BTreeMap<String, serde_json::Value>>,
+    ) -> Result<Vec<ObjectId>> {
+        self.refuse_any_open("запустить плагин")?;
+        let instance = self
+            .working
+            .plugins
+            .get(&id)
+            .cloned()
+            .ok_or(ApiError::NotFound(id))?;
+        if instance.plugin != plugin.manifest.name {
+            return invalid(format!(
+                "Объект {id} создан плагином «{}», а не «{}»",
+                instance.plugin, plugin.manifest.name
+            ));
+        }
+        let inputs: BTreeMap<String, InputValue> = instance
+            .inputs
+            .iter()
+            .map(|(k, v)| (k.clone(), v.into()))
+            .collect();
+        let attributes = match attributes {
+            Some(given) => given.clone(),
+            None => instance
+                .attributes
+                .iter()
+                .map(|(k, v)| (k.clone(), json(v)))
+                .collect(),
+        };
+        let snapshot = (self.staged.len(), self.working.clone());
+        self.reuse = instance
+            .outputs
+            .iter()
+            .filter(|o| self.working.elements.contains_key(o))
+            .copied()
+            .collect();
+        let result = self
+            .stage(vec![ModelCommand::ReplacePlugin {
+                instance: PluginInstance {
+                    outputs: BTreeSet::new(),
+                    ..instance.clone()
+                },
+            }])
+            .and_then(|()| self.call_plugin(plugin, &inputs, &attributes, &instance.outputs))
+            .and_then(|(_, attributes, created)| {
+                let mut commands: Vec<ModelCommand> = instance
+                    .outputs
+                    .iter()
+                    .filter(|o| !created.contains(o) && self.working.contains_id(**o))
+                    .map(|&id| ModelCommand::Delete {
+                        id,
+                        policy: open_bim_commands::DeletePolicy::Cascade,
+                    })
+                    .collect();
+                commands.push(ModelCommand::ReplacePlugin {
+                    instance: PluginInstance {
+                        attributes,
+                        outputs: created.iter().copied().collect(),
+                        ..instance.clone()
+                    },
+                });
+                self.stage(commands)?;
+                Ok(created)
+            });
+        self.reuse.clear();
+        if result.is_err() {
+            self.restore(snapshot);
+        }
+        result
+    }
+
+    fn restore(&mut self, (staged, working): (usize, Project)) {
+        self.staged.truncate(staged);
+        self.working = working;
+    }
+
+    /// Call the program and stage its steps; returns the checked inputs,
+    /// the attribute values used and the created objects still present.
+    /// `hidden` objects (the outputs of the previous run) are left out of
+    /// the model the program sees.
+    #[allow(clippy::type_complexity)]
+    fn call_plugin(
+        &mut self,
+        plugin: &Plugin,
+        inputs: &BTreeMap<String, InputValue>,
+        attributes: &BTreeMap<String, serde_json::Value>,
+        hidden: &BTreeSet<ObjectId>,
+    ) -> Result<(
+        BTreeMap<String, InputValue>,
+        BTreeMap<String, PluginValue>,
+        Vec<ObjectId>,
+    )> {
         let inputs = plugin.inputs(inputs, self)?;
+        let attributes = plugin.attributes(attributes)?;
+        let mut model = std::borrow::Cow::Borrowed(self.project());
+        if !hidden.is_empty() {
+            let m = model.to_mut();
+            m.elements.retain(|id, _| !hidden.contains(id));
+            m.drawings.retain(|id, _| !hidden.contains(id));
+        }
         let request = Request {
             protocol: PROTOCOL,
             plugin: &plugin.manifest.name,
             inputs: &inputs,
-            attributes: plugin.attributes(attributes)?,
-            model: self.project(),
+            attributes: attributes.clone(),
+            model: &model,
         };
         let request = serde_json::to_vec(&request).map_err(|e| ApiError::Invalid(e.to_string()))?;
         let steps = plugin.call(&request)?;
-        let (staged, working) = (self.staged.len(), self.working.clone());
-        let result = batch::run_plugin_steps(self, &steps, &plugin.dir);
-        if result.is_err() {
-            self.staged.truncate(staged);
-            self.working = working;
-        }
-        result.map_err(|e| match e {
+        let created = batch::run_plugin_steps(self, &steps, &plugin.dir).map_err(|e| match e {
             ApiError::Invalid(m) => {
                 ApiError::Invalid(format!("Плагин «{}»: {m}", plugin.manifest.name))
             }
             other => other,
-        })
+        })?;
+        let mut seen = BTreeSet::new();
+        let created = created
+            .into_iter()
+            .filter(|id| self.working.contains_id(*id) && seen.insert(*id))
+            .collect();
+        let attributes = attributes
+            .iter()
+            .filter_map(|(k, v)| Some((k.clone(), stored(v)?)))
+            .collect();
+        Ok((inputs, attributes, created))
+    }
+
+    /// Placed plugins that depend on any of `touched` (an input part
+    /// changed), in ID order.
+    pub fn dependent_plugins(project: &Project, touched: &BTreeSet<ObjectId>) -> Vec<ObjectId> {
+        project
+            .plugins
+            .values()
+            .filter(|p| !p.input_parts().is_disjoint(touched))
+            .map(|p| p.id)
+            .collect()
+    }
+
+    /// Run again every placed plugin whose input parts are in `touched`,
+    /// with the plugins known to the session. A plugin that is missing or
+    /// fails keeps its old outputs; its problem is returned.
+    pub fn rerun_dependent(&mut self, touched: &BTreeSet<ObjectId>) -> Vec<String> {
+        let mut problems = Vec::new();
+        let mut touched = touched.clone();
+        // ID order: a plugin placed on another plugin's outputs comes later
+        // and sees them already rebuilt.
+        let ids: Vec<ObjectId> = self.working.plugins.keys().copied().collect();
+        for id in ids {
+            let Some(instance) = self.working.plugins.get(&id) else {
+                continue;
+            };
+            if instance.input_parts().is_disjoint(&touched) {
+                continue;
+            }
+            touched.extend(&instance.outputs);
+            let Some(name) = self.working.plugins.get(&id).map(|p| p.plugin.clone()) else {
+                continue;
+            };
+            let Some(plugin) = self
+                .plugins
+                .iter()
+                .find(|p| p.manifest.name == name)
+                .cloned()
+            else {
+                problems.push(format!("Плагин «{name}» ({id}) не найден и не обновлён"));
+                continue;
+            };
+            match self.rerun_plugin(&plugin, id, None) {
+                Ok(created) => touched.extend(created),
+                Err(e) => problems.push(format!("{id}: {e}")),
+            }
+        }
+        problems
     }
 }

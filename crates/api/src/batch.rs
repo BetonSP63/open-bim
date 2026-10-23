@@ -230,6 +230,7 @@ pub fn run(script: &Macro, base: &Path) -> Result<(Session, Report), BatchError>
         plugins: crate::plugins::discover(&dirs).0,
         ..Default::default()
     };
+    session.set_plugins(selection.plugins.clone());
     let mut steps = Vec::new();
     for (index, step) in script.steps.iter().enumerate() {
         let report = run_step(&mut session, &mut selection, step, base).map_err(at(index + 1))?;

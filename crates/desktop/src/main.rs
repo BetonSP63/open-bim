@@ -285,6 +285,7 @@ impl Desktop {
         let result = match action {
             Action::Create => self.bench.editor.create(),
             Action::Commit(label, commands) => self.bench.editor.commit(&label, &commands),
+            Action::Amend(commands) => self.bench.editor.amend(&commands),
             Action::Detail(commands) => self.bench.editor.commit("Деталировка", &commands),
             Action::Connection(commands) => self.bench.editor.commit("Соединение", &commands),
             Action::Edit(edit) => self.bench.editor.edit(&edit),

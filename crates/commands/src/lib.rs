@@ -93,6 +93,13 @@ pub enum Command {
     CreateDimension {
         dimension: open_bim_model::ModelDimension,
     },
+    /// A placed plugin: inputs, attributes and the objects it made.
+    CreatePlugin {
+        instance: open_bim_model::PluginInstance,
+    },
+    ReplacePlugin {
+        instance: open_bim_model::PluginInstance,
+    },
     /// Main inscription attributes of the project (ГОСТ Р 21.101, прил. Е).
     SetDocumentInfo {
         info: Box<open_bim_model::DocumentInfo>,
@@ -155,6 +162,7 @@ pub struct Document {
     redo: Vec<patch::Patch>,
     serial: u64,
     history_limit: usize,
+    transactions: u64,
 }
 
 impl Document {
@@ -166,6 +174,7 @@ impl Document {
             redo: Vec::new(),
             serial: 0,
             history_limit: 256,
+            transactions: 0,
         })
     }
     pub fn project(&self) -> &Project {
@@ -173,6 +182,15 @@ impl Document {
     }
     pub fn history_depth(&self) -> (usize, usize) {
         (self.undo.len(), self.redo.len())
+    }
+    /// New transactions made so far (undo and redo do not count); a host
+    /// compares it to notice edits it must follow up.
+    pub fn transactions(&self) -> u64 {
+        self.transactions
+    }
+    /// Objects changed by the last undo step.
+    pub fn last_touched(&self) -> Option<&BTreeSet<ObjectId>> {
+        self.undo.last().map(|p| &p.touched)
     }
 
     pub fn transact(
@@ -186,6 +204,63 @@ impl Document {
                 "Недопустимая транзакция".into(),
             ));
         }
+        let staged = self.staged(commands)?;
+        let serial = self
+            .serial
+            .checked_add(1)
+            .ok_or_else(|| CommandError::InvalidTransaction("Исчерпан диапазон событий".into()))?;
+        let patch = patch::Patch::between(&self.project, &staged, label);
+        let event = ChangeEvent {
+            revision: staged.revision,
+            serial,
+            touched: patch.touched.clone(),
+            label: patch.label.clone(),
+        };
+        self.project = staged;
+        self.serial = serial;
+        self.transactions += 1;
+        self.undo.push(patch);
+        self.redo.clear();
+        if self.undo.len() > self.history_limit {
+            self.undo.remove(0);
+        }
+        Ok(event)
+    }
+
+    /// Add commands to the last undo step: one undo then reverts both the
+    /// step and these follow-up changes (dependent plugins run this way).
+    pub fn amend(&mut self, commands: &[Command]) -> Result<ChangeEvent, CommandError> {
+        if commands.is_empty() || commands.len() > 100000 {
+            return Err(CommandError::InvalidTransaction(
+                "Недопустимая транзакция".into(),
+            ));
+        }
+        let last = self.undo.last().ok_or(CommandError::NoHistory)?;
+        let mut before = self.project.clone();
+        last.apply(&mut before, false);
+        let label = last.label.clone();
+        let staged = self.staged(commands)?;
+        let serial = self
+            .serial
+            .checked_add(1)
+            .ok_or_else(|| CommandError::InvalidTransaction("Исчерпан диапазон событий".into()))?;
+        let patch = patch::Patch::between(&before, &staged, label);
+        let event = ChangeEvent {
+            revision: staged.revision,
+            serial,
+            touched: patch.touched.clone(),
+            label: patch.label.clone(),
+        };
+        self.project = staged;
+        self.serial = serial;
+        self.undo.pop();
+        self.undo.push(patch);
+        self.redo.clear();
+        Ok(event)
+    }
+
+    /// The project after the commands, connections rebuilt and checked.
+    fn staged(&self, commands: &[Command]) -> Result<Project, CommandError> {
         let mut staged = self.project.clone();
         for command in commands {
             apply_command(&mut staged, command)?;
@@ -207,25 +282,7 @@ impl Document {
             .revision
             .checked_add(1)
             .ok_or_else(|| CommandError::InvalidTransaction("Исчерпан диапазон ревизий".into()))?;
-        let serial = self
-            .serial
-            .checked_add(1)
-            .ok_or_else(|| CommandError::InvalidTransaction("Исчерпан диапазон событий".into()))?;
-        let patch = patch::Patch::between(&self.project, &staged, label);
-        let event = ChangeEvent {
-            revision: staged.revision,
-            serial,
-            touched: patch.touched.clone(),
-            label: patch.label.clone(),
-        };
-        self.project = staged;
-        self.serial = serial;
-        self.undo.push(patch);
-        self.redo.clear();
-        if self.undo.len() > self.history_limit {
-            self.undo.remove(0);
-        }
-        Ok(event)
+        Ok(staged)
     }
 
     pub fn undo(&mut self) -> Result<ChangeEvent, CommandError> {
@@ -421,6 +478,23 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
                     .ok_or_else(|| CommandError::InvalidTransaction("Недопустимый ID".into()))?,
             );
             project.dimensions.insert(id, dimension.clone());
+        }
+        Command::CreatePlugin { instance } => {
+            let id = instance.id;
+            if project.contains_id(id) || id.0 == 0 {
+                return Err(ModelError::DuplicateId(id).into());
+            }
+            project.next_id = project.next_id.max(
+                id.0.checked_add(1)
+                    .ok_or_else(|| CommandError::InvalidTransaction("Недопустимый ID".into()))?,
+            );
+            project.plugins.insert(id, instance.clone());
+        }
+        Command::ReplacePlugin { instance } => {
+            if !project.plugins.contains_key(&instance.id) {
+                return Err(ModelError::MissingReference(instance.id).into());
+            }
+            project.plugins.insert(instance.id, instance.clone());
         }
         Command::CreateDrawing { drawing } => {
             if project.contains_id(drawing.id) || drawing.id.0 == 0 {
@@ -658,6 +732,17 @@ fn delete(project: &mut Project, id: ObjectId, policy: DeletePolicy) -> Result<(
                 removed.insert(d.id);
             }
         }
+        // A plugin goes with any of its input parts or outputs, and takes
+        // its outputs with it.
+        for plugin in project.plugins.values() {
+            if !plugin.input_parts().is_disjoint(&removed) || !plugin.outputs.is_disjoint(&removed)
+            {
+                removed.insert(plugin.id);
+            }
+            if removed.contains(&plugin.id) {
+                removed.extend(&plugin.outputs);
+            }
+        }
         if previous == removed.len() {
             break;
         }
@@ -682,6 +767,7 @@ fn delete(project: &mut Project, id: ObjectId, policy: DeletePolicy) -> Result<(
         project.drawings.remove(id);
         project.construction.remove(id);
         project.dimensions.remove(id);
+        project.plugins.remove(id);
     }
     for assembly in project.assemblies.values_mut() {
         assembly.members.retain(|id| !removed.contains(id));

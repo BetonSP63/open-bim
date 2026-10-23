@@ -1,11 +1,12 @@
 //! Plugin window: plugins found in the plugin folders, their inputs
 //! (points typed in, parts taken from the selection) and the attribute
 //! dialog. The run itself happens in a background job; its steps come
-//! back as commands committed as one undo step.
+//! back as commands committed as one undo step. A placed plugin (picked
+//! by one of its parts) can be run again with new attribute values.
 
 use eframe::egui;
 use open_bim_api::plugins::{self, AttributeType, InputType, InputValue, Plugin};
-use open_bim_model::ObjectId;
+use open_bim_model::{ObjectId, PluginInstance, PluginValue, Project};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -15,6 +16,8 @@ pub struct RunRequest {
     pub plugin: Plugin,
     pub inputs: BTreeMap<String, InputValue>,
     pub attributes: BTreeMap<String, Value>,
+    /// Run this placed plugin again instead of placing a new one.
+    pub placed: Option<ObjectId>,
 }
 
 #[derive(Default)]
@@ -31,10 +34,33 @@ pub struct PluginsUi {
     /// Attribute name → text shown in the dialog.
     pub attributes: BTreeMap<String, String>,
     pub message: Option<String>,
+    /// The placed plugin picked by the selection, with its attribute texts.
+    pub placed: Option<ObjectId>,
+    pub placed_attributes: BTreeMap<String, String>,
+}
+
+/// The placed plugin one of the selected objects belongs to.
+pub fn placed_in<'a>(
+    project: &'a Project,
+    selected: &BTreeSet<ObjectId>,
+) -> Option<&'a PluginInstance> {
+    project
+        .plugins
+        .values()
+        .find(|p| selected.contains(&p.id) || !p.outputs.is_disjoint(selected))
+}
+
+fn text_of(value: &Value) -> String {
+    match value {
+        Value::String(s) => s.clone(),
+        Value::Null => String::new(),
+        other => other.to_string(),
+    }
 }
 
 /// Folders searched for plugins: «plugins» next to the project file,
-/// the user folder and the folder typed in the window.
+/// the user folder, the folders of `OPEN_BIM_PLUGINS` (a path list) and
+/// the folder typed in the window.
 pub fn search_dirs(project_path: &str, extra: &str) -> Vec<PathBuf> {
     let mut dirs = Vec::new();
     if let Some(parent) = Path::new(project_path).parent() {
@@ -49,10 +75,14 @@ pub fn search_dirs(project_path: &str, extra: &str) -> Vec<PathBuf> {
                 .join("plugins"),
         );
     }
+    if let Some(list) = std::env::var_os("OPEN_BIM_PLUGINS") {
+        dirs.extend(std::env::split_paths(&list).filter(|d| !d.as_os_str().is_empty()));
+    }
     if !extra.trim().is_empty() {
         dirs.push(PathBuf::from(extra.trim()));
     }
-    dirs.dedup();
+    let mut seen = BTreeSet::new();
+    dirs.retain(|d| seen.insert(d.clone()));
     dirs
 }
 
@@ -103,12 +133,7 @@ impl PluginsUi {
             self.inputs.insert(input.name.clone(), String::new());
         }
         for a in &plugin.manifest.attributes {
-            let text = match &a.default {
-                Value::String(s) => s.clone(),
-                Value::Null => String::new(),
-                other => other.to_string(),
-            };
-            self.attributes.insert(a.name.clone(), text);
+            self.attributes.insert(a.name.clone(), text_of(&a.default));
         }
     }
 
@@ -154,30 +179,58 @@ impl PluginsUi {
                 InputValue::from_json(input.kind, &json).map_err(|e| format!("«{label}»: {e}"))?;
             inputs.insert(input.name.clone(), value);
         }
-        let mut attributes = BTreeMap::new();
-        for a in &plugin.manifest.attributes {
-            let text = self.attributes.get(&a.name).map_or("", |s| s.trim());
-            if text.is_empty() {
-                continue;
-            }
-            let value = match a.kind {
-                AttributeType::Number => {
-                    let n = parse_number(text)
-                        .ok_or_else(|| format!("«{}»: нужно число, а не «{text}»", a.label))?;
-                    serde_json::Number::from_f64(n)
-                        .map(Value::Number)
-                        .ok_or_else(|| format!("«{}»: недопустимое число", a.label))?
-                }
-                AttributeType::Text | AttributeType::Profile | AttributeType::Material => {
-                    Value::String(text.into())
-                }
-            };
-            attributes.insert(a.name.clone(), value);
-        }
+        let attributes = parse_attributes(&plugin, &self.attributes)?;
         Ok(RunRequest {
             plugin,
             inputs,
             attributes,
+            placed: None,
+        })
+    }
+
+    /// Follow the selection: load the attributes of the placed plugin it
+    /// picks (once per placed plugin).
+    pub fn follow_selection(&mut self, project: &Project, selected: &BTreeSet<ObjectId>) {
+        let placed = placed_in(project, selected);
+        if placed.map(|p| p.id) == self.placed {
+            return;
+        }
+        self.placed = placed.map(|p| p.id);
+        self.placed_attributes = placed
+            .map(|p| {
+                p.attributes
+                    .iter()
+                    .map(|(k, v)| {
+                        let text = match v {
+                            PluginValue::Number(n) => n.to_string(),
+                            PluginValue::Text(t) => t.clone(),
+                        };
+                        (k.clone(), text)
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+    }
+
+    /// Run the picked placed plugin again with the edited attributes.
+    pub fn edit_request(&self, project: &Project) -> Result<RunRequest, String> {
+        let id = self.placed.ok_or("Плагин в модели не выбран")?;
+        let instance = project
+            .plugins
+            .get(&id)
+            .ok_or("Плагина больше нет в модели")?;
+        let plugin = self
+            .plugins
+            .iter()
+            .find(|p| p.manifest.name == instance.plugin)
+            .ok_or_else(|| format!("Плагин «{}» не найден в папках плагинов", instance.plugin))?
+            .clone();
+        let attributes = parse_attributes(&plugin, &self.placed_attributes)?;
+        Ok(RunRequest {
+            plugin,
+            inputs: BTreeMap::new(),
+            attributes,
+            placed: Some(id),
         })
     }
 
@@ -186,6 +239,7 @@ impl PluginsUi {
         &mut self,
         ctx: &egui::Context,
         project_path: &str,
+        project: &Project,
         selected: &BTreeSet<ObjectId>,
         busy: bool,
     ) -> Option<RunRequest> {
@@ -195,6 +249,7 @@ impl PluginsUi {
         if !self.scanned {
             self.rescan(project_path);
         }
+        self.follow_selection(project, selected);
         let mut open = true;
         let mut run = None;
         egui::Window::new("Плагины")
@@ -213,6 +268,48 @@ impl PluginsUi {
                 });
                 for problem in &self.problems {
                     ui.colored_label(ui.visuals().warn_fg_color, problem);
+                }
+                if let Some(instance) = self.placed.and_then(|id| project.plugins.get(&id)) {
+                    ui.separator();
+                    ui.strong(format!(
+                        "В модели: «{}» ({}), объектов {}",
+                        instance.plugin,
+                        instance.id,
+                        instance.outputs.len()
+                    ));
+                    let labels: BTreeMap<String, String> = self
+                        .plugins
+                        .iter()
+                        .find(|p| p.manifest.name == instance.plugin)
+                        .map(|p| {
+                            p.manifest
+                                .attributes
+                                .iter()
+                                .map(|a| (a.name.clone(), a.label.clone()))
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    egui::Grid::new("placed plugin attributes")
+                        .num_columns(2)
+                        .show(ui, |ui| {
+                            for (name, text) in &mut self.placed_attributes {
+                                let label = labels.get(name).filter(|l| !l.is_empty());
+                                ui.label(label.unwrap_or(name));
+                                ui.text_edit_singleline(text);
+                                ui.end_row();
+                            }
+                        });
+                    if ui
+                        .add_enabled(!busy, egui::Button::new("Изменить"))
+                        .on_hover_text("Запустить плагин снова с этими атрибутами")
+                        .clicked()
+                    {
+                        match self.edit_request(project) {
+                            Ok(r) => run = Some(r),
+                            Err(e) => self.message = Some(e),
+                        }
+                    }
+                    ui.separator();
                 }
                 if self.plugins.is_empty() {
                     if let Some(m) = &self.message {
@@ -323,6 +420,35 @@ fn hint(kind: InputType) -> &'static str {
         InputType::Part => "ID детали",
         InputType::Parts => "ID через пробел",
     }
+}
+
+/// Attribute texts checked against the plugin description; empty texts
+/// are left out (the plugin takes its default).
+fn parse_attributes(
+    plugin: &Plugin,
+    texts: &BTreeMap<String, String>,
+) -> Result<BTreeMap<String, Value>, String> {
+    let mut attributes = BTreeMap::new();
+    for a in &plugin.manifest.attributes {
+        let text = texts.get(&a.name).map_or("", |s| s.trim());
+        if text.is_empty() {
+            continue;
+        }
+        let value = match a.kind {
+            AttributeType::Number => {
+                let n = parse_number(text)
+                    .ok_or_else(|| format!("«{}»: нужно число, а не «{text}»", a.label))?;
+                serde_json::Number::from_f64(n)
+                    .map(Value::Number)
+                    .ok_or_else(|| format!("«{}»: недопустимое число", a.label))?
+            }
+            AttributeType::Text | AttributeType::Profile | AttributeType::Material => {
+                Value::String(text.into())
+            }
+        };
+        attributes.insert(a.name.clone(), value);
+    }
+    Ok(attributes)
 }
 
 fn parse_number(text: &str) -> Option<f64> {

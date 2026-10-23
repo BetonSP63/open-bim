@@ -66,6 +66,7 @@ pub(crate) struct Patch {
     drawings: MapDelta<open_bim_model::Drawing>,
     construction: MapDelta<open_bim_model::Construction>,
     dimensions: MapDelta<open_bim_model::ModelDimension>,
+    plugins: MapDelta<open_bim_model::PluginInstance>,
     /// Document attributes and changes before and after, when they differ.
     document: Option<Delta<(open_bim_model::DocumentInfo, Vec<open_bim_model::Change>)>>,
     /// Stored numbering marks before and after, when they differ.
@@ -89,6 +90,7 @@ impl Patch {
         let drawings = differences(&before.drawings, &after.drawings);
         let construction = differences(&before.construction, &after.construction);
         let dimensions = differences(&before.dimensions, &after.dimensions);
+        let plugins = differences(&before.plugins, &after.plugins);
         let document =
             (before.document != after.document || before.changes != after.changes).then(|| Delta {
                 before: Some((before.document.clone(), before.changes.clone())),
@@ -110,6 +112,7 @@ impl Patch {
             .chain(drawings.keys())
             .chain(construction.keys())
             .chain(dimensions.keys())
+            .chain(plugins.keys())
             .copied()
             .collect();
         dependencies(before, &mut touched);
@@ -126,6 +129,7 @@ impl Patch {
             drawings,
             construction,
             dimensions,
+            plugins,
             document,
             numbering,
             before_meta: (before.revision, before.next_id, before.name.clone()),
@@ -147,6 +151,7 @@ impl Patch {
         apply(&mut project.drawings, &self.drawings, forward);
         apply(&mut project.construction, &self.construction, forward);
         apply(&mut project.dimensions, &self.dimensions, forward);
+        apply(&mut project.plugins, &self.plugins, forward);
         if let Some(delta) = &self.document {
             let side = if forward { &delta.after } else { &delta.before };
             if let Some((document, changes)) = side {
