@@ -105,6 +105,9 @@ const fn small(cmd: Cmd, icon: Icon, label: &'static str) -> Item {
     }
 }
 
+/// Width of the blue «Файл» strip at the left edge of the ribbon.
+const STRIP: f32 = 32.;
+
 pub const UNAVAILABLE: &str = "Будет в следующем выпуске";
 
 /// Ribbon content: groups of buttons per tab, in the order of the usual
@@ -493,29 +496,11 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
 
 impl Workbench {
     pub(super) fn ribbon(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
-        egui::Panel::top("ribbon tabs").show(ui, |ui| {
+        let tabs = egui::Panel::top("ribbon tabs").show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
-                // «Файл»: white on the blue of the status bar, at the left edge.
-                let file =
-                    egui::Button::new(egui::RichText::new("☰ Файл").color(theme::STATUS_TEXT))
-                        .fill(theme::STATUS_BG);
-                egui::containers::menu::MenuButton::from_button(file).ui(ui, |ui| {
-                    for cmd in [
-                        Cmd::NewProject,
-                        Cmd::OpenProject,
-                        Cmd::SaveProject,
-                        Cmd::ExampleFrame,
-                        Cmd::ExportIfc,
-                        Cmd::ImportIfc,
-                        Cmd::ReleaseSet,
-                    ] {
-                        if ui.button(commands::caption(cmd)).clicked() {
-                            ui.close();
-                            self.run(cmd, requests);
-                        }
-                    }
-                });
-                ui.separator();
+                ui.spacing_mut().item_spacing.x = 14.;
+                // Room for the blue «Файл» strip painted over both rows below.
+                ui.add_space(STRIP - 4.);
                 for tab in RibbonTab::ALL {
                     let text = egui::RichText::new(tab.title());
                     let text = if tab.available() || self.ribbon_tab == tab {
@@ -575,10 +560,11 @@ impl Workbench {
             });
         });
         let fill = theme::ribbon_bg(ui.visuals());
-        egui::Panel::top("ribbon")
+        let ribbon = egui::Panel::top("ribbon")
             .frame(egui::Frame::side_top_panel(ui.style()).fill(fill))
             .show(ui, |ui| {
-                let available = ui.available_width();
+                // Less the blue strip and the select/inquire column.
+                let available = ui.available_width() - STRIP - 40.;
                 let tab = self.ribbon_tab;
                 let groups = groups(tab);
                 // Widths of the expanded groups, measured on earlier frames.
@@ -595,6 +581,12 @@ impl Workbench {
                     .id_salt("ribbon scroll")
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
+                            // Three small buttons stacked; captions of groups
+                            // are not shown, as in the reference ribbon.
+                            ui.set_min_height(76.);
+                            ui.add_space(STRIP - 4.);
+                            self.select_tools(ui, requests);
+                            ui.separator();
                             for (i, (name, items)) in groups.iter().enumerate() {
                                 if collapsed[i] {
                                     // Too narrow a window: the group folds into one
@@ -656,7 +648,6 @@ impl Workbench {
                                             });
                                         }
                                     });
-                                    ui.small(*name);
                                 });
                                 widths[i] = group.response.rect.width();
                                 ui.separator();
@@ -665,6 +656,80 @@ impl Workbench {
                     });
                 ui.data_mut(|d| d.insert_temp(widths_id, widths));
             });
+        self.file_strip(ui, tabs.response.rect.union(ribbon.response.rect), requests);
+    }
+
+    /// Blue strip at the left edge of the tab row and the ribbon; its ☰
+    /// opens the «Файл» menu.
+    fn file_strip(&mut self, ui: &mut egui::Ui, rows: egui::Rect, requests: &mut Vec<Request>) {
+        let strip = egui::Rect::from_min_size(rows.min, egui::vec2(STRIP, rows.height()));
+        ui.painter().rect_filled(strip, 0., theme::STATUS_BG);
+        let button = egui::Rect::from_min_size(rows.min, egui::vec2(STRIP, STRIP));
+        let response = ui
+            .interact(button, egui::Id::new("file menu"), egui::Sense::click())
+            .on_hover_text("Файл: создать, открыть, сохранить, экспорт и импорт");
+        response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, "Файл"));
+        if response.hovered() {
+            ui.painter()
+                .rect_filled(button, 0., egui::Color32::from_white_alpha(40));
+        }
+        icons::paint(
+            ui.painter(),
+            button.shrink(8.),
+            Icon::Menu,
+            theme::STATUS_TEXT,
+            true,
+        );
+        egui::Popup::menu(&response).show(|ui| {
+            for cmd in [
+                Cmd::NewProject,
+                Cmd::OpenProject,
+                Cmd::SaveProject,
+                Cmd::ExampleFrame,
+                Cmd::ExportIfc,
+                Cmd::ImportIfc,
+                Cmd::ReleaseSet,
+            ] {
+                if ui.button(commands::caption(cmd)).clicked() {
+                    ui.close();
+                    self.run(cmd, requests);
+                }
+            }
+        });
+    }
+
+    /// Select (arrow) and inquire (?) buttons at the start of every ribbon
+    /// tab, each opening its list of commands.
+    fn select_tools(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
+        ui.vertical(|ui| {
+            for (icon, name, cmds) in [
+                (
+                    Icon::Select,
+                    "Выбор",
+                    &[Cmd::SelectAll, Cmd::SelectPrevious, Cmd::SelectionFilter][..],
+                ),
+                (
+                    Icon::Help,
+                    "Запрос",
+                    &[
+                        Cmd::InquireObject,
+                        Cmd::Measure,
+                        Cmd::MeasureAngle,
+                        Cmd::CompareParts,
+                    ][..],
+                ),
+            ] {
+                let response = icons::button(ui, icon, 22., None, name, name, !self.busy(), false);
+                egui::Popup::menu(&response).show(|ui| {
+                    for cmd in cmds {
+                        if ui.button(commands::caption(*cmd)).clicked() {
+                            ui.close();
+                            self.run(*cmd, requests);
+                        }
+                    }
+                });
+            }
+        });
     }
 
     /// One ribbon button: runs its command, shows its KeyTip.

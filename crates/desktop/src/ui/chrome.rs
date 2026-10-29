@@ -587,17 +587,20 @@ impl Workbench {
                             self.tools.message.clone().unwrap_or_else(|| self.prompt())
                         };
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        // Graphics and model size only on hover, as the reference
+                        // status bar shows just the selection.
                         ui.label(white(format!(
                             "{} объектов и {} ручек выбрано",
                             self.editor.selected.len(),
                             self.editor.selected_handles().len()
-                        )));
-                        ui.label(white(format!(
+                        )))
+                        .on_hover_text(format!(
                             "{} · {} объектов · рев. {}",
                             self.gpu,
                             self.objects,
                             self.editor.document.project().revision
-                        )));
+                        ));
+
                         if let Some(at) = self.tools.autosave.last_snapshot {
                             let minutes = at.elapsed().as_secs() / 60;
                             ui.label(white(if minutes == 0 {
@@ -748,38 +751,33 @@ impl Workbench {
                 {
                     self.run(Cmd::ToggleDirectModification, requests);
                 }
-                for (cmd, name, on) in [
-                    (Cmd::ToggleDragDrop, "Перетаскивание", self.drag_drop),
-                    (Cmd::ToggleRollover, "Подсветка", self.rollover),
+                // Switches as small icons, like the snap switches.
+                for (cmd, icon, name, on) in [
+                    (
+                        Cmd::ToggleDragDrop,
+                        Icon::Copy,
+                        "Перетаскивание",
+                        self.drag_drop,
+                    ),
+                    (Cmd::ToggleRollover, Icon::Show, "Подсветка", self.rollover),
                     (
                         Cmd::ToggleComponentSymbols,
+                        Icon::Component,
                         "Символы узлов",
                         self.show_components,
                     ),
-                    (Cmd::SelectionFilter, "Фильтр", self.filter.active()),
+                    (
+                        Cmd::SelectionFilter,
+                        Icon::Catalog,
+                        "Фильтр",
+                        self.filter.active(),
+                    ),
                 ] {
-                    if ui
-                        .selectable_label(on, name)
-                        .on_hover_text(tooltip(cmd))
-                        .clicked()
-                    {
+                    if icons::button(ui, icon, 18., None, name, &tooltip(cmd), true, on).clicked() {
                         self.run(cmd, requests);
                     }
                 }
                 ui.checkbox(&mut self.extend_selection, "Добавлять к выбору");
-                ui.separator();
-                for cmd in [Cmd::Undo, Cmd::Redo] {
-                    let enabled = match cmd {
-                        Cmd::Undo => self.editor.document.history_depth().0 > 0,
-                        _ => self.editor.document.history_depth().1 > 0,
-                    };
-                    if ui
-                        .add_enabled(enabled, egui::Button::new(commands::caption(cmd)))
-                        .clicked()
-                    {
-                        self.run(cmd, requests);
-                    }
-                }
                 ui.separator();
                 for mode in [Mode::Model, Mode::Drawings, Mode::Reports] {
                     let (label, cmd) = match mode {
@@ -859,7 +857,6 @@ impl Workbench {
                     self.search_model();
                 }
                 ui.separator();
-                ui.label("Привязки:");
                 let sw = &mut self.switches;
                 let geometry: (Icon, &str, &mut bool) =
                     (Icon::SnapNearest, "Геометрия", &mut sw.geometry);

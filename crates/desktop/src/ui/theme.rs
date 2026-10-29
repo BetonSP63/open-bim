@@ -168,6 +168,36 @@ pub fn fonts() -> egui::FontDefinitions {
     fonts
 }
 
+/// Interface font of the operating system, tried in order: the one the
+/// reference screenshots use on Windows, then Arial / Helvetica on macOS,
+/// then common Linux fonts. All carry Cyrillic.
+const SYSTEM_FONTS: [&str; 6] = [
+    "C:\\Windows\\Fonts\\segoeui.ttf",
+    "/System/Library/Fonts/Supplemental/Arial.ttf",
+    "/Library/Fonts/Arial.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/TTF/DejaVuSans.ttf",
+];
+
+/// Default fonts with the system interface font in front of the
+/// proportional family (regular weight, easier to read than Ubuntu Light).
+/// The bundled fonts stay as fallbacks; without a system font nothing changes.
+pub fn fonts_with_system() -> egui::FontDefinitions {
+    let mut fonts = fonts();
+    let Some(bytes) = SYSTEM_FONTS.iter().find_map(|p| std::fs::read(p).ok()) else {
+        return fonts;
+    };
+    fonts.font_data.insert(
+        "system".into(),
+        std::sync::Arc::new(egui::FontData::from_owned(bytes)),
+    );
+    if let Some(family) = fonts.families.get_mut(&egui::FontFamily::Proportional) {
+        family.insert(0, "system".into());
+    }
+    fonts
+}
+
 /// Fonts plus the chosen theme (light by default).
 pub fn apply(ctx: &egui::Context) {
     ctx.set_fonts(fonts());
