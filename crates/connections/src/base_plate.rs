@@ -186,16 +186,11 @@ pub fn base_plate_geometry(
         .ok_or(ModelError::MissingReference(*profile))?
         .shape;
     section.area_mm2()?;
-    let (w, h) = match *section {
-        ProfileShape::ISection { width, height, .. }
-        | ProfileShape::Angle { width, height, .. }
-        | ProfileShape::Channel { width, height, .. }
-        | ProfileShape::Rectangle { width, height }
-        | ProfileShape::RectangularHollow { width, height, .. } => (width, height),
-        ProfileShape::CircularHollow { diameter, .. } => (diameter, diameter),
-    };
-    let width = w + 2.0 * overhang;
-    let height = h + 2.0 * overhang;
+    // User sections need not be centred on the axis: the plate follows the
+    // section box.
+    let [x0, x1, y0, y1] = section.bounds()?;
+    let width = x1 - x0 + 2.0 * overhang;
+    let height = y1 - y0 + 2.0 * overhang;
     let e = template.edge_distance;
     let z = if instance.at_end { length.value() } else { 0.0 };
     let plate_z = if instance.at_end {
@@ -204,7 +199,7 @@ pub fn base_plate_geometry(
         -template.thickness
     };
     let plate_frame = Frame {
-        origin: frame.world(Point3([-width / 2.0, -height / 2.0, plate_z])),
+        origin: frame.world(Point3([x0 - overhang, y0 - overhang, plate_z])),
         axes: frame.axes,
     };
     let bolt_frame = Frame {
@@ -224,7 +219,7 @@ pub fn base_plate_geometry(
             [width / 2.0, height / 2.0],
             [-width / 2.0, height / 2.0],
         ],
-        _ => section.solid_contour()?,
+        _ => section.outline()?.0,
     };
     perimeter.push(perimeter[0]);
     let weld_path = perimeter

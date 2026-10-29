@@ -244,6 +244,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                         Icon::Component,
                         "Редактор компонентов",
                     ),
+                    small(Cmd::SectionEditor, Icon::Component, "Редактор сечений"),
                     small(Cmd::Surfaces, Icon::Plate, "Поверхности"),
                     small(Cmd::CompareParts, Icon::Properties, "Сравнить"),
                     small(Cmd::InquireObject, Icon::Properties, "Запросить"),

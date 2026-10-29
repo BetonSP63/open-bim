@@ -74,11 +74,172 @@ pub enum ProfileShape {
         height: f64,
         width: f64,
     },
+    /// User contour with optional voids, in section coordinates.
+    Polygon {
+        outer: Vec<[f64; 2]>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        voids: Vec<Vec<[f64; 2]>>,
+    },
+    /// Section welded from plates; one member in the model, separate plates
+    /// and seams in the specifications.
+    Welded {
+        plates: Vec<crate::sections::SectionPlate>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        welds: Vec<crate::sections::SectionWeld>,
+    },
 }
 
 impl ProfileShape {
+    /// Outer loop and voids of the section; circles become 64-gons.
+    pub fn outline(&self) -> Result<crate::sections::Outline, ModelError> {
+        self.area_mm2()?;
+        let rect = |w: f64, h: f64| {
+            vec![
+                [-w / 2.0, -h / 2.0],
+                [w / 2.0, -h / 2.0],
+                [w / 2.0, h / 2.0],
+                [-w / 2.0, h / 2.0],
+            ]
+        };
+        Ok(match self {
+            Self::Polygon { outer, voids } => (outer.clone(), voids.clone()),
+            Self::Welded { plates, .. } => crate::sections::welded_outline(plates)?,
+            Self::RectangularHollow {
+                height,
+                width,
+                thickness,
+            } => (
+                rect(*width, *height),
+                vec![rect(width - 2.0 * thickness, height - 2.0 * thickness)],
+            ),
+            Self::CircularHollow {
+                diameter,
+                thickness,
+            } => {
+                let circle = |r: f64| -> Vec<[f64; 2]> {
+                    (0..64)
+                        .map(|i| {
+                            let a = i as f64 * std::f64::consts::TAU / 64.0;
+                            [a.cos() * r, a.sin() * r]
+                        })
+                        .collect()
+                };
+                (
+                    circle(diameter / 2.0),
+                    vec![circle(diameter / 2.0 - thickness)],
+                )
+            }
+            _ => (self.solid_contour()?, Vec::new()),
+        })
+    }
+
+    /// Box of the section [min x, max x, min y, max y].
+    pub fn bounds(&self) -> Result<[f64; 4], ModelError> {
+        let (outer, _) = self.outline()?;
+        Ok(outer.iter().fold(
+            [
+                f64::INFINITY,
+                f64::NEG_INFINITY,
+                f64::INFINITY,
+                f64::NEG_INFINITY,
+            ],
+            |b, p| {
+                [
+                    b[0].min(p[0]),
+                    b[1].max(p[0]),
+                    b[2].min(p[1]),
+                    b[3].max(p[1]),
+                ]
+            },
+        ))
+    }
+
+    /// Nominal [height, width, web, flange] of a section: hollow sections and
+    /// angles give their wall for both, a solid bar its width and height. A
+    /// welded section takes the plate through the centre as web and the top
+    /// plate as flange; a contour its mean wall (area over half perimeter).
+    pub fn sizes(&self) -> [f64; 4] {
+        match self {
+            Self::ISection {
+                height,
+                width,
+                web,
+                flange,
+            }
+            | Self::Channel {
+                height,
+                width,
+                web,
+                flange,
+            } => [*height, *width, *web, *flange],
+            Self::Angle {
+                height,
+                width,
+                thickness,
+            }
+            | Self::RectangularHollow {
+                height,
+                width,
+                thickness,
+            } => [*height, *width, *thickness, *thickness],
+            Self::CircularHollow {
+                diameter,
+                thickness,
+            } => [*diameter, *diameter, *thickness, *thickness],
+            Self::Rectangle { height, width } => [*height, *width, *width, *height],
+            Self::Polygon { .. } | Self::Welded { .. } => {
+                let Ok([x0, x1, y0, y1]) = self.bounds() else {
+                    return [0.0; 4];
+                };
+                let (h, b) = (y1 - y0, x1 - x0);
+                if let Self::Welded { plates, .. } = self {
+                    let web = plates
+                        .iter()
+                        .filter(|p| p.height > p.width)
+                        .max_by(|a, b| a.height.total_cmp(&b.height))
+                        .map_or(0.0, |p| p.width);
+                    let flange = plates
+                        .iter()
+                        .filter(|p| p.width >= p.height)
+                        .max_by(|a, b| a.center[1].total_cmp(&b.center[1]))
+                        .map_or(0.0, |p| p.height);
+                    let wall = plates
+                        .iter()
+                        .map(|p| p.thickness())
+                        .fold(f64::INFINITY, f64::min);
+                    let pick = |v: f64| if v > 0.0 { v } else { wall };
+                    return [h, b, pick(web), pick(flange)];
+                }
+                let (Ok(area), Ok((outer, voids))) = (self.area_mm2(), self.outline()) else {
+                    return [h, b, 0.0, 0.0];
+                };
+                let length = |r: &[[f64; 2]]| {
+                    (0..r.len())
+                        .map(|i| {
+                            let (a, b) = (r[i], r[(i + 1) % r.len()]);
+                            (b[0] - a[0]).hypot(b[1] - a[1])
+                        })
+                        .sum::<f64>()
+                };
+                let perimeter = length(&outer) + voids.iter().map(|v| length(v)).sum::<f64>();
+                let wall = (2.0 * area / perimeter).min(h.min(b));
+                [h, b, wall, wall]
+            }
+        }
+    }
+
     pub fn solid_contour(&self) -> Result<Vec<[f64; 2]>, ModelError> {
         self.area_mm2()?;
+        match self {
+            Self::Polygon { outer, voids } if voids.is_empty() => return Ok(outer.clone()),
+            Self::Welded { .. } => {
+                let (outer, voids) = self.outline()?;
+                if voids.is_empty() {
+                    return Ok(outer);
+                }
+            }
+            _ => {}
+        }
         match *self {
             Self::ISection {
                 height: h,
@@ -139,9 +300,12 @@ impl ProfileShape {
                 [-w / 2.0, h / 2.0],
             ]
             .to_vec()),
-            Self::CircularHollow { .. } | Self::RectangularHollow { .. } => Err(
-                ModelError::InvalidValue("Полое сечение требует тела с внутренним контуром".into()),
-            ),
+            Self::CircularHollow { .. }
+            | Self::RectangularHollow { .. }
+            | Self::Polygon { .. }
+            | Self::Welded { .. } => Err(ModelError::InvalidValue(
+                "Полое сечение требует тела с внутренним контуром".into(),
+            )),
         }
     }
 
@@ -152,7 +316,31 @@ impl ProfileShape {
                 .iter()
                 .all(|v| v.is_finite() && *v > 0.001 && *v <= 1e7)
         };
+        match self {
+            Self::Polygon { outer, voids } => {
+                if outer.len() > crate::sections::MAX_POINTS
+                    || voids.len() > 16
+                    || voids.iter().any(|v| v.len() > crate::sections::MAX_POINTS)
+                {
+                    return Err(invalid());
+                }
+                let mut area = crate::polygon_area(outer)?;
+                for v in voids {
+                    area -= crate::polygon_area(v)?;
+                }
+                if area <= 0.001 {
+                    return Err(invalid());
+                }
+                return Ok(area);
+            }
+            Self::Welded { plates, welds } => {
+                crate::sections::check_welded(plates, welds)?;
+                return Ok(plates.iter().map(|p| p.width * p.height).sum());
+            }
+            _ => {}
+        };
         let area = match *self {
+            Self::Polygon { .. } | Self::Welded { .. } => unreachable!(),
             Self::ISection {
                 height,
                 width,

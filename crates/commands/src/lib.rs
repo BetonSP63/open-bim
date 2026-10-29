@@ -127,6 +127,10 @@ pub enum Command {
     SetShapes {
         shapes: open_bim_model::Shapes,
     },
+    /// User parametric and welded section definitions.
+    SetSections {
+        sections: open_bim_model::Sections,
+    },
     /// Fix the marks of a numbering run (replaces the stored marks).
     SetNumbering {
         marks: BTreeMap<ObjectId, String>,
@@ -732,6 +736,10 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
         Command::SetShapes { shapes } => {
             shapes.validate()?;
             project.shapes = shapes.clone();
+        }
+        Command::SetSections { sections } => {
+            sections.validate()?;
+            project.sections = sections.clone();
         }
         Command::SetNumbering { marks } => project.numbering = marks.clone(),
         Command::SetDocumentInfo { info } => {

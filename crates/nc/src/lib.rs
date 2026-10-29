@@ -62,14 +62,75 @@ pub fn export(project: &Project) -> Result<Vec<NcFile>, String> {
     let mut files = Vec::new();
     let mut names = std::collections::BTreeSet::new();
     for (mark, ids) in by_mark {
-        let mut file = part_file(project, ids[0], mark, ids.len())?;
-        if !names.insert(file.name.clone()) {
-            file.name = format!("{}_{}.nc1", file_stem(mark), ids[0]);
-            names.insert(file.name.clone());
+        let mut batch = Vec::new();
+        match user_section(project, ids[0]) {
+            Some(true) => batch = welded_files(project, ids[0], mark, ids.len())?,
+            // Contour sections have no DSTV profile code.
+            Some(false) => {}
+            None => batch.push(part_file(project, ids[0], mark, ids.len())?),
         }
-        files.push(file);
+        for mut file in batch {
+            if !names.insert(file.name.clone()) {
+                let stem = file.name.trim_end_matches(".nc1").to_string();
+                file.name = format!("{stem}_{}.nc1", ids[0]);
+                names.insert(file.name.clone());
+            }
+            files.push(file);
+        }
     }
     Ok(files)
+}
+
+/// `Some(true)` for a member with a welded section, `Some(false)` for a
+/// contour section, `None` otherwise.
+fn user_section(project: &Project, id: ObjectId) -> Option<bool> {
+    let ElementShape::Member { profile, .. } = &project.elements.get(&id)?.shape else {
+        return None;
+    };
+    match project.profiles.get(profile)?.shape {
+        ProfileShape::Welded { .. } => Some(true),
+        ProfileShape::Polygon { .. } => Some(false),
+        _ => None,
+    }
+}
+
+/// Plate files of a welded member, marks «5.1», «5.2», …: each plate as a
+/// strip of the member length. Holes and cuts of the member are not passed.
+fn welded_files(
+    project: &Project,
+    id: ObjectId,
+    mark: &str,
+    quantity: usize,
+) -> Result<Vec<NcFile>, String> {
+    let pieces = project
+        .welded_pieces(id)
+        .map_err(|e| e.to_string())?
+        .unwrap_or_default();
+    let featured = project.details.values().any(|d| d.kind.part() == Some(id));
+    let mut out = Vec::new();
+    for (i, piece) in pieces.iter().enumerate() {
+        let mut strip = project.clone();
+        strip.details.retain(|_, d| d.kind.part() != Some(id));
+        let element = strip.elements.get_mut(&id).ok_or("Нет детали")?;
+        let frame = *element.shape.frame();
+        element.shape = ElementShape::Plate {
+            contour: vec![
+                [0.0, 0.0],
+                [piece.length, 0.0],
+                [piece.length, piece.breadth],
+                [0.0, piece.breadth],
+            ],
+            thickness: open_bim_model::LengthMm::new(piece.thickness).map_err(|e| e.to_string())?,
+            frame,
+        };
+        let mut file = part_file(&strip, id, &format!("{mark}.{}", i + 1), quantity)?;
+        if featured {
+            file.warnings
+                .push("отверстия и резы сварного сечения не переданы".into());
+        }
+        out.push(file);
+    }
+    Ok(out)
 }
 
 /// Section data of the header.
@@ -320,6 +381,12 @@ fn member_section(name: &str, shape: &ProfileShape) -> Result<Section, String> {
         surface,
     };
     Ok(match *shape {
+        ProfileShape::Polygon { .. } => {
+            return Err("сечение по контуру не передаётся в DSTV".into());
+        }
+        ProfileShape::Welded { .. } => {
+            return Err("сварное сечение изготавливается из листов, в DSTV не передаётся".into());
+        }
         ProfileShape::ISection {
             height,
             width,
@@ -416,7 +483,9 @@ fn member_faces(
             (Face::Bottom, 1, -h / 2.0, -h / 2.0 + t),
         ],
         ProfileShape::Rectangle { width: w, .. } => vec![(Face::Web, 0, -w / 2.0, w / 2.0)],
-        ProfileShape::CircularHollow { .. } => Vec::new(),
+        ProfileShape::CircularHollow { .. }
+        | ProfileShape::Polygon { .. }
+        | ProfileShape::Welded { .. } => Vec::new(),
     };
     let (height, width) = match *shape {
         ProfileShape::ISection { height, width, .. }
@@ -425,6 +494,10 @@ fn member_faces(
         | ProfileShape::RectangularHollow { height, width, .. }
         | ProfileShape::Rectangle { height, width } => (height, width),
         ProfileShape::CircularHollow { diameter, .. } => (diameter, diameter),
+        ProfileShape::Polygon { .. } | ProfileShape::Welded { .. } => {
+            let [h, w, ..] = shape.sizes();
+            (h, w)
+        }
     };
     let mut faces = Vec::new();
     for (face, across, from, to) in walls {

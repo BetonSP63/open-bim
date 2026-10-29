@@ -593,7 +593,20 @@ fn prism_mesh(contour: &[[f64; 2]], length: f64) -> Result<DisplayMesh, RenderEr
 }
 
 fn section_mesh(shape: &ProfileShape, length: f64) -> Result<DisplayMesh, RenderError> {
+    if let ProfileShape::Polygon { .. } | ProfileShape::Welded { .. } = shape {
+        let (outer, voids) = shape.outline().map_err(|e| RenderError(e.to_string()))?;
+        let body = Body::prism_with_voids(&outer, length, &[], &voids, Point3([0.0; 3]))
+            .map_err(|e| RenderError(e.to_string()))?;
+        let (positions, triangles) = body
+            .tessellation_f64()
+            .map_err(|e| RenderError(e.to_string()))?;
+        return Ok(DisplayMesh {
+            positions: positions.into_iter().map(DVec3::from_array).collect(),
+            triangles,
+        });
+    }
     match *shape {
+        ProfileShape::Polygon { .. } | ProfileShape::Welded { .. } => unreachable!(),
         ProfileShape::ISection {
             height: h,
             width: w,

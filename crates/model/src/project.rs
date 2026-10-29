@@ -173,6 +173,9 @@ pub struct Project {
     /// Shape catalogue of items («Формы»).
     #[serde(default, skip_serializing_if = "crate::Shapes::is_default")]
     pub shapes: crate::Shapes,
+    /// User parametric and welded section definitions.
+    #[serde(default, skip_serializing_if = "crate::Sections::is_default")]
+    pub sections: crate::Sections,
 }
 
 impl Default for Project {
@@ -205,6 +208,7 @@ impl Default for Project {
             parametric: Default::default(),
             concrete: Default::default(),
             shapes: Default::default(),
+            sections: Default::default(),
         }
     }
 }

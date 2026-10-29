@@ -7,7 +7,7 @@ pub mod gost_tables;
 pub mod release;
 
 use open_bim_commands::Command;
-use open_bim_model::{Assembly, DetailKind, ElementShape, ObjectId, Project, WeldType};
+use open_bim_model::{Assembly, DetailKind, ElementShape, ObjectId, Project, WeldSides, WeldType};
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -150,17 +150,36 @@ pub fn generate(project: &Project) -> Result<Reports, Error> {
     for (position, ids) in by_position {
         let first = ids[0];
         let element = &project.elements[&first];
+        let material = project
+            .materials
+            .get(&element.material)
+            .map(|m| m.name.clone())
+            .unwrap_or_default();
+        // A welded section is one member in the model; the lists show its
+        // plates as positions «5.1», «5.2», …
+        if let Some(pieces) = project.welded_pieces(first).map_err(|e| e.to_string())? {
+            for (i, piece) in pieces.into_iter().enumerate() {
+                parts.push(PartRow {
+                    position: format!("{position}.{}", i + 1),
+                    name: format!("{}: {}", element.name, piece.name),
+                    section: format!("—{}×{}", fmt(piece.thickness), fmt(piece.breadth)),
+                    material: material.clone(),
+                    quantity: ids.len(),
+                    length_mm: round(piece.length, 3),
+                    unit_mass_kg: round(piece.mass_kg, 3),
+                    total_mass_kg: round(piece.mass_kg * ids.len() as f64, 3),
+                    ids: ids.clone(),
+                });
+            }
+            continue;
+        }
         let (section, length) = section(project, first)?;
         let unit = project.element_mass_kg(first).map_err(|e| e.to_string())?;
         parts.push(PartRow {
             position: position.clone(),
             name: element.name.clone(),
             section,
-            material: project
-                .materials
-                .get(&element.material)
-                .map(|m| m.name.clone())
-                .unwrap_or_default(),
+            material,
             quantity: ids.len(),
             length_mm: round(length, 3),
             unit_mass_kg: round(unit, 3),
@@ -394,6 +413,26 @@ fn fasteners(project: &Project) -> Vec<FastenerRow> {
                 entry.1 += path.windows(2).map(|p| p[0].distance(p[1])).sum::<f64>();
             }
             _ => {}
+        }
+    }
+    // Belt seams of welded sections: shop fillet welds along each member.
+    for id in project.elements.keys() {
+        for seam in project.welded_seams(*id) {
+            let sides = if seam.sides == 2 {
+                WeldSides::Both
+            } else {
+                WeldSides::One
+            };
+            let kind = format!(
+                "угловой {} {}",
+                seam.process.standard(),
+                WeldType::Fillet.joint(sides, seam.process)
+            );
+            let entry = welds
+                .entry(format!("Шов {kind} k={} заводской", fmt(seam.leg)))
+                .or_default();
+            entry.0 += seam.sides as usize;
+            entry.1 += seam.length * seam.sides as f64;
         }
     }
     bolts
