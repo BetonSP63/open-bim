@@ -1066,6 +1066,9 @@ impl Workbench {
                             }
                             Some(SidePanel::Tree) => self.tree_panel(ui),
                             Some(SidePanel::Views) => self.views_panel(ui, requests),
+                            Some(SidePanel::Properties) if self.editor.active => {
+                                self.draft_pane(ui, requests)
+                            }
                             Some(SidePanel::Properties) if has_selection => {
                                 self.selection_pane(ui, requests)
                             }
@@ -1125,7 +1128,9 @@ impl Workbench {
             .iter()
             .filter_map(|id| project.axes.get(id))
             .collect();
-        pane_header(ui, "Прямоугольная сетка", axes.len());
+        if pane_header(ui, "Прямоугольная сетка", axes.len()) {
+            self.side_panel = None;
+        }
         // The whole grid, read again whenever the model changes.
         let revision = project.revision;
         if self.grid_pane.as_ref().is_none_or(|(r, _)| *r != revision)
@@ -1434,7 +1439,9 @@ impl Workbench {
             .iter()
             .filter_map(|id| project.levels.get(id))
             .collect();
-        pane_header(ui, "Уровень", levels.len());
+        if pane_header(ui, "Уровень", levels.len()) {
+            self.side_panel = None;
+        }
         if levels.len() == 1 {
             let level = levels[0].clone();
             if self.level_buffer.as_ref().is_none_or(|b| b.0 != level.id) {
@@ -1628,6 +1635,27 @@ impl Workbench {
         }
     }
 
+    /// Pane of the running create command: the part's properties in the
+    /// same sections as the pane of a selected part.
+    fn draft_pane(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
+        let kind = self.editor.draft.kind;
+        let help = match kind.base() {
+            crate::tools::ToolKind::Column => {
+                "Щёлкните точку низа колонны — колонна создаётся сразу; команда продолжается до Esc"
+            }
+            crate::tools::ToolKind::Plate => {
+                "Укажите углы контура; Enter или средняя кнопка замыкает контур"
+            }
+            _ => "Укажите начальную и конечную точки; команда продолжается до Esc",
+        };
+        if pane_title(ui, &object_title(kind.label()), Some(help)) {
+            self.side_panel = None;
+        }
+        if let Some(action) = self.tools.draft(ui, &mut self.editor) {
+            requests.push(Request::Action(action));
+        }
+    }
+
     /// Property pane with nothing selected: the object type list starts
     /// a create command; the tool's default properties follow.
     fn object_type(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
@@ -1640,6 +1668,13 @@ impl Workbench {
             (Cmd::ToolWeld, "Сварной шов"),
             (Cmd::ToolWeldPolygon, "Шов по ломаной"),
             (Cmd::ToolWeldOnPart, "Шов на детали"),
+            (Cmd::ToolGusset, "Косынка"),
+            (Cmd::ToolStiffener, "Ребро жёсткости"),
+            (Cmd::ConcreteColumn, "Колонна ЖБ"),
+            (Cmd::ConcreteBeam, "Балка ЖБ"),
+            (Cmd::ConcretePanel, "Панель"),
+            (Cmd::ConcreteSlab, "Перекрытие"),
+            (Cmd::ConcreteFooting, "Фундамент"),
             (Cmd::ToolAxis, "Ось"),
             (Cmd::GridDialog, "Сетка"),
         ];
@@ -1649,6 +1684,14 @@ impl Workbench {
             .map(|k| k.label())
             .unwrap_or("Выберите тип объекта");
         let mut chosen = None;
+        let title = match self.editor.selected.len() {
+            0 => "Нет выбранных объектов".to_string(),
+            n => format!("Объекты ({n} выбрано)"),
+        };
+        let help = "Выберите объект в модели или тип объекта для создания";
+        if pane_title(ui, &title, Some(help)) {
+            self.side_panel = None;
+        }
         egui::ComboBox::new("object type", "Тип объекта")
             .selected_text(current)
             .show_ui(ui, |ui| {
@@ -1762,7 +1805,9 @@ impl Workbench {
         };
         self.pane.sync(&c);
         let kind = c.kind.value().cloned().unwrap_or_else(|| "Детали".into());
-        pane_header(ui, &object_title(&kind), c.parts.len());
+        if pane_header(ui, &object_title(&kind), c.parts.len()) {
+            self.side_panel = None;
+        }
         // Search narrows the sections to those holding a matching property;
         // «Показать меньше свойств» keeps the main ones only.
         let search = ui
@@ -1802,82 +1847,44 @@ impl Workbench {
             "Размер",
         ];
         if shows(true, &general) {
-            egui::CollapsingHeader::new("Общие")
+            super::property_pane::section("Общие")
                 .default_open(true)
                 .show(ui, |ui| {
-                    egui::Grid::new("selection properties")
-                        .num_columns(2)
-                        .show(ui, |ui| {
-                            let l = ui.label("Имя");
-                            ui.text_edit_singleline(&mut self.pane.name)
-                                .labelled_by(l.id);
-                            ui.end_row();
-                            if let Some(profile) = &c.profile {
-                                ui.label("Профиль");
-                                let shown = super::catalog_picker::profile_name(
-                                    project,
-                                    self.pane.pending_profile.as_ref(),
-                                    self.pane.profile,
-                                )
-                                .unwrap_or(VARIES)
-                                .to_string();
-                                egui::ComboBox::new("pane profile", "")
-                                    .selected_text(shown)
-                                    .height(420.)
-                                    .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-                                    .show_ui(ui, |ui| {
-                                        match super::catalog_picker::profile_menu(
-                                            ui,
-                                            "pane",
-                                            project,
-                                            self.pane.profile,
-                                        ) {
-                                            Some(super::catalog_picker::Pick::Project(id)) => {
-                                                self.pane.profile = Some(id)
-                                            }
-                                            Some(super::catalog_picker::Pick::New(p)) => {
-                                                self.pane.profile = Some(p.id);
-                                                self.pane.pending_profile = Some(p);
-                                            }
-                                            None => {}
-                                        }
-                                    })
-                                    .response
-                                    .widget_info(|| {
-                                        egui::WidgetInfo::labeled(
-                                            egui::WidgetType::ComboBox,
-                                            true,
-                                            "Профиль",
-                                        )
-                                    });
-                                if matches!(profile, Shared::Varies) && self.pane.profile.is_none()
-                                {
-                                    ui.small(VARIES);
-                                }
-                                ui.end_row();
-                            }
-                            ui.label("Материал");
-                            let shown = super::catalog_picker::material_name(
+                    super::property_pane::rows(ui, "selection properties", |ui| {
+                        let l = ui.label("Имя");
+                        ui.add(
+                            egui::TextEdit::singleline(&mut self.pane.name)
+                                .desired_width(super::property_pane::field_width(ui)),
+                        )
+                        .labelled_by(l.id);
+                        ui.end_row();
+                        if let Some(profile) = &c.profile {
+                            ui.label("Профиль");
+                            let shown = super::catalog_picker::profile_name(
                                 project,
-                                self.pane.pending_material.as_ref(),
-                                self.pane.material,
+                                self.pane.pending_profile.as_ref(),
+                                self.pane.profile,
                             )
                             .unwrap_or(VARIES)
                             .to_string();
-                            egui::ComboBox::new("pane material", "")
+                            egui::ComboBox::new("pane profile", "")
                                 .selected_text(shown)
+                                .width(super::property_pane::field_width(ui))
+                                .height(420.)
+                                .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                                 .show_ui(ui, |ui| {
-                                    match super::catalog_picker::material_menu(
+                                    match super::catalog_picker::profile_menu(
                                         ui,
+                                        "pane",
                                         project,
-                                        self.pane.material,
+                                        self.pane.profile,
                                     ) {
                                         Some(super::catalog_picker::Pick::Project(id)) => {
-                                            self.pane.material = Some(id)
+                                            self.pane.profile = Some(id)
                                         }
-                                        Some(super::catalog_picker::Pick::New(m)) => {
-                                            self.pane.material = Some(m.id);
-                                            self.pane.pending_material = Some(m);
+                                        Some(super::catalog_picker::Pick::New(p)) => {
+                                            self.pane.profile = Some(p.id);
+                                            self.pane.pending_profile = Some(p);
                                         }
                                         None => {}
                                     }
@@ -1887,48 +1894,88 @@ impl Workbench {
                                     egui::WidgetInfo::labeled(
                                         egui::WidgetType::ComboBox,
                                         true,
-                                        "Материал",
+                                        "Профиль",
                                     )
                                 });
+                            if matches!(profile, Shared::Varies) && self.pane.profile.is_none() {
+                                ui.small(VARIES);
+                            }
                             ui.end_row();
-                            let l = ui.label("Класс");
-                            ui.horizontal(|ui| {
-                                ui.add(
-                                    egui::TextEdit::singleline(&mut self.pane.class)
-                                        .desired_width(60.),
+                        }
+                        ui.label("Материал");
+                        let shown = super::catalog_picker::material_name(
+                            project,
+                            self.pane.pending_material.as_ref(),
+                            self.pane.material,
+                        )
+                        .unwrap_or(VARIES)
+                        .to_string();
+                        egui::ComboBox::new("pane material", "")
+                            .selected_text(shown)
+                            .width(super::property_pane::field_width(ui))
+                            .show_ui(ui, |ui| {
+                                match super::catalog_picker::material_menu(
+                                    ui,
+                                    project,
+                                    self.pane.material,
+                                ) {
+                                    Some(super::catalog_picker::Pick::Project(id)) => {
+                                        self.pane.material = Some(id)
+                                    }
+                                    Some(super::catalog_picker::Pick::New(m)) => {
+                                        self.pane.material = Some(m.id);
+                                        self.pane.pending_material = Some(m);
+                                    }
+                                    None => {}
+                                }
+                            })
+                            .response
+                            .widget_info(|| {
+                                egui::WidgetInfo::labeled(
+                                    egui::WidgetType::ComboBox,
+                                    true,
+                                    "Материал",
+                                )
+                            });
+                        ui.end_row();
+                        let l = ui.label("Класс");
+                        ui.horizontal(|ui| {
+                            ui.add(
+                                egui::TextEdit::singleline(&mut self.pane.class)
+                                    .desired_width(super::property_pane::field_width(ui) - 22.),
+                            )
+                            .labelled_by(l.id);
+                            if let Some(rgb) = open_bim_renderer::class_color(&self.pane.class) {
+                                let (r, _) = ui.allocate_exact_size(
+                                    egui::vec2(14., 14.),
+                                    egui::Sense::hover(),
+                                );
+                                let c = |v: f32| (v * 255.) as u8;
+                                ui.painter().rect_filled(
+                                    r,
+                                    2.,
+                                    egui::Color32::from_rgb(c(rgb[0]), c(rgb[1]), c(rgb[2])),
+                                );
+                            }
+                        });
+                        ui.end_row();
+                        if c.length.is_some() {
+                            let l = ui.label("Длина, мм");
+                            let field = ui
+                                .add(
+                                    egui::TextEdit::singleline(&mut self.pane.length)
+                                        .id(egui::Id::new("pane length"))
+                                        .desired_width(super::property_pane::field_width(ui)),
                                 )
                                 .labelled_by(l.id);
-                                if let Some(rgb) = open_bim_renderer::class_color(&self.pane.class)
-                                {
-                                    let (r, _) = ui.allocate_exact_size(
-                                        egui::vec2(14., 14.),
-                                        egui::Sense::hover(),
-                                    );
-                                    let c = |v: f32| (v * 255.) as u8;
-                                    ui.painter().rect_filled(
-                                        r,
-                                        2.,
-                                        egui::Color32::from_rgb(c(rgb[0]), c(rgb[1]), c(rgb[2])),
-                                    );
-                                }
-                            });
+                            // Enter in the field applies at once, like «Изменить».
+                            apply_length =
+                                field.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
                             ui.end_row();
-                            if c.length.is_some() {
-                                let l = ui.label("Длина, мм");
-                                let field = ui
-                                    .add(
-                                        egui::TextEdit::singleline(&mut self.pane.length)
-                                            .id(egui::Id::new("pane length"))
-                                            .desired_width(90.),
-                                    )
-                                    .labelled_by(l.id);
-                                // Enter in the field applies at once, like «Изменить».
-                                apply_length = field.lost_focus()
-                                    && ui.input(|i| i.key_pressed(egui::Key::Enter));
-                                ui.end_row();
-                                let l = ui.label("Изменять");
-                                egui::ComboBox::new("pane length mode", "")
+                            let l = ui.label("Изменять");
+                            egui::ComboBox::new("pane length mode", "")
                         .selected_text(self.pane.length_mode.label())
+                        .width(super::property_pane::field_width(ui))
                         .show_ui(ui, |ui| {
                             for mode in crate::interaction::member_edit::LengthMode::ALL {
                                 ui.selectable_value(&mut self.pane.length_mode, mode, mode.label());
@@ -1939,13 +1986,13 @@ impl Workbench {
                             "Какой конец переносится при новой длине и при перетаскивании ручки",
                         )
                         .labelled_by(l.id);
-                                ui.end_row();
-                            } else {
-                                ui.label("Размер");
-                                ui.label(c.size.value().cloned().unwrap_or_else(|| VARIES.into()));
-                                ui.end_row();
-                            }
-                        });
+                            ui.end_row();
+                        } else {
+                            ui.label("Размер");
+                            ui.label(c.size.value().cloned().unwrap_or_else(|| VARIES.into()));
+                            ui.end_row();
+                        }
+                    });
                 });
         }
         if c.position.is_some()
@@ -1961,7 +2008,7 @@ impl Workbench {
                 ],
             )
         {
-            egui::CollapsingHeader::new("Положение")
+            super::property_pane::section("Положение")
                 .default_open(true)
                 .show(ui, |ui| {
                     super::property_pane::position_grid(ui, "pane", &mut self.pane.position);
@@ -1978,7 +2025,7 @@ impl Workbench {
             if !shows(main, &super::property_fields::labels(section)) {
                 continue;
             }
-            egui::CollapsingHeader::new(section)
+            super::property_pane::section(section)
                 .default_open(main)
                 .show(ui, |ui| {
                     self.pane.fields.section(ui, section);
@@ -2007,7 +2054,7 @@ impl Workbench {
                 });
         }
         if shows(false, &["Обработка поверхности", "Покрытие"]) {
-            egui::CollapsingHeader::new("Обработка поверхности")
+            super::property_pane::section("Обработка поверхности")
                 .default_open(false)
                 .show(ui, |ui| {
                     let key = open_bim_reports::SURFACE_TREATMENT;
@@ -2068,7 +2115,7 @@ impl Workbench {
             })
         };
         if plates && !c.parts.is_empty() && shows(false, &["Фаски углов", "Фаска"]) {
-            egui::CollapsingHeader::new("Фаски углов")
+            super::property_pane::section("Фаски углов")
                 .default_open(false)
                 .show(ui, |ui| {
                     if self.corner_editor(ui) {
@@ -2089,7 +2136,7 @@ impl Workbench {
             false,
             &["Ещё", "Пользовательские атрибуты", "Свойство", "Значение"],
         ) {
-            egui::CollapsingHeader::new("Ещё")
+            super::property_pane::section("Ещё")
                 .default_open(true)
                 .show(ui, |ui| {
                     if let Some(a) = self.tools.user_property(ui, &mut self.editor) {
@@ -2349,14 +2396,60 @@ impl Workbench {
 }
 
 /// Pane title: object type and how many objects are selected, bold, as
-/// «Стальная колонна (1 выбрано)».
-fn pane_header(ui: &mut egui::Ui, kind: &str, count: usize) {
-    ui.horizontal(|ui| {
-        let (rect, _) = ui.allocate_exact_size(egui::vec2(16., 16.), egui::Sense::hover());
-        let ink = ui.visuals().text_color();
-        icons::paint(ui.painter(), rect, Icon::Properties, ink, true);
-        ui.label(egui::RichText::new(format!("{kind} ({count} выбрано)")).strong());
-    });
+/// «Стальная колонна (1 выбрано)». True when its × was pressed.
+fn pane_header(ui: &mut egui::Ui, kind: &str, count: usize) -> bool {
+    pane_title(ui, &format!("{kind} ({count} выбрано)"), None)
+}
+
+/// Header band of the property pane: gear, bold title, and at the right
+/// edge help (hover) and × that closes the pane. True when × was pressed.
+fn pane_title(ui: &mut egui::Ui, title: &str, help: Option<&str>) -> bool {
+    let mut closed = false;
+    egui::Frame::new()
+        .fill(ui.visuals().faint_bg_color)
+        .inner_margin(egui::Margin::symmetric(4, 3))
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                let (rect, _) = ui.allocate_exact_size(egui::vec2(16., 16.), egui::Sense::hover());
+                let ink = ui.visuals().text_color();
+                icons::paint(ui.painter(), rect, Icon::Properties, ink, true);
+                ui.label(egui::RichText::new(title).strong());
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let (rect, close) =
+                        ui.allocate_exact_size(egui::vec2(16., 16.), egui::Sense::click());
+                    let close = close.on_hover_text("Закрыть панель свойств");
+                    let stroke = egui::Stroke::new(
+                        1.5,
+                        if close.hovered() {
+                            ui.visuals().strong_text_color()
+                        } else {
+                            ink
+                        },
+                    );
+                    let r = rect.shrink(4.);
+                    ui.painter()
+                        .line_segment([r.left_top(), r.right_bottom()], stroke);
+                    ui.painter()
+                        .line_segment([r.right_top(), r.left_bottom()], stroke);
+                    close.widget_info(|| {
+                        egui::WidgetInfo::labeled(
+                            egui::WidgetType::Button,
+                            true,
+                            "Закрыть панель свойств",
+                        )
+                    });
+                    closed = close.clicked();
+                    if let Some(help) = help {
+                        let (rect, response) =
+                            ui.allocate_exact_size(egui::vec2(16., 16.), egui::Sense::hover());
+                        icons::paint(ui.painter(), rect, Icon::Help, ink, true);
+                        response.on_hover_text(help);
+                    }
+                });
+            });
+        });
+    ui.add_space(2.);
+    closed
 }
 
 /// Object type as named in the pane title.
@@ -2364,7 +2457,7 @@ fn object_title(kind: &str) -> String {
     match kind {
         "Балка" => "Стальная балка".into(),
         "Колонна" => "Стальная колонна".into(),
-        "Пластина" => "Контурная пластина".into(),
+        "Пластина" | "Контурная плита" => "Контурная пластина".into(),
         other => other.into(),
     }
 }

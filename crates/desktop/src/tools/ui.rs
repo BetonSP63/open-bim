@@ -136,17 +136,38 @@ impl ToolsUi {
     pub fn user_property(&mut self, ui: &mut egui::Ui, editor: &mut Editor) -> Option<Action> {
         let mut action = None;
         ui.label("Свойство выбранных · ⌘L");
-        let key_label = ui.label("Имя свойства");
-        let key = ui
-            .add(egui::TextEdit::singleline(&mut self.key).id(egui::Id::new("property key")))
-            .labelled_by(key_label.id);
+        let mut key = None;
+        let mut value = None;
+        crate::ui::property_pane::rows(ui, "user property", |ui| {
+            let key_label = ui.label("Имя свойства");
+            key = Some(
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.key)
+                        .id(egui::Id::new("property key"))
+                        .desired_width(crate::ui::property_pane::field_width(ui)),
+                )
+                .labelled_by(key_label.id),
+            );
+            ui.end_row();
+            let value_label = ui
+                .label("Значение")
+                .on_hover_text("Enter — применить к выбранным");
+            value = Some(
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.value)
+                        .id(egui::Id::new("property value"))
+                        .desired_width(crate::ui::property_pane::field_width(ui)),
+                )
+                .labelled_by(value_label.id),
+            );
+            ui.end_row();
+        });
+        let (Some(key), Some(value)) = (key, value) else {
+            return None;
+        };
         if std::mem::take(&mut self.focus_property) {
             key.request_focus();
         }
-        let value_label = ui.label("Значение (Enter — применить)");
-        let value = ui
-            .add(egui::TextEdit::singleline(&mut self.value).id(egui::Id::new("property value")))
-            .labelled_by(value_label.id);
         let enter = value.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
         if ui
             .add_enabled(
@@ -164,113 +185,39 @@ impl ToolsUi {
         action
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui, editor: &mut Editor) -> Option<Action> {
+    /// Properties of the part being created, in the sections of the pane of
+    /// a selected part: the file row, «Общие», «Положение», the points, and
+    /// «Создать» / «Отмена» at the bottom.
+    pub fn draft(&mut self, ui: &mut egui::Ui, editor: &mut Editor) -> Option<Action> {
+        use crate::ui::property_pane::{field_width, rows, section};
         let mut action = None;
-        ui.heading(self.panel.title());
-        if self.panel == ToolsPanel::Properties {
-            ui.horizontal_wrapped(|ui| {
-                for kind in [
-                    ToolKind::Axis,
-                    ToolKind::Beam,
-                    ToolKind::Column,
-                    ToolKind::Plate,
-                    ToolKind::Gusset,
-                    ToolKind::Stiffener,
-                    ToolKind::ConcreteColumn,
-                    ToolKind::ConcreteBeam,
-                    ToolKind::Panel,
-                    ToolKind::Slab,
-                    ToolKind::Footing,
-                ] {
-                    if ui
-                        .selectable_label(editor.active && editor.draft.kind == kind, kind.label())
-                        .clicked()
-                    {
-                        let _ = editor.begin(kind);
-                    }
-                }
-            });
-            if editor.active {
-                ui.separator();
-                ui.strong(format!("Создать: {}", editor.draft.kind.label()));
-                if let Some(kind) = super::property_files::FileKind::of_tool(editor.draft.kind) {
-                    let dir = super::property_files::folder(&self.path);
-                    if let Some(request) = self.files.row(ui, &dir, kind) {
-                        self.message = Some(draft_file(&dir, kind, editor, request));
-                    }
-                }
-                let name_label = ui.label("Имя");
-                ui.text_edit_singleline(&mut editor.draft.name)
-                    .labelled_by(name_label.id);
-                ui.label("Начало / начало плиты, мм");
-                vector_fields(ui, "start", &mut editor.draft.start);
-                if editor.draft.kind.is_plate() {
-                    let contour_label = ui.label("Контур XY: X,Y; X,Y; …");
-                    ui.add(egui::TextEdit::multiline(&mut editor.draft.contour).desired_rows(3))
-                        .labelled_by(contour_label.id);
-                    ui.horizontal(|ui| {
-                        let t = ui.label("Толщина, мм");
-                        ui.text_edit_singleline(&mut editor.draft.thickness)
-                            .labelled_by(t.id);
-                    });
-                    use crate::interaction::polygon::{PlateMode, PlatePosition};
-                    egui::ComboBox::new("plate mode", "Способ построения")
-                        .selected_text(editor.draft.plate_mode.label())
-                        .show_ui(ui, |ui| {
-                            for m in PlateMode::ALL {
-                                ui.selectable_value(&mut editor.draft.plate_mode, m, m.label());
-                            }
-                        });
-                    egui::ComboBox::new("plate position", "Положение по толщине")
-                        .selected_text(editor.draft.plate_position.label())
-                        .show_ui(ui, |ui| {
-                            for m in PlatePosition::ALL {
-                                ui.selectable_value(&mut editor.draft.plate_position, m, m.label());
-                            }
-                        });
-                    ui.small("Точки — в 3D-виде с привязкой; Enter или средняя кнопка замыкает контур, Backspace убирает последнюю точку.");
-                } else if editor.draft.kind.base() == ToolKind::Column {
+        let kind = editor.draft.kind;
+        if let Some(file) = super::property_files::FileKind::of_tool(kind) {
+            let dir = super::property_files::folder(&self.path);
+            if let Some(request) = self.files.row(ui, &dir, file) {
+                self.message = Some(draft_file(&dir, file, editor, request));
+            }
+        }
+        section("Общие").default_open(true).show(ui, |ui| {
+            rows(ui, "draft general", |ui| {
+                let l = ui.label("Имя");
+                ui.add(
+                    egui::TextEdit::singleline(&mut editor.draft.name)
+                        .desired_width(field_width(ui)),
+                )
+                .labelled_by(l.id);
+                ui.end_row();
+                if matches!(kind, ToolKind::Beam | ToolKind::Column) {
                     let project = editor.document.project();
-                    column_ends(ui, project, &mut editor.draft);
-                } else {
-                    ui.label("Конец, мм");
-                    vector_fields(ui, "end", &mut editor.draft.end);
-                }
-                if editor.draft.kind.is_concrete() {
-                    if editor.draft.kind != ToolKind::Slab {
-                        ui.horizontal(|ui| {
-                            let l = ui.label("Сечение b x h, мм");
-                            ui.text_edit_singleline(&mut editor.draft.section)
-                                .labelled_by(l.id);
-                        });
-                    }
-                    egui::ComboBox::new("grade", "Класс бетона")
-                        .selected_text(editor.draft.grade.as_str())
-                        .show_ui(ui, |ui| {
-                            for g in crate::interaction::concrete::GRADES {
-                                ui.selectable_value(&mut editor.draft.grade, g.into(), g);
-                            }
-                        });
-                }
-                if matches!(editor.draft.kind, ToolKind::Beam | ToolKind::Column) {
-                    egui::CollapsingHeader::new("Положение")
-                        .default_open(true)
-                        .show(ui, |ui| {
-                            crate::ui::property_pane::position_editor(
-                                ui,
-                                "draft",
-                                &mut editor.draft.position,
-                            );
-                        });
-                    twin_editor(ui, &mut editor.draft);
-                    let project = editor.document.project();
-                    egui::ComboBox::new("profile", "Профиль")
+                    let l = ui.label("Профиль");
+                    egui::ComboBox::new("profile", "")
                         .selected_text(
                             project
                                 .profiles
                                 .get(&editor.draft.profile)
                                 .map_or("Выберите профиль", |p| p.name.as_str()),
                         )
+                        .width(field_width(ui))
                         .height(420.)
                         .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                         .show_ui(ui, |ui| {
@@ -290,17 +237,22 @@ impl ToolsUi {
                                 }
                                 None => {}
                             }
-                        });
+                        })
+                        .response
+                        .labelled_by(l.id);
+                    ui.end_row();
                 }
-                if editor.draft.kind != ToolKind::Axis && !editor.draft.kind.is_concrete() {
+                if kind != ToolKind::Axis && !kind.is_concrete() {
                     let project = editor.document.project();
-                    egui::ComboBox::new("material", "Материал")
+                    let l = ui.label("Материал");
+                    egui::ComboBox::new("material", "")
                         .selected_text(
                             project
                                 .materials
                                 .get(&editor.draft.material)
                                 .map_or("Выберите материал", |m| m.name.as_str()),
                         )
+                        .width(field_width(ui))
                         .show_ui(ui, |ui| {
                             use crate::ui::catalog_picker::{Pick, material_menu};
                             match material_menu(ui, project, Some(editor.draft.material)) {
@@ -316,26 +268,138 @@ impl ToolsUi {
                                 }
                                 None => {}
                             }
-                        });
+                        })
+                        .response
+                        .labelled_by(l.id);
+                    ui.end_row();
                 }
-                ui.horizontal(|ui| {
-                    if ui.button("Создать · ⌘↩").clicked() {
-                        action = Some(Action::Create);
+                if kind.is_plate() {
+                    let l = ui.label("Толщина, мм");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut editor.draft.thickness)
+                            .desired_width(field_width(ui)),
+                    )
+                    .labelled_by(l.id);
+                    ui.end_row();
+                }
+                if kind.is_concrete() {
+                    if kind != ToolKind::Slab {
+                        let l = ui.label("Сечение b x h, мм");
+                        ui.add(
+                            egui::TextEdit::singleline(&mut editor.draft.section)
+                                .desired_width(field_width(ui)),
+                        )
+                        .labelled_by(l.id);
+                        ui.end_row();
                     }
-                    if ui.button("Отмена · Esc").clicked() {
-                        editor.cancel();
-                    }
-                });
-                ui.label("Точки можно указать в 3D-виде. Плита лежит в рабочей плоскости XY.");
-            }
-        }
-        if self.panel == ToolsPanel::Properties {
-            ui.separator();
-            ui.horizontal(|ui| {
-                let z = ui.label("Рабочая Z, мм");
-                ui.text_edit_singleline(&mut self.workplane)
-                    .labelled_by(z.id);
+                    let l = ui.label("Класс бетона");
+                    egui::ComboBox::new("grade", "")
+                        .selected_text(editor.draft.grade.as_str())
+                        .width(field_width(ui))
+                        .show_ui(ui, |ui| {
+                            for g in crate::interaction::concrete::GRADES {
+                                ui.selectable_value(&mut editor.draft.grade, g.into(), g);
+                            }
+                        })
+                        .response
+                        .labelled_by(l.id);
+                    ui.end_row();
+                }
             });
+        });
+        if matches!(kind, ToolKind::Beam | ToolKind::Column) {
+            section("Положение").default_open(true).show(ui, |ui| {
+                crate::ui::property_pane::position_editor(ui, "draft", &mut editor.draft.position);
+            });
+            section("Сдвоенный профиль")
+                .default_open(editor.draft.twin != super::twin::Twin::Single)
+                .show(ui, |ui| twin_editor(ui, &mut editor.draft));
+        }
+        if kind.is_plate() {
+            section("Контур").default_open(true).show(ui, |ui| {
+                use crate::interaction::polygon::{PlateMode, PlatePosition};
+                rows(ui, "draft plate", |ui| {
+                    let l = ui.label("Способ построения");
+                    egui::ComboBox::new("plate mode", "")
+                        .selected_text(editor.draft.plate_mode.label())
+                        .width(field_width(ui))
+                        .show_ui(ui, |ui| {
+                            for m in PlateMode::ALL {
+                                ui.selectable_value(&mut editor.draft.plate_mode, m, m.label());
+                            }
+                        })
+                        .response
+                        .labelled_by(l.id);
+                    ui.end_row();
+                    let l = ui.label("Положение по толщине");
+                    egui::ComboBox::new("plate position", "")
+                        .selected_text(editor.draft.plate_position.label())
+                        .width(field_width(ui))
+                        .show_ui(ui, |ui| {
+                            for m in PlatePosition::ALL {
+                                ui.selectable_value(&mut editor.draft.plate_position, m, m.label());
+                            }
+                        })
+                        .response
+                        .labelled_by(l.id);
+                    ui.end_row();
+                });
+                let contour_label = ui.label("Контур XY: X,Y; X,Y; …");
+                ui.add(
+                    egui::TextEdit::multiline(&mut editor.draft.contour)
+                        .desired_rows(2)
+                        .desired_width(f32::INFINITY),
+                )
+                .labelled_by(contour_label.id);
+                ui.small("Точки — в 3D-виде с привязкой; Enter или средняя кнопка замыкает контур, Backspace убирает последнюю точку.");
+            });
+        }
+        let points = if kind.base() == ToolKind::Column {
+            "Низ и верх"
+        } else {
+            "Точки"
+        };
+        section(points)
+            .default_open(kind.base() == ToolKind::Column)
+            .show(ui, |ui| {
+                ui.label(if kind.is_plate() {
+                    "Начало плиты, мм"
+                } else {
+                    "Начало, мм"
+                });
+                vector_fields(ui, "start", &mut editor.draft.start);
+                if kind.base() == ToolKind::Column {
+                    let project = editor.document.project();
+                    column_ends(ui, project, &mut editor.draft);
+                } else if !kind.is_plate() {
+                    ui.label("Конец, мм");
+                    vector_fields(ui, "end", &mut editor.draft.end);
+                }
+                ui.small("Точки удобнее указывать в 3D-виде; поля — для точного ввода.");
+            });
+        ui.separator();
+        ui.horizontal(|ui| {
+            if ui.button("Создать · ⌘↩").clicked() {
+                action = Some(Action::Create);
+            }
+            if ui.button("Отмена · Esc").clicked() {
+                editor.cancel();
+            }
+        });
+        if let Some(message) = &self.message {
+            ui.label(message);
+        }
+        if let Some(warning) = &editor.record_warning {
+            ui.colored_label(ui.visuals().warn_fg_color, warning);
+        }
+        action
+    }
+
+    pub fn show(&mut self, ui: &mut egui::Ui, editor: &mut Editor) -> Option<Action> {
+        let mut action = None;
+        // The property pane draws its own header and object type list.
+        if self.panel != ToolsPanel::Properties {
+            ui.heading(self.panel.title());
         }
         if self.panel == ToolsPanel::Edit {
             ui.separator();
@@ -472,10 +536,13 @@ impl ToolsUi {
             self.coordination.show(ui, editor);
         }
         if self.panel == ToolsPanel::Properties {
-            if let Some(a) = self.user_property(ui, editor) {
+            if !editor.selected.is_empty()
+                && let Some(a) = self.user_property(ui, editor)
+            {
                 action = Some(a);
             }
             ui.separator();
+            ui.label(egui::RichText::new("Проект").strong());
             let path_label = ui.label("Файл проекта .obim");
             ui.text_edit_singleline(&mut self.path)
                 .labelled_by(path_label.id);
