@@ -380,6 +380,7 @@ pub fn rebuild_custom(project: &mut Project, previous: &Project) -> Result<(), M
                         sides: WeldSides::Both,
                         around: false,
                         process: Default::default(),
+                        gost: Default::default(),
                     },
                 },
             );
