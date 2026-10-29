@@ -21,6 +21,7 @@ pub mod parametric;
 mod plugin;
 mod position;
 mod project;
+pub mod sections;
 pub mod shapes;
 mod validation;
 pub mod weld;
@@ -66,6 +67,9 @@ pub use position::{AtDepth, OnPlane, PartPosition, Rotation, place, reference_li
 pub use project::{
     Assembly, Element, ElementShape, MemberKind, ObjectId, Project, PropertyValue, Units,
     example_steel_frame,
+};
+pub use sections::{
+    SectionDefinition, SectionPlate, SectionWeld, Sections, WeldedPiece, WeldedSeam,
 };
 pub use shapes::{ItemShape, ShapePart, Shapes};
 pub use validation::{ModelError, polygon_area};

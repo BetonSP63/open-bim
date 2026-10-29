@@ -9,13 +9,33 @@
 use super::catalog_picker::{Pick, profile_by_name};
 use eframe::egui;
 use open_bim_model::library::{self, Entry, Family};
-use open_bim_model::{ObjectId, Profile, ProfileShape, Project};
+use open_bim_model::sections::SectionKind;
+use open_bim_model::{ObjectId, Profile, ProfileShape, Project, SectionDefinition};
 
 /// The row highlighted in the tree.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Selected {
     Project(ObjectId),
     Catalog(String),
+    /// A user section (project definition or template) at its default
+    /// sizes, by profile name.
+    Section(String),
+}
+
+/// The user section whose default profile is named `name`.
+fn section_definition(project: &Project, name: &str) -> Option<SectionDefinition> {
+    project.sections.all().into_iter().find(|d| {
+        d.defaults()
+            .and_then(|v| d.profile_name(&v))
+            .is_ok_and(|n| n == name)
+    })
+}
+
+/// The user section profile named `name`, under the project's next free id.
+fn section_profile(project: &Project, name: &str) -> Option<Profile> {
+    let d = section_definition(project, name)?;
+    d.profile(ObjectId(project.next_id), &d.defaults().ok()?)
+        .ok()
 }
 
 /// What the buttons of the window asked for this frame.
@@ -77,6 +97,10 @@ impl ProfileDialog {
                 .contains_key(id)
                 .then_some(Pick::Project(*id)),
             Selected::Catalog(name) => profile_by_name(project, name),
+            Selected::Section(name) => match project.profiles.values().find(|p| p.name == *name) {
+                Some(p) => Some(Pick::Project(p.id)),
+                None => section_profile(project, name).map(Pick::New),
+            },
         }
     }
 
@@ -182,6 +206,12 @@ impl ProfileDialog {
             if ui.button("Отмена").clicked() {
                 outcome = Some(Outcome::Cancel);
             }
+            ui.separator();
+            if ui.button("Редактор сечений…").clicked() {
+                ui.ctx().data_mut(|d| {
+                    d.insert_temp(egui::Id::new(super::section_editor::OPEN_REQUEST), true)
+                });
+            }
         });
         outcome
     }
@@ -247,6 +277,33 @@ impl ProfileDialog {
                     }
                 });
         }
+        // User sections: welded and contour, at their default sizes; other
+        // sizes are made in «Редактор сечений».
+        let sections = project.sections.all();
+        for kind in [SectionKind::Welded, SectionKind::Contour] {
+            let rows: Vec<String> = sections
+                .iter()
+                .filter(|d| d.kind() == kind)
+                .filter_map(|d| d.profile_name(&d.defaults().ok()?).ok())
+                .filter(|n| matches(n, &self.query))
+                .collect();
+            if rows.is_empty() {
+                continue;
+            }
+            egui::CollapsingHeader::new(format!("{} ({})", kind.label(), rows.len()))
+                .id_salt((salt, kind.label()))
+                .open(searching.then_some(true))
+                .show(ui, |ui| {
+                    for name in rows {
+                        let sel = Selected::Section(name.clone());
+                        let r = ui.selectable_label(self.selected.as_ref() == Some(&sel), &name);
+                        if r.clicked() {
+                            self.selected = Some(sel);
+                        }
+                        chosen |= r.double_clicked();
+                    }
+                });
+        }
         chosen
     }
 
@@ -295,6 +352,16 @@ impl ProfileDialog {
                     radius: Some(e.radius),
                 })
             }
+            Selected::Section(name) => {
+                let p = section_profile(project, name)?;
+                Some(Info {
+                    name: p.name.clone(),
+                    area_mm2: p.area_mm2().ok(),
+                    shape: p.shape,
+                    standard: Some(p.source),
+                    radius: None,
+                })
+            }
         }
     }
 }
@@ -322,7 +389,22 @@ fn mm(v: f64) -> String {
 
 /// Rows of the properties table: dimensions, area and mass per metre.
 pub fn properties(info: &Info) -> Vec<(&'static str, String)> {
-    let mut rows: Vec<(&'static str, String)> = match info.shape {
+    let mut rows: Vec<(&'static str, String)> = match &info.shape {
+        ProfileShape::Polygon { .. } => {
+            let [h, b, ..] = info.shape.sizes();
+            vec![("h, мм", mm(h)), ("b, мм", mm(b))]
+        }
+        ProfileShape::Welded { plates, welds } => {
+            let [h, b, ..] = info.shape.sizes();
+            let mut rows = vec![("h, мм", mm(h)), ("b, мм", mm(b))];
+            rows.push(("Листов", plates.len().to_string()));
+            rows.push(("Поясных швов", welds.len().to_string()));
+            rows
+        }
+        _ => Vec::new(),
+    };
+    rows.extend(match info.shape {
+        ProfileShape::Polygon { .. } | ProfileShape::Welded { .. } => vec![],
         ProfileShape::ISection {
             height,
             width,
@@ -365,7 +447,7 @@ pub fn properties(info: &Info) -> Vec<(&'static str, String)> {
         ProfileShape::Rectangle { height, width } => {
             vec![("h, мм", mm(height)), ("b, мм", mm(width))]
         }
-    };
+    });
     if let Some(r) = info.radius.filter(|r| *r > 0.) {
         rows.push(("R, мм", mm(r)));
     }
@@ -381,6 +463,10 @@ pub fn properties(info: &Info) -> Vec<(&'static str, String)> {
 
 /// The section to scale with its overall height and width dimensioned.
 fn preview(ui: &mut egui::Ui, shape: &ProfileShape) {
+    if let ProfileShape::Polygon { .. } | ProfileShape::Welded { .. } = shape {
+        super::section_editor::paint_section(ui, shape, egui::vec2(260., 210.));
+        return;
+    }
     let (rect, _) = ui.allocate_exact_size(egui::vec2(260., 210.), egui::Sense::hover());
     let painter = ui.painter_at(rect);
     let visuals = ui.visuals();
@@ -392,6 +478,7 @@ fn preview(ui: &mut egui::Ui, shape: &ProfileShape) {
         | ProfileShape::RectangularHollow { height, width, .. }
         | ProfileShape::Rectangle { height, width } => (height, width),
         ProfileShape::CircularHollow { diameter, .. } => (diameter, diameter),
+        ProfileShape::Polygon { .. } | ProfileShape::Welded { .. } => unreachable!(),
     };
     if !(h > 0. && w > 0.) {
         return;
@@ -524,5 +611,26 @@ mod tests {
             let n = GROUPS.iter().filter(|(_, f)| f.contains(&family)).count();
             assert_eq!(n, 1, "{family:?}");
         }
+    }
+
+    #[test]
+    fn user_sections_are_picked_as_new_profiles_with_a_preview() {
+        let project = Project::default();
+        let dialog = ProfileDialog {
+            open: true,
+            query: String::new(),
+            selected: Some(Selected::Section("Двутавр сварной 600×250×10×16".into())),
+        };
+        let Some(Pick::New(p)) = dialog.pick(&project) else {
+            panic!("no profile");
+        };
+        assert!(matches!(p.shape, ProfileShape::Welded { .. }));
+        assert_eq!(p.id, ObjectId(project.next_id));
+        let info = dialog.info(&project).unwrap();
+        let rows = properties(&info);
+        assert!(
+            rows.iter().any(|(k, v)| *k == "Листов" && v == "3"),
+            "{rows:?}"
+        );
     }
 }

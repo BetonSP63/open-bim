@@ -118,6 +118,7 @@ impl Project {
         text(&self.name)?;
         valid_point(self.origin)?;
         self.document.validate()?;
+        self.sections.validate()?;
         // Changes of each set are numbered 1, 2, 3… in order (7.3.1).
         for mark in crate::SET_MARKS {
             let numbers: Vec<u32> = self

@@ -80,6 +80,11 @@ pub fn clip_angle_geometry(
             height,
             thickness,
         } => (width / 2., thickness, height - 2. * thickness),
+        // Welded and contour sections: the centre plate as an I-section web.
+        ProfileShape::Polygon { .. } | ProfileShape::Welded { .. } => {
+            let [height, _, web, flange] = section.sizes();
+            (web / 2., web, height - 2. * flange)
+        }
         ProfileShape::CircularHollow { .. } => {
             return Err(ModelError::InvalidValue(
                 "Для уголкового узла нужна плоская стенка балки".into(),

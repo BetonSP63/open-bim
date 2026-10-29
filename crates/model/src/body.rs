@@ -53,6 +53,9 @@ impl Project {
                     ProfileShape::RectangularHollow { width, height, .. } => {
                         vec![[-width / 2., -height / 2.], [width / 2., height / 2.]]
                     }
+                    ref shape @ (ProfileShape::Polygon { .. } | ProfileShape::Welded { .. }) => {
+                        shape.outline()?.0
+                    }
                     ref shape => shape.solid_contour()?,
                 };
                 (points, length.value())
@@ -106,6 +109,13 @@ impl Project {
                     | ProfileShape::RectangularHollow { .. } => {
                         hollow = Some(shape);
                         (Vec::new(), length.value())
+                    }
+                    ProfileShape::Polygon { .. } | ProfileShape::Welded { .. } => {
+                        let (outer, voids) = shape.outline()?;
+                        if !voids.is_empty() {
+                            hollow = Some(shape);
+                        }
+                        (outer, length.value())
                     }
                     _ => (shape.solid_contour()?, length.value()),
                 }
@@ -165,7 +175,11 @@ impl Project {
                     height,
                     thickness,
                 } => Body::rectangular_tube(width, height, thickness, length, Point3([0.0; 3])),
-                _ => unreachable!(),
+                // Box-like user sections: the outline with its voids.
+                ref shape => {
+                    let voids = shape.outline()?.1;
+                    Body::prism_with_voids(&contour, length, &[], &voids, Point3([0.0; 3]))
+                }
             }
             .map_err(geometry_error)?,
             None => Body::prism_with_holes(&contour, length, &holes, Point3([0.0; 3]))

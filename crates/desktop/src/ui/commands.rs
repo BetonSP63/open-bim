@@ -109,6 +109,7 @@ pub enum Cmd {
     FocusSearch,
     ComponentCatalog,
     ComponentEditor,
+    SectionEditor,
     AutoConnections,
     FitToProfile,
     GridViews,
@@ -889,6 +890,13 @@ pub const ALL: &[Spec] = &[
         category: "Детали",
         shortcut: None,
         keywords: "компонент свой создать редактор узел шаблон мои компоненты изменить",
+    },
+    Spec {
+        cmd: Cmd::SectionEditor,
+        label: "Редактор сечений…",
+        category: "Детали",
+        shortcut: None,
+        keywords: "сечение профиль параметрический сварной лист пользовательский контур двутавр коробка",
     },
     Spec {
         cmd: Cmd::AutoConnections,

@@ -173,6 +173,9 @@ pub struct Project {
     /// Shape catalogue of items («Формы»).
     #[serde(default, skip_serializing_if = "crate::Shapes::is_default")]
     pub shapes: crate::Shapes,
+    /// User parametric and welded section definitions.
+    #[serde(default, skip_serializing_if = "crate::Sections::is_default")]
+    pub sections: crate::Sections,
     /// Parametric families the project uses, by name; the model keeps
     /// working without the library files they came from.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -216,6 +219,7 @@ impl Default for Project {
             parametric: Default::default(),
             concrete: Default::default(),
             shapes: Default::default(),
+            sections: Default::default(),
             families: BTreeMap::new(),
             family_instances: BTreeMap::new(),
         }
