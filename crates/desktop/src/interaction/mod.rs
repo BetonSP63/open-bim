@@ -10,6 +10,7 @@ pub mod concrete;
 pub mod control_numbers;
 pub mod corners;
 pub mod families;
+pub mod family_editor;
 pub mod formwork;
 pub mod grid_edit;
 pub mod ifc_convert;
