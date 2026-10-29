@@ -148,11 +148,20 @@ fn every_ribbon_button_runs_its_registry_command_by_mouse() {
                     None => {
                         let folded = in_band(&out, group)
                             .unwrap_or_else(|| panic!("{tab:?}/{group}: no button {}", it.label));
+                        // Buttons of the same name elsewhere (the snap bar has
+                        // «Линия») are not the ones the folded group opens.
+                        let elsewhere: Vec<egui::Pos2> = nodes(&out)
+                            .into_iter()
+                            .filter(|(role, name, _, _)| *role == Role::Button && name == it.label)
+                            .map(|n| n.3)
+                            .collect();
                         frame(&ctx, &mut b, [1280., 800.], click(folded.3));
                         let out = frame(&ctx, &mut b, [1280., 800.], vec![]).0;
                         nodes(&out)
                             .into_iter()
-                            .find(|(role, name, _, _)| *role == Role::Button && name == it.label)
+                            .find(|(role, name, _, c)| {
+                                *role == Role::Button && name == it.label && !elsewhere.contains(c)
+                            })
                             .unwrap_or_else(|| panic!("{tab:?}/{group}: no button {}", it.label))
                     }
                 };

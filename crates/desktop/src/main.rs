@@ -1604,14 +1604,7 @@ impl eframe::App for Desktop {
                     },
                 );
             }
-            // The active view is framed in yellow; its projection is named in
-            // the window title.
-            ui.painter().rect_stroke(
-                rect.shrink(1.),
-                0.,
-                egui::Stroke::new(2.5, open_bim_desktop::viewport::color(overlay::ACTIVE_VIEW)),
-                egui::StrokeKind::Inside,
-            );
+            // The projection of the view is named in the window title.
             self.bench.view_title = if self.camera.orthographic {
                 "Вид 1 — ортогональный"
             } else {
