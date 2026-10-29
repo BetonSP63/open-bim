@@ -325,6 +325,7 @@ pub struct Workbench {
     pub rebar: rebar_ui::RebarUi,
     pub formwork: formwork_ui::FormworkUi,
     pub shapes: crate::interaction::items::ShapesWindow,
+    pub families: crate::interaction::families::FamiliesWindow,
     /// «Изменить номер».
     pub change_number: crate::interaction::change_number::ChangeNumber,
     pub surfaces: crate::interaction::surfaces::Surfaces,
@@ -462,6 +463,7 @@ impl Workbench {
             formwork: Default::default(),
             shapes: Default::default(),
             section_editor: Default::default(),
+            families: Default::default(),
             change_number: Default::default(),
             surfaces: Default::default(),
             layout_manager: Default::default(),
@@ -1091,6 +1093,12 @@ impl Workbench {
             | Cmd::RebarVisibility
             | Cmd::RebarGroup
             | Cmd::RebarSingle => return self.rebar_command(cmd),
+            Cmd::Families => {
+                self.families.open = true;
+                self.families.reload();
+                self.message("Выберите семейство и типоразмер, затем «Разместить»");
+                return None;
+            }
             Cmd::Item | Cmd::AddedMaterial => {
                 use crate::interaction::trim::{TrimPicker, TrimTool};
                 if cmd == Cmd::Item {
@@ -2329,6 +2337,14 @@ impl Workbench {
             (TrimTool::AnalysisNode, [], [a]) => {
                 crate::interaction::analysis::add_node(project, *a)
             }
+            (TrimTool::PlaceFamily, [], [a]) => match &self.families.current {
+                Some((f, t)) => crate::interaction::families::place(project, f, t, *a, None),
+                None => Err("Выберите семейство в окне «Семейства»".into()),
+            },
+            (TrimTool::PlaceFamilyLine, [], [a, b]) => match &self.families.current {
+                Some((f, t)) => crate::interaction::families::place(project, f, t, *a, Some(*b)),
+                None => Err("Выберите семейство в окне «Семейства»".into()),
+            },
             (TrimTool::PlaceItem, [], [a]) => match &self.shapes.current {
                 Some(name) => crate::interaction::items::place(project, name, *a),
                 None => Err("Выберите форму в окне «Формы»".into()),
@@ -3504,6 +3520,30 @@ impl Workbench {
             .show(&ctx, self.editor.document.project())
         {
             requests.push(Request::Action(Action::Commit(label, commands)));
+        }
+        match self.families.show(
+            &ctx,
+            self.editor.document.project(),
+            &self.tools.path,
+            &self.editor.selected,
+        ) {
+            Some(crate::interaction::families::FamiliesAction::Commit(label, commands)) => {
+                requests.push(Request::Action(Action::Commit(label, commands)));
+            }
+            Some(crate::interaction::families::FamiliesAction::Place { two_points }) => {
+                use crate::interaction::trim::{TrimPicker, TrimTool};
+                self.engine.cancel();
+                self.detail.cancel();
+                self.mode = Mode::Model;
+                self.trim = TrimPicker::start(if two_points {
+                    TrimTool::PlaceFamilyLine
+                } else {
+                    TrimTool::PlaceFamily
+                });
+                self.message(self.prompt());
+            }
+            Some(crate::interaction::families::FamiliesAction::Message(m)) => self.message(m),
+            None => {}
         }
         if let Some((label, commands)) =
             self.parametric

@@ -52,6 +52,8 @@ pub enum TrimTool {
     FormPanels,
     FormProps,
     PlaceItem,
+    PlaceFamily,
+    PlaceFamilyLine,
     AddedMaterial,
 }
 
@@ -100,6 +102,7 @@ impl TrimTool {
             Self::FormPanels => "Щиты опалубки",
             Self::FormProps => "Опоры",
             Self::PlaceItem => "Элемент",
+            Self::PlaceFamily | Self::PlaceFamilyLine => "Семейство",
             Self::AddedMaterial => "Добавленный материал",
         }
     }
@@ -120,7 +123,8 @@ impl TrimTool {
             | Self::FormProps => &[Part],
             Self::RebarGroup => &[Point, Point, Point],
             Self::RebarSingle => &[Point, Point],
-            Self::PlaceItem => &[Point],
+            Self::PlaceItem | Self::PlaceFamily => &[Point],
+            Self::PlaceFamilyLine => &[Point, Point],
             Self::AddedMaterial => &[Part, Polygon],
             Self::CopyAnalysis => &[Part],
             Self::PointsOnLine
@@ -181,6 +185,9 @@ impl TrimTool {
             }
             (Self::RebarMesh, _) => "Выберите перекрытие или панель",
             (Self::PlaceItem, _) => "Укажите точку вставки элемента",
+            (Self::PlaceFamily, _) => "Укажите точку вставки семейства",
+            (Self::PlaceFamilyLine, 0) => "Укажите начальную точку семейства",
+            (Self::PlaceFamilyLine, _) => "Укажите конечную точку семейства",
             (Self::AddedMaterial, 0) => "Выберите деталь, к которой добавить материал",
             (Self::AddedMaterial, _) => {
                 "Укажите контур добавляемого материала; Enter или средняя кнопка — завершить"

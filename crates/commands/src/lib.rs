@@ -131,6 +131,22 @@ pub enum Command {
     SetSections {
         sections: open_bim_model::Sections,
     },
+    /// Add a family to the project or replace it; its objects are built
+    /// again.
+    SetFamily {
+        family: Box<open_bim_model::Family>,
+    },
+    /// Remove a family no object uses.
+    RemoveFamily {
+        name: String,
+    },
+    /// Place a family; the generator builds its parts.
+    CreateFamilyInstance {
+        instance: open_bim_model::FamilyInstance,
+    },
+    ReplaceFamilyInstance {
+        instance: open_bim_model::FamilyInstance,
+    },
     /// Fix the marks of a numbering run (replaces the stored marks).
     SetNumbering {
         marks: BTreeMap<ObjectId, String>,
@@ -308,6 +324,7 @@ impl Document {
         open_bim_connections::rebuild_seats(&mut staged, &self.project)?;
         open_bim_connections::rebuild_custom(&mut staged, &self.project)?;
         open_bim_connections::rebuild_gussets(&mut staged, &self.project)?;
+        open_bim_model::rebuild_families(&mut staged, &self.project)?;
         open_bim_connections::apply_component_classes(&mut staged);
         guard_locked_and_phase(&self.project, &mut staged)?;
         staged.validate()?;
@@ -741,6 +758,57 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
             sections.validate()?;
             project.sections = sections.clone();
         }
+        Command::SetFamily { family } => {
+            family.validate()?;
+            project
+                .families
+                .insert(family.name.clone(), family.as_ref().clone());
+        }
+        Command::RemoveFamily { name } => {
+            if project.family_instances.values().any(|i| &i.family == name) {
+                return Err(CommandError::InvalidTransaction(format!(
+                    "Семейство «{name}» размещено в модели: сначала удалите его объекты"
+                )));
+            }
+            if project.families.remove(name).is_none() {
+                return Err(CommandError::InvalidTransaction(format!(
+                    "В проекте нет семейства «{name}»"
+                )));
+            }
+        }
+        Command::CreateFamilyInstance { instance } => {
+            if project.contains_id(instance.id) || instance.id.0 == 0 {
+                return Err(ModelError::DuplicateId(instance.id).into());
+            }
+            if !instance.children.is_empty() {
+                return Err(CommandError::InvalidTransaction(
+                    "Новый объект семейства не должен содержать ID деталей".into(),
+                ));
+            }
+            project.next_id =
+                project
+                    .next_id
+                    .max(instance.id.0.checked_add(1).ok_or_else(|| {
+                        CommandError::InvalidTransaction("Недопустимый ID объекта семейства".into())
+                    })?);
+            project
+                .family_instances
+                .insert(instance.id, instance.clone());
+        }
+        Command::ReplaceFamilyInstance { instance } => {
+            let old = project
+                .family_instances
+                .get(&instance.id)
+                .ok_or(ModelError::MissingReference(instance.id))?;
+            if old.children != instance.children {
+                return Err(CommandError::InvalidTransaction(
+                    "ID деталей семейства управляются генератором".into(),
+                ));
+            }
+            project
+                .family_instances
+                .insert(instance.id, instance.clone());
+        }
         Command::SetNumbering { marks } => project.numbering = marks.clone(),
         Command::SetDocumentInfo { info } => {
             info.validate()?;
@@ -840,6 +908,15 @@ fn delete(project: &mut Project, id: ObjectId, policy: DeletePolicy) -> Result<(
                 removed.extend(&plugin.outputs);
             }
         }
+        // A family object goes with any part it built, and takes them all.
+        for instance in project.family_instances.values() {
+            if instance.children.values().any(|id| removed.contains(id)) {
+                removed.insert(instance.id);
+            }
+            if removed.contains(&instance.id) {
+                removed.extend(instance.children.values());
+            }
+        }
         if previous == removed.len() {
             break;
         }
@@ -865,6 +942,7 @@ fn delete(project: &mut Project, id: ObjectId, policy: DeletePolicy) -> Result<(
         project.construction.remove(id);
         project.dimensions.remove(id);
         project.plugins.remove(id);
+        project.family_instances.remove(id);
     }
     for assembly in project.assemblies.values_mut() {
         assembly.members.retain(|id| !removed.contains(id));

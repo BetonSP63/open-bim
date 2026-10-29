@@ -291,6 +291,25 @@ impl Project {
                 }
             }
         }
+        for (key, value) in &self.families {
+            value.validate()?;
+            if *key != value.name {
+                return Err(ModelError::InvalidValue(format!(
+                    "Семейство «{}» записано под именем «{key}»",
+                    value.name
+                )));
+            }
+        }
+        let mut family_parts = BTreeSet::new();
+        for (key, value) in &self.family_instances {
+            register(*key, value.id)?;
+            value.validate(self)?;
+            for id in value.children.values() {
+                if !family_parts.insert(*id) {
+                    return Err(ModelError::MultipleOwners(*id));
+                }
+            }
+        }
         let mut owners = BTreeMap::new();
         for (key, value) in &self.assemblies {
             register(*key, value.id)?;

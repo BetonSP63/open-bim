@@ -9,7 +9,8 @@ use std::collections::BTreeSet;
 
 pub type Rgba = [u8; 4];
 
-pub const WORK_AREA: Rgba = [0, 150, 60, 255];
+/// Work area box: thin solid light green.
+pub const WORK_AREA: Rgba = [70, 190, 90, 255];
 /// Grid lines: dash-dot (colours in the grid properties).
 pub const GRID_DASH: [f32; 4] = [12., 3., 1.5, 3.];
 pub const SNAP: Rgba = [230, 120, 0, 255];
@@ -27,8 +28,6 @@ pub const SNAP_LINE: Rgba = [0, 185, 195, 255];
 pub const AXIS_COLORS: [Rgba; 3] = [[210, 40, 40, 255], [20, 150, 50, 255], [30, 80, 220, 255]];
 /// Light theme background: white at the top fading to light lavender.
 pub const GRADIENT_LIGHT: [Rgba; 2] = [[253, 253, 255, 255], [196, 197, 222, 255]];
-/// Frame of the active view.
-pub const ACTIVE_VIEW: Rgba = [250, 190, 30, 255];
 pub const GRADIENT_DARK: [Rgba; 2] = [[20, 28, 40, 255], [6, 9, 13, 255]];
 /// At most this many selected objects get handles (bounded overlay cost).
 pub const MAX_HANDLES: usize = 500;
@@ -424,11 +423,11 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
         [95, 135, 150, 255]
     };
     let label_size = settings.label_size;
-    // Work area box (green dashed).
+    // Work area box (thin solid green).
     if let Some(area) = input.work_area {
         for (a, b) in box_edges(area) {
             if let (Some(a), Some(b)) = (p.screen(a), p.screen(b)) {
-                marks.push(line(a, b, WORK_AREA, 1.2, Some([6., 4.])));
+                marks.push(line(a, b, WORK_AREA, 1., None));
             }
         }
     }
@@ -654,27 +653,29 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
             fill: true,
         });
     }
-    // Axis gizmo, bottom-right corner.
+    // Axis gizmo, bottom-right corner: a coloured ball with its letter at
+    // the end of each axis, the farthest axis drawn first.
     let centre = [p.min[0] + p.size[0] - 48., p.min[1] + p.size[1] - 48.];
-    marks.push(Mark::Circle {
-        center: centre,
-        radius: 36.,
-        color: [140, 150, 165, 160],
-        fill: None,
-    });
-    for (i, (d, name)) in gizmo_directions(p.camera)
-        .iter()
-        .zip(["X", "Y", "Z"])
-        .enumerate()
-    {
-        let tip = add(centre, *d, 28.);
+    let directions = gizmo_directions(p.camera);
+    let forward = (p.camera.target - p.camera.eye()).normalize().to_array();
+    let mut order = [0, 1, 2];
+    order.sort_by(|a, b| forward[*b].total_cmp(&forward[*a]));
+    for i in order {
+        let d = directions[i];
+        let tip = add(centre, d, 28.);
         marks.push(line(centre, tip, AXIS_COLORS[i], 2.5, None));
+        marks.push(Mark::Circle {
+            center: tip,
+            radius: 7.,
+            color: AXIS_COLORS[i],
+            fill: Some(AXIS_COLORS[i]),
+        });
         marks.push(text(
-            add(centre, *d, 36.),
-            name,
-            AXIS_COLORS[i],
+            tip,
+            ["X", "Y", "Z"][i],
+            [255, 255, 255, 255],
             [0, 0],
-            12.,
+            10.,
         ));
     }
     // Selection handles.

@@ -67,6 +67,8 @@ pub(crate) struct Patch {
     construction: MapDelta<open_bim_model::Construction>,
     dimensions: MapDelta<open_bim_model::ModelDimension>,
     plugins: MapDelta<open_bim_model::PluginInstance>,
+    family_instances: MapDelta<open_bim_model::FamilyInstance>,
+    families: Option<Delta<BTreeMap<String, open_bim_model::Family>>>,
     /// Document attributes and changes before and after, when they differ.
     document: Option<Delta<(open_bim_model::DocumentInfo, Vec<open_bim_model::Change>)>>,
     /// Stored numbering marks before and after, when they differ.
@@ -98,6 +100,11 @@ impl Patch {
         let construction = differences(&before.construction, &after.construction);
         let dimensions = differences(&before.dimensions, &after.dimensions);
         let plugins = differences(&before.plugins, &after.plugins);
+        let family_instances = differences(&before.family_instances, &after.family_instances);
+        let families = (before.families != after.families).then(|| Delta {
+            before: Some(before.families.clone()),
+            after: Some(after.families.clone()),
+        });
         let document =
             (before.document != after.document || before.changes != after.changes).then(|| Delta {
                 before: Some((before.document.clone(), before.changes.clone())),
@@ -144,6 +151,7 @@ impl Patch {
             .chain(construction.keys())
             .chain(dimensions.keys())
             .chain(plugins.keys())
+            .chain(family_instances.keys())
             .copied()
             .collect();
         dependencies(before, &mut touched);
@@ -161,6 +169,8 @@ impl Patch {
             construction,
             dimensions,
             plugins,
+            family_instances,
+            families,
             document,
             numbering,
             grid,
@@ -189,6 +199,17 @@ impl Patch {
         apply(&mut project.construction, &self.construction, forward);
         apply(&mut project.dimensions, &self.dimensions, forward);
         apply(&mut project.plugins, &self.plugins, forward);
+        apply(
+            &mut project.family_instances,
+            &self.family_instances,
+            forward,
+        );
+        if let Some(delta) = &self.families {
+            let side = if forward { &delta.after } else { &delta.before };
+            if let Some(f) = side {
+                project.families = f.clone();
+            }
+        }
         if let Some(delta) = &self.document {
             let side = if forward { &delta.after } else { &delta.before };
             if let Some((document, changes)) = side {
@@ -279,6 +300,14 @@ fn dependencies(project: &Project, touched: &mut BTreeSet<ObjectId>) {
             }
             if !detail.kind.references().is_disjoint(touched) {
                 touched.insert(detail.id);
+            }
+        }
+        for instance in project.family_instances.values() {
+            if touched.contains(&instance.id)
+                || instance.children.values().any(|id| touched.contains(id))
+            {
+                touched.insert(instance.id);
+                touched.extend(instance.children.values());
             }
         }
         for assembly in project.assemblies.values() {

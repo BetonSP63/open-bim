@@ -49,6 +49,7 @@ pub enum Cmd {
     FormworkProps,
     FormworkSchedule,
     Item,
+    Families,
     AddedMaterial,
     ConvertToItem,
     CreateShape,
@@ -574,6 +575,13 @@ pub const ALL: &[Spec] = &[
         category: "Построения",
         shortcut: None,
         keywords: "элемент форма вставить каталог форм",
+    },
+    Spec {
+        cmd: Cmd::Families,
+        label: "Семейства",
+        category: "Построения",
+        shortcut: None,
+        keywords: "семейство параметрическое типоразмер каталог разместить столик стремянка",
     },
     Spec {
         cmd: Cmd::AddedMaterial,
