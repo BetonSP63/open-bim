@@ -123,6 +123,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     small(Cmd::ToolStiffener, Icon::Plate, "Ребро"),
                     small(Cmd::ToolTwin, Icon::Beam, "Сдвоенный профиль"),
                     small(Cmd::Item, Icon::Plate, "Элемент"),
+                    small(Cmd::Families, Icon::Component, "Семейства"),
                 ],
             ),
             (
@@ -175,6 +176,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                 "Элементы",
                 vec![
                     small(Cmd::Item, Icon::Assembly, "Элемент"),
+                    small(Cmd::Families, Icon::Component, "Семейства"),
                     small(Cmd::CastUnit, Icon::Assembly, "ЖБ элемент"),
                 ],
             ),
