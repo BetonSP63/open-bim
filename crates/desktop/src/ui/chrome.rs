@@ -1630,35 +1630,24 @@ impl Workbench {
                                 .value()
                                 .and_then(|id| project.profiles.get(id))
                                 .map_or(VARIES, |p| p.name.as_str());
-                            egui::ComboBox::new("ctx profile", "")
-                                .selected_text(shown)
-                                .height(420.)
-                                .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-                                .show_ui(ui, |ui| {
-                                    match super::catalog_picker::profile_menu(
-                                        ui,
-                                        "ctx",
-                                        project,
-                                        profile.value().copied(),
-                                    ) {
-                                        Some(super::catalog_picker::Pick::Project(id)) => {
-                                            change.profile = Some(id)
-                                        }
-                                        Some(super::catalog_picker::Pick::New(p)) => {
-                                            change.profile = Some(p.id);
-                                            change.new_profile = Some(p);
-                                        }
-                                        None => {}
-                                    }
-                                })
-                                .response
-                                .widget_info(|| {
-                                    egui::WidgetInfo::labeled(
-                                        egui::WidgetType::ComboBox,
-                                        true,
-                                        "Профиль выбранных",
-                                    )
-                                });
+                            match super::profile_dialog::profile_field(
+                                ui,
+                                "ctx",
+                                project,
+                                profile.value().copied(),
+                                shown,
+                                "Профиль выбранных",
+                                120.,
+                            ) {
+                                Some(super::catalog_picker::Pick::Project(id)) => {
+                                    change.profile = Some(id)
+                                }
+                                Some(super::catalog_picker::Pick::New(p)) => {
+                                    change.profile = Some(p.id);
+                                    change.new_profile = Some(p);
+                                }
+                                None => {}
+                            }
                         }
                         let shown = c
                             .material
@@ -1943,36 +1932,25 @@ impl Workbench {
                             )
                             .unwrap_or(VARIES)
                             .to_string();
-                            egui::ComboBox::new("pane profile", "")
-                                .selected_text(shown)
-                                .width(super::property_pane::field_width(ui))
-                                .height(420.)
-                                .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-                                .show_ui(ui, |ui| {
-                                    match super::catalog_picker::profile_menu(
-                                        ui,
-                                        "pane",
-                                        project,
-                                        self.pane.profile,
-                                    ) {
-                                        Some(super::catalog_picker::Pick::Project(id)) => {
-                                            self.pane.profile = Some(id)
-                                        }
-                                        Some(super::catalog_picker::Pick::New(p)) => {
-                                            self.pane.profile = Some(p.id);
-                                            self.pane.pending_profile = Some(p);
-                                        }
-                                        None => {}
-                                    }
-                                })
-                                .response
-                                .widget_info(|| {
-                                    egui::WidgetInfo::labeled(
-                                        egui::WidgetType::ComboBox,
-                                        true,
-                                        "Профиль",
-                                    )
-                                });
+                            let width = super::property_pane::field_width(ui);
+                            match super::profile_dialog::profile_field(
+                                ui,
+                                "pane",
+                                project,
+                                self.pane.profile,
+                                &shown,
+                                "Профиль",
+                                width,
+                            ) {
+                                Some(super::catalog_picker::Pick::Project(id)) => {
+                                    self.pane.profile = Some(id)
+                                }
+                                Some(super::catalog_picker::Pick::New(p)) => {
+                                    self.pane.profile = Some(p.id);
+                                    self.pane.pending_profile = Some(p);
+                                }
+                                None => {}
+                            }
                             if matches!(profile, Shared::Varies) && self.pane.profile.is_none() {
                                 ui.small(VARIES);
                             }

@@ -1,6 +1,8 @@
-//! Formulas of custom components: numbers, named values, `+ - * / ^`,
-//! brackets and the functions `min`, `max`, `abs`, `sqrt`, `round`, `ceil`,
-//! `floor` and `if(c, a, b)` (a when c > 0, otherwise b). Arguments are
+//! Formulas of custom components and families: numbers, named values,
+//! `+ - * / ^`, brackets, the comparisons `< > = <> <= >=` (1 when true,
+//! otherwise 0) and the functions `min`, `max`, `abs`, `sqrt`, `round`,
+//! `ceil`, `floor`, `if(c, a, b)` (a when c > 0, otherwise b), `and`, `or`,
+//! `not` and `sin`, `cos`, `tan`, `atan` in degrees. Arguments are
 //! separated by `,` or `;`. Names are letters (Latin or Cyrillic), digits
 //! and `_`, starting with a letter or `_`.
 use std::collections::BTreeMap;
@@ -42,6 +44,17 @@ fn tokens(src: &str) -> Result<Vec<Token>, String> {
         } else if "+-*/^(),;".contains(c) {
             out.push(Token::Op(if c == ';' { ',' } else { c }));
             i += 1;
+        } else if "<>=".contains(c) {
+            // Two-character comparisons become one sign.
+            let next = chars.get(i + 1).copied();
+            let (op, len) = match (c, next) {
+                ('<', Some('=')) => ('≤', 2),
+                ('>', Some('=')) => ('≥', 2),
+                ('<', Some('>')) => ('≠', 2),
+                _ => (c, 1),
+            };
+            out.push(Token::Op(op));
+            i += len;
         } else {
             return Err(format!("Недопустимый знак «{c}»"));
         }
@@ -55,6 +68,9 @@ struct Parser<'a> {
     at: usize,
     values: &'a dyn Fn(&str) -> Option<f64>,
     depth: usize,
+    /// Inside the branch `if` does not take: arithmetic errors there give 0,
+    /// so `if(n > 1, B / (n - 1), 0)` works at n = 1.
+    muted: usize,
 }
 
 impl Parser<'_> {
@@ -68,6 +84,49 @@ impl Parser<'_> {
         } else {
             false
         }
+    }
+    /// `if(c, a, b)` after its «(»: only the branch taken may fail.
+    fn branch(&mut self) -> Result<f64, String> {
+        let wrong = || Err("«if» принимает три значения: условие, да, нет".into());
+        let c = self.compare()?;
+        let mut picked = 0.;
+        for take in [c > 0., c <= 0.] {
+            if !self.eat(',') {
+                return wrong();
+            }
+            self.muted += usize::from(!take);
+            let v = self.compare();
+            self.muted -= usize::from(!take);
+            if take {
+                picked = v?;
+            } else {
+                v?;
+            }
+        }
+        if !self.eat(')') {
+            return wrong();
+        }
+        Ok(picked)
+    }
+    /// A sum, or two sums compared.
+    fn compare(&mut self) -> Result<f64, String> {
+        let a = self.expr()?;
+        let Some(Token::Op(op @ ('<' | '>' | '=' | '≤' | '≥' | '≠'))) = self.peek() else {
+            return Ok(a);
+        };
+        self.at += 1;
+        let b = self.expr()?;
+        // Lengths come from formulas, so equal means equal to a micron.
+        let eq = (a - b).abs() < 1e-6;
+        let yes = match op {
+            '<' => a < b && !eq,
+            '>' => a > b && !eq,
+            '=' => eq,
+            '≤' => a < b || eq,
+            '≥' => a > b || eq,
+            _ => !eq,
+        };
+        Ok(if yes { 1. } else { 0. })
     }
     fn expr(&mut self) -> Result<f64, String> {
         self.depth += 1;
@@ -95,9 +154,13 @@ impl Parser<'_> {
             } else if self.eat('/') {
                 let d = self.unary()?;
                 if d == 0. {
-                    return Err("Деление на ноль".into());
+                    if self.muted == 0 {
+                        return Err("Деление на ноль".into());
+                    }
+                    v = 0.;
+                } else {
+                    v /= d;
                 }
-                v /= d;
             } else {
                 break;
             }
@@ -125,7 +188,7 @@ impl Parser<'_> {
             }
             Some(Token::Op('(')) => {
                 self.at += 1;
-                let v = self.expr()?;
+                let v = self.compare()?;
                 if !self.eat(')') {
                     return Err("Не закрыта скобка".into());
                 }
@@ -134,11 +197,14 @@ impl Parser<'_> {
             Some(Token::Name(a, b)) => {
                 self.at += 1;
                 let name: String = self.chars[a..b].iter().collect();
+                if name == "if" && self.eat('(') {
+                    return self.branch();
+                }
                 if self.eat('(') {
                     let mut args = Vec::new();
                     if !self.eat(')') {
                         loop {
-                            args.push(self.expr()?);
+                            args.push(self.compare()?);
                             if self.eat(')') {
                                 break;
                             }
@@ -147,12 +213,23 @@ impl Parser<'_> {
                             }
                         }
                     }
-                    call(&name, &args)
+                    match call(&name, &args) {
+                        Err(_) if self.muted > 0 => Ok(0.),
+                        result => result,
+                    }
                 } else {
                     (self.values)(&name).ok_or_else(|| format!("Неизвестное имя «{name}»"))
                 }
             }
-            Some(Token::Op(c)) => Err(format!("Неожиданный знак «{c}»")),
+            Some(Token::Op(c)) => {
+                let sign = match c {
+                    '≤' => "<=".to_string(),
+                    '≥' => ">=".to_string(),
+                    '≠' => "<>".to_string(),
+                    _ => c.to_string(),
+                };
+                Err(format!("Неожиданный знак «{sign}»"))
+            }
             None => Err("Формула оборвана".into()),
         }
     }
@@ -181,8 +258,20 @@ fn call(name: &str, args: &[f64]) -> Result<f64, String> {
         "round" => one().map(f64::round),
         "ceil" => one().map(f64::ceil),
         "floor" => one().map(f64::floor),
-        "if" if args.len() == 3 => Ok(if args[0] > 0. { args[1] } else { args[2] }),
-        "if" => Err("«if» принимает три значения: условие, да, нет".into()),
+        "and" | "or" if args.is_empty() => Err(format!("«{name}» без значений")),
+        "and" => Ok(f64::from(u8::from(args.iter().all(|v| *v > 0.)))),
+        "or" => Ok(f64::from(u8::from(args.iter().any(|v| *v > 0.)))),
+        "not" => one().map(|v| f64::from(u8::from(v <= 0.))),
+        "sin" => one().map(|v| v.to_radians().sin()),
+        "cos" => one().map(|v| v.to_radians().cos()),
+        "tan" => one().and_then(|v| {
+            if (v.rem_euclid(180.) - 90.).abs() < 1e-9 {
+                Err("Тангенс 90° не определён".into())
+            } else {
+                Ok(v.to_radians().tan())
+            }
+        }),
+        "atan" => one().map(|v| v.atan().to_degrees()),
         _ => Err(format!("Неизвестная функция «{name}»")),
     }
 }
@@ -198,11 +287,12 @@ pub fn eval_with(src: &str, values: &dyn Fn(&str) -> Option<f64>) -> Result<f64,
         at: 0,
         values,
         depth: 0,
+        muted: 0,
     };
     if p.tokens.is_empty() {
         return Err("Пустая формула".into());
     }
-    let v = p.expr()?;
+    let v = p.compare()?;
     if p.at != p.tokens.len() {
         return Err("Лишнее в конце формулы".into());
     }
@@ -217,13 +307,18 @@ pub fn eval(src: &str, values: &BTreeMap<String, f64>) -> Result<f64, String> {
     eval_with(src, &|name| values.get(name).copied())
 }
 
+const FUNCTIONS: [&str; 15] = [
+    "min", "max", "abs", "sqrt", "round", "ceil", "floor", "if", "and", "or", "not", "sin", "cos",
+    "tan", "atan",
+];
+
 /// Whether `name` can be used as a variable name in formulas.
 pub fn valid_name(name: &str) -> bool {
     let mut chars = name.chars();
     chars.next().is_some_and(|c| c.is_alphabetic() || c == '_')
         && chars.all(|c| c.is_alphanumeric() || c == '_')
         && name.chars().count() <= 32
-        && !["min", "max", "abs", "sqrt", "round", "ceil", "floor", "if"].contains(&name)
+        && !FUNCTIONS.contains(&name)
 }
 
 #[cfg(test)]
@@ -248,6 +343,29 @@ mod tests {
             v("sqrt(9) + abs(-1) + round(2.5) + floor(1.9)").unwrap(),
             8.
         );
+    }
+
+    #[test]
+    fn comparisons_logic_and_degrees() {
+        assert_eq!(v("h > 200").unwrap(), 1.);
+        assert_eq!(v("h <= 200").unwrap(), 0.);
+        assert_eq!(v("h = 300").unwrap(), 1.);
+        assert_eq!(v("h <> 300").unwrap(), 0.);
+        assert_eq!(v("if(h >= 300; 1; 2)").unwrap(), 1.);
+        assert_eq!(v("and(h > 0, ширина < 100)").unwrap(), 0.);
+        assert_eq!(v("or(h > 0, ширина < 100)").unwrap(), 1.);
+        assert_eq!(v("not(h < 1)").unwrap(), 1.);
+        assert!((v("sin(30)").unwrap() - 0.5).abs() < 1e-12);
+        assert!((v("atan(1)").unwrap() - 45.).abs() < 1e-12);
+        assert!(v("tan(90)").is_err());
+        assert_eq!(v("if(h > 1000, h / 0, 5)").unwrap(), 5.);
+        assert_eq!(v("if(h > 1000, sqrt(-1), 5)").unwrap(), 5.);
+        assert!(v("if(h > 0, h / 0, 5)").is_err());
+        assert!(v("if(h > 1000, x, 5)").is_err());
+        assert!(v("if(1, 2)").is_err());
+        assert!(v("h > > 1").unwrap_err().contains("«>»"));
+        assert!(v("<= 1").unwrap_err().contains("«<=»"));
+        assert!(!valid_name("not") && !valid_name("sin"));
     }
 
     #[test]

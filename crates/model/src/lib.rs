@@ -11,6 +11,7 @@ mod detailing;
 mod document_info;
 mod drawing;
 mod drawing_objects;
+pub mod family;
 pub mod formula;
 mod frame;
 pub mod library;
@@ -51,6 +52,11 @@ pub use drawing::{
     standard_scale,
 };
 pub use drawing_objects::{HatchPattern, LineType, SheetObject, SheetObjectKind};
+pub use family::{
+    Axis, BodyArray, BodyShape, Family, FamilyBody, FamilyInstance, FamilyParameter, FamilyPart,
+    FamilyType, FamilyValues, LocalShape, ParamKind, Placement, RefPlane, SpecMode,
+    rebuild_families, sample_families,
+};
 pub use frame::{Frame, GridAxis, GridSettings, Level};
 pub use management::{Hierarchy, ListEntry, Management, Storey, Task};
 pub use open_bim_geometry::{GeometryError, LengthMm, Point3};
