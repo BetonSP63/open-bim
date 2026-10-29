@@ -36,9 +36,8 @@ fn button(output: &egui::FullOutput, label: &str) -> Option<egui::Pos2> {
     let update = output.platform_output.accesskit_update.as_ref().unwrap();
     update.nodes.iter().find_map(|(_, n)| {
         let r = n.bounds()?;
-        (n.role() == Role::Button && n.label() == Some(label)).then(|| {
-            egui::pos2(((r.x0 + r.x1) / 2.) as f32, ((r.y0 + r.y1) / 2.) as f32)
-        })
+        (n.role() == Role::Button && n.label() == Some(label))
+            .then(|| egui::pos2(((r.x0 + r.x1) / 2.) as f32, ((r.y0 + r.y1) / 2.) as f32))
     })
 }
 
@@ -51,7 +50,11 @@ fn press(ctx: &egui::Context, b: &mut Workbench, label: &str) {
         pressed,
         modifiers: Default::default(),
     };
-    frame(ctx, b, vec![egui::Event::PointerMoved(at), ev(true), ev(false)]);
+    frame(
+        ctx,
+        b,
+        vec![egui::Event::PointerMoved(at), ev(true), ev(false)],
+    );
     frame(ctx, b, vec![]);
 }
 
