@@ -190,7 +190,7 @@ fn the_field_is_a_named_button_that_opens_the_window() {
         };
         let mut out = ctx.run_ui(input, |ui| {
             egui::CentralPanel::default().show(ui, |ui| {
-                profile_field(ui, "field", &project, None, "30Б1", "Профиль");
+                profile_field(ui, "field", &project, None, "30Б1", "Профиль", 120.);
             });
         });
         out.textures_delta.clear();

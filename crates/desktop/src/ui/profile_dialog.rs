@@ -495,12 +495,13 @@ pub fn profile_field(
     current: Option<ObjectId>,
     shown: &str,
     accessible: &str,
+    width: f32,
 ) -> Option<Pick<Profile>> {
     let id = egui::Id::new((salt, "profile dialog state"));
     let mut dialog: ProfileDialog = ui.data_mut(|d| d.get_temp(id)).unwrap_or_default();
     let accessible = accessible.to_string();
     let response = ui
-        .add(egui::Button::new(format!("{shown}  …")).min_size(egui::vec2(120., 0.)))
+        .add(egui::Button::new(format!("{shown}  …")).min_size(egui::vec2(width, 0.)))
         .on_hover_text("Выбор профиля из каталога");
     response.widget_info(|| {
         egui::WidgetInfo::labeled(egui::WidgetType::Button, true, accessible.clone())

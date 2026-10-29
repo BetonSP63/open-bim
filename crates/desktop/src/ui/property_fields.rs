@@ -244,68 +244,63 @@ impl FieldBuffer {
             .get(open_bim_ifc::IFC_ENTITY_PROPERTY)
             .cloned()
             .unwrap_or_default();
-        egui::Grid::new(("property fields", section))
-            .num_columns(2)
-            .show(ui, |ui| {
-                for f in FIELDS.iter().filter(|f| f.section == section) {
-                    let label = ui.label(f.label);
-                    let value = self.values.entry(f.key).or_default();
-                    match f.kind {
-                        Kind::Text | Kind::Number => {
-                            ui.add(egui::TextEdit::singleline(value).desired_width(140.))
-                                .labelled_by(label.id);
-                        }
-                        Kind::IfcEntity => {
-                            let shown = if value.is_empty() {
-                                "По типу объекта".to_string()
-                            } else {
-                                value.clone()
-                            };
-                            egui::ComboBox::new(("field", f.key), "")
-                                .selected_text(shown)
-                                .show_ui(ui, |ui| {
-                                    ui.selectable_value(value, String::new(), "По типу объекта");
-                                    for (e, _) in open_bim_ifc::ENTITIES {
-                                        ui.selectable_value(value, e.to_string(), *e);
-                                    }
-                                })
-                                .response
-                                .widget_info(|| {
-                                    egui::WidgetInfo::labeled(
-                                        egui::WidgetType::ComboBox,
-                                        true,
-                                        f.label,
-                                    )
-                                });
-                        }
-                        Kind::IfcPredefined => {
-                            let types = open_bim_ifc::predefined_types(&entity).unwrap_or(&[]);
-                            let shown = if value.is_empty() {
-                                "По умолчанию".to_string()
-                            } else {
-                                value.clone()
-                            };
-                            egui::ComboBox::new(("field", f.key), "")
-                                .selected_text(shown)
-                                .show_ui(ui, |ui| {
-                                    ui.selectable_value(value, String::new(), "По умолчанию");
-                                    for t in types {
-                                        ui.selectable_value(value, t.to_string(), *t);
-                                    }
-                                })
-                                .response
-                                .widget_info(|| {
-                                    egui::WidgetInfo::labeled(
-                                        egui::WidgetType::ComboBox,
-                                        true,
-                                        f.label,
-                                    )
-                                });
-                        }
+        super::property_pane::rows(ui, ("property fields", section), |ui| {
+            for f in FIELDS.iter().filter(|f| f.section == section) {
+                let label = ui.label(f.label);
+                let value = self.values.entry(f.key).or_default();
+                match f.kind {
+                    Kind::Text | Kind::Number => {
+                        ui.add(
+                            egui::TextEdit::singleline(value)
+                                .desired_width(super::property_pane::field_width(ui)),
+                        )
+                        .labelled_by(label.id);
                     }
-                    ui.end_row();
+                    Kind::IfcEntity => {
+                        let shown = if value.is_empty() {
+                            "По типу объекта".to_string()
+                        } else {
+                            value.clone()
+                        };
+                        egui::ComboBox::new(("field", f.key), "")
+                            .selected_text(shown)
+                            .width(super::property_pane::field_width(ui))
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(value, String::new(), "По типу объекта");
+                                for (e, _) in open_bim_ifc::ENTITIES {
+                                    ui.selectable_value(value, e.to_string(), *e);
+                                }
+                            })
+                            .response
+                            .widget_info(|| {
+                                egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, f.label)
+                            });
+                    }
+                    Kind::IfcPredefined => {
+                        let types = open_bim_ifc::predefined_types(&entity).unwrap_or(&[]);
+                        let shown = if value.is_empty() {
+                            "По умолчанию".to_string()
+                        } else {
+                            value.clone()
+                        };
+                        egui::ComboBox::new(("field", f.key), "")
+                            .selected_text(shown)
+                            .width(super::property_pane::field_width(ui))
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(value, String::new(), "По умолчанию");
+                                for t in types {
+                                    ui.selectable_value(value, t.to_string(), *t);
+                                }
+                            })
+                            .response
+                            .widget_info(|| {
+                                egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, f.label)
+                            });
+                    }
                 }
-            });
+                ui.end_row();
+            }
+        });
     }
 }
 
