@@ -251,6 +251,14 @@ pub struct FamiliesWindow {
 }
 
 impl FamiliesWindow {
+    /// Families of the catalogue as last shown (project, folder, samples).
+    pub fn library(&self, project: &Project) -> Vec<Family> {
+        catalogue(project, &self.folder)
+            .into_iter()
+            .map(|(f, _)| f)
+            .collect()
+    }
+
     /// Read the folder again on the next show.
     pub fn reload(&mut self) {
         self.loaded_from = None;

@@ -22,6 +22,9 @@ pub const MAX_FAMILY_TYPES: usize = 256;
 pub const MAX_ARRAY_COUNT: usize = 200;
 pub const MAX_FAMILY_PARTS: usize = 2000;
 
+/// Deepest nesting of families in families.
+pub const MAX_NESTING: usize = 4;
+
 /// Names every family formula may use without defining them: the base
 /// planes and the placement length.
 pub const FAMILY_BUILTINS: [&str; 4] = ["X0", "Y0", "Z0", "L"];
@@ -169,6 +172,21 @@ pub enum BodyShape {
         #[serde(default, skip_serializing_if = "String::is_empty")]
         rotation: String,
     },
+    /// A nested family (one of `Family::nested`) with its insertion point
+    /// at `at`, turned about Z by `rotation` degrees; `values` give its
+    /// parameters (type ones too) as formulas over this family's names, or
+    /// a text / text parameter for material, profile and text kinds; `L`
+    /// sets its length.
+    Nested {
+        family: String,
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        type_name: String,
+        at: [String; 3],
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        rotation: String,
+        #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+        values: BTreeMap<String, String>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -223,6 +241,10 @@ pub struct Family {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub planes: Vec<RefPlane>,
     pub bodies: Vec<FamilyBody>,
+    /// Families its bodies nest, carried inside so the definition stands
+    /// alone.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub nested: Vec<Family>,
 }
 
 /// Evaluated parameter and plane values of one family object.
@@ -283,7 +305,25 @@ impl Family {
         self.types.iter().find(|t| t.name == name)
     }
 
+    pub fn nested_family(&self, name: &str) -> Option<&Family> {
+        self.nested.iter().find(|f| f.name == name)
+    }
+
     pub fn validate(&self) -> Result<(), ModelError> {
+        self.validate_at(0)
+    }
+
+    fn validate_at(&self, depth: usize) -> Result<(), ModelError> {
+        if depth > MAX_NESTING {
+            return bad(format!("Семейства вложены глубже {MAX_NESTING} уровней"));
+        }
+        let mut nested = BTreeSet::new();
+        for n in &self.nested {
+            if !nested.insert(&n.name) {
+                return bad(format!("Вложенное семейство «{}» повторяется", n.name));
+            }
+            n.validate_at(depth + 1)?;
+        }
         let name = self.name.trim();
         if name.is_empty() || name.chars().count() > 128 || name != self.name {
             return bad("Имя семейства: от 1 до 128 знаков без пробелов по краям".into());
@@ -414,8 +454,110 @@ impl Family {
                         return bad(what("укажите профиль; формулы до 256 знаков"));
                     }
                 }
+                BodyShape::Nested {
+                    family,
+                    type_name,
+                    at,
+                    rotation,
+                    values,
+                } => {
+                    let Some(child) = self.nested_family(family) else {
+                        return bad(what(&format!("нет вложенного семейства «{family}»")));
+                    };
+                    if !type_name.is_empty() && child.family_type(type_name).is_none() {
+                        return bad(what(&format!("у «{family}» нет типоразмера «{type_name}»")));
+                    }
+                    for (k, v) in values {
+                        let known =
+                            k == "L" || child.parameter(k).is_some_and(|p| p.formula.is_empty());
+                        if !known {
+                            return bad(what(&format!("у «{family}» нет параметра «{k}»")));
+                        }
+                        if long(v) {
+                            return bad(what("формула слишком длинная"));
+                        }
+                    }
+                    if long(rotation) || at.iter().any(|f| long(f)) {
+                        return bad(what("формула слишком длинная"));
+                    }
+                }
             }
         }
+        Ok(())
+    }
+
+    /// The type sizes as CSV for a spreadsheet: «;» between fields, the
+    /// first column the type name, then one column per type parameter;
+    /// an empty cell keeps the parameter's default.
+    pub fn types_csv(&self) -> String {
+        let columns: Vec<&str> = self
+            .parameters
+            .iter()
+            .filter(|p| p.of_type)
+            .map(|p| p.name.as_str())
+            .collect();
+        let field = |v: &str| {
+            if v.contains([';', '"', '\n']) {
+                format!("\"{}\"", v.replace('"', "\"\""))
+            } else {
+                v.to_string()
+            }
+        };
+        let mut out = std::iter::once("Типоразмер")
+            .chain(columns.iter().copied())
+            .map(field)
+            .collect::<Vec<_>>()
+            .join(";");
+        out.push('\n');
+        for t in &self.types {
+            let row: Vec<String> = std::iter::once(field(&t.name))
+                .chain(
+                    columns
+                        .iter()
+                        .map(|c| field(t.values.get(*c).map(String::as_str).unwrap_or(""))),
+                )
+                .collect();
+            out.push_str(&row.join(";"));
+            out.push('\n');
+        }
+        out
+    }
+
+    /// Replace the type sizes with those of `csv` (as `types_csv` writes
+    /// it; «,» also separates fields when the header has no «;»).
+    pub fn read_types_csv(&mut self, csv: &str) -> Result<(), String> {
+        let csv = csv.trim_start_matches('\u{feff}');
+        let header_line = csv.lines().next().ok_or("Пустой файл")?;
+        let sep = if header_line.contains(';') { ';' } else { ',' };
+        let rows = csv_rows(csv, sep)?;
+        let (header, rows) = rows.split_first().ok_or("Пустой файл")?;
+        for name in &header[1..] {
+            if !self.parameter(name).is_some_and(|p| p.of_type) {
+                return Err(format!("«{name}» не параметр типа этого семейства"));
+            }
+        }
+        let mut types = Vec::new();
+        for (i, row) in rows.iter().enumerate() {
+            if row.iter().all(|c| c.trim().is_empty()) {
+                continue;
+            }
+            if row.len() > header.len() {
+                return Err(format!("Строка {}: лишние значения", i + 2));
+            }
+            types.push(FamilyType {
+                name: row[0].trim().to_string(),
+                values: header[1..]
+                    .iter()
+                    .zip(&row[1..])
+                    .filter(|(_, v)| !v.trim().is_empty())
+                    .map(|(k, v)| (k.trim().to_string(), v.trim().to_string()))
+                    .collect(),
+            });
+        }
+        let mut next = self.clone();
+        next.types = types;
+        next.validate().map_err(|e| e.to_string())?;
+        *self = next;
         Ok(())
     }
 
@@ -429,6 +571,19 @@ impl Family {
         length: f64,
         extra: &BTreeMap<String, f64>,
     ) -> Result<FamilyValues, String> {
+        self.values_with(type_name, instance, length, extra, false)
+    }
+
+    /// `values`; with `nested` the given values may set type parameters
+    /// too, as a host family sets those of a family it nests.
+    fn values_with(
+        &self,
+        type_name: &str,
+        instance: &BTreeMap<String, String>,
+        length: f64,
+        extra: &BTreeMap<String, f64>,
+        nested: bool,
+    ) -> Result<FamilyValues, String> {
         let family_type = if type_name.is_empty() {
             None
         } else {
@@ -439,7 +594,7 @@ impl Family {
         };
         for key in instance.keys() {
             match self.parameter(key) {
-                Some(p) if !p.of_type && p.formula.is_empty() => {}
+                Some(p) if (nested || !p.of_type) && p.formula.is_empty() => {}
                 Some(_) => {
                     return Err(format!(
                         "«{key}» задаётся типоразмером или формулой, а не у объекта"
@@ -454,10 +609,10 @@ impl Family {
         }
         let mut texts = BTreeMap::new();
         for p in &self.parameters {
-            let given = if p.of_type {
-                family_type.and_then(|t| t.values.get(&p.name))
-            } else {
-                instance.get(&p.name)
+            let given = match instance.get(&p.name) {
+                Some(v) if nested || !p.of_type => Some(v),
+                _ if p.of_type => family_type.and_then(|t| t.values.get(&p.name)),
+                _ => None,
             };
             let src = if p.formula.is_empty() {
                 given.unwrap_or(&p.value).as_str()
@@ -535,7 +690,10 @@ impl Family {
                 })
                 .unwrap_or(&b.material)
                 .clone();
-            let shape = match &b.shape {
+            // (role suffix, name, material, shape) of the body's pieces.
+            let single =
+                |shape: LocalShape| vec![(String::new(), b.name.clone(), material.clone(), shape)];
+            let pieces = match &b.shape {
                 BodyShape::Plate {
                     normal,
                     at,
@@ -552,7 +710,7 @@ impl Family {
                         let point = format!("точка {}", k + 1);
                         points.push([f(u, &point)?, f(v, &point)?]);
                     }
-                    plate(*normal, at, &points, t).map_err(|e| what(&e))?
+                    single(plate(*normal, at, &points, t).map_err(|e| what(&e))?)
                 }
                 BodyShape::Member {
                     profile,
@@ -581,25 +739,83 @@ impl Family {
                     } else {
                         f(rotation, "поворот")?
                     };
-                    LocalShape::Member {
+                    single(LocalShape::Member {
                         profile,
                         start: s,
                         end: e,
                         rotation,
+                    })
+                }
+                BodyShape::Nested {
+                    family,
+                    type_name,
+                    at,
+                    rotation,
+                    values: given,
+                } => {
+                    let child = self
+                        .nested_family(family)
+                        .ok_or_else(|| what(&format!("нет вложенного семейства «{family}»")))?;
+                    let mut mapped = BTreeMap::new();
+                    let mut length = 0.;
+                    for (k, src) in given {
+                        let what_k = format!("«{k}»");
+                        match child.parameter(k) {
+                            _ if k == "L" => length = f(src, &what_k)?,
+                            Some(p) if p.kind.numeric() => {
+                                mapped.insert(k.clone(), format!("{}", f(src, &what_k)?));
+                            }
+                            _ => {
+                                let text = values.texts.get(src).unwrap_or(src);
+                                mapped.insert(k.clone(), text.clone());
+                            }
+                        }
                     }
+                    let child_values = child
+                        .values_with(type_name, &mapped, length, &BTreeMap::new(), true)
+                        .map_err(|e| what(&format!("{family}: {e}")))?;
+                    let turn = if rotation.is_empty() {
+                        0.
+                    } else {
+                        f(rotation, "поворот")?
+                    }
+                    .to_radians();
+                    let (c, sn) = (turn.cos(), turn.sin());
+                    let place = Frame {
+                        origin: Point3([f(&at[0], "x")?, f(&at[1], "y")?, f(&at[2], "z")?]),
+                        axes: [[c, sn, 0.], [-sn, c, 0.], [0., 0., 1.]],
+                    };
+                    child
+                        .evaluate(&child_values)
+                        .map_err(|e| what(&e))?
+                        .into_iter()
+                        .map(|p| {
+                            (
+                                format!(".{}", p.role),
+                                p.name,
+                                p.material,
+                                placed(&p.shape, &place),
+                            )
+                        })
+                        .collect()
                 }
             };
             for k in 0..count {
-                if parts.len() >= MAX_FAMILY_PARTS {
-                    return Err(format!("Больше {MAX_FAMILY_PARTS} деталей в одном объекте"));
+                let shift = Frame {
+                    origin: Point3(step.map(|s| s * k as f64)),
+                    ..Frame::default()
+                };
+                for (suffix, name, material, shape) in &pieces {
+                    if parts.len() >= MAX_FAMILY_PARTS {
+                        return Err(format!("Больше {MAX_FAMILY_PARTS} деталей в одном объекте"));
+                    }
+                    parts.push(FamilyPart {
+                        role: format!("body-{i}-{k}{suffix}"),
+                        name: name.clone(),
+                        material: material.clone(),
+                        shape: placed(shape, &shift),
+                    });
                 }
-                let shift = step.map(|s| s * k as f64);
-                parts.push(FamilyPart {
-                    role: format!("body-{i}-{k}"),
-                    name: b.name.clone(),
-                    material: material.clone(),
-                    shape: moved(&shape, shift),
-                });
             }
         }
         if parts.is_empty() {
@@ -609,19 +825,55 @@ impl Family {
     }
 }
 
-fn moved(shape: &LocalShape, d: [f64; 3]) -> LocalShape {
-    let add = |p: Point3| Point3(std::array::from_fn(|i| p.0[i] + d[i]));
+/// Fields of `csv` by rows, with «"» quoting.
+fn csv_rows(csv: &str, sep: char) -> Result<Vec<Vec<String>>, String> {
+    let mut rows = Vec::new();
+    let mut row = Vec::new();
+    let mut field = String::new();
+    let mut quoted = false;
+    let mut chars = csv.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '"' if quoted && chars.peek() == Some(&'"') => {
+                field.push('"');
+                chars.next();
+            }
+            '"' => quoted = !quoted,
+            c if c == sep && !quoted => row.push(std::mem::take(&mut field)),
+            '\r' if !quoted => {}
+            '\n' if !quoted => {
+                row.push(std::mem::take(&mut field));
+                rows.push(std::mem::take(&mut row));
+            }
+            c => field.push(c),
+        }
+        if rows.len() > MAX_FAMILY_TYPES + 1 {
+            return Err(format!("Не больше {MAX_FAMILY_TYPES} типоразмеров"));
+        }
+    }
+    if quoted {
+        return Err("Не закрыты кавычки".into());
+    }
+    if !field.is_empty() || !row.is_empty() {
+        row.push(field);
+        rows.push(row);
+    }
+    Ok(rows)
+}
+
+/// `shape` in the coordinates `frame` is given in.
+fn placed(shape: &LocalShape, frame: &Frame) -> LocalShape {
     match shape {
         LocalShape::Plate {
             contour,
             thickness,
-            frame,
+            frame: own,
         } => LocalShape::Plate {
             contour: contour.clone(),
             thickness: *thickness,
             frame: Frame {
-                origin: add(frame.origin),
-                axes: frame.axes,
+                origin: frame.world(own.origin),
+                axes: own.axes.map(|a| direction(frame, a)),
             },
         },
         LocalShape::Member {
@@ -631,8 +883,8 @@ fn moved(shape: &LocalShape, d: [f64; 3]) -> LocalShape {
             rotation,
         } => LocalShape::Member {
             profile: profile.clone(),
-            start: add(*start),
-            end: add(*end),
+            start: frame.world(*start),
+            end: frame.world(*end),
             rotation: *rotation,
         },
     }
@@ -1020,6 +1272,7 @@ pub fn sample_families() -> Vec<Family> {
     };
     let seat = Family {
         name: s("Столик опорный"),
+        nested: Vec::new(),
         description: s("Горизонтальная пластина и рёбра под ней"),
         placement: Placement::Point,
         spec: SpecMode::Assembly,
@@ -1131,6 +1384,7 @@ pub fn sample_families() -> Vec<Family> {
     };
     let ladder = Family {
         name: s("Стремянка"),
+        nested: Vec::new(),
         description: s("Две тетивы и ступени с шагом; ставится по двум точкам"),
         placement: Placement::TwoPoints,
         spec: SpecMode::Assembly,
@@ -1313,6 +1567,89 @@ mod tests {
         let mut f = sample("Столик опорный");
         f.parameters[0].formula = "1".into();
         assert!(f.validate().is_err());
+    }
+
+    #[test]
+    fn types_round_trip_through_csv() {
+        let mut seat = sample("Столик опорный");
+        let csv = seat.types_csv();
+        assert!(csv.starts_with("Типоразмер;Материал;B;A;H;t\n"), "{csv}");
+        let mut copy = seat.clone();
+        copy.types.clear();
+        copy.read_types_csv(&csv).unwrap();
+        assert_eq!(copy.types, seat.types);
+        seat.read_types_csv("Типоразмер,B\nС-9,300\n\n\"С;10\",\"350\"\n")
+            .unwrap();
+        assert_eq!(seat.types.len(), 2);
+        assert_eq!(seat.types[1].name, "С;10");
+        assert!(seat.read_types_csv("Типоразмер;tr\nX;1").is_err());
+        assert!(seat.read_types_csv("Типоразмер;B\nX;1\nX;2").is_err());
+    }
+
+    #[test]
+    fn a_nested_family_follows_the_host_parameters() {
+        let seat = sample("Столик опорный");
+        let mut host = sample("Стремянка");
+        host.nested.push(seat);
+        host.bodies.push(FamilyBody {
+            name: "Площадка".into(),
+            material: "Материал".into(),
+            visible: String::new(),
+            array: Some(BodyArray {
+                count: "2".into(),
+                step: ["L".into(), "0".into(), "0".into()],
+            }),
+            shape: BodyShape::Nested {
+                family: "Столик опорный".into(),
+                type_name: "С-1".into(),
+                at: ["X0".into(), "Y0".into(), "Z0".into()],
+                rotation: "90".into(),
+                values: BTreeMap::from([
+                    ("B".to_string(), "B".to_string()),
+                    ("n".to_string(), "1".to_string()),
+                    ("Материал".to_string(), "Материал".to_string()),
+                ]),
+            },
+        });
+        host.validate().unwrap();
+        let values = host
+            .values("Ш600", &BTreeMap::new(), 3000., &BTreeMap::new())
+            .unwrap();
+        let parts = host.evaluate(&values).unwrap();
+        let nested: Vec<&FamilyPart> = parts
+            .iter()
+            .filter(|p| p.role.starts_with("body-2-"))
+            .collect();
+        // Two copies of a seat with one rib.
+        assert_eq!(nested.len(), 4);
+        assert_eq!(nested[0].role, "body-2-0.body-0-0");
+        assert_eq!(nested[2].role, "body-2-1.body-0-0");
+        let LocalShape::Plate { contour, frame, .. } = &nested[2].shape else {
+            panic!()
+        };
+        // The seat plate takes the ladder width (600) and turns 90° about Z:
+        // its width now runs along Y; the second copy stands at L.
+        let ys: Vec<f64> = contour
+            .iter()
+            .map(|p| frame.world(Point3([p[0], p[1], 0.])).0[1])
+            .collect();
+        let span = ys.iter().copied().fold(f64::MIN, f64::max)
+            - ys.iter().copied().fold(f64::MAX, f64::min);
+        assert!((span - 600.).abs() < 1e-6, "{span}");
+        assert!((frame.origin.0[0] - 3000.).abs() < 1e-6);
+        // A wrong nested name or a nesting cycle deeper than allowed fail.
+        let mut bad = host.clone();
+        if let BodyShape::Nested { family, .. } = &mut bad.bodies[2].shape {
+            *family = "Нет".into();
+        }
+        assert!(bad.validate().is_err());
+        let mut deep = sample("Столик опорный");
+        for _ in 0..=MAX_NESTING {
+            let mut up = sample("Столик опорный");
+            up.nested.push(deep);
+            deep = up;
+        }
+        assert!(deep.validate().is_err());
     }
 
     #[test]
