@@ -228,6 +228,8 @@ pub enum FamiliesAction {
         two_points: bool,
     },
     Message(String),
+    /// Open a copy in «Редактор семейств».
+    Edit(Family),
 }
 
 /// Values being edited for the selected family object.
@@ -291,7 +293,16 @@ impl FamiliesWindow {
             .open(&mut open)
             .default_width(420.)
             .show(ctx, |ui| {
-                ui.strong("Каталог");
+                ui.horizontal(|ui| {
+                    ui.strong("Каталог");
+                    if ui.small_button("Новое семейство").clicked() {
+                        let name = (1..)
+                            .map(|k| format!("Семейство {k}"))
+                            .find(|n| !list.iter().any(|(f, _)| &f.name == n))
+                            .unwrap_or_default();
+                        action = Some(FamiliesAction::Edit(super::family_editor::blank(&name)));
+                    }
+                });
                 egui::ScrollArea::vertical()
                     .id_salt("families-list")
                     .max_height(180.)
@@ -331,6 +342,9 @@ impl FamiliesWindow {
                         };
                         if ui.button(hint).clicked() {
                             action = Some(FamiliesAction::Place { two_points: two });
+                        }
+                        if ui.button("Редактировать").clicked() {
+                            action = Some(FamiliesAction::Edit(f.clone()));
                         }
                         if ui
                             .button("Сохранить в папку")

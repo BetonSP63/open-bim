@@ -324,6 +324,7 @@ pub struct Workbench {
     pub formwork: formwork_ui::FormworkUi,
     pub shapes: crate::interaction::items::ShapesWindow,
     pub families: crate::interaction::families::FamiliesWindow,
+    pub family_editor: crate::interaction::family_editor::FamilyEditor,
     /// «Изменить номер».
     pub change_number: crate::interaction::change_number::ChangeNumber,
     pub surfaces: crate::interaction::surfaces::Surfaces,
@@ -461,6 +462,7 @@ impl Workbench {
             formwork: Default::default(),
             shapes: Default::default(),
             families: Default::default(),
+            family_editor: Default::default(),
             change_number: Default::default(),
             surfaces: Default::default(),
             layout_manager: Default::default(),
@@ -3529,6 +3531,23 @@ impl Workbench {
                 self.message(self.prompt());
             }
             Some(crate::interaction::families::FamiliesAction::Message(m)) => self.message(m),
+            Some(crate::interaction::families::FamiliesAction::Edit(f)) => {
+                self.family_editor.edit(f)
+            }
+            None => {}
+        }
+        match self.family_editor.show(&ctx) {
+            Some(crate::interaction::family_editor::EditorAction::Commit(label, commands)) => {
+                requests.push(Request::Action(Action::Commit(label, commands)));
+            }
+            Some(crate::interaction::family_editor::EditorAction::Save(f)) => {
+                let dir = crate::interaction::families::folder(&self.tools.path);
+                match crate::interaction::families::save(&dir, &f) {
+                    Ok(p) => self.message(format!("Семейство сохранено: {}", p.display())),
+                    Err(e) => self.message(format!("Не удалось сохранить семейство: {e}")),
+                }
+                self.families.reload();
+            }
             None => {}
         }
         if let Some((label, commands)) =
