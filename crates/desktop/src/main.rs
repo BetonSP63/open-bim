@@ -243,6 +243,8 @@ impl Desktop {
             });
         }
         open_bim_desktop::ui::theme::apply(&cc.egui_ctx);
+        cc.egui_ctx
+            .set_fonts(open_bim_desktop::ui::theme::fonts_with_system());
         if let Some(zoom) = options.zoom {
             // Layout verification at a logical size larger than the display.
             cc.egui_ctx.set_zoom_factor(zoom);
@@ -1602,14 +1604,7 @@ impl eframe::App for Desktop {
                     },
                 );
             }
-            // The active view is framed in yellow; its projection is named in
-            // the window title.
-            ui.painter().rect_stroke(
-                rect.shrink(1.),
-                0.,
-                egui::Stroke::new(2.5, open_bim_desktop::viewport::color(overlay::ACTIVE_VIEW)),
-                egui::StrokeKind::Inside,
-            );
+            // The projection of the view is named in the window title.
             self.bench.view_title = if self.camera.orthographic {
                 "Вид 1 — ортогональный"
             } else {
