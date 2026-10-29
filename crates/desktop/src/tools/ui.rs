@@ -264,33 +264,34 @@ impl ToolsUi {
                         });
                     twin_editor(ui, &mut editor.draft);
                     let project = editor.document.project();
-                    egui::ComboBox::new("profile", "Профиль")
-                        .selected_text(
-                            project
-                                .profiles
-                                .get(&editor.draft.profile)
-                                .map_or("Выберите профиль", |p| p.name.as_str()),
-                        )
-                        .height(420.)
-                        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-                        .show_ui(ui, |ui| {
-                            use crate::ui::catalog_picker::{Pick, profile_menu};
-                            match profile_menu(ui, "draft", project, Some(editor.draft.profile)) {
-                                Some(Pick::Project(id)) => editor.draft.profile = id,
-                                // A catalogue profile is copied into the project
-                                // first (one undo step), then used.
-                                Some(Pick::New(p)) => {
-                                    editor.draft.profile = p.id;
-                                    action = Some(Action::Commit(
-                                        format!("Профиль из каталога: {}", p.name),
-                                        vec![open_bim_commands::Command::CreateProfile {
-                                            profile: p,
-                                        }],
-                                    ));
-                                }
-                                None => {}
+                    ui.horizontal(|ui| {
+                        ui.label("Профиль");
+                        let shown = project
+                            .profiles
+                            .get(&editor.draft.profile)
+                            .map_or("Выберите профиль", |p| p.name.as_str());
+                        use crate::ui::catalog_picker::Pick;
+                        match crate::ui::profile_dialog::profile_field(
+                            ui,
+                            "draft",
+                            project,
+                            Some(editor.draft.profile),
+                            shown,
+                            "Профиль",
+                        ) {
+                            Some(Pick::Project(id)) => editor.draft.profile = id,
+                            // A catalogue profile is copied into the project
+                            // first (one undo step), then used.
+                            Some(Pick::New(p)) => {
+                                editor.draft.profile = p.id;
+                                action = Some(Action::Commit(
+                                    format!("Профиль из каталога: {}", p.name),
+                                    vec![open_bim_commands::Command::CreateProfile { profile: p }],
+                                ));
                             }
-                        });
+                            None => {}
+                        }
+                    });
                 }
                 if editor.draft.kind != ToolKind::Axis && !editor.draft.kind.is_concrete() {
                     let project = editor.document.project();

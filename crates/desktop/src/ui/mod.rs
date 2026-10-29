@@ -18,6 +18,7 @@ pub mod keytips;
 pub mod management;
 pub mod palette;
 pub mod plugins;
+pub mod profile_dialog;
 pub mod property_fields;
 pub mod property_pane;
 pub mod rebar_ui;
