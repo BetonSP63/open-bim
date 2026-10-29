@@ -316,6 +316,7 @@ pub fn rebuild_gussets(project: &mut Project, previous: &Project) -> Result<(), 
                     sides: WeldSides::Both,
                     around: false,
                     process: Default::default(),
+                    gost: Default::default(),
                 },
             },
         );

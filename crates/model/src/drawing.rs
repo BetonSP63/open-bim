@@ -81,6 +81,29 @@ pub enum ViewDirection {
     Right,
 }
 
+impl ViewDirection {
+    pub const ALL: [Self; 6] = [
+        Self::Front,
+        Self::Top,
+        Self::Left,
+        Self::Back,
+        Self::Bottom,
+        Self::Right,
+    ];
+
+    /// Looking from the other side: front ↔ back, top ↔ bottom, left ↔ right.
+    pub fn opposite(self) -> Self {
+        match self {
+            Self::Front => Self::Back,
+            Self::Back => Self::Front,
+            Self::Top => Self::Bottom,
+            Self::Bottom => Self::Top,
+            Self::Left => Self::Right,
+            Self::Right => Self::Left,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DrawingView {

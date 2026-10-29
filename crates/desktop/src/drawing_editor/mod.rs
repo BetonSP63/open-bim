@@ -7,6 +7,7 @@ mod preview;
 pub mod properties;
 pub mod prototypes;
 pub mod tools;
+pub mod views;
 pub mod wizard;
 
 use crate::tools::Editor;
@@ -141,6 +142,7 @@ impl DrawingEditor {
         self.selected_dimension = None;
         self.selected_text = None;
         self.fields.load(self.drawing(project));
+        self.load_view_fields(project);
     }
 
     /// Part drawing of the first selected part (or the first part).

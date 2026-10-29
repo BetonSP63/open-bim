@@ -2,7 +2,8 @@ use super::{number, point};
 use eframe::egui;
 use open_bim_commands::Command;
 use open_bim_model::{
-    Detail, DetailKind, Frame, ObjectId, Project, WeldProcess, WeldSides, WeldType,
+    Detail, DetailKind, Frame, Intermittent, ObjectId, Project, WeldGost, WeldProcess, WeldSides,
+    WeldType,
 };
 use std::collections::BTreeSet;
 
@@ -73,6 +74,17 @@ pub struct DetailingUi {
     pub weld_sides: WeldSides,
     /// Welded all around («по контуру»).
     pub weld_around: bool,
+    /// Joint designation picked from the standard; empty — by type and sides.
+    pub weld_joint: String,
+    /// Welding method of the standard («УП», «АФ»); empty — not shown.
+    pub weld_method: String,
+    /// Intermittent weld: welded length and pitch, staggered.
+    pub weld_intermittent: bool,
+    pub weld_segment: String,
+    pub weld_pitch: String,
+    pub weld_staggered: bool,
+    /// Seen from the reverse side (designation under the shelf).
+    pub weld_back: bool,
     pub shop: bool,
     /// Bolt group shift along its X and Y from the picked start point, mm.
     pub shift_x: String,
@@ -112,6 +124,13 @@ impl Default for DetailingUi {
             weld_process: WeldProcess::Manual,
             weld_sides: WeldSides::One,
             weld_around: false,
+            weld_joint: String::new(),
+            weld_method: String::new(),
+            weld_intermittent: false,
+            weld_segment: "50".into(),
+            weld_pitch: "150".into(),
+            weld_staggered: false,
+            weld_back: false,
             shop: true,
             shift_x: "0".into(),
             shift_y: "0".into(),
@@ -197,6 +216,7 @@ impl DetailingUi {
                     sides: self.weld_sides,
                     around: self.weld_around,
                     process: self.weld_process,
+                    gost: self.weld_gost()?,
                 },
                 DetailTool::Bolts => unreachable!(),
             };
@@ -397,25 +417,93 @@ impl DetailingUi {
         Ok((steps_x, steps_y, points))
     }
 
-    /// Weld properties: type, sides, leg, all around, shop/site, and the
-    /// resulting designation.
-    pub fn weld_fields(&mut self, ui: &mut egui::Ui) {
-        let l = ui.label("Тип шва");
-        egui::ComboBox::from_id_salt("weld type")
-            .selected_text(self.weld_type.label())
-            .show_ui(ui, |ui| {
-                for t in WeldType::ALL {
-                    ui.selectable_value(&mut self.weld_type, t, t.label());
-                }
+    /// Designation details of ГОСТ 2.312 from the fields.
+    pub fn weld_gost(&self) -> Result<WeldGost, String> {
+        let intermittent = if self.weld_intermittent {
+            let length = number(&self.weld_segment)?;
+            let pitch = number(&self.weld_pitch)?;
+            if length <= 0. || pitch <= length {
+                return Err("Шаг прерывистого шва должен быть больше длины участка".into());
+            }
+            Some(Intermittent {
+                length,
+                pitch,
+                staggered: self.weld_staggered,
             })
-            .response
-            .labelled_by(l.id);
-        ui.horizontal(|ui| {
-            ui.selectable_value(&mut self.weld_sides, WeldSides::One, "Односторонний");
-            ui.selectable_value(&mut self.weld_sides, WeldSides::Both, "Двусторонний");
-        });
-        let l = ui.label("Способ сварки");
+        } else {
+            None
+        };
+        Ok(WeldGost {
+            joint: self.weld_joint.trim().to_string(),
+            method: self.weld_method.trim().to_string(),
+            intermittent,
+            back: self.weld_back,
+        })
+    }
+
+    /// Fill the weld fields from an existing weld.
+    pub fn load_weld(&mut self, kind: &DetailKind) {
+        let DetailKind::Weld {
+            weld_type,
+            size,
+            shop,
+            sides,
+            around,
+            process,
+            gost,
+            ..
+        } = kind
+        else {
+            return;
+        };
+        self.weld_type = *weld_type;
+        self.weld_size = mm(*size);
+        self.shop = *shop;
+        self.weld_sides = *sides;
+        self.weld_around = *around;
+        self.weld_process = *process;
+        self.weld_joint = gost.joint.clone();
+        self.weld_method = gost.method.clone();
+        self.weld_back = gost.back;
+        self.weld_intermittent = gost.intermittent.is_some();
+        if let Some(i) = gost.intermittent {
+            self.weld_segment = mm(i.length);
+            self.weld_pitch = mm(i.pitch);
+            self.weld_staggered = i.staggered;
+        }
+    }
+
+    /// The weld `kind` with the properties of the fields; path and parts stay.
+    pub fn apply_weld(&self, kind: &DetailKind) -> Result<DetailKind, String> {
+        let DetailKind::Weld { parts, path, .. } = kind else {
+            return Err("Это не сварной шов".into());
+        };
+        let size = number(&self.weld_size)?;
+        if size <= 0. {
+            return Err("Катет / размер шва должен быть больше 0".into());
+        }
+        Ok(DetailKind::Weld {
+            parts: parts.clone(),
+            weld_type: self.weld_type,
+            size,
+            path: path.clone(),
+            shop: self.shop,
+            sides: self.weld_sides,
+            around: self.weld_around,
+            process: self.weld_process,
+            gost: self.weld_gost()?,
+        })
+    }
+
+    /// Weld properties by the Russian standards: process (standard), joint
+    /// type and sides or a designation from the standard, method, leg,
+    /// intermittent weld, signs of ГОСТ 2.312, and the resulting designation
+    /// with what does not fit.
+    pub fn weld_fields(&mut self, ui: &mut egui::Ui) {
+        let l = ui.label("Способ сварки (стандарт)");
+        let before = self.weld_process;
         egui::ComboBox::from_id_salt("weld-process")
+            .width(ui.available_width())
             .selected_text(format!(
                 "{} ({})",
                 self.weld_process.label(),
@@ -427,29 +515,190 @@ impl DetailingUi {
                         &mut self.weld_process,
                         p,
                         format!("{} ({})", p.label(), p.standard()),
-                    );
+                    )
+                    .on_hover_text(p.title());
                 }
             })
             .response
             .labelled_by(l.id);
-        field(ui, "Катет / размер шва, мм", &mut self.weld_size);
-        ui.checkbox(&mut self.weld_around, "По контуру");
+        if before != self.weld_process {
+            // Another standard: its own methods and joint numbering.
+            if !self
+                .weld_process
+                .methods()
+                .iter()
+                .any(|(m, _)| *m == self.weld_method)
+            {
+                self.weld_method.clear();
+            }
+            if !self.weld_process.angled() {
+                self.weld_joint.clear();
+            }
+        }
+        let l = ui.label("Тип соединения");
+        egui::ComboBox::from_id_salt("weld type")
+            .width(ui.available_width())
+            .selected_text(self.weld_type.label())
+            .show_ui(ui, |ui| {
+                for t in WeldType::ALL {
+                    if ui
+                        .selectable_value(&mut self.weld_type, t, t.label())
+                        .changed()
+                    {
+                        self.weld_joint.clear();
+                    }
+                }
+            })
+            .response
+            .labelled_by(l.id);
+        ui.horizontal(|ui| {
+            for (s, caption) in [
+                (WeldSides::One, "Односторонний"),
+                (WeldSides::Both, "Двусторонний"),
+            ] {
+                if ui
+                    .selectable_value(&mut self.weld_sides, s, caption)
+                    .changed()
+                {
+                    self.weld_joint.clear();
+                }
+            }
+        });
+        // Designation from the standard's table, or typed by hand (joints
+        // under angles are numbered by the angle in their standards).
+        let catalog = self.weld_process.catalog();
+        let auto = self.weld_type.joint(self.weld_sides, self.weld_process);
+        let l = ui.label("Обозначение соединения по стандарту");
+        ui.horizontal(|ui| {
+            egui::ComboBox::from_id_salt("weld-joint")
+                .selected_text(if self.weld_joint.is_empty() {
+                    if auto.is_empty() {
+                        "—".to_string()
+                    } else {
+                        format!("{auto} (по типу)")
+                    }
+                } else {
+                    self.weld_joint.clone()
+                })
+                .show_ui(ui, |ui| {
+                    if !auto.is_empty() {
+                        ui.selectable_value(
+                            &mut self.weld_joint,
+                            String::new(),
+                            format!("{auto} — по типу и сторонам"),
+                        );
+                    }
+                    let mut kind = None;
+                    for j in &catalog {
+                        if kind != Some(j.weld_type.kind()) {
+                            kind = Some(j.weld_type.kind());
+                            ui.label(egui::RichText::new(j.weld_type.kind().label()).strong());
+                        }
+                        let caption = format!("{} — {}, {}", j.code, j.edges, j.sides.label());
+                        if ui
+                            .selectable_label(self.weld_joint == j.code, caption)
+                            .clicked()
+                        {
+                            self.weld_joint = j.code.into();
+                            self.weld_type = j.weld_type;
+                            self.weld_sides = j.sides;
+                        }
+                    }
+                })
+                .response
+                .labelled_by(l.id);
+            ui.add(
+                egui::TextEdit::singleline(&mut self.weld_joint)
+                    .hint_text("своё")
+                    .desired_width(60.),
+            )
+            .on_hover_text("Обозначение из таблицы стандарта, например «Т8» или «У4»");
+        });
+        let methods = self.weld_process.methods();
+        if !methods.is_empty() {
+            let l = ui.label("Условное обозначение способа сварки");
+            egui::ComboBox::from_id_salt("weld-method")
+                .width(ui.available_width())
+                .selected_text(if self.weld_method.is_empty() {
+                    "не указывать".to_string()
+                } else {
+                    self.weld_method.clone()
+                })
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut self.weld_method, String::new(), "не указывать");
+                    for (code, name) in methods {
+                        ui.selectable_value(
+                            &mut self.weld_method,
+                            (*code).to_string(),
+                            format!("{code} — {name}"),
+                        );
+                    }
+                })
+                .response
+                .labelled_by(l.id);
+        }
+        field(
+            ui,
+            if self.weld_type.has_leg() {
+                "Катет шва k, мм"
+            } else {
+                "Размер шва, мм"
+            },
+            &mut self.weld_size,
+        );
+        ui.checkbox(&mut self.weld_intermittent, "Прерывистый шов");
+        if self.weld_intermittent {
+            egui::Grid::new("weld intermittent")
+                .num_columns(2)
+                .show(ui, |ui| {
+                    for (caption, value) in [
+                        ("Длина участка l, мм", &mut self.weld_segment),
+                        ("Шаг t, мм", &mut self.weld_pitch),
+                    ] {
+                        let l = ui.label(caption);
+                        ui.add(egui::TextEdit::singleline(value).desired_width(60.))
+                            .labelled_by(l.id);
+                        ui.end_row();
+                    }
+                });
+            ui.horizontal(|ui| {
+                ui.selectable_value(&mut self.weld_staggered, false, "Цепной ( / )");
+                ui.selectable_value(&mut self.weld_staggered, true, "Шахматный ( Z )");
+            });
+        }
+        ui.checkbox(&mut self.weld_around, "По замкнутой линии (знак ○)");
         ui.horizontal(|ui| {
             ui.selectable_value(&mut self.shop, true, "Заводской");
-            ui.selectable_value(&mut self.shop, false, "Монтажный");
+            ui.selectable_value(&mut self.shop, false, "Монтажный (знак ┐)");
         });
-        if let Ok(size) = number(&self.weld_size) {
-            ui.small(format!(
-                "Обозначение: {}",
-                open_bim_model::weld_mark(
+        ui.horizontal(|ui| {
+            ui.selectable_value(&mut self.weld_back, false, "Лицевая сторона");
+            ui.selectable_value(&mut self.weld_back, true, "Оборотная");
+        })
+        .response
+        .on_hover_text("Шов с лицевой стороны — обозначение над полкой, с оборотной — под полкой");
+        match (number(&self.weld_size), self.weld_gost()) {
+            (Ok(size), Ok(gost)) => {
+                let mark = open_bim_model::weld_mark(
                     self.weld_process,
                     self.weld_type,
                     self.weld_sides,
                     size,
-                    self.weld_around,
-                    self.shop
-                )
-            ));
+                    &gost,
+                ) + &open_bim_model::weld_notes(self.weld_around, self.shop);
+                ui.label(format!("Обозначение: {mark}"));
+                for advice in open_bim_model::weld_advice(
+                    self.weld_process,
+                    self.weld_type,
+                    self.weld_sides,
+                    &gost,
+                ) {
+                    ui.colored_label(ui.visuals().warn_fg_color, format!("⚠ {advice}"));
+                }
+            }
+            (Err(e), _) | (_, Err(e)) => {
+                ui.colored_label(ui.visuals().warn_fg_color, e);
+            }
         }
     }
 
@@ -502,6 +751,15 @@ impl DetailingUi {
                 ui.colored_label(ui.visuals().error_fg_color, e);
             }
         }
+    }
+}
+
+/// A length for a text field: «6», «4.5».
+fn mm(v: f64) -> String {
+    if v.fract().abs() < 1e-9 {
+        format!("{v:.0}")
+    } else {
+        format!("{v}")
     }
 }
 

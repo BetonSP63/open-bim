@@ -11,6 +11,9 @@ pub struct Fields {
     pub title: String,
     pub scale: String,
     pub view: [String; 2],
+    pub view_name: String,
+    /// Section depth, model mm.
+    pub view_depth: String,
     pub offset: String,
     pub text: String,
     pub text_position: [String; 2],
@@ -258,42 +261,55 @@ impl DrawingEditor {
         if !sheet_list {
             ui.separator();
             ui.strong("Виды");
-            for view in &drawing.views {
-                let text = format!(
-                    "{} · {}{}",
-                    view.name,
-                    direction_label(view.direction),
-                    if view.section.is_some() {
-                        " · сечение"
-                    } else {
-                        ""
+            ui.horizontal_wrapped(|ui| {
+                use super::tools::DrawTool;
+                for (tool, hint) in [
+                    (
+                        DrawTool::View,
+                        "Новый вид по выбранному направлению: щёлкните его место",
+                    ),
+                    (
+                        DrawTool::Section,
+                        "Две точки линии разреза на виде, затем место разреза",
+                    ),
+                    (DrawTool::Node, "Центр и край узла на виде"),
+                ] {
+                    if ui
+                        .selectable_label(
+                            self.tool.tool == Some(tool),
+                            format!("+ {}", tool.label()),
+                        )
+                        .on_hover_text(hint)
+                        .clicked()
+                    {
+                        self.start_tool(tool);
                     }
-                );
+                }
+            });
+            for view in &drawing.views {
+                let kind = if view.section.is_some() {
+                    let n = open_bim_drawings::conventions::section_number(&drawing, view.id);
+                    format!(" · разрез {n}-{n}")
+                } else if view.node.is_some() {
+                    " · узел".into()
+                } else {
+                    String::new()
+                };
+                let text = format!("{} · {}{kind}", view.name, direction_label(view.direction),);
                 if ui
                     .selectable_label(self.selected_view == Some(view.id), text)
                     .clicked()
                 {
                     self.selected_view = Some(view.id);
-                    self.fields.view = view.position.map(|x| format!("{x:.1}"));
+                    self.load_view_fields(editor.document.project());
                 }
             }
-            if let Some(view) = self.selected_view {
-                ui.horizontal(|ui| {
-                    let l = ui.label("Центр X");
-                    ui.add(egui::TextEdit::singleline(&mut self.fields.view[0]).desired_width(60.))
-                        .labelled_by(l.id)
-                        .on_hover_text("Центр вида X, мм");
-                    let l = ui.label("Y");
-                    ui.add(egui::TextEdit::singleline(&mut self.fields.view[1]).desired_width(60.))
-                        .labelled_by(l.id)
-                        .on_hover_text("Центр вида Y, мм");
-                    if ui.button("Переместить вид").clicked() {
-                        let r = number(&self.fields.view[0])
-                            .and_then(|x| Ok([x, number(&self.fields.view[1])?]))
-                            .and_then(|p| self.move_view(editor, view, p));
-                        report(self, r);
-                    }
-                });
+            if let Some(view) = self
+                .selected_view
+                .and_then(|id| drawing.views.iter().find(|v| v.id == id))
+                .cloned()
+            {
+                self.view_properties(ui, editor, &drawing, &view);
             }
             ui.separator();
             ui.strong("Размеры");
@@ -464,6 +480,161 @@ impl DrawingEditor {
         }
     }
 
+    /// Properties of the selected view: place, name, direction, scale,
+    /// section depth; flipping, alignment and deletion.
+    fn view_properties(
+        &mut self,
+        ui: &mut egui::Ui,
+        editor: &mut Editor,
+        drawing: &Drawing,
+        view: &open_bim_model::DrawingView,
+    ) {
+        use super::views::ViewEdit;
+        let id = view.id;
+        egui::Grid::new("view properties")
+            .num_columns(2)
+            .show(ui, |ui| {
+                let l = ui.label("Имя вида");
+                ui.text_edit_singleline(&mut self.fields.view_name)
+                    .labelled_by(l.id);
+                ui.end_row();
+                ui.label("Направление");
+                let mut direction = view.direction;
+                ui.add_enabled_ui(view.node.is_none(), |ui| {
+                    egui::ComboBox::from_id_salt("view direction")
+                        .selected_text(direction_label(direction))
+                        .show_ui(ui, |ui| {
+                            for d in open_bim_model::ViewDirection::ALL {
+                                ui.selectable_value(&mut direction, d, direction_label(d));
+                            }
+                        })
+                        .response
+                        .widget_info(|| {
+                            egui::WidgetInfo::labeled(
+                                egui::WidgetType::ComboBox,
+                                true,
+                                "Направление вида",
+                            )
+                        });
+                });
+                ui.end_row();
+                if direction != view.direction {
+                    let r = self.edit_view(
+                        editor,
+                        id,
+                        ViewEdit {
+                            direction: Some(direction),
+                            ..Default::default()
+                        },
+                    );
+                    report(self, r);
+                }
+                ui.label("Масштаб");
+                let mut scale = view.scale;
+                let text = |s: Option<f64>| match s {
+                    Some(s) => format!("1:{s}"),
+                    None => format!("как у чертежа (1:{})", drawing.scale),
+                };
+                egui::ComboBox::from_id_salt("view scale")
+                    .selected_text(text(scale))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut scale, None, text(None));
+                        for s in SCALES {
+                            ui.selectable_value(&mut scale, Some(s), format!("1:{s}"));
+                        }
+                    })
+                    .response
+                    .widget_info(|| {
+                        egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, "Масштаб вида")
+                    });
+                ui.end_row();
+                if scale != view.scale {
+                    let r = self.edit_view(
+                        editor,
+                        id,
+                        ViewEdit {
+                            scale: Some(scale),
+                            ..Default::default()
+                        },
+                    );
+                    report(self, r);
+                }
+                if view.section.is_some() {
+                    let l = ui.label("Глубина, мм");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.fields.view_depth).desired_width(80.),
+                    )
+                    .labelled_by(l.id)
+                    .on_hover_text("Положение секущей плоскости вдоль взгляда");
+                    ui.end_row();
+                }
+            });
+        ui.horizontal_wrapped(|ui| {
+            if ui.button("Применить").clicked() {
+                let depth = if view.section.is_some() {
+                    number(&self.fields.view_depth).map(Some)
+                } else {
+                    Ok(None)
+                };
+                let name = self.fields.view_name.clone();
+                let r = depth.and_then(|depth| {
+                    self.edit_view(
+                        editor,
+                        id,
+                        ViewEdit {
+                            name: Some(name),
+                            depth,
+                            ..Default::default()
+                        },
+                    )
+                });
+                report(self, r);
+            }
+            if view.section.is_some()
+                && ui
+                    .button("Развернуть")
+                    .on_hover_text("Смотреть на ту же плоскость с другой стороны")
+                    .clicked()
+            {
+                let r = self.flip_section(editor, id);
+                report(self, r);
+            }
+            if drawing.views.first().is_some_and(|v| v.id != id)
+                && ui
+                    .button("Выровнять по главному")
+                    .on_hover_text("Вид сверху/снизу — под главным, боковые — на одном уровне")
+                    .clicked()
+            {
+                let r = self.align_view(editor, id);
+                report(self, r);
+            }
+            if ui
+                .add_enabled(drawing.views.len() > 1, egui::Button::new("Удалить вид"))
+                .on_hover_text("Вместе с размерами на нём")
+                .clicked()
+            {
+                let r = self.delete_view(editor, id);
+                report(self, r);
+            }
+        });
+        ui.horizontal(|ui| {
+            let l = ui.label("Центр X");
+            ui.add(egui::TextEdit::singleline(&mut self.fields.view[0]).desired_width(60.))
+                .labelled_by(l.id)
+                .on_hover_text("Центр вида X, мм");
+            let l = ui.label("Y");
+            ui.add(egui::TextEdit::singleline(&mut self.fields.view[1]).desired_width(60.))
+                .labelled_by(l.id)
+                .on_hover_text("Центр вида Y, мм");
+            if ui.button("Переместить вид").clicked() {
+                let r = number(&self.fields.view[0])
+                    .and_then(|x| Ok([x, number(&self.fields.view[1])?]))
+                    .and_then(|p| self.move_view(editor, id, p));
+                report(self, r);
+            }
+        });
+    }
+
     /// Drawing tools and the style of new objects, above the sheet.
     fn toolbar(&mut self, ui: &mut egui::Ui, editor: &mut Editor) {
         use super::tools::DrawTool;
@@ -473,6 +644,15 @@ impl DrawingEditor {
             if select.clicked() {
                 self.cancel_tool();
             }
+            for tool in [DrawTool::View, DrawTool::Section, DrawTool::Node] {
+                if ui
+                    .selectable_label(self.tool.tool == Some(tool), tool.label())
+                    .clicked()
+                {
+                    self.start_tool(tool);
+                }
+            }
+            ui.separator();
             for tool in [
                 DrawTool::Dimension,
                 DrawTool::Line,
@@ -482,7 +662,6 @@ impl DrawingEditor {
                 DrawTool::Hatch,
                 DrawTool::Wipeout,
                 DrawTool::Text,
-                DrawTool::Node,
             ] {
                 if ui
                     .selectable_label(self.tool.tool == Some(tool), tool.label())
@@ -533,6 +712,27 @@ impl DrawingEditor {
                             .range(0.5..=50.0)
                             .speed(0.1),
                     );
+                }
+                Some(DrawTool::View) => {
+                    egui::ComboBox::from_id_salt("new view direction")
+                        .selected_text(super::views::view_name(style.view_direction))
+                        .show_ui(ui, |ui| {
+                            for d in open_bim_model::ViewDirection::ALL {
+                                ui.selectable_value(
+                                    &mut style.view_direction,
+                                    d,
+                                    super::views::view_name(d),
+                                );
+                            }
+                        })
+                        .response
+                        .widget_info(|| {
+                            egui::WidgetInfo::labeled(
+                                egui::WidgetType::ComboBox,
+                                true,
+                                "Направление вида",
+                            )
+                        });
                 }
                 Some(DrawTool::Dimension) => {
                     for (axis, label) in [
@@ -603,12 +803,7 @@ impl DrawingEditor {
                 };
                 if !picked && let Some(id) = view {
                     self.selected_view = Some(id);
-                    if let Some(v) = self
-                        .drawing(&project)
-                        .and_then(|d| d.views.iter().find(|v| v.id == id))
-                    {
-                        self.fields.view = v.position.map(|x| format!("{x:.1}"));
-                    }
+                    self.load_view_fields(&project);
                 }
             }
             Some(super::preview::PreviewEvent::MoveView(id, offset)) => {

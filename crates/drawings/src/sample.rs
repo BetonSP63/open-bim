@@ -281,6 +281,7 @@ pub fn control_set() -> Result<Project, crate::Error> {
                 sides: Default::default(),
                 around: true,
                 process: Default::default(),
+                gost: Default::default(),
             },
         },
     );

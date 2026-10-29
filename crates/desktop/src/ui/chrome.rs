@@ -1053,6 +1053,15 @@ impl Workbench {
                             .iter()
                             .any(|id| project.levels.contains_key(id))
                     };
+                    let has_welds = {
+                        let project = self.editor.document.project();
+                        self.editor.selected.iter().any(|id| {
+                            matches!(
+                                project.details.get(id).map(|d| &d.kind),
+                                Some(open_bim_model::DetailKind::Weld { .. })
+                            )
+                        })
+                    };
                     ui.add_enabled_ui(!self.busy(), |ui| match self.mode {
                         Mode::Drawings => self.drawings.show(ui, &mut self.editor),
                         Mode::Reports => {
@@ -1071,6 +1080,9 @@ impl Workbench {
                             }
                             Some(SidePanel::Properties) if has_selection => {
                                 self.selection_pane(ui, requests)
+                            }
+                            Some(SidePanel::Properties) if has_welds => {
+                                self.weld_pane(ui, requests)
                             }
                             Some(SidePanel::Properties) if has_axes => self.axis_pane(ui, requests),
                             Some(SidePanel::Properties) if has_levels => {
@@ -1424,6 +1436,70 @@ impl Workbench {
         }
         if let Some(m) = &self.tools.message {
             ui.separator();
+            ui.label(m.clone());
+        }
+    }
+
+    /// Property pane of selected welds: the fields of the weld command filled
+    /// from the first weld; «Изменить» gives all of them these properties.
+    fn weld_pane(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
+        let project = self.editor.document.project();
+        let welds: Vec<open_bim_model::Detail> = self
+            .editor
+            .selected
+            .iter()
+            .filter_map(|id| project.details.get(id))
+            .filter(|d| matches!(d.kind, open_bim_model::DetailKind::Weld { .. }))
+            .cloned()
+            .collect();
+        pane_header(ui, "Сварной шов", welds.len());
+        let Some(first) = welds.first() else {
+            return;
+        };
+        if self.weld_buffer != Some(first.id) {
+            self.tools.detailing.load_weld(&first.kind);
+            self.weld_buffer = Some(first.id);
+        }
+        if welds.len() == 1 {
+            if let Some(n) = project.numbering.get(&first.id) {
+                ui.label(format!("Шов № {n}"));
+            }
+            if let Some((length, welded)) = first.kind.weld_lengths() {
+                ui.label(if (length - welded).abs() > 0.05 {
+                    format!("Длина {length:.0} мм, проварено {welded:.0} мм")
+                } else {
+                    format!("Длина {length:.0} мм")
+                });
+            }
+        }
+        ui.separator();
+        self.tools.detailing.weld_fields(ui);
+        ui.separator();
+        if ui.button("Изменить").clicked() {
+            let commands: Result<Vec<_>, String> = welds
+                .iter()
+                .filter_map(|w| match self.tools.detailing.apply_weld(&w.kind) {
+                    Ok(kind) if kind == w.kind => None,
+                    Ok(kind) => Some(Ok(open_bim_commands::Command::ReplaceDetail {
+                        detail: open_bim_model::Detail { id: w.id, kind },
+                    })),
+                    Err(e) => Some(Err(e)),
+                })
+                .collect();
+            match commands {
+                Ok(c) if c.is_empty() => self.tools.message = Some("Нет изменений".into()),
+                Ok(c) => {
+                    let n = c.len();
+                    requests.push(Request::Action(Action::Commit(
+                        format!("Изменить швы ({n})"),
+                        c,
+                    )));
+                    self.weld_buffer = None;
+                }
+                Err(e) => self.tools.message = Some(e),
+            }
+        }
+        if let Some(m) = &self.tools.message {
             ui.label(m.clone());
         }
     }
