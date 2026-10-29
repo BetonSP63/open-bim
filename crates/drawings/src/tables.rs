@@ -533,8 +533,50 @@ pub fn grade(project: &Project, id: ObjectId) -> String {
 /// Form 7 rows of an assembly drawing: section «Детали» by position (count
 /// per assembly, unit mass), then «Стандартные изделия» — bolts joining only
 /// parts of the assembly (shop bolts).
+/// Family objects shown as one item line («изделие») inside `assembly`:
+/// (line name, parts) of each one nested in it.
+fn family_items(project: &Project, assembly: ObjectId) -> Vec<(String, BTreeSet<ObjectId>)> {
+    project
+        .family_instances
+        .values()
+        .filter(|i| {
+            project
+                .families
+                .get(&i.family)
+                .is_some_and(|f| f.spec == open_bim_model::SpecMode::Item)
+        })
+        .filter_map(|i| {
+            let own = *i.children.get("assembly")?;
+            (own != assembly).then(|| {
+                let name = if i.type_name.is_empty() {
+                    i.family.clone()
+                } else {
+                    format!("{} {}", i.family, i.type_name)
+                };
+                (name, assembly_members(project, own))
+            })
+        })
+        .collect()
+}
+
 pub fn assembly_specification(project: &Project, assembly: ObjectId) -> Result<Vec<Row>, Error> {
-    let parts = assembly_members(project, assembly);
+    let mut parts = assembly_members(project, assembly);
+    // Items count as one line each; their parts leave «Детали» (the
+    // bolt groups still see every part).
+    let all_parts = parts.clone();
+    let mut items: BTreeMap<String, (usize, f64)> = BTreeMap::new();
+    for (name, members) in family_items(project, assembly) {
+        if members.is_empty() || !members.is_subset(&parts) {
+            continue;
+        }
+        let mut unit = 0.;
+        for id in &members {
+            unit += project.element_mass_kg(*id).map_err(|e| e.to_string())?;
+            parts.remove(id);
+        }
+        let entry = items.entry(name).or_insert((0, unit));
+        entry.0 += 1;
+    }
     let numbering = open_bim_numbering::number(project).map_err(|e| e.to_string())?;
     let mut by_position: BTreeMap<String, Vec<ObjectId>> = BTreeMap::new();
     for id in &parts {
@@ -567,7 +609,7 @@ pub fn assembly_specification(project: &Project, assembly: ObjectId) -> Result<V
             ..
         } = &detail.kind
             && !joined.is_empty()
-            && joined.is_subset(&parts)
+            && joined.is_subset(&all_parts)
         {
             // Each bolt comes with one nut and one washer.
             let count = detail.kind.bolt_positions().len();
@@ -580,6 +622,19 @@ pub fn assembly_specification(project: &Project, assembly: ObjectId) -> Result<V
             ] {
                 *bolts.entry(name).or_default() += count;
             }
+        }
+    }
+    if !items.is_empty() {
+        rows.push(Row::Heading("Прочие изделия".into()));
+        for (name, (count, unit)) in items {
+            rows.push(Row::Cells(vec![
+                String::new(),
+                String::new(),
+                name,
+                count.to_string(),
+                mass(unit),
+                String::new(),
+            ]));
         }
     }
     if !bolts.is_empty() {

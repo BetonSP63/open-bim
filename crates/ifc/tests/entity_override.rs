@@ -102,3 +102,25 @@ fn predefined_type_not_allowed_for_the_class_falls_back_to_notdefined() {
         "COLUMN"
     );
 }
+
+#[test]
+fn a_family_part_carries_its_family_and_type_into_ifc() {
+    let mut p = project();
+    let count = |p: &open_bim_model::Project| {
+        export(p)
+            .unwrap()
+            .0
+            .matches("IFCPROPERTYSINGLEVALUE(")
+            .count()
+    };
+    let before = count(&p);
+    let part = p.elements.values_mut().next().unwrap();
+    for (key, value) in [
+        (open_bim_model::family::FAMILY_PROPERTY, "Столик опорный"),
+        (open_bim_model::family::TYPE_PROPERTY, "С-2"),
+    ] {
+        part.properties
+            .insert(key.into(), PropertyValue::Text(value.into()));
+    }
+    assert_eq!(count(&p), before + 2);
+}
