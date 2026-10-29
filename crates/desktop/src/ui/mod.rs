@@ -3536,7 +3536,8 @@ impl Workbench {
             }
             None => {}
         }
-        match self.family_editor.show(&ctx) {
+        let library = self.families.library(self.editor.document.project());
+        match self.family_editor.show(&ctx, &library) {
             Some(crate::interaction::family_editor::EditorAction::Commit(label, commands)) => {
                 requests.push(Request::Action(Action::Commit(label, commands)));
             }

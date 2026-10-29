@@ -26,6 +26,7 @@ pub fn blank(name: &str) -> Family {
     };
     Family {
         name: s(name),
+        nested: Vec::new(),
         description: String::new(),
         placement: Placement::Point,
         spec: SpecMode::Assembly,
@@ -240,6 +241,8 @@ pub struct FamilyEditor {
     view_type: String,
     view_length: String,
     problems: Option<Vec<String>>,
+    /// Result of the last CSV import or export.
+    note: Option<String>,
 }
 
 impl Default for FamilyEditor {
@@ -252,6 +255,7 @@ impl Default for FamilyEditor {
             view_type: String::new(),
             view_length: "3000".into(),
             problems: None,
+            note: None,
         }
     }
 }
@@ -310,7 +314,8 @@ impl FamilyEditor {
         self.open = true;
     }
 
-    pub fn show(&mut self, ctx: &egui::Context) -> Option<EditorAction> {
+    /// `library`: families that can be nested («+ вложенное»).
+    pub fn show(&mut self, ctx: &egui::Context, library: &[Family]) -> Option<EditorAction> {
         if !self.open {
             return None;
         }
@@ -336,7 +341,7 @@ impl FamilyEditor {
                             Page::Parameters => self.parameters(ui),
                             Page::Types => self.types(ui),
                             Page::Planes => self.planes(ui),
-                            Page::Bodies => self.bodies(ui),
+                            Page::Bodies => self.bodies(ui, library),
                         });
                     self.views(&mut cols[1]);
                 });
@@ -539,6 +544,39 @@ impl FamilyEditor {
             });
         }
         ui.label("Пустая ячейка — значение параметра по умолчанию (серым).");
+        ui.horizontal(|ui| {
+            if ui.button("Экспорт CSV").clicked()
+                && let Some(path) = rfd::FileDialog::new()
+                    .set_title("Типоразмеры в CSV")
+                    .set_file_name(format!("{}.csv", f.name))
+                    .add_filter("CSV", &["csv"])
+                    .save_file()
+            {
+                self.note = Some(match std::fs::write(&path, f.types_csv()) {
+                    Ok(()) => format!("Типоразмеры записаны: {}", path.display()),
+                    Err(e) => format!("Не удалось записать: {e}"),
+                });
+            }
+            if ui.button("Импорт CSV").clicked()
+                && let Some(path) = rfd::FileDialog::new()
+                    .set_title("Типоразмеры из CSV")
+                    .add_filter("CSV", &["csv", "txt"])
+                    .pick_file()
+            {
+                self.note = Some(
+                    match std::fs::read_to_string(&path)
+                        .map_err(|e| e.to_string())
+                        .and_then(|csv| f.read_types_csv(&csv))
+                    {
+                        Ok(()) => format!("Типоразмеров: {}", f.types.len()),
+                        Err(e) => format!("Не удалось прочитать CSV: {e}"),
+                    },
+                );
+            }
+        });
+        if let Some(n) = &self.note {
+            ui.label(n);
+        }
     }
 
     fn planes(&mut self, ui: &mut egui::Ui) {
@@ -581,7 +619,7 @@ impl FamilyEditor {
         );
     }
 
-    fn bodies(&mut self, ui: &mut egui::Ui) {
+    fn bodies(&mut self, ui: &mut egui::Ui, library: &[Family]) {
         let f = &mut self.family;
         ui.horizontal_wrapped(|ui| {
             for (i, b) in f.bodies.iter().enumerate() {
@@ -619,6 +657,36 @@ impl FamilyEditor {
                 });
                 self.body = f.bodies.len() - 1;
             }
+            let mut pick = None;
+            egui::ComboBox::from_id_salt("family-nest")
+                .selected_text("+ вложенное")
+                .show_ui(ui, |ui| {
+                    for g in library.iter().filter(|g| g.name != f.name) {
+                        if ui.selectable_label(false, &g.name).clicked() {
+                            pick = Some(g.clone());
+                        }
+                    }
+                });
+            if let Some(g) = pick {
+                let type_name = g.types.first().map(|t| t.name.clone()).unwrap_or_default();
+                f.bodies.push(FamilyBody {
+                    name: g.name.clone(),
+                    material: "С255".into(),
+                    visible: String::new(),
+                    array: None,
+                    shape: BodyShape::Nested {
+                        family: g.name.clone(),
+                        type_name,
+                        at: ["X0", "Y0", "Z0"].map(String::from),
+                        rotation: String::new(),
+                        values: BTreeMap::new(),
+                    },
+                });
+                if f.nested_family(&g.name).is_none() {
+                    f.nested.push(g);
+                }
+                self.body = f.bodies.len() - 1;
+            }
         });
         if f.bodies.is_empty() {
             return;
@@ -626,6 +694,7 @@ impl FamilyEditor {
         self.body = self.body.min(f.bodies.len() - 1);
         let i = self.body;
         ui.separator();
+        let nested = f.nested.clone();
         let b = &mut f.bodies[i];
         egui::Grid::new("family-body")
             .num_columns(2)
@@ -731,6 +800,68 @@ impl FamilyEditor {
                         text(ui, rotation, 200.);
                         ui.end_row();
                     }
+                    BodyShape::Nested {
+                        family,
+                        type_name,
+                        at,
+                        rotation,
+                        values,
+                    } => {
+                        let child = nested.iter().find(|n| n.name == *family);
+                        ui.label("Семейство");
+                        ui.label(family.as_str());
+                        ui.end_row();
+                        if let Some(child) = child.filter(|c| !c.types.is_empty()) {
+                            ui.label("Типоразмер");
+                            egui::ComboBox::from_id_salt("nested-type")
+                                .selected_text(type_name.as_str())
+                                .show_ui(ui, |ui| {
+                                    for t in &child.types {
+                                        ui.selectable_value(type_name, t.name.clone(), &t.name);
+                                    }
+                                });
+                            ui.end_row();
+                        }
+                        ui.label("Точка вставки x, y, z");
+                        ui.horizontal(|ui| {
+                            for s in at.iter_mut() {
+                                text(ui, s, 90.);
+                            }
+                        });
+                        ui.end_row();
+                        ui.label("Поворот вокруг Z, °");
+                        text(ui, rotation, 200.);
+                        ui.end_row();
+                        let names: Vec<(String, String)> = child
+                            .map(|c| {
+                                let mut v: Vec<(String, String)> = c
+                                    .parameters
+                                    .iter()
+                                    .filter(|p| p.formula.is_empty())
+                                    .map(|p| (p.name.clone(), p.value.clone()))
+                                    .collect();
+                                if c.placement == Placement::TwoPoints {
+                                    v.push(("L".into(), "0".into()));
+                                }
+                                v
+                            })
+                            .unwrap_or_default();
+                        for (name, default) in names {
+                            ui.label(format!("= {name}"));
+                            let mut v = values.get(&name).cloned().unwrap_or_default();
+                            let edit = egui::TextEdit::singleline(&mut v)
+                                .hint_text(default.as_str())
+                                .desired_width(200.);
+                            if ui.add(edit).changed() {
+                                if v.trim().is_empty() {
+                                    values.remove(&name);
+                                } else {
+                                    values.insert(name, v);
+                                }
+                            }
+                            ui.end_row();
+                        }
+                    }
                 }
             });
         let mut remove = false;
@@ -745,6 +876,16 @@ impl FamilyEditor {
         });
         if remove {
             f.bodies.remove(i);
+            // A nested family no body uses any more leaves the definition.
+            let used: Vec<String> = f
+                .bodies
+                .iter()
+                .filter_map(|b| match &b.shape {
+                    BodyShape::Nested { family, .. } => Some(family.clone()),
+                    _ => None,
+                })
+                .collect();
+            f.nested.retain(|n| used.contains(&n.name));
             self.body = i.saturating_sub(1);
         }
         ui.label(
