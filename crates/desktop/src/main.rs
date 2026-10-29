@@ -243,6 +243,8 @@ impl Desktop {
             });
         }
         open_bim_desktop::ui::theme::apply(&cc.egui_ctx);
+        cc.egui_ctx
+            .set_fonts(open_bim_desktop::ui::theme::fonts_with_system());
         if let Some(zoom) = options.zoom {
             // Layout verification at a logical size larger than the display.
             cc.egui_ctx.set_zoom_factor(zoom);
