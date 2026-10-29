@@ -5,6 +5,7 @@ use super::{DrawingEditor, next_id};
 use crate::tools::Editor;
 use open_bim_model::{
     Anchor, DimensionAxis, DimensionDef, HatchPattern, LineType, SheetObject, SheetObjectKind,
+    ViewDirection,
 };
 
 /// Drawing editor tools («Чертёж → Размеры / Графика»).
@@ -20,6 +21,10 @@ pub enum DrawTool {
     Text,
     /// Node «Узел n»: centre and edge of the region on a view (5.5.3).
     Node,
+    /// New projection view in the chosen direction, placed by a click.
+    View,
+    /// Section: two points of the cutting line on a view, then its place.
+    Section,
 }
 
 impl DrawTool {
@@ -34,6 +39,8 @@ impl DrawTool {
             Self::Wipeout => "Маскировка",
             Self::Text => "Текст",
             Self::Node => "Узел",
+            Self::View => "Вид",
+            Self::Section => "Разрез",
         }
     }
 
@@ -55,6 +62,12 @@ impl DrawTool {
             (Self::Text, _) => "Щёлкните, где поставить текст (текст — в поле «Текст примечания»)",
             (Self::Node, 0) => "Узел: щёлкните центр узла на виде",
             (Self::Node, _) => "Узел: щёлкните край области узла",
+            (Self::View, _) => "Вид: щёлкните место нового вида на листе",
+            (Self::Section, 0) => "Разрез: щёлкните первую точку линии разреза на виде",
+            (Self::Section, 1) => "Разрез: щёлкните вторую точку линии разреза",
+            (Self::Section, _) => {
+                "Разрез: щёлкните место вида (стрелки разреза смотрят в его сторону)"
+            }
         }
     }
 }
@@ -69,6 +82,8 @@ pub struct DrawStyle {
     pub spacing: f64,
     pub axis: DimensionAxis,
     pub offset: f64,
+    /// Direction of views added by the «Вид» tool.
+    pub view_direction: ViewDirection,
 }
 
 impl Default for DrawStyle {
@@ -82,6 +97,7 @@ impl Default for DrawStyle {
             axis: DimensionAxis::Horizontal,
             // Clear of the automatic chains of the drawing.
             offset: 25.,
+            view_direction: ViewDirection::Top,
         }
     }
 }
@@ -143,6 +159,10 @@ impl DrawingEditor {
         };
         match tool {
             DrawTool::Dimension => return self.dimension_click(editor, at),
+            DrawTool::View => {
+                self.add_view(editor, self.style.view_direction, at)?;
+                return Ok(());
+            }
             DrawTool::Text => {
                 let text = self.fields.text.clone();
                 if text.trim().is_empty() {
@@ -155,6 +175,12 @@ impl DrawingEditor {
             _ => self.tool.points.push(at),
         }
         let points = self.tool.points.clone();
+        if let (DrawTool::Section, [a, b, place]) = (tool, &points[..]) {
+            self.tool.points.clear();
+            // A failed cut starts over from the first point.
+            self.add_section(editor, *a, *b, *place)?;
+            return Ok(());
+        }
         if let (DrawTool::Node, [c, p]) = (tool, &points[..]) {
             self.tool.points.clear();
             self.add_node(editor, *c, (p[0] - c[0]).hypot(p[1] - c[1]))?;

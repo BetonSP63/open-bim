@@ -1178,7 +1178,9 @@ impl Workbench {
             | Cmd::DrawHatch
             | Cmd::DrawWipeout
             | Cmd::DrawText
-            | Cmd::DrawNode => {
+            | Cmd::DrawNode
+            | Cmd::DrawView
+            | Cmd::DrawSection => {
                 use crate::drawing_editor::tools::DrawTool;
                 self.mode = Mode::Drawings;
                 if self.drawings.current.is_none() {
@@ -1195,6 +1197,8 @@ impl Workbench {
                     Cmd::DrawWipeout => DrawTool::Wipeout,
                     Cmd::DrawText => DrawTool::Text,
                     Cmd::DrawNode => DrawTool::Node,
+                    Cmd::DrawView => DrawTool::View,
+                    Cmd::DrawSection => DrawTool::Section,
                     _ => unreachable!("matched above"),
                 });
                 self.message(self.drawings.message.clone().unwrap_or_default());

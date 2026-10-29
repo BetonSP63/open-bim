@@ -190,6 +190,8 @@ fn drawing_tools_run_from_commands_and_keys() {
         (Cmd::DrawWipeout, DrawTool::Wipeout),
         (Cmd::DrawText, DrawTool::Text),
         (Cmd::DrawNode, DrawTool::Node),
+        (Cmd::DrawView, DrawTool::View),
+        (Cmd::DrawSection, DrawTool::Section),
     ] {
         b.execute(cmd);
         assert_eq!(b.drawings.tool.tool, Some(tool));
