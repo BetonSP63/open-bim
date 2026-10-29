@@ -25,6 +25,7 @@ pub mod rebar_ui;
 pub mod representation;
 pub mod ribbon;
 pub mod schedule;
+pub mod section_editor;
 pub mod theme;
 pub mod view_tools;
 pub mod views;
@@ -220,6 +221,7 @@ pub struct Workbench {
     pub components: components::ComponentState,
     /// «Редактор компонентов»: the user component being made or changed.
     pub component_editor: component_editor::EditorState,
+    pub section_editor: section_editor::SectionEditor,
     /// Open grid dialog («Сетка осей…»).
     pub grid: Option<crate::interaction::tools::GridSpec>,
     /// Fitting, cutting and construction commands in progress.
@@ -461,6 +463,7 @@ impl Workbench {
             rebar: Default::default(),
             formwork: Default::default(),
             shapes: Default::default(),
+            section_editor: Default::default(),
             families: Default::default(),
             family_editor: Default::default(),
             change_number: Default::default(),
@@ -1569,6 +1572,11 @@ impl Workbench {
                 self.components.cancel();
                 self.components.window = true;
                 self.message("Каталог компонентов: выберите узел");
+            }
+            Cmd::SectionEditor => {
+                let project = self.editor.document.project();
+                self.section_editor.open_on(project, None);
+                self.message("Редактор сечений: выберите шаблон или создайте своё сечение");
             }
             Cmd::ComponentEditor => {
                 self.components.window = false;
@@ -3508,6 +3516,12 @@ impl Workbench {
                 }
             }
             None => {}
+        }
+        if let Some((label, commands)) = self
+            .section_editor
+            .show(&ctx, self.editor.document.project())
+        {
+            requests.push(Request::Action(Action::Commit(label, commands)));
         }
         match self.families.show(
             &ctx,

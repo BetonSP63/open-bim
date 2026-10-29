@@ -153,12 +153,17 @@ fn rotated_bounds(shape: &ProfileShape, angle: f64) -> [f64; 4] {
         let r = diameter / 2.0;
         return [-r, r, -r, r];
     }
-    let (w, h) = match *shape {
+    let [x0, x1, y0, y1] = match *shape {
         ProfileShape::ISection { height, width, .. }
         | ProfileShape::Angle { height, width, .. }
         | ProfileShape::Channel { height, width, .. }
         | ProfileShape::RectangularHollow { height, width, .. }
-        | ProfileShape::Rectangle { height, width } => (width, height),
+        | ProfileShape::Rectangle { height, width } => {
+            [-width / 2.0, width / 2.0, -height / 2.0, height / 2.0]
+        }
+        ProfileShape::Polygon { .. } | ProfileShape::Welded { .. } => {
+            shape.bounds().unwrap_or([0.0; 4])
+        }
         ProfileShape::CircularHollow { .. } => unreachable!(),
     };
     let mut b = [
@@ -167,8 +172,7 @@ fn rotated_bounds(shape: &ProfileShape, angle: f64) -> [f64; 4] {
         f64::INFINITY,
         f64::NEG_INFINITY,
     ];
-    for (x, y) in [(-w, -h), (w, -h), (w, h), (-w, h)] {
-        let (x, y) = (x / 2.0, y / 2.0);
+    for (x, y) in [(x0, y0), (x1, y0), (x1, y1), (x0, y1)] {
         let (rx, ry) = (c * x - s * y, s * x + c * y);
         b = [b[0].min(rx), b[1].max(rx), b[2].min(ry), b[3].max(ry)];
     }

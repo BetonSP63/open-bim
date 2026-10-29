@@ -318,3 +318,36 @@ fn cyrillic_text_is_transliterated() {
         "S255 Dvutavr 30B1 \"R 57837\""
     );
 }
+
+#[test]
+fn welded_section_exports_its_plates() {
+    use open_bim_model::sections::templates;
+    let mut project = open_bim_model::example_steel_frame().unwrap();
+    let pid = project.allocate_id().unwrap();
+    let tee = templates()
+        .into_iter()
+        .find(|t| t.name == "Тавр сварной")
+        .unwrap();
+    project
+        .profiles
+        .insert(pid, tee.profile(pid, &Default::default()).unwrap());
+    for e in project.elements.values_mut() {
+        if let open_bim_model::ElementShape::Member { profile, .. } = &mut e.shape {
+            *profile = pid;
+        }
+    }
+    let files = open_bim_nc::export(&project).unwrap();
+    let names: Vec<_> = files.iter().map(|f| f.name.as_str()).collect();
+    // Each member mark becomes «<mark>.1», «<mark>.2»: flange and web strips.
+    assert_eq!(
+        names.iter().filter(|n| n.ends_with(".1.nc1")).count(),
+        2,
+        "{names:?}"
+    );
+    assert_eq!(
+        names.iter().filter(|n| n.ends_with(".2.nc1")).count(),
+        2,
+        "{names:?}"
+    );
+    assert!(files.iter().any(|f| (f.length - 3000.).abs() < 1e-6));
+}

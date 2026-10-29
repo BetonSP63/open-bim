@@ -311,7 +311,9 @@ pub fn section(names: &[&str], shape: &ProfileShape) -> Option<(Entry, Match)> {
                     ProfileShape::Angle { thickness, .. }
                     | ProfileShape::CircularHollow { thickness, .. }
                     | ProfileShape::RectangularHollow { thickness, .. } => *thickness,
-                    ProfileShape::Rectangle { .. } => 0.,
+                    ProfileShape::Rectangle { .. }
+                    | ProfileShape::Polygon { .. }
+                    | ProfileShape::Welded { .. } => 0.,
                 };
                 d <= (0.08 * size).max(TIGHT_MM)
             })

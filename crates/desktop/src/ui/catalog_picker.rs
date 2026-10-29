@@ -3,6 +3,7 @@
 //! with a search field. Picking a catalogue entry copies it into the project.
 use eframe::egui;
 use open_bim_model::library::{self, Family};
+use open_bim_model::sections::SectionKind;
 use open_bim_model::{Material, ObjectId, Profile, Project};
 
 /// The profile (or material) a list returns: one already in the project, or
@@ -123,6 +124,43 @@ pub fn profile_menu(
                             }
                         }
                     });
+            }
+            // User sections: the project's definitions and the built-in
+            // templates, at their default sizes.
+            for kind in [SectionKind::Welded, SectionKind::Contour] {
+                let rows: Vec<_> = project
+                    .sections
+                    .all()
+                    .into_iter()
+                    .filter(|d| d.kind() == kind)
+                    .filter_map(|d| Some((d.profile_name(&d.defaults().ok()?).ok()?, d)))
+                    .filter(|(name, _)| matches(name, &query))
+                    .filter(|(name, _)| !project.profiles.values().any(|p| p.name == *name))
+                    .collect();
+                if rows.is_empty() {
+                    continue;
+                }
+                egui::CollapsingHeader::new(kind.label())
+                    .id_salt((salt, kind.label()))
+                    .open((!query.trim().is_empty()).then_some(true))
+                    .show(ui, |ui| {
+                        for (name, d) in rows {
+                            if ui.selectable_label(false, name).clicked()
+                                && let Ok(p) = d.profile(
+                                    ObjectId(project.next_id),
+                                    &d.defaults().unwrap_or_default(),
+                                )
+                            {
+                                picked = Some(Pick::New(p));
+                            }
+                        }
+                    });
+            }
+            if ui.button("Редактор сечений…").clicked() {
+                ui.ctx().data_mut(|d| {
+                    d.insert_temp(egui::Id::new(super::section_editor::OPEN_REQUEST), true)
+                });
+                ui.close();
             }
         });
     if picked.is_some() {

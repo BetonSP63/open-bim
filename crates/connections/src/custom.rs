@@ -12,35 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 /// (height, width, web, flange) of a section; hollow and angle sections give
 /// their wall for web and flange, a solid bar its width and height.
 pub fn section_sizes(shape: &ProfileShape) -> [f64; 4] {
-    match *shape {
-        ProfileShape::ISection {
-            height,
-            width,
-            web,
-            flange,
-        }
-        | ProfileShape::Channel {
-            height,
-            width,
-            web,
-            flange,
-        } => [height, width, web, flange],
-        ProfileShape::Angle {
-            height,
-            width,
-            thickness,
-        }
-        | ProfileShape::RectangularHollow {
-            height,
-            width,
-            thickness,
-        } => [height, width, thickness, thickness],
-        ProfileShape::CircularHollow {
-            diameter,
-            thickness,
-        } => [diameter, diameter, thickness, thickness],
-        ProfileShape::Rectangle { height, width } => [height, width, width, height],
-    }
+    shape.sizes()
 }
 
 fn member_sizes(project: &Project, id: ObjectId) -> Option<([f64; 4], f64)> {

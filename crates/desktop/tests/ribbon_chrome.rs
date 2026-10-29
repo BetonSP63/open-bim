@@ -91,7 +91,7 @@ fn click(at: egui::Pos2) -> Vec<egui::Event> {
 
 fn state(b: &Workbench) -> String {
     format!(
-        "{:?} {} {} {} {} {} {:?} {:?} {:?} {} {} {:?} {} {} {} {} {:?} {} {} {}",
+        "{:?} {} {} {} {} {} {:?} {:?} {:?} {} {} {:?} {} {} {} {} {:?} {} {} {} {}",
         b.mode,
         b.palette.open,
         b.help,
@@ -112,6 +112,7 @@ fn state(b: &Workbench) -> String {
         b.batch.open,
         b.view_tools.properties_open,
         b.view_tools.paint_open,
+        b.section_editor.open,
     )
 }
 

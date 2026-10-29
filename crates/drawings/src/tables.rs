@@ -589,6 +589,26 @@ pub fn assembly_specification(project: &Project, assembly: ObjectId) -> Result<V
     }
     let mut rows = vec![Row::Heading("Детали".into())];
     for (position, ids) in &by_position {
+        // A welded section: its plates as positions «5.1», «5.2», …
+        if let Some(pieces) = project.welded_pieces(ids[0]).map_err(|e| e.to_string())? {
+            for (i, piece) in pieces.iter().enumerate() {
+                rows.push(Row::Cells(vec![
+                    format!("{position}.{}", i + 1),
+                    String::new(),
+                    format!(
+                        "{}: —{}×{}, L={}",
+                        piece.name,
+                        crate::format_mm(piece.thickness),
+                        crate::format_mm(piece.breadth),
+                        crate::format_mm(piece.length)
+                    ),
+                    ids.len().to_string(),
+                    mass(piece.mass_kg),
+                    grade(project, ids[0]),
+                ]));
+            }
+            continue;
+        }
         let unit = project.element_mass_kg(ids[0]).map_err(|e| e.to_string())?;
         rows.push(Row::Cells(vec![
             position.clone(),
@@ -704,6 +724,9 @@ pub fn assortment(project: &Project, id: ObjectId) -> (String, String) {
                 ProfileShape::CircularHollow { .. } => "Трубы круглые",
                 ProfileShape::RectangularHollow { .. } => "Трубы профильные",
                 ProfileShape::Rectangle { .. } => "Прокат прямоугольный",
+                ProfileShape::Polygon { .. } => "Профили по контуру",
+                // Listed by plates in the specification (`rolled_steel`).
+                ProfileShape::Welded { .. } => "Сечения сварные",
             };
             // ГОСТ 21.502: «Наименование профиля, ГОСТ, ТУ».
             let kind = match &p.standard {
@@ -749,6 +772,23 @@ const TYPE_ORDER: [&str; 3] = ["Колонны", "Балки", "Прочие"];
 pub fn rolled_steel(project: &Project, parts: &[ObjectId]) -> Result<RolledSteel, Error> {
     let mut raw: BTreeMap<(String, String, String), BTreeMap<&'static str, f64>> = BTreeMap::new();
     for id in parts {
+        // A welded section counts as the plates it is made of.
+        if let Some(pieces) = project.welded_pieces(*id).map_err(|e| e.to_string())? {
+            for piece in pieces {
+                let entry = raw
+                    .entry((
+                        format!(
+                            "Прокат листовой {}",
+                            open_bim_model::library::PLATE_STANDARD
+                        ),
+                        grade(project, *id),
+                        format!("—{}", crate::format_mm(piece.thickness)),
+                    ))
+                    .or_default();
+                *entry.entry(element_type(project, *id)).or_default() += piece.mass_kg / 1000.;
+            }
+            continue;
+        }
         let (kind, size) = assortment(project, *id);
         let entry = raw.entry((kind, grade(project, *id), size)).or_default();
         *entry.entry(element_type(project, *id)).or_default() += tonnes(project, *id)?;

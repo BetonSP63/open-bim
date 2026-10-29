@@ -127,6 +127,10 @@ pub enum Command {
     SetShapes {
         shapes: open_bim_model::Shapes,
     },
+    /// User parametric and welded section definitions.
+    SetSections {
+        sections: open_bim_model::Sections,
+    },
     /// Add a family to the project or replace it; its objects are built
     /// again.
     SetFamily {
@@ -749,6 +753,10 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
         Command::SetShapes { shapes } => {
             shapes.validate()?;
             project.shapes = shapes.clone();
+        }
+        Command::SetSections { sections } => {
+            sections.validate()?;
+            project.sections = sections.clone();
         }
         Command::SetFamily { family } => {
             family.validate()?;

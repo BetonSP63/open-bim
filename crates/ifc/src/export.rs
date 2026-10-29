@@ -96,7 +96,36 @@ fn label(value: &PropertyValue) -> String {
 
 fn profile_def(w: &mut Writer, name: &str, shape: &ProfileShape) -> u64 {
     let n = encode(name);
+    if let ProfileShape::Polygon { .. } | ProfileShape::Welded { .. } = shape {
+        // Contour and welded sections: closed polylines, voids for boxes.
+        let (outer, voids) = shape.outline().unwrap_or_default();
+        let mut polyline = |ring: &[[f64; 2]]| {
+            let mut points: Vec<u64> = ring
+                .iter()
+                .map(|p| {
+                    w.add(format!(
+                        "IFCCARTESIANPOINT(({},{}))",
+                        real(p[0]),
+                        real(p[1])
+                    ))
+                })
+                .collect();
+            points.push(points[0]);
+            w.add(format!("IFCPOLYLINE(({}))", refs(&points)))
+        };
+        let outer = polyline(&outer);
+        let voids: Vec<u64> = voids.iter().map(|v| polyline(v)).collect();
+        return w.add(if voids.is_empty() {
+            format!("IFCARBITRARYCLOSEDPROFILEDEF(.AREA.,{n},#{outer})")
+        } else {
+            format!(
+                "IFCARBITRARYPROFILEDEFWITHVOIDS(.AREA.,{n},#{outer},({}))",
+                refs(&voids)
+            )
+        });
+    }
     w.add(match *shape {
+        ProfileShape::Polygon { .. } | ProfileShape::Welded { .. } => unreachable!(),
         ProfileShape::ISection {
             height,
             width,
