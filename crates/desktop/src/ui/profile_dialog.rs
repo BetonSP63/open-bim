@@ -628,6 +628,9 @@ mod tests {
         assert_eq!(p.id, ObjectId(project.next_id));
         let info = dialog.info(&project).unwrap();
         let rows = properties(&info);
-        assert!(rows.iter().any(|(k, v)| *k == "Листов" && v == "3"), "{rows:?}");
+        assert!(
+            rows.iter().any(|(k, v)| *k == "Листов" && v == "3"),
+            "{rows:?}"
+        );
     }
 }
