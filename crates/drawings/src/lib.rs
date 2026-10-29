@@ -417,6 +417,14 @@ struct ViewContext {
     bounds: [[f64; 2]; 2],
 }
 impl ViewContext {
+    /// Sheet point back to the view plane (u, v), model mm.
+    fn plane(&self, paper: [f64; 2]) -> [f64; 2] {
+        [
+            self.centre[0] + (paper[0] - self.position[0]) * self.scale,
+            self.centre[1] + (paper[1] - self.position[1]) * self.scale,
+        ]
+    }
+
     fn paper(&self, uv: [f64; 2]) -> [f64; 2] {
         [
             self.position[0] + (uv[0] - self.centre[0]) / self.scale,
@@ -740,8 +748,12 @@ fn view_graphic(
     let mut labels = vec![Label {
         // Title under the view keeps the space above free for dimensions.
         position: [view.position[0], paper_lo[1] - 12.],
+        // Sections are titled by their number, as on the trace (5.5.2).
         text: match cut {
-            Some(_) => format!("{} (1:{})", view.name, format_mm(scale)),
+            Some(_) => {
+                let n = conventions::section_number(drawing, view.id);
+                format!("{n}-{n} (1:{})", format_mm(scale))
+            }
             None => format!("{} 1:{}", view.name, format_mm(scale)),
         },
         height: 5.,
@@ -1081,6 +1093,29 @@ impl Frames {
     }
 }
 
+/// The view (not a node or section) under a sheet point and its context.
+fn host_view<'a>(
+    drawing: &'a Drawing,
+    frames: &Frames,
+    paper: [f64; 2],
+) -> Option<(&'a DrawingView, ViewContext)> {
+    let marks = BTreeMap::new();
+    drawing
+        .views
+        .iter()
+        .filter(|v| v.node.is_none() && v.section.is_none())
+        .find_map(|view| {
+            let (basis, _, meshes) = frames.of(view);
+            let (g, ctx) = view_graphic(drawing, view, basis, meshes, &marks);
+            let [lo, hi] = g.bounds;
+            (paper[0] >= lo[0] - 5.
+                && paper[0] <= hi[0] + 5.
+                && paper[1] >= lo[1] - 5.
+                && paper[1] <= hi[1] + 5.)
+                .then_some((view, ctx))
+        })
+}
+
 /// The view (not a node or section) under a sheet point and the point in
 /// that view's plane, model mm.
 pub fn view_at(
@@ -1089,28 +1124,77 @@ pub fn view_at(
     paper: [f64; 2],
 ) -> Result<Option<(u32, [f64; 2], f64)>, Error> {
     let frames = Frames::new(project, drawing)?;
-    let marks = BTreeMap::new();
-    for view in drawing
-        .views
-        .iter()
-        .filter(|v| v.node.is_none() && v.section.is_none())
-    {
-        let (basis, _, meshes) = frames.of(view);
-        let (g, ctx) = view_graphic(drawing, view, basis, meshes, &marks);
-        let [lo, hi] = g.bounds;
-        if paper[0] >= lo[0] - 5.
-            && paper[0] <= hi[0] + 5.
-            && paper[1] >= lo[1] - 5.
-            && paper[1] <= hi[1] + 5.
-        {
-            let uv = [
-                ctx.centre[0] + (paper[0] - ctx.position[0]) * ctx.scale,
-                ctx.centre[1] + (paper[1] - ctx.position[1]) * ctx.scale,
-            ];
-            return Ok(Some((view.id, uv, ctx.scale)));
-        }
+    Ok(
+        host_view(drawing, &frames, paper)
+            .map(|(view, ctx)| (view.id, ctx.plane(paper), ctx.scale)),
+    )
+}
+
+/// A section picked on the sheet: the cutting plane through a line drawn on
+/// a view, looked at from the side opposite the place of the new view
+/// (first-angle projection, the arrows point toward the placed view).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SectionCut {
+    /// View the line was drawn on.
+    pub host: u32,
+    pub direction: ViewDirection,
+    /// Plane depth along the new view direction, model mm.
+    pub depth: f64,
+    /// Object of the host view on a «Комплексный чертёж».
+    pub source: Option<ObjectId>,
+    /// The line was not along a view axis and was turned to the nearest one.
+    pub snapped: bool,
+}
+
+/// Section through the line `a`–`b` (sheet mm) on the view under `a`; the
+/// view goes to `place`. The line is taken along the nearer view axis,
+/// since views look along the drawing frame axes only.
+pub fn section_cut(
+    project: &Project,
+    drawing: &Drawing,
+    a: [f64; 2],
+    b: [f64; 2],
+    place: [f64; 2],
+) -> Result<SectionCut, Error> {
+    let frames = Frames::new(project, drawing)?;
+    let (host, ctx) = host_view(drawing, &frames, a)
+        .ok_or("Начните линию разреза на виде (не узле и не разрезе)")?;
+    let d = [b[0] - a[0], b[1] - a[1]];
+    if d[0].hypot(d[1]) < 1. {
+        return Err("Укажите две разные точки линии разреза".into());
     }
-    Ok(None)
+    let mid = [(a[0] + b[0]) / 2., (a[1] + b[1]) / 2.];
+    let horizontal = d[0].abs() >= d[1].abs();
+    let (normal, side) = if horizontal {
+        (ctx.basis.up, place[1] - mid[1])
+    } else {
+        (ctx.basis.right, place[0] - mid[0])
+    };
+    // The viewer stands opposite the placed view.
+    let toward = if side > 0. { mul(normal, -1.) } else { normal };
+    let (basis, _, _) = frames.of(host);
+    let direction = ViewDirection::ALL
+        .into_iter()
+        .find(|v| {
+            let t = ViewBasis::new(basis, *v).toward;
+            t[0] * toward[0] + t[1] * toward[1] + t[2] * toward[2] > 0.999
+        })
+        .ok_or("Разрез по этой линии не строится")?;
+    let uv = ctx.plane(mid);
+    let at = add(
+        add(ctx.basis.origin, mul(ctx.basis.right, uv[0])),
+        mul(ctx.basis.up, uv[1]),
+    );
+    let o = sub(at, ctx.basis.origin);
+    let depth = o[0] * toward[0] + o[1] * toward[1] + o[2] * toward[2];
+    let angle = d[1].atan2(d[0]).to_degrees().rem_euclid(90.);
+    Ok(SectionCut {
+        host: host.id,
+        direction,
+        depth,
+        source: host.source,
+        snapped: angle.min(90. - angle) > 1.,
+    })
 }
 
 /// Points a sheet dimension can be tied to: member ends, plate vertices and
