@@ -127,6 +127,7 @@ pub fn rebuild_base_plates(project: &mut Project, previous: &Project) -> Result<
                     sides: open_bim_model::WeldSides::One,
                     around: false,
                     process: Default::default(),
+                    gost: Default::default(),
                 },
             },
         );

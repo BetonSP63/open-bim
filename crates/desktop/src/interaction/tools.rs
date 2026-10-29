@@ -413,6 +413,7 @@ pub fn weld_between(
             sides: props.weld_sides,
             around: props.weld_around,
             process: props.weld_process,
+            gost: props.weld_gost()?,
         },
     };
     candidate.details.insert(id, detail.clone());
@@ -455,6 +456,7 @@ pub fn weld_by_points(
             sides: props.weld_sides,
             around: props.weld_around,
             process: props.weld_process,
+            gost: props.weld_gost()?,
         },
     };
     candidate.details.insert(id, detail.clone());

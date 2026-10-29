@@ -1287,12 +1287,10 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
             let DetailKind::Weld {
                 parts: welded,
                 path,
-                weld_type,
-                size,
                 shop,
-                sides,
                 around,
-                process,
+                gost,
+                ..
             } = &detail.kind
             else {
                 continue;
@@ -1304,8 +1302,12 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
             let mid = [(a[0] + b[0]) / 2., (a[1] + b[1]) / 2., (a[2] + b[2]) / 2.];
             let q = context.basis.project(mid);
             let at = context.paper([q[0], q[1]]);
-            let text =
-                open_bim_model::weld_mark(*process, *weld_type, *sides, *size, *around, *shop);
+            let text = detail.kind.weld_mark().unwrap_or_default();
+            // Signs on the leader break (ГОСТ 2.312): a circle for a weld
+            // all around, a flag for a site weld; the text starts after them.
+            let lead = if *around || !*shop { 2. } else { 0. };
+            // Reverse side: the designation goes under the shelf.
+            let under = gost.back;
             // The leg sign is drawn as lines: the sheet font has no glyph.
             let (head, tail) = text
                 .split_once(open_bim_model::LEG_SIGN)
@@ -1317,8 +1319,10 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
                 )
             };
             let head_width = text_width(head);
-            let width =
-                head_width + tail.map_or(0., |t| LEG_SIGN_WIDTH * TEXT_HEIGHT + text_width(t)) + 1.;
+            let width = lead
+                + head_width
+                + tail.map_or(0., |t| LEG_SIGN_WIDTH * TEXT_HEIGHT + text_width(t))
+                + 1.;
             // Shelf up-right of the weld, moved further out and to the left
             // until the sign clears the marks and other signs.
             let boxes: Vec<[[f64; 2]; 2]> = graphic
@@ -1342,10 +1346,12 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
                 .collect();
             let sign_box = |shelf: [f64; 2], left: bool| {
                 let x0 = if left { shelf[0] - width } else { shelf[0] };
-                [
-                    [x0 - 0.5, shelf[1]],
-                    [x0 + width + 0.5, shelf[1] + TEXT_HEIGHT + 1.],
-                ]
+                let (y0, y1) = if under {
+                    (shelf[1] - TEXT_HEIGHT - 1.5, shelf[1])
+                } else {
+                    (shelf[1], shelf[1] + TEXT_HEIGHT + 1.)
+                };
+                [[x0 - 0.5, y0], [x0 + width + 0.5, y1]]
             };
             let paper = drawing.sheet_mm();
             let clear = |r: [[f64; 2]; 2]| {
@@ -1391,7 +1397,34 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
             graphic
                 .lines
                 .push(line(vec![at, shelf, [shelf_end, shelf[1]]]));
-            let base = [shelf[0].min(shelf_end) + 0.5, shelf[1] + 1.];
+            if *around {
+                graphic.lines.push(line(
+                    (0..=24)
+                        .map(|i| {
+                            let a = std::f64::consts::TAU * i as f64 / 24.;
+                            [shelf[0] + 1.5 * a.cos(), shelf[1] + 1.5 * a.sin()]
+                        })
+                        .collect(),
+                ));
+            }
+            if !*shop {
+                // «┐»: up from the break, the flag away from the shelf.
+                let back = if left { 2.5 } else { -2.5 };
+                let top = shelf[1] + 4.;
+                graphic
+                    .lines
+                    .push(line(vec![shelf, [shelf[0], top], [shelf[0] + back, top]]));
+            }
+            let start = if left {
+                shelf_end + 0.5
+            } else {
+                shelf[0] + lead + 0.5
+            };
+            let base = if under {
+                [start, shelf[1] - 1. - 0.75 * TEXT_HEIGHT]
+            } else {
+                [start, shelf[1] + 1.]
+            };
             let label = |position: [f64; 2], text: &str| Label {
                 position,
                 text: text.into(),

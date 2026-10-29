@@ -398,6 +398,7 @@ fn linked_bolts_and_weld_follow_whole_group_rigid_edits() {
                 sides: open_bim_model::WeldSides::One,
                 around: false,
                 process: Default::default(),
+                gost: Default::default(),
             },
         },
     });

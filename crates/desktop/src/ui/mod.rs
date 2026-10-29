@@ -246,6 +246,8 @@ pub struct Workbench {
     pub axis_buffer: Option<open_bim_model::GridAxis>,
     /// Level being edited in the pane: (id, name, mark text).
     pub level_buffer: Option<(ObjectId, String, String)>,
+    /// Weld whose properties fill the weld pane fields.
+    pub weld_buffer: Option<ObjectId>,
     /// Green dashed work area box around the model (Вид tab).
     pub work_area: bool,
     /// Picks for «рабочая плоскость по трём точкам».
@@ -402,6 +404,7 @@ impl Workbench {
             grid_editing: false,
             axis_buffer: None,
             level_buffer: None,
+            weld_buffer: None,
             kb_cursor: None,
             kb_object: None,
             keytips: Default::default(),

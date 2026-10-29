@@ -387,6 +387,7 @@ fn assembly_key(
                 sides,
                 around,
                 process,
+                gost,
             } if joined.is_subset(&assembly.members) => {
                 let mut keys: Vec<_> = joined.iter().map(|p| &parts[p]).collect();
                 keys.sort();
@@ -400,6 +401,9 @@ fn assembly_key(
                 }
                 if *process != open_bim_model::WeldProcess::Manual {
                     weld["process"] = json!(process);
+                }
+                if !gost.is_default() {
+                    weld["gost"] = json!(gost);
                 }
                 Some(weld)
             }
