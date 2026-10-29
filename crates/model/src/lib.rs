@@ -23,6 +23,7 @@ mod project;
 pub mod sections;
 pub mod shapes;
 mod validation;
+pub mod weld;
 
 pub use analysis::{
     Analysis, AnalysisModel, Load, LoadGroup, LoadKind, LoadShape, Members, PartAnalysis, PartRole,
@@ -40,10 +41,7 @@ pub use custom_component::{
     BUILTIN_NAMES, CustomBolts, CustomDefinition, CustomPlate, PlatePlane, Variable, WeldTo,
     example_definition,
 };
-pub use detailing::{
-    Detail, DetailKind, LEG_SIGN, WeldProcess, WeldSides, WeldType, bolt_positions, bolt_set,
-    circle_points, weld_mark,
-};
+pub use detailing::{Detail, DetailKind, bolt_positions, bolt_set, circle_points};
 pub use document_info::{
     DEFAULT_BASE, DocumentInfo, MAX_APPROVALS, MAX_GENERAL_NOTES, MAX_OTHER_SIGNERS, Person, Stage,
     format_date, parse_date,
@@ -69,3 +67,7 @@ pub use sections::{
 };
 pub use shapes::{ItemShape, ShapePart, Shapes};
 pub use validation::{ModelError, polygon_area};
+pub use weld::{
+    Intermittent, Joint, JointKind, LEG_SIGN, WeldGost, WeldProcess, WeldSides, WeldType,
+    weld_advice, weld_mark, weld_notes, welded_length,
+};

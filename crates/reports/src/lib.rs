@@ -284,26 +284,15 @@ pub fn welds(project: &Project, numbering: &open_bim_numbering::Numbering) -> Ve
         .details
         .values()
         .filter_map(|d| {
-            let DetailKind::Weld {
-                parts,
-                path,
-                weld_type,
-                size,
-                shop,
-                sides,
-                around,
-                process,
-            } = &d.kind
-            else {
+            let DetailKind::Weld { parts, shop, .. } = &d.kind else {
                 return None;
             };
             let number = project.numbering.get(&d.id)?.clone();
+            let (_, welded) = d.kind.weld_lengths()?;
             Some(WeldRow {
                 number,
-                designation: open_bim_model::weld_mark(
-                    *process, *weld_type, *sides, *size, *around, *shop,
-                ),
-                length_mm: round(path.windows(2).map(|w| w[0].distance(w[1])).sum(), 1),
+                designation: d.kind.weld_designation()?,
+                length_mm: round(welded, 1),
                 parts: parts
                     .iter()
                     .map(|p| {
@@ -382,25 +371,26 @@ fn fasteners(project: &Project) -> Vec<FastenerRow> {
             DetailKind::Weld {
                 weld_type,
                 size,
-                path,
                 shop,
                 sides,
                 process,
+                gost,
                 ..
             } => {
-                let kind = match weld_type {
-                    WeldType::Fillet => "угловой",
-                    WeldType::Butt => "стыковой",
-                    WeldType::ButtSquare => "стыковой без скоса",
-                    WeldType::ButtX => "стыковой X",
-                    WeldType::Lap => "нахлёсточный",
-                };
                 // Joint per the process standard (Т1, Т3, С2, …).
-                let kind = format!(
-                    "{kind} {} {}",
-                    process.standard(),
+                let joint = if gost.joint.trim().is_empty() {
                     weld_type.joint(*sides, *process)
-                );
+                } else {
+                    gost.joint.trim()
+                };
+                let mut kind = format!("{} {} {joint}", weld_type.short(), process.standard());
+                if !gost.method.trim().is_empty() {
+                    kind = format!("{kind} {}", gost.method.trim());
+                }
+                if let Some(i) = gost.intermittent {
+                    let sign = if i.staggered { "Z" } else { "/" };
+                    kind = format!("{kind} {}{sign}{}", fmt(i.length), fmt(i.pitch));
+                }
                 let place = if *shop {
                     "заводской"
                 } else {
@@ -410,7 +400,7 @@ fn fasteners(project: &Project) -> Vec<FastenerRow> {
                     .entry(format!("Шов {kind} k={} {place}", fmt(*size)))
                     .or_default();
                 entry.0 += 1;
-                entry.1 += path.windows(2).map(|p| p[0].distance(p[1])).sum::<f64>();
+                entry.1 += detail.kind.weld_lengths().map_or(0., |l| l.1);
             }
             _ => {}
         }
@@ -424,7 +414,8 @@ fn fasteners(project: &Project) -> Vec<FastenerRow> {
                 WeldSides::One
             };
             let kind = format!(
-                "угловой {} {}",
+                "{} {} {}",
+                WeldType::Fillet.short(),
                 seam.process.standard(),
                 WeldType::Fillet.joint(sides, seam.process)
             );

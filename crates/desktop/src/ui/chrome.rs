@@ -1053,6 +1053,15 @@ impl Workbench {
                             .iter()
                             .any(|id| project.levels.contains_key(id))
                     };
+                    let has_welds = {
+                        let project = self.editor.document.project();
+                        self.editor.selected.iter().any(|id| {
+                            matches!(
+                                project.details.get(id).map(|d| &d.kind),
+                                Some(open_bim_model::DetailKind::Weld { .. })
+                            )
+                        })
+                    };
                     ui.add_enabled_ui(!self.busy(), |ui| match self.mode {
                         Mode::Drawings => self.drawings.show(ui, &mut self.editor),
                         Mode::Reports => {
@@ -1071,6 +1080,9 @@ impl Workbench {
                             }
                             Some(SidePanel::Properties) if has_selection => {
                                 self.selection_pane(ui, requests)
+                            }
+                            Some(SidePanel::Properties) if has_welds => {
+                                self.weld_pane(ui, requests)
                             }
                             Some(SidePanel::Properties) if has_axes => self.axis_pane(ui, requests),
                             Some(SidePanel::Properties) if has_levels => {
@@ -1428,6 +1440,70 @@ impl Workbench {
         }
     }
 
+    /// Property pane of selected welds: the fields of the weld command filled
+    /// from the first weld; «Изменить» gives all of them these properties.
+    fn weld_pane(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
+        let project = self.editor.document.project();
+        let welds: Vec<open_bim_model::Detail> = self
+            .editor
+            .selected
+            .iter()
+            .filter_map(|id| project.details.get(id))
+            .filter(|d| matches!(d.kind, open_bim_model::DetailKind::Weld { .. }))
+            .cloned()
+            .collect();
+        pane_header(ui, "Сварной шов", welds.len());
+        let Some(first) = welds.first() else {
+            return;
+        };
+        if self.weld_buffer != Some(first.id) {
+            self.tools.detailing.load_weld(&first.kind);
+            self.weld_buffer = Some(first.id);
+        }
+        if welds.len() == 1 {
+            if let Some(n) = project.numbering.get(&first.id) {
+                ui.label(format!("Шов № {n}"));
+            }
+            if let Some((length, welded)) = first.kind.weld_lengths() {
+                ui.label(if (length - welded).abs() > 0.05 {
+                    format!("Длина {length:.0} мм, проварено {welded:.0} мм")
+                } else {
+                    format!("Длина {length:.0} мм")
+                });
+            }
+        }
+        ui.separator();
+        self.tools.detailing.weld_fields(ui);
+        ui.separator();
+        if ui.button("Изменить").clicked() {
+            let commands: Result<Vec<_>, String> = welds
+                .iter()
+                .filter_map(|w| match self.tools.detailing.apply_weld(&w.kind) {
+                    Ok(kind) if kind == w.kind => None,
+                    Ok(kind) => Some(Ok(open_bim_commands::Command::ReplaceDetail {
+                        detail: open_bim_model::Detail { id: w.id, kind },
+                    })),
+                    Err(e) => Some(Err(e)),
+                })
+                .collect();
+            match commands {
+                Ok(c) if c.is_empty() => self.tools.message = Some("Нет изменений".into()),
+                Ok(c) => {
+                    let n = c.len();
+                    requests.push(Request::Action(Action::Commit(
+                        format!("Изменить швы ({n})"),
+                        c,
+                    )));
+                    self.weld_buffer = None;
+                }
+                Err(e) => self.tools.message = Some(e),
+            }
+        }
+        if let Some(m) = &self.tools.message {
+            ui.label(m.clone());
+        }
+    }
+
     /// Property pane of a selected level: name and elevation mark; a new mark
     /// renames a level that was named by its mark (ГОСТ Р 21.101, 5.4.3).
     fn level_pane(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
@@ -1554,35 +1630,24 @@ impl Workbench {
                                 .value()
                                 .and_then(|id| project.profiles.get(id))
                                 .map_or(VARIES, |p| p.name.as_str());
-                            egui::ComboBox::new("ctx profile", "")
-                                .selected_text(shown)
-                                .height(420.)
-                                .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-                                .show_ui(ui, |ui| {
-                                    match super::catalog_picker::profile_menu(
-                                        ui,
-                                        "ctx",
-                                        project,
-                                        profile.value().copied(),
-                                    ) {
-                                        Some(super::catalog_picker::Pick::Project(id)) => {
-                                            change.profile = Some(id)
-                                        }
-                                        Some(super::catalog_picker::Pick::New(p)) => {
-                                            change.profile = Some(p.id);
-                                            change.new_profile = Some(p);
-                                        }
-                                        None => {}
-                                    }
-                                })
-                                .response
-                                .widget_info(|| {
-                                    egui::WidgetInfo::labeled(
-                                        egui::WidgetType::ComboBox,
-                                        true,
-                                        "Профиль выбранных",
-                                    )
-                                });
+                            match super::profile_dialog::profile_field(
+                                ui,
+                                "ctx",
+                                project,
+                                profile.value().copied(),
+                                shown,
+                                "Профиль выбранных",
+                                120.,
+                            ) {
+                                Some(super::catalog_picker::Pick::Project(id)) => {
+                                    change.profile = Some(id)
+                                }
+                                Some(super::catalog_picker::Pick::New(p)) => {
+                                    change.profile = Some(p.id);
+                                    change.new_profile = Some(p);
+                                }
+                                None => {}
+                            }
                         }
                         let shown = c
                             .material
@@ -1867,36 +1932,25 @@ impl Workbench {
                             )
                             .unwrap_or(VARIES)
                             .to_string();
-                            egui::ComboBox::new("pane profile", "")
-                                .selected_text(shown)
-                                .width(super::property_pane::field_width(ui))
-                                .height(420.)
-                                .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-                                .show_ui(ui, |ui| {
-                                    match super::catalog_picker::profile_menu(
-                                        ui,
-                                        "pane",
-                                        project,
-                                        self.pane.profile,
-                                    ) {
-                                        Some(super::catalog_picker::Pick::Project(id)) => {
-                                            self.pane.profile = Some(id)
-                                        }
-                                        Some(super::catalog_picker::Pick::New(p)) => {
-                                            self.pane.profile = Some(p.id);
-                                            self.pane.pending_profile = Some(p);
-                                        }
-                                        None => {}
-                                    }
-                                })
-                                .response
-                                .widget_info(|| {
-                                    egui::WidgetInfo::labeled(
-                                        egui::WidgetType::ComboBox,
-                                        true,
-                                        "Профиль",
-                                    )
-                                });
+                            let width = super::property_pane::field_width(ui);
+                            match super::profile_dialog::profile_field(
+                                ui,
+                                "pane",
+                                project,
+                                self.pane.profile,
+                                &shown,
+                                "Профиль",
+                                width,
+                            ) {
+                                Some(super::catalog_picker::Pick::Project(id)) => {
+                                    self.pane.profile = Some(id)
+                                }
+                                Some(super::catalog_picker::Pick::New(p)) => {
+                                    self.pane.profile = Some(p.id);
+                                    self.pane.pending_profile = Some(p);
+                                }
+                                None => {}
+                            }
                             if matches!(profile, Shared::Varies) && self.pane.profile.is_none() {
                                 ui.small(VARIES);
                             }

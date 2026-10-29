@@ -276,6 +276,7 @@ pub fn rebuild_seats(project: &mut Project, previous: &Project) -> Result<(), Mo
                         sides: WeldSides::Both,
                         around: false,
                         process: Default::default(),
+                        gost: Default::default(),
                     },
                 },
             );

@@ -102,9 +102,7 @@ fn touch(a: &[f64; 4], b: &[f64; 4]) -> bool {
 
 /// Outline of the union of the plates: the outer loop and the voids (a box
 /// section has one). Plates must not overlap and must form one piece.
-pub(crate) fn welded_outline(
-    plates: &[SectionPlate],
-) -> Result<Outline, ModelError> {
+pub(crate) fn welded_outline(plates: &[SectionPlate]) -> Result<Outline, ModelError> {
     if plates.is_empty() || plates.len() > MAX_PLATES {
         return Err(invalid("Сварное сечение: от 1 до 32 листов"));
     }
