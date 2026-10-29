@@ -1562,6 +1562,7 @@ impl Workbench {
             Cmd::SectionEditor => {
                 let project = self.editor.document.project();
                 self.section_editor.open_on(project, None);
+                self.message("Редактор сечений: выберите шаблон или создайте своё сечение");
             }
             Cmd::ComponentEditor => {
                 self.components.window = false;
