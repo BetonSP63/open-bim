@@ -11,6 +11,36 @@ use std::collections::BTreeSet;
 
 pub const VARIES: &str = "— разные —";
 
+/// Share of the pane width taken by the caption column: captions on the
+/// left, fields from one common edge to the right side of the pane.
+pub const LABEL_SHARE: f32 = 0.42;
+
+/// A pane section: bold caption with a triangle, its rows below.
+pub fn section(title: &str) -> egui::CollapsingHeader {
+    egui::CollapsingHeader::new(egui::RichText::new(title).strong()).id_salt(title)
+}
+
+/// Two-column grid of a section whose captions all start the field column
+/// at the same edge; fields stretch to the pane's right side.
+pub fn rows(
+    ui: &mut egui::Ui,
+    id: impl std::hash::Hash + std::fmt::Debug,
+    body: impl FnOnce(&mut egui::Ui),
+) {
+    let caption = (ui.available_width() * LABEL_SHARE).clamp(90., 220.);
+    egui::Grid::new(id)
+        .num_columns(2)
+        .min_col_width(caption)
+        .spacing([6., 4.])
+        .show(ui, body);
+}
+
+/// Width left for a field in the current grid cell, less the field's own
+/// frame and margins so the pane never grows frame after frame.
+pub fn field_width(ui: &egui::Ui) -> f32 {
+    (ui.available_width() - 16.).max(60.)
+}
+
 /// A property shared by the selection: one value, or differing values.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Shared<T> {
@@ -508,6 +538,8 @@ impl PropertyPane {
 /// «Положение» fields: three lists with an offset each, and Dx at
 /// both ends. `None` in a list shows «— разные —».
 pub fn position_grid(ui: &mut egui::Ui, salt: &str, b: &mut PositionBuffer) {
+    /// A list and its offset field in one value cell.
+    #[allow(clippy::too_many_arguments)]
     fn list<T: Copy + PartialEq>(
         ui: &mut egui::Ui,
         id: String,
@@ -515,84 +547,88 @@ pub fn position_grid(ui: &mut egui::Ui, salt: &str, b: &mut PositionBuffer) {
         value: &mut Option<T>,
         all: &[T],
         name: fn(T) -> &'static str,
+        unit: &str,
+        offset: &mut String,
     ) {
         let l = ui.label(label);
-        egui::ComboBox::new(id, "")
-            .selected_text(value.map_or(VARIES, name))
-            .show_ui(ui, |ui| {
-                for v in all {
-                    ui.selectable_value(value, Some(*v), name(*v));
-                }
-            })
-            .response
-            .labelled_by(l.id);
+        ui.horizontal(|ui| {
+            let w = field_width(ui);
+            egui::ComboBox::new(&id, "")
+                .selected_text(value.map_or(VARIES, name))
+                .width((w * 0.6).max(110.))
+                .show_ui(ui, |ui| {
+                    for v in all {
+                        ui.selectable_value(value, Some(*v), name(*v));
+                    }
+                })
+                .response
+                .labelled_by(l.id);
+            ui.add(
+                egui::TextEdit::singleline(offset)
+                    .id(egui::Id::new((id, "offset")))
+                    .desired_width((field_width(ui) - 30.).max(40.)),
+            )
+            .on_hover_text(unit)
+            .widget_info(|| {
+                egui::WidgetInfo::labeled(
+                    egui::WidgetType::TextEdit,
+                    true,
+                    format!("{label}, {unit}"),
+                )
+            });
+            ui.label(unit);
+        });
+        ui.end_row();
     }
     fn field(ui: &mut egui::Ui, id: String, label: &str, text: &mut String) {
         let l = ui.label(label);
         ui.add(
             egui::TextEdit::singleline(text)
                 .id(egui::Id::new(id))
-                .desired_width(60.),
+                .desired_width(field_width(ui)),
         )
         .labelled_by(l.id);
+        ui.end_row();
     }
-    egui::Grid::new(format!("{salt} position"))
-        .num_columns(4)
-        .show(ui, |ui| {
-            list(
-                ui,
-                format!("{salt} plane"),
-                "В плоскости",
-                &mut b.plane,
-                &OnPlane::ALL,
-                OnPlane::label,
-            );
-            field(
-                ui,
-                format!("{salt} plane offset"),
-                "мм",
-                &mut b.plane_offset,
-            );
-            ui.end_row();
-            list(
-                ui,
-                format!("{salt} rotation"),
-                "Поворот",
-                &mut b.rotation,
-                &Rotation::ALL,
-                Rotation::label,
-            );
-            field(
-                ui,
-                format!("{salt} rotation angle"),
-                "°",
-                &mut b.rotation_angle,
-            );
-            ui.end_row();
-            list(
-                ui,
-                format!("{salt} depth"),
-                "По глубине",
-                &mut b.depth,
-                &AtDepth::ALL,
-                AtDepth::label,
-            );
-            field(
-                ui,
-                format!("{salt} depth offset"),
-                "мм",
-                &mut b.depth_offset,
-            );
-            ui.end_row();
-            field(
-                ui,
-                format!("{salt} start dx"),
-                "Dx начала, мм",
-                &mut b.start_dx,
-            );
-            field(ui, format!("{salt} end dx"), "Dx конца, мм", &mut b.end_dx);
-            ui.end_row();
-        });
+    rows(ui, format!("{salt} position"), |ui| {
+        list(
+            ui,
+            format!("{salt} plane"),
+            "В плоскости",
+            &mut b.plane,
+            &OnPlane::ALL,
+            OnPlane::label,
+            "мм",
+            &mut b.plane_offset,
+        );
+        list(
+            ui,
+            format!("{salt} rotation"),
+            "Поворот",
+            &mut b.rotation,
+            &Rotation::ALL,
+            Rotation::label,
+            "°",
+            &mut b.rotation_angle,
+        );
+        list(
+            ui,
+            format!("{salt} depth"),
+            "По глубине",
+            &mut b.depth,
+            &AtDepth::ALL,
+            AtDepth::label,
+            "мм",
+            &mut b.depth_offset,
+        );
+        field(
+            ui,
+            format!("{salt} start dx"),
+            "Dx начала, мм",
+            &mut b.start_dx,
+        );
+        field(ui, format!("{salt} end dx"), "Dx конца, мм", &mut b.end_dx);
+    });
 }
 
 /// The same fields over one position (the create dialog): edits apply

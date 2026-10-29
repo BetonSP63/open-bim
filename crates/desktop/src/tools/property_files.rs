@@ -487,7 +487,8 @@ pub enum FileRequest {
 }
 
 impl FilesUi {
-    /// File row: list of saved files, «Загрузить», name and «Сохранить как».
+    /// File row: list of saved files (choosing loads), «Загрузить» and
+    /// «Сохранить как» with the name in its popup.
     pub fn row(
         &mut self,
         ui: &mut eframe::egui::Ui,
@@ -501,52 +502,78 @@ impl FilesUi {
         if !names.contains(chosen) {
             *chosen = names.first().cloned().unwrap_or_default();
         }
-        ui.horizontal_wrapped(|ui| {
-            let l = ui.label("Файл свойств");
+        // One row as in the pane header: the file list (choosing a file loads
+        // it), «Загрузить» again, and the save button with the name to save as.
+        ui.horizontal(|ui| {
+            let before = chosen.clone();
+            let width = (ui.available_width() - 84.).max(100.);
             egui::ComboBox::new(("property file", kind), "")
                 .selected_text(if chosen.is_empty() {
                     "— нет —"
                 } else {
                     chosen.as_str()
                 })
+                .width(width)
                 .show_ui(ui, |ui| {
                     for n in &names {
                         ui.selectable_value(chosen, n.clone(), n);
                     }
                 })
                 .response
-                .labelled_by(l.id);
-            if ui
-                .add_enabled(!chosen.is_empty(), egui::Button::new("Загрузить"))
-                .clicked()
-            {
+                .on_hover_text("Файл свойств: выбор файла загружает его в поля")
+                .widget_info(|| {
+                    egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, "Файл свойств")
+                });
+            if *chosen != before && !chosen.is_empty() {
                 request = Some(FileRequest::Load(chosen.clone()));
             }
-        });
-        ui.horizontal_wrapped(|ui| {
-            let l = ui.label("Имя");
-            ui.add(
-                egui::TextEdit::singleline(&mut self.save_as)
-                    .id(egui::Id::new(("property file name", kind)))
-                    .hint_text(STANDARD)
-                    .desired_width(110.),
-            )
-            .labelled_by(l.id);
-            if ui
-                .button("Сохранить как")
-                .on_hover_text(format!(
-                    "В папку {} рядом с файлом проекта; «standard» загружается при запуске команды",
-                    dir.display()
-                ))
-                .clicked()
-            {
-                let name = if self.save_as.trim().is_empty() {
-                    STANDARD.to_string()
-                } else {
-                    self.save_as.trim().to_string()
-                };
-                request = Some(FileRequest::Save(name));
+            let load = crate::ui::icons::button(
+                ui,
+                crate::ui::icons::Icon::Undo,
+                16.,
+                None,
+                "Загрузить",
+                "Загрузить выбранный файл свойств ещё раз",
+                !chosen.is_empty(),
+                false,
+            );
+            if load.clicked() {
+                request = Some(FileRequest::Load(chosen.clone()));
             }
+            let save = crate::ui::icons::button(
+                ui,
+                crate::ui::icons::Icon::Save,
+                16.,
+                None,
+                "Сохранить как",
+                &format!(
+                    "Сохранить свойства под именем — в папку {} рядом с файлом проекта; «standard» загружается при запуске команды",
+                    dir.display()
+                ),
+                true,
+                false,
+            );
+            egui::Popup::menu(&save)
+                .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+                .show(|ui| {
+                    let l = ui.label("Имя");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.save_as)
+                            .id(egui::Id::new(("property file name", kind)))
+                            .hint_text(STANDARD)
+                            .desired_width(160.),
+                    )
+                    .labelled_by(l.id);
+                    if ui.button("Сохранить").clicked() {
+                        let name = if self.save_as.trim().is_empty() {
+                            STANDARD.to_string()
+                        } else {
+                            self.save_as.trim().to_string()
+                        };
+                        request = Some(FileRequest::Save(name));
+                        ui.close();
+                    }
+                });
         });
         if let Some(FileRequest::Save(name)) = &request {
             self.chosen.insert(kind, name.clone());

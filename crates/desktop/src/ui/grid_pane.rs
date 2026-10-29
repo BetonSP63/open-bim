@@ -5,9 +5,9 @@ use crate::interaction::tools::GridSpec;
 use eframe::egui;
 use open_bim_model::GridSettings;
 
-fn text(ui: &mut egui::Ui, label: &str, value: &mut String, width: f32) {
+fn text(ui: &mut egui::Ui, label: &str, value: &mut String) {
     let l = ui.label(label);
-    ui.add(egui::TextEdit::singleline(value).desired_width(width))
+    ui.add(egui::TextEdit::singleline(value).desired_width(super::property_pane::field_width(ui)))
         .labelled_by(l.id);
     ui.end_row();
 }
@@ -22,29 +22,27 @@ fn colour(ui: &mut egui::Ui, label: &str, rgb: &mut [u8; 3]) {
 }
 
 fn section(ui: &mut egui::Ui, title: &str, body: impl FnOnce(&mut egui::Ui)) {
-    egui::CollapsingHeader::new(title)
+    super::property_pane::section(title)
         .default_open(true)
         .show(ui, |ui| {
-            egui::Grid::new(("grid section", title))
-                .num_columns(2)
-                .show(ui, body);
+            super::property_pane::rows(ui, ("grid section", title), body);
         });
 }
 
 /// All grid sections; edits go to `spec` and `settings`.
 pub fn sections(ui: &mut egui::Ui, spec: &mut GridSpec, settings: &mut GridSettings) {
     section(ui, "Координаты", |ui| {
-        text(ui, "X", &mut spec.x, 180.);
-        text(ui, "Y", &mut spec.y, 180.);
-        text(ui, "Z", &mut spec.z, 180.);
+        text(ui, "X", &mut spec.x);
+        text(ui, "Y", &mut spec.y);
+        text(ui, "Z", &mut spec.z);
     });
     ui.small("«0 4*6000» — первая линия в начале и четыре шага по 6000 мм; Z — отметки уровней");
     section(ui, "Подписи", |ui| {
-        text(ui, "X", &mut spec.labels_x, 180.);
-        text(ui, "Y", &mut spec.labels_y, 180.);
-        text(ui, "Z", &mut spec.labels_z, 180.);
+        text(ui, "X", &mut spec.labels_x);
+        text(ui, "Y", &mut spec.labels_y);
+        text(ui, "Z", &mut spec.labels_z);
     });
-    egui::CollapsingHeader::new("Выступающие части линий")
+    super::property_pane::section("Выступающие части линий")
         .default_open(true)
         .show(ui, |ui| {
             let [left, right, bottom, top] = &mut spec.extension;
@@ -67,9 +65,9 @@ pub fn sections(ui: &mut egui::Ui, spec: &mut GridSpec, settings: &mut GridSetti
         });
     section(ui, "Начало координат", |ui| {
         let [x, y, z] = &mut spec.origin;
-        text(ui, "X, мм", x, 100.);
-        text(ui, "Y, мм", y, 100.);
-        text(ui, "Z, мм", z, 100.);
+        text(ui, "X, мм", x);
+        text(ui, "Y, мм", y);
+        text(ui, "Z, мм", z);
     });
     section(
         ui,
