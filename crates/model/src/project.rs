@@ -173,6 +173,17 @@ pub struct Project {
     /// Shape catalogue of items («Формы»).
     #[serde(default, skip_serializing_if = "crate::Shapes::is_default")]
     pub shapes: crate::Shapes,
+    /// Parametric families the project uses, by name; the model keeps
+    /// working without the library files they came from.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub families: BTreeMap<String, crate::Family>,
+    /// Placed families with the parts they built.
+    #[serde(
+        default,
+        skip_serializing_if = "BTreeMap::is_empty",
+        deserialize_with = "unique_map"
+    )]
+    pub family_instances: BTreeMap<ObjectId, crate::FamilyInstance>,
 }
 
 impl Default for Project {
@@ -205,6 +216,8 @@ impl Default for Project {
             parametric: Default::default(),
             concrete: Default::default(),
             shapes: Default::default(),
+            families: BTreeMap::new(),
+            family_instances: BTreeMap::new(),
         }
     }
 }
@@ -236,6 +249,7 @@ impl Project {
             || self.construction.contains_key(&id)
             || self.dimensions.contains_key(&id)
             || self.plugins.contains_key(&id)
+            || self.family_instances.contains_key(&id)
     }
 
     pub fn element_volume_mm3(&self, id: ObjectId) -> Result<f64, ModelError> {
