@@ -598,6 +598,20 @@ impl Session {
         }])
     }
 
+    /// Fix the current part positions and shipping marks in the model
+    /// («Нумеровать»): later runs keep them where the parts are still
+    /// alike, new and changed parts get new numbers. Stages nothing when the
+    /// marks are already stored; returns the number of part positions.
+    pub fn number(&mut self) -> Result<usize> {
+        let numbering = open_bim_numbering::number(&self.working)?;
+        let positions = numbering.parts.values().collect::<BTreeSet<_>>().len();
+        let marks = open_bim_numbering::stored_marks(&numbering);
+        if marks != self.working.numbering {
+            self.stage(vec![Command::SetNumbering { marks }])?;
+        }
+        Ok(positions)
+    }
+
     /// IDs of the parts matching the query, ascending.
     pub fn query(&self, query: &Query) -> Result<Vec<ObjectId>> {
         let p = &self.working;
