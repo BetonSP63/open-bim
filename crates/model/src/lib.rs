@@ -11,11 +11,13 @@ mod detailing;
 mod document_info;
 mod drawing;
 mod drawing_objects;
+mod fabrication;
 pub mod family;
 pub mod formula;
 mod frame;
 pub mod library;
 pub mod management;
+mod model_views;
 pub mod numbering_rules;
 pub mod parametric;
 mod plugin;
@@ -23,7 +25,9 @@ mod position;
 mod project;
 pub mod sections;
 pub mod shapes;
+mod swept;
 mod validation;
+mod view_settings;
 pub mod weld;
 
 pub use analysis::{
@@ -72,8 +76,13 @@ pub use sections::{
     SectionDefinition, SectionPlate, SectionWeld, Sections, WeldedPiece, WeldedSeam,
 };
 pub use shapes::{ItemShape, ShapePart, Shapes};
+pub use swept::SweptPart;
 pub use validation::{ModelError, polygon_area};
 pub use weld::{
     Intermittent, Joint, JointKind, LEG_SIGN, WeldGost, WeldProcess, WeldSides, WeldType,
     weld_advice, weld_mark, weld_notes, welded_length,
 };
+
+pub use view_settings::{LinePen, ViewAppearance};
+
+pub use model_views::{ModelViewDefinition, ModelViewKind, ModelViewRender};

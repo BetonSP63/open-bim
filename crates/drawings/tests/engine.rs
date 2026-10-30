@@ -66,6 +66,9 @@ fn part_views_hidden_lines_sections_and_reference_svg() {
         scale: Some(10.),
         node: None,
         source: None,
+        section_host: None,
+        appearance: Default::default(),
+        unfolded: false,
     });
     let sheet = generate(&f.project, &d).unwrap();
     let s = d.scale;
@@ -276,4 +279,36 @@ fn control_model_file_matches_sample() {
         open_bim_persistence::save_atomic(&path, &f.project).unwrap();
     }
     assert_eq!(open_bim_persistence::load(&path).unwrap(), f.project);
+}
+
+#[test]
+fn swept_part_changes_invalidate_fingerprint() {
+    use open_bim_model::SweptPart;
+    let f = fixture();
+    let mut project = f.project;
+    project
+        .details
+        .retain(|_, detail| detail.kind.part() != Some(f.beam));
+    project.swept_parts.insert(
+        f.beam,
+        SweptPart::PolyBeam {
+            points: vec![[0., 0.], [1000., 0.], [1000., 1000.]],
+            bend_radius: 0.,
+        },
+    );
+    let before = open_bim_drawings::fingerprint(&project, f.beam).unwrap();
+    let drawing = part_drawing(&project, ObjectId(900), f.beam, "ПБ-1").unwrap();
+    assert_eq!(drawing.views.len(), 3);
+    assert!(generate(&project, &drawing).is_ok());
+    project.swept_parts.insert(
+        f.beam,
+        SweptPart::PolyBeam {
+            points: vec![[0., 0.], [1100., 0.], [1100., 1000.]],
+            bend_radius: 0.,
+        },
+    );
+    assert_ne!(
+        before,
+        open_bim_drawings::fingerprint(&project, f.beam).unwrap()
+    );
 }

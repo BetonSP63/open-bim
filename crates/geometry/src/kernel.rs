@@ -4,6 +4,8 @@ use truck_modeling::{Solid, Vector3, Wire, builder};
 use truck_topology::shell::ShellCondition;
 #[path = "planar_drill.rs"]
 mod planar_drill;
+#[path = "sweep.rs"]
+mod sweep;
 
 /// Absolute modeling tolerance in millimetres. All features must exceed 10× it.
 pub const TOLERANCE_MM: f64 = 0.0001;

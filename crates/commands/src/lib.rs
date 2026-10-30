@@ -49,6 +49,15 @@ pub enum Command {
     Create {
         element: Element,
     },
+    /// Create a swept part together with its domain parameters.
+    CreateSwept {
+        element: Element,
+        swept: open_bim_model::SweptPart,
+    },
+    ReplaceSwept {
+        element: Element,
+        swept: open_bim_model::SweptPart,
+    },
     CreateAxis {
         axis: GridAxis,
     },
@@ -103,6 +112,9 @@ pub enum Command {
     /// Main inscription attributes of the project (ГОСТ Р 21.101, прил. Е).
     SetDocumentInfo {
         info: Box<open_bim_model::DocumentInfo>,
+    },
+    SetModelViews {
+        views: Vec<open_bim_model::ModelViewDefinition>,
     },
     RenameProject {
         name: String,
@@ -389,7 +401,10 @@ fn guard_locked_and_phase(before: &Project, staged: &mut Project) -> Result<(), 
                     old.name
                 )));
             }
-            Some(new) if locked(new) && new != old => {
+            Some(new)
+                if locked(new)
+                    && (new != old || before.swept_parts.get(id) != staged.swept_parts.get(id)) =>
+            {
                 return Err(CommandError::InvalidTransaction(format!(
                     "Деталь «{}» заблокирована: снимите блокировку, чтобы изменить её",
                     old.name
@@ -612,6 +627,30 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
                 );
             project.elements.insert(element.id, element.clone());
         }
+        Command::ReplaceSwept { element, swept } => {
+            if !project.swept_parts.contains_key(&element.id)
+                || !project.elements.contains_key(&element.id)
+            {
+                return Err(ModelError::MissingReference(element.id).into());
+            }
+            project.elements.insert(element.id, element.clone());
+            project.swept_parts.insert(element.id, swept.clone());
+            project.element_body(element.id)?;
+        }
+        Command::CreateSwept { element, swept } => {
+            if project.contains_id(element.id) || element.id.0 == 0 {
+                return Err(ModelError::DuplicateId(element.id).into());
+            }
+            project.next_id =
+                project.next_id.max(
+                    element.id.0.checked_add(1).ok_or_else(|| {
+                        CommandError::InvalidTransaction("Недопустимый ID".into())
+                    })?,
+                );
+            project.elements.insert(element.id, element.clone());
+            project.swept_parts.insert(element.id, swept.clone());
+            project.element_body(element.id)?;
+        }
         Command::CreateAxis { axis } => {
             if project.contains_id(axis.id) || axis.id.0 == 0 {
                 return Err(ModelError::DuplicateId(axis.id).into());
@@ -676,8 +715,18 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
             project.axes.insert(axis.id, axis.clone());
         }
         Command::ReplaceElement { element } => {
-            if !project.elements.contains_key(&element.id) {
-                return Err(ModelError::MissingReference(element.id).into());
+            let old = project
+                .elements
+                .get(&element.id)
+                .ok_or(ModelError::MissingReference(element.id))?;
+            if project.swept_parts.contains_key(&element.id) {
+                let mut original_shape = old.shape.clone();
+                *original_shape.frame_mut() = *element.shape.frame();
+                if original_shape != element.shape {
+                    return Err(CommandError::InvalidTransaction(
+                        "Изменение базовой формы гнутой детали не поддерживается".into(),
+                    ));
+                }
             }
             project.elements.insert(element.id, element.clone());
         }
@@ -728,6 +777,15 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
                     properties.remove(key);
                 }
             }
+        }
+        Command::SetModelViews { views } => {
+            if views.len() > 256 {
+                return Err(ModelError::InvalidValue("Слишком много видов модели".into()).into());
+            }
+            for view in views {
+                view.validate()?;
+            }
+            project.model_views = views.clone();
         }
         Command::RenameProject { name } => project.name = name.clone(),
         Command::SetGridSettings { settings } => {
@@ -931,6 +989,7 @@ fn delete(project: &mut Project, id: ObjectId, policy: DeletePolicy) -> Result<(
     }
     for id in &removed {
         project.elements.remove(id);
+        project.swept_parts.remove(id);
         project.assemblies.remove(id);
         project.materials.remove(id);
         project.profiles.remove(id);

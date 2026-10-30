@@ -160,3 +160,73 @@ fn view_properties_are_edited_and_views_deleted_with_their_dimensions() {
     let last = editor.document.project().drawings[&id].views[0].id;
     assert!(drawings.delete_view(&mut editor, last).is_err());
 }
+
+#[test]
+fn section_trace_stays_on_the_chosen_host_and_appearance_has_history() {
+    let (mut editor, mut drawings, id) = setup();
+    let mut d = editor.document.project().drawings[&id].clone();
+    let mut second = d.views[0].clone();
+    second.id = 20;
+    second.position = [220., 220.];
+    d.views.push(second);
+    let mut section = d.views[2].clone();
+    section.id = 21;
+    section.direction = ViewDirection::Left;
+    section.section = Some(-1500.);
+    section.section_host = Some(20);
+    section.position = [330., 200.];
+    d.views.push(section);
+    editor
+        .commit_data(
+            "Разрез",
+            &[open_bim_commands::Command::ReplaceDrawing { drawing: d }],
+        )
+        .unwrap();
+    let sheet = drawings.sheet(editor.document.project()).unwrap();
+    assert!(!sheet.views[0].labels.iter().any(|l| l.text == "1"));
+    assert!(
+        sheet
+            .views
+            .iter()
+            .find(|v| v.id == 20)
+            .unwrap()
+            .labels
+            .iter()
+            .any(|l| l.text == "1")
+    );
+    assert!(drawings.delete_view(&mut editor, 20).is_err());
+    let mut appearance = open_bim_model::ViewAppearance::default();
+    appearance.visible.width = 1.;
+    appearance
+        .hidden_objects
+        .insert(open_bim_drawings::sample::control_project().beam);
+    drawings
+        .edit_view(
+            &mut editor,
+            20,
+            ViewEdit {
+                appearance: Some(appearance.clone()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        editor.document.project().drawings[&id]
+            .views
+            .iter()
+            .find(|v| v.id == 20)
+            .unwrap()
+            .appearance,
+        appearance
+    );
+    editor.history(false).unwrap();
+    assert!(
+        editor.document.project().drawings[&id]
+            .views
+            .iter()
+            .find(|v| v.id == 20)
+            .unwrap()
+            .appearance
+            .is_default()
+    );
+}

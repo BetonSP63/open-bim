@@ -68,13 +68,48 @@ fn polyline(painter: &egui::Painter, map: &Mapping, line: &Polyline, offset: [f6
         .map(|p| map.screen([p[0] + offset[0], p[1] + offset[1]]))
         .collect();
     let stroke = stroke(line.style, map.scale);
-    if line.style == LineStyle::Hidden {
+    let line_type = match line.style {
+        LineStyle::Hidden | LineStyle::ThickDashed => open_bim_model::LineType::Dashed,
+        LineStyle::DashDot | LineStyle::ThickDashDot => open_bim_model::LineType::DashDot,
+        LineStyle::Custom(pen) => pen.line_type,
+        _ => open_bim_model::LineType::Solid,
+    };
+    if line_type == open_bim_model::LineType::Dashed {
         painter.extend(egui::Shape::dashed_line(
             &points,
             stroke,
             3. * map.scale,
             1.5 * map.scale,
         ));
+    } else if line_type == open_bim_model::LineType::DashDot {
+        // Continue the dash phase across vertices of a projected polyline.
+        let pattern = [12., 3., 1., 3.].map(|v| v * map.scale);
+        let (mut phase, mut used) = (0usize, 0.0f32);
+        for edge in points.windows(2) {
+            let length = edge[0].distance(edge[1]);
+            if length <= f32::EPSILON {
+                continue;
+            }
+            let mut at = 0.;
+            while at < length {
+                let step = (pattern[phase] - used).min(length - at);
+                if phase % 2 == 0 {
+                    painter.line_segment(
+                        [
+                            edge[0].lerp(edge[1], at / length),
+                            edge[0].lerp(edge[1], (at + step) / length),
+                        ],
+                        stroke,
+                    );
+                }
+                at += step;
+                used += step;
+                if used >= pattern[phase] - 0.0001 {
+                    phase = (phase + 1) % 4;
+                    used = 0.;
+                }
+            }
+        }
     } else {
         painter.add(egui::Shape::line(points, stroke));
     }

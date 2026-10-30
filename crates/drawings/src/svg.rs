@@ -19,6 +19,15 @@ fn n(value: f64) -> String {
 
 pub fn stroke(style: LineStyle) -> (&'static str, f64, &'static str) {
     match style {
+        LineStyle::Custom(pen) => (
+            "#000",
+            pen.width,
+            match pen.line_type {
+                open_bim_model::LineType::Solid => "",
+                open_bim_model::LineType::Dashed => " stroke-dasharray=\"3 1.5\"",
+                open_bim_model::LineType::DashDot => " stroke-dasharray=\"12 3 1 3\"",
+            },
+        ),
         LineStyle::Visible => ("#000", 0.5, ""),
         LineStyle::Hidden => ("#000", 0.25, " stroke-dasharray=\"3 1.5\""),
         LineStyle::Section => ("#000", 0.7, ""),
@@ -117,10 +126,22 @@ pub fn render(sheet: &Sheet) -> String {
             LineStyle::Visible,
             LineStyle::Section,
             LineStyle::Thin,
+            LineStyle::DashDot,
+            LineStyle::ThickDashed,
+            LineStyle::ThickDashDot,
+            LineStyle::Frame,
+            LineStyle::Lost,
         ] {
             for line in view.lines.iter().filter(|l| l.style == style) {
                 polyline(&mut out, line, h);
             }
+        }
+        for line in view
+            .lines
+            .iter()
+            .filter(|l| matches!(l.style, LineStyle::Custom(_)))
+        {
+            polyline(&mut out, line, h);
         }
         for l in &view.labels {
             label(&mut out, l, h);

@@ -58,7 +58,7 @@ impl Clipboard {
         let mut commands =
             edit_commands(&snapshot, &self.ids, &Edit::Copy(Point3(delta.to_array())))?;
         for command in &mut commands {
-            if let Command::Create { element } = command {
+            if let Command::Create { element } | Command::CreateSwept { element, .. } = command {
                 element.properties.retain(|k, _| {
                     k != open_bim_ifc::GUID_PROPERTY
                         && k != LOCK_PROPERTY
@@ -71,8 +71,9 @@ impl Clipboard {
         let mut restore = Vec::new();
         let mut restored = BTreeSet::new();
         for command in &commands {
-            let Command::Create { element } = command else {
-                continue;
+            let element = match command {
+                Command::Create { element } | Command::CreateSwept { element, .. } => element,
+                _ => continue,
             };
             let profile = match &element.shape {
                 open_bim_model::ElementShape::Member { profile, .. } => Some(*profile),

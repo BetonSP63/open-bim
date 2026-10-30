@@ -8,6 +8,7 @@ use open_bim_renderer::{ClipPlane, DVec3};
 #[derive(Clone, Debug, PartialEq)]
 pub enum ViewKind {
     Model3d,
+    Node { bounds: [[f64; 3]; 2] },
     Plan { elevation: f64 },
     Elevation { from: DVec3, to: DVec3 },
 }
@@ -20,10 +21,13 @@ pub struct ModelView {
     pub yaw: f64,
     pub pitch: f64,
     pub orthographic: bool,
+    pub render: open_bim_renderer::RenderMode,
+    pub edge_pen: Option<open_bim_model::LinePen>,
     /// View depth: the region kept is between the two planes.
     pub clip: [Option<ClipPlane>; 2],
     /// Work plane used while this view is active (kept per view).
     pub workplane: Workplane,
+    pub hidden: std::collections::BTreeSet<open_bim_model::ObjectId>,
 }
 
 impl ModelView {
@@ -34,8 +38,11 @@ impl ModelView {
             yaw: -2.35,
             pitch: 0.52,
             orthographic: false,
+            render: Default::default(),
+            edge_pen: None,
             clip: [None, None],
             workplane: Workplane::default(),
+            hidden: Default::default(),
         }
     }
 
@@ -53,6 +60,10 @@ impl ModelView {
     fn reference(&self) -> Option<(DVec3, f64)> {
         match &self.kind {
             ViewKind::Model3d => None,
+            ViewKind::Node { .. } => {
+                let n = self.workplane.axes[2];
+                Some((n, n.dot(self.workplane.origin)))
+            }
             ViewKind::Plan { elevation } => Some((DVec3::Z, *elevation)),
             ViewKind::Elevation { from, to } => {
                 let n = (*to - *from).with_z(0.).try_normalize()?.cross(DVec3::Z);
@@ -123,8 +134,11 @@ pub fn grid_views(project: &Project) -> Vec<ModelView> {
             yaw: 0.,
             pitch: std::f64::consts::FRAC_PI_2,
             orthographic: true,
+            render: Default::default(),
+            edge_pen: None,
             clip: slab(DVec3::Z, z, PLAN_DEPTH[0], PLAN_DEPTH[1]),
             workplane: Workplane::at_elevation(z),
+            hidden: Default::default(),
         });
     }
     for axis in project.axes.values() {
@@ -147,9 +161,87 @@ pub fn grid_views(project: &Project) -> Vec<ModelView> {
             yaw: n.y.atan2(n.x),
             pitch: 0.,
             orthographic: true,
+            render: Default::default(),
+            edge_pen: None,
             clip: slab(n, n.dot(a), ELEVATION_DEPTH, ELEVATION_DEPTH),
             workplane,
+            hidden: Default::default(),
         });
     }
     views
+}
+
+impl ModelView {
+    pub fn definition(&self) -> open_bim_model::ModelViewDefinition {
+        use open_bim_model::{Frame, ModelViewKind as K, Point3};
+        open_bim_model::ModelViewDefinition {
+            name: self.name.clone(),
+            kind: match self.kind {
+                ViewKind::Model3d => K::Model3d,
+                ViewKind::Plan { elevation } => K::Plan { elevation },
+                ViewKind::Elevation { from, to } => K::Elevation {
+                    from: Point3(from.to_array()),
+                    to: Point3(to.to_array()),
+                },
+                ViewKind::Node { bounds } => K::Node { bounds },
+            },
+            yaw: self.yaw,
+            pitch: self.pitch,
+            orthographic: self.orthographic,
+            render: match self.render {
+                open_bim_renderer::RenderMode::Wireframe => {
+                    open_bim_model::ModelViewRender::Wireframe
+                }
+                open_bim_renderer::RenderMode::Transparent => {
+                    open_bim_model::ModelViewRender::Transparent
+                }
+                open_bim_renderer::RenderMode::Shaded => open_bim_model::ModelViewRender::Shaded,
+            },
+            edge_pen: self.edge_pen,
+            workplane: Frame {
+                origin: Point3(self.workplane.origin.to_array()),
+                axes: self.workplane.axes.map(|a| a.to_array()),
+            },
+            depth: self.depth(),
+            hidden: self.hidden.clone(),
+        }
+    }
+    pub fn from_definition(def: &open_bim_model::ModelViewDefinition) -> Self {
+        use open_bim_model::ModelViewKind as K;
+        let mut view = Self {
+            name: def.name.clone(),
+            kind: match def.kind {
+                K::Model3d => ViewKind::Model3d,
+                K::Plan { elevation } => ViewKind::Plan { elevation },
+                K::Elevation { from, to } => ViewKind::Elevation {
+                    from: DVec3::from_array(from.0),
+                    to: DVec3::from_array(to.0),
+                },
+                K::Node { bounds } => ViewKind::Node { bounds },
+            },
+            yaw: def.yaw,
+            pitch: def.pitch,
+            orthographic: def.orthographic,
+            render: match def.render {
+                open_bim_model::ModelViewRender::Wireframe => {
+                    open_bim_renderer::RenderMode::Wireframe
+                }
+                open_bim_model::ModelViewRender::Transparent => {
+                    open_bim_renderer::RenderMode::Transparent
+                }
+                open_bim_model::ModelViewRender::Shaded => open_bim_renderer::RenderMode::Shaded,
+            },
+            edge_pen: def.edge_pen,
+            workplane: Workplane {
+                origin: DVec3::from_array(def.workplane.origin.0),
+                axes: def.workplane.axes.map(DVec3::from_array),
+            },
+            clip: [None, None],
+            hidden: def.hidden.clone(),
+        };
+        if let Some([below, above]) = def.depth {
+            let _ = view.set_depth(below, above);
+        }
+        view
+    }
 }
