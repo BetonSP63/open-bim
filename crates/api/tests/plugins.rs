@@ -6,6 +6,22 @@ use std::path::{Path, PathBuf};
 
 const COLUMNS: &str = env!("CARGO_BIN_EXE_open-bim-plugin-columns");
 
+/// The POSIX shell that runs the test scripts: `/bin/sh`, or on Windows the
+/// `sh.exe` of Git for Windows found on `PATH`.
+fn shell() -> String {
+    if !cfg!(windows) {
+        return "/bin/sh".into();
+    }
+    std::env::var_os("PATH")
+        .into_iter()
+        .flat_map(|p| std::env::split_paths(&p).collect::<Vec<_>>())
+        .map(|d| d.join("sh.exe"))
+        .find(|p| p.is_file())
+        .unwrap_or_else(|| PathBuf::from(r"C:\Program Files\Git\bin\sh.exe"))
+        .to_string_lossy()
+        .into_owned()
+}
+
 fn temp(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("open-bim-api-pl-{}-{name}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
@@ -35,7 +51,7 @@ fn script_plugin(root: &Path, name: &str, body: &str, timeout_s: u64) -> Plugin 
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("run.sh"), format!("cat > /dev/null\n{body}\n")).unwrap();
     let manifest = serde_json::json!({
-        "name": name, "kind": "model", "program": "/bin/sh", "args": ["run.sh"],
+        "name": name, "kind": "model", "program": shell(), "args": ["run.sh"],
         "timeout_s": timeout_s
     });
     std::fs::write(dir.join(plugins::MANIFEST), manifest.to_string()).unwrap();
@@ -277,7 +293,7 @@ fn local_frame_of_the_first_input() {
     )
     .unwrap();
     let manifest = serde_json::json!({
-        "name": "Проба", "kind": "model", "program": "/bin/sh", "args": ["run.sh"]
+        "name": "Проба", "kind": "model", "program": shell(), "args": ["run.sh"]
     });
     std::fs::write(dir.join(plugins::MANIFEST), manifest.to_string()).unwrap();
     let probe = plugins::load(&dir).unwrap();
