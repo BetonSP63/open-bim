@@ -28,6 +28,8 @@ pub enum TrimTool {
     CutLine,
     CutPart,
     CutPolygon,
+    Opening,
+    Recess,
     EdgeChamfer,
     Split,
     Combine,
@@ -78,6 +80,8 @@ impl TrimTool {
             Self::CutLine => "Разрезать линией",
             Self::CutPart => "Разрезать деталью",
             Self::CutPolygon => "Разрезать многоугольником",
+            Self::Opening => "Проём",
+            Self::Recess => "Ниша",
             Self::EdgeChamfer => "Фаска кромки",
             Self::Split => "Разделить",
             Self::Combine => "Объединить",
@@ -136,7 +140,7 @@ impl TrimTool {
             Self::CutPart | Self::Combine | Self::Gusset => &[Part, Part],
             Self::AddToAssembly => &[Part],
             Self::Stiffener => &[Part, Point],
-            Self::CutPolygon => &[Part, Polygon],
+            Self::CutPolygon | Self::Opening | Self::Recess => &[Part, Polygon],
             Self::Split | Self::Extend => &[Part, Point],
         }
     }
@@ -166,6 +170,9 @@ impl TrimTool {
             (Self::CutPolygon, 0) => "Выберите разрезаемую деталь",
             (Self::CutPolygon, _) if points < 3 => "Укажите вершины выреза в рабочей плоскости",
             (Self::CutPolygon, _) => "Следующая вершина или Enter — замкнуть вырез",
+            (Self::Opening | Self::Recess, 0) => "Выберите перекрытие, плиту или стену",
+            (Self::Opening | Self::Recess, _) if points < 3 => "Укажите вершины контура на грани",
+            (Self::Opening | Self::Recess, _) => "Следующая вершина или Enter — замкнуть контур",
             (Self::Split, 0) => "Выберите деталь для разделения",
             (Self::Split, _) => "Укажите точку разделения",
             (Self::Combine, 0) => "Выберите первую деталь",
@@ -717,6 +724,113 @@ pub fn cut_polygon(
             frame,
             contour,
             length: 2. * reach,
+        },
+    ))
+}
+
+/// «Проём» (`depth` = None) and «Ниша» in a concrete slab, raft or wall:
+/// the polygon is projected on the part's thinnest direction; an opening
+/// goes through the whole thickness, a recess `depth` deep from the face
+/// nearer to the picked points.
+pub fn opening(
+    project: &Project,
+    part: ObjectId,
+    polygon: &[DVec3],
+    depth: Option<f64>,
+) -> Result<Vec<Command>, String> {
+    let e = element(project, part)?;
+    if super::concrete::part_type(e).is_none() {
+        return Err(format!("«{}»: выберите железобетонную деталь", e.name));
+    }
+    if polygon.len() < 3 {
+        return Err("Нужно не меньше 3 вершин контура".into());
+    }
+    let (section, len) = prism_of(project, e)?;
+    // Part extents along its local axes.
+    let mut lo = [f64::INFINITY, f64::INFINITY, 0.];
+    let mut hi = [f64::NEG_INFINITY, f64::NEG_INFINITY, len];
+    for c in &section {
+        for k in 0..2 {
+            lo[k] = lo[k].min(c[k]);
+            hi[k] = hi[k].max(c[k]);
+        }
+    }
+    let k = (0..3)
+        .min_by(|&a, &b| (hi[a] - lo[a]).total_cmp(&(hi[b] - lo[b])))
+        .unwrap_or(2);
+    let thickness = hi[k] - lo[k];
+    let (_, point) = local(e.shape.frame());
+    // In-plane axes i, j with i × j = k.
+    let (i, j) = ((k + 1) % 3, (k + 2) % 3);
+    let margin = 10.;
+    // A vertex on an edge of the part (a door at the floor) moves out past
+    // it, so no face of the cut lies on a face of the part.
+    let pts: Vec<DVec3> = polygon
+        .iter()
+        .map(|p| {
+            let mut q = point(*p);
+            for n in [i, j] {
+                if q[n] <= lo[n] + 0.5 {
+                    q[n] = q[n].min(lo[n] - margin);
+                } else if q[n] >= hi[n] - 0.5 {
+                    q[n] = q[n].max(hi[n] + margin);
+                }
+            }
+            q
+        })
+        .collect();
+    let unit = |n: usize| {
+        let mut a = [0.; 3];
+        a[n] = 1.;
+        DVec3::from_array(a)
+    };
+    let mean = pts.iter().map(|p| p[k]).sum::<f64>() / pts.len() as f64;
+    let (top, length) = match depth {
+        None => (false, thickness + 2. * margin),
+        Some(d) if d > 0. && d < thickness => {
+            ((mean - hi[k]).abs() < (mean - lo[k]).abs(), d + margin)
+        }
+        Some(_) => {
+            return Err(format!(
+                "Глубина ниши: больше 0 и меньше толщины {} мм",
+                open_bim_reports::fmt(thickness)
+            ));
+        }
+    };
+    // A recess from the upper face runs down k: swap i and j to keep the
+    // frame right-handed.
+    let (x, y, z, start) = if top {
+        (unit(j), unit(i), -unit(k), hi[k] + margin)
+    } else {
+        (unit(i), unit(j), unit(k), lo[k] - margin)
+    };
+    let mut origin = pts[0];
+    origin[k] = start;
+    let mut contour: Vec<[f64; 2]> = pts
+        .iter()
+        .map(|p| [(*p - origin).dot(x), (*p - origin).dot(y)])
+        .collect();
+    super::polygon::check_closed(&contour)?;
+    open_bim_model::polygon_area(&contour).map_err(|e| e.to_string())?;
+    let area: f64 = (0..contour.len())
+        .map(|n| {
+            let (u, w) = (contour[n], contour[(n + 1) % contour.len()]);
+            u[0] * w[1] - w[0] * u[1]
+        })
+        .sum();
+    if area < 0. {
+        contour.reverse();
+    }
+    Ok(detail(
+        project,
+        DetailKind::PrismCut {
+            part,
+            frame: Frame {
+                origin: p3(origin),
+                axes: [x.to_array(), y.to_array(), z.to_array()],
+            },
+            contour,
+            length,
         },
     ))
 }

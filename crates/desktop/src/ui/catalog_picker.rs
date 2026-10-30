@@ -169,7 +169,8 @@ pub fn profile_menu(
     picked
 }
 
-/// The body of a material list: project materials, then catalogue steels.
+/// The body of a material list: project materials, then catalogue steels
+/// and concrete classes.
 pub fn material_menu(
     ui: &mut egui::Ui,
     project: &Project,
@@ -193,6 +194,25 @@ pub fn material_menu(
         }
         if ui.selectable_label(false, name).clicked() {
             picked = material_by_grade(project, grade);
+        }
+    }
+    ui.weak("Каталог бетонов");
+    for c in library::concrete_classes() {
+        let name = library::concrete_name(c.name);
+        if project.materials.values().any(|m| m.name == name) {
+            continue;
+        }
+        if ui
+            .selectable_label(false, &name)
+            .on_hover_text(format!(
+                "Rb = {} МПа, Rbt = {} МПа, Eb = {} МПа (СП 63.13330)",
+                open_bim_reports::fmt(c.rb),
+                open_bim_reports::fmt(c.rbt),
+                open_bim_reports::fmt(c.eb)
+            ))
+            .clicked()
+        {
+            picked = library::concrete(ObjectId(project.next_id), c.name).map(Pick::New);
         }
     }
     picked
