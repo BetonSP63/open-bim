@@ -26,6 +26,9 @@ pub enum Family {
     IBeamNormal57837,
     IBeamWide57837,
     IBeamColumn57837,
+    IBeamExtraNormal57837,
+    IBeamExtraColumn57837,
+    IBeamPile57837,
     IBeamNormalSto,
     IBeamWideSto,
     IBeamColumnSto,
@@ -43,10 +46,13 @@ pub enum Family {
 }
 
 impl Family {
-    pub const ALL: [Self; 21] = [
+    pub const ALL: [Self; 24] = [
         Self::IBeamNormal57837,
         Self::IBeamWide57837,
         Self::IBeamColumn57837,
+        Self::IBeamExtraNormal57837,
+        Self::IBeamExtraColumn57837,
+        Self::IBeamPile57837,
         Self::IBeamNormal,
         Self::IBeamWide,
         Self::IBeamColumn,
@@ -75,6 +81,9 @@ impl Family {
             Self::IBeamNormal57837 => "Двутавры балочные Б (ГОСТ Р 57837)",
             Self::IBeamWide57837 => "Двутавры широкополочные Ш (ГОСТ Р 57837)",
             Self::IBeamColumn57837 => "Двутавры колонные К (ГОСТ Р 57837)",
+            Self::IBeamExtraNormal57837 => "Двутавры дополнительные балочные ДБ (ГОСТ Р 57837)",
+            Self::IBeamExtraColumn57837 => "Двутавры дополнительные колонные ДК (ГОСТ Р 57837)",
+            Self::IBeamPile57837 => "Двутавры свайные С (ГОСТ Р 57837)",
             Self::IBeamNormalSto => "Двутавры балочные Б (СТО АСЧМ 20-93)",
             Self::IBeamWideSto => "Двутавры широкополочные Ш (СТО АСЧМ 20-93)",
             Self::IBeamColumnSto => "Двутавры колонные К (СТО АСЧМ 20-93)",
@@ -395,7 +404,13 @@ fn read_sections() -> Vec<Entry> {
         });
     }
     for (name, h, b, s, t, r, a) in i_57837() {
-        let family = if name.contains('Б') {
+        let family = if name.contains("ДБ") {
+            Family::IBeamExtraNormal57837
+        } else if name.contains("ДК") {
+            Family::IBeamExtraColumn57837
+        } else if name.contains('С') {
+            Family::IBeamPile57837
+        } else if name.contains('Б') {
             Family::IBeamNormal57837
         } else if name.contains('Ш') {
             Family::IBeamWide57837
@@ -644,7 +659,7 @@ mod tests {
     #[test]
     fn gost_57837_beams_match_their_areas_within_one_percent() {
         let rows = i_57837();
-        assert_eq!(rows.len(), 171);
+        assert_eq!(rows.len(), 340);
         for (name, h, b, s, t, r, a) in rows {
             let computed = i_area(h, b, s, t, r);
             let listed = a * 100.0;
@@ -657,6 +672,17 @@ mod tests {
         assert_eq!(new.standard, "ГОСТ Р 57837-2017");
         assert!((new.area_mm2 - 2716.0).abs() < 1.0);
         assert_eq!(section("20Б1").unwrap().standard, "ГОСТ 26020-83");
+        // The official 2019 edition with Amendment 1: all series.
+        for (name, family) in [
+            ("40К19 (Р 57837)", Family::IBeamColumn57837),
+            ("35К1.5 (Р 57837)", Family::IBeamColumn57837),
+            ("100ДБ3 (Р 57837)", Family::IBeamExtraNormal57837),
+            ("10ДК0 (Р 57837)", Family::IBeamExtraColumn57837),
+            ("40С3 (Р 57837)", Family::IBeamPile57837),
+        ] {
+            assert_eq!(section(name).unwrap().family, family, "{name}");
+        }
+        assert!(section("20Б0 (Р 57837)").is_none());
     }
 
     #[test]
@@ -726,6 +752,7 @@ mod tests {
         assert!(all.len() > 1200);
         // ГОСТ 26020, Р 57837, СТО АСЧМ and the two tees.
         assert_eq!(search("30б").len(), 2 + 4 + 2 + 2);
+        assert_eq!(search("30дб").len(), 8);
         assert_eq!(search("30б 57837").len(), 4);
         assert_eq!(search("Труба 219×").len(), 14);
         assert!((section("20Б1").unwrap().mass_kg_m() - 22.4).abs() < 0.05);
