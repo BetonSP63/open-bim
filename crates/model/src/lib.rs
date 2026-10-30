@@ -74,7 +74,7 @@ pub use plugin::{MAX_PLUGIN_INPUTS, PluginInput, PluginInstance, PluginValue};
 pub use position::{AtDepth, OnPlane, PartPosition, Rotation, place, reference_line};
 pub use pours::{PourPiece, PourRow, PourZone};
 pub use project::{
-    Assembly, Element, ElementShape, MemberKind, ObjectId, Project, PropertyValue, Units,
+    Assembly, Element, ElementShape, ID_BLOCK, MemberKind, ObjectId, Project, PropertyValue, Units,
     example_steel_frame,
 };
 pub use rebar::{

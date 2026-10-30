@@ -6,6 +6,11 @@ use std::collections::{BTreeMap, BTreeSet};
 #[serde(transparent)]
 pub struct ObjectId(pub u64);
 
+/// IDs come in ranges of this size. A model of one engineer uses the first
+/// range only; in a shared model every engineer creates objects in a range
+/// of their own, so `next_id` only has to be above the IDs of its own range.
+pub const ID_BLOCK: u64 = 1 << 32;
+
 impl std::fmt::Display for ObjectId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
