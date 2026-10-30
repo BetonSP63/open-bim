@@ -1768,6 +1768,7 @@ fn build_details(
                                     frame: local,
                                     diameter: diameter + clearance,
                                     depth: 2. * reach,
+                                    slot: 0.,
                                 },
                             },
                         );
@@ -1847,6 +1848,7 @@ fn build_details(
                                 frame: local,
                                 diameter: *diameter,
                                 depth: *depth,
+                                slot: 0.,
                             },
                         },
                     );

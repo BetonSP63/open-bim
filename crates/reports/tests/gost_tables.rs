@@ -225,3 +225,74 @@ fn reference_sheets_for_the_independent_check() {
         assert!(stored == bytes, "{name} differs from the reference");
     }
 }
+
+#[test]
+fn checker_plates_bent_sections_and_strips_get_their_own_lines() {
+    use open_bim_model::library::{self, CHECKER_PROPERTY};
+    use open_bim_model::{ElementShape, LengthMm, PropertyValue};
+    let mut p = control_set().unwrap();
+    let plate = *p
+        .elements
+        .iter()
+        .find(|(_, e)| matches!(e.shape, ElementShape::Plate { .. }))
+        .unwrap()
+        .0;
+    let e = p.elements.get_mut(&plate).unwrap();
+    if let ElementShape::Plate { thickness, .. } = &mut e.shape {
+        *thickness = LengthMm::new(8.).unwrap();
+    }
+    let steel = p.element_mass_kg(plate).unwrap();
+    p.elements
+        .get_mut(&plate)
+        .unwrap()
+        .properties
+        .insert(CHECKER_PROPERTY.into(), PropertyValue::Text("ромб".into()));
+    // 66,6 kg/m² instead of 7,85·8 = 62,8 kg/m².
+    let checker = p.element_mass_kg(plate).unwrap();
+    assert!(
+        (checker / steel - 66.6 / 62.8).abs() < 1e-9,
+        "{checker} vs {steel}"
+    );
+    assert_eq!(
+        open_bim_drawings::tables::assortment(&p, plate),
+        ("Лист рифлёный ромб ГОСТ 8568-77".into(), "—8".into())
+    );
+    // Members of bent channels and strips.
+    let members: Vec<ObjectId> = p
+        .elements
+        .iter()
+        .filter(|(_, e)| matches!(e.shape, ElementShape::Member { .. }))
+        .map(|(id, _)| *id)
+        .take(2)
+        .collect();
+    for (id, name, kind) in [
+        (
+            members[0],
+            "Швеллер гнутый 160×80×4",
+            "Швеллеры гнутые ГОСТ 8278-83",
+        ),
+        (members[1], "Полоса 4×40", "Полоса ГОСТ 103-2006"),
+    ] {
+        let profile = ObjectId(p.next_id);
+        p.next_id += 1;
+        p.profiles
+            .insert(profile, library::section(name).unwrap().profile(profile));
+        if let ElementShape::Member { profile: pr, .. } =
+            &mut p.elements.get_mut(&id).unwrap().shape
+        {
+            *pr = profile;
+        }
+        assert_eq!(
+            open_bim_drawings::tables::assortment(&p, id),
+            (kind.into(), name.into())
+        );
+    }
+    let rs = open_bim_reports::gost_tables::rolled_steel(&p).unwrap();
+    for kind in [
+        "Лист рифлёный ромб ГОСТ 8568-77",
+        "Швеллеры гнутые ГОСТ 8278-83",
+        "Полоса ГОСТ 103-2006",
+    ] {
+        assert!(rs.lines.iter().any(|l| l.assortment == kind), "{kind}");
+    }
+}

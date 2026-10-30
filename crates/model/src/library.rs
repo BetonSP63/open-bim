@@ -15,6 +15,10 @@ use crate::{Material, ObjectId, Profile, ProfileShape};
 
 /// Hot-rolled plate: thicknesses and sheet sizes per ГОСТ 19903-2015.
 pub const PLATE_STANDARD: &str = "ГОСТ 19903-2015";
+/// Checker plate with rhombic or lentil pattern.
+pub const CHECKER_STANDARD: &str = "ГОСТ 8568-77";
+/// Plate property that selects the checker pattern: «ромб» or «чечевица».
+pub const CHECKER_PROPERTY: &str = "Рифление";
 
 /// Group shown in the profile picker.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -43,10 +47,13 @@ pub enum Family {
     SquareTube,
     RectTube,
     PipeWaterGas,
+    ChannelBent,
+    AngleBent,
+    Flat,
 }
 
 impl Family {
-    pub const ALL: [Self; 24] = [
+    pub const ALL: [Self; 27] = [
         Self::IBeamNormal57837,
         Self::IBeamWide57837,
         Self::IBeamColumn57837,
@@ -65,8 +72,11 @@ impl Family {
         Self::TeeColumn,
         Self::Channel,
         Self::ChannelP,
+        Self::ChannelBent,
         Self::Angle,
         Self::AngleUnequal,
+        Self::AngleBent,
+        Self::Flat,
         Self::Pipe,
         Self::PipeWaterGas,
         Self::SquareTube,
@@ -98,6 +108,21 @@ impl Family {
             Self::PipeWaterGas => "Трубы водогазопроводные ВГП (ГОСТ 3262)",
             Self::SquareTube => "Трубы квадратные (ГОСТ 30245)",
             Self::RectTube => "Трубы прямоугольные (ГОСТ 30245)",
+            Self::ChannelBent => "Швеллеры гнутые равнополочные (ГОСТ 8278)",
+            Self::AngleBent => "Уголки гнутые равнополочные (ГОСТ 19771)",
+            Self::Flat => "Полосы (ГОСТ 103)",
+        }
+    }
+
+    /// Assortment name of the family in a ГОСТ 21.502 specification, when
+    /// the section shape alone does not tell it («Швеллеры» for any channel).
+    pub fn assortment(self) -> Option<&'static str> {
+        match self {
+            Self::ChannelBent => Some("Швеллеры гнутые"),
+            Self::AngleBent => Some("Уголки гнутые"),
+            Self::Flat => Some("Полоса"),
+            Self::TeeNormal | Self::TeeWide | Self::TeeColumn => Some("Тавры из двутавров"),
+            _ => None,
         }
     }
 }
@@ -152,6 +177,9 @@ const SUFFIX_STO: &str = " (СТО АСЧМ)";
 /// Prefix of a tee cut from a ГОСТ 26020 beam along the web axis.
 const TEE_PREFIX: &str = "Тавр ½";
 const GOST_30245: &str = "ГОСТ 30245-2003";
+const GOST_8278: &str = "ГОСТ 8278-83";
+const GOST_19771: &str = "ГОСТ 19771-93";
+const GOST_103: &str = "ГОСТ 103-2006";
 
 /// Sourced reference tables (`data/reference`, see its `sources.md`).
 const I_8239_CSV: &str = include_str!("../../../data/reference/i_beams_gost_8239_89.csv");
@@ -166,6 +194,12 @@ const PIPES_CSV: &str = include_str!("../../../data/reference/pipes_round_gost_1
 const PIPES_3262_CSV: &str =
     include_str!("../../../data/reference/pipes_water_gas_gost_3262_75.csv");
 const TUBES_CSV: &str = include_str!("../../../data/reference/hollow_sections_gost_30245_2003.csv");
+const CHANNELS_BENT_CSV: &str =
+    include_str!("../../../data/reference/channels_bent_gost_8278_83.csv");
+const ANGLES_BENT_CSV: &str = include_str!("../../../data/reference/angles_bent_gost_19771_93.csv");
+const FLATS_CSV: &str = include_str!("../../../data/reference/flats_gost_103_2006.csv");
+const PLATES_CSV: &str = include_str!("../../../data/reference/plates_gost_19903_2015.csv");
+const CHECKER_CSV: &str = include_str!("../../../data/reference/checker_plates_gost_8568_77.csv");
 const STEELS_CSV: &str = include_str!("../../../data/reference/steel_grades.csv");
 const CONCRETE_CSV: &str = include_str!("../../../data/reference/concrete_classes.csv");
 
@@ -328,6 +362,95 @@ fn pipes_3262() -> Vec<(&'static str, f64, f64)> {
         .iter()
         .map(|r| (r.text("Dy"), r.num("D"), r.num("t")))
         .collect()
+}
+
+/// ГОСТ 8278-83 (bent equal-flange channels): h, b, t, inner bend radius
+/// R, A cm².
+fn channels_bent() -> Vec<(f64, f64, f64, f64, f64)> {
+    table(CHANNELS_BENT_CSV)
+        .iter()
+        .map(|r| {
+            let n = |c| r.num(c);
+            (n("h"), n("b"), n("t"), n("r"), n("area_cm2"))
+        })
+        .collect()
+}
+
+/// ГОСТ 19771-93 (bent equal-leg angles): b, t, inner bend radius R, A cm².
+fn angles_bent() -> Vec<(f64, f64, f64, f64)> {
+    table(ANGLES_BENT_CSV)
+        .iter()
+        .map(|r| {
+            let n = |c| r.num(c);
+            (n("b"), n("t"), n("r"), n("area_cm2"))
+        })
+        .collect()
+}
+
+/// ГОСТ 103-2006: thickness a, width b (the area is exact).
+fn flats() -> Vec<(f64, f64)> {
+    table(FLATS_CSV)
+        .iter()
+        .map(|r| (r.num("t"), r.num("b")))
+        .collect()
+}
+
+/// Plate thicknesses of ГОСТ 19903-2015, mm, ascending.
+pub fn plate_thicknesses() -> Vec<f64> {
+    table(PLATES_CSV).iter().map(|r| r.num("t")).collect()
+}
+
+/// Whether `t` is a ГОСТ 19903-2015 plate thickness.
+pub fn is_plate_thickness(t: f64) -> bool {
+    plate_thicknesses().iter().any(|v| (v - t).abs() < 1e-6)
+}
+
+/// Checker plate pattern of ГОСТ 8568-77.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Checker {
+    Rhombic,
+    Lentil,
+}
+
+impl Checker {
+    pub const ALL: [Self; 2] = [Self::Rhombic, Self::Lentil];
+
+    /// Value of [`CHECKER_PROPERTY`] and the word of the designation.
+    pub fn word(self) -> &'static str {
+        match self {
+            Self::Rhombic => "ромб",
+            Self::Lentil => "чечевица",
+        }
+    }
+
+    pub fn from_word(word: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|c| c.word() == word.trim())
+    }
+
+    fn key(self) -> &'static str {
+        match self {
+            Self::Rhombic => "rhombic",
+            Self::Lentil => "lentil",
+        }
+    }
+
+    /// Base thicknesses this pattern is rolled in, mm.
+    pub fn thicknesses(self) -> Vec<f64> {
+        table(CHECKER_CSV)
+            .iter()
+            .filter(|r| r.text("pattern") == self.key())
+            .map(|r| r.num("t"))
+            .collect()
+    }
+
+    /// Theoretical mass of 1 m² (ribs included) for base thickness `t`,
+    /// when the standard lists it.
+    pub fn mass_kg_m2(self, t: f64) -> Option<f64> {
+        table(CHECKER_CSV)
+            .iter()
+            .find(|r| r.text("pattern") == self.key() && (r.num("t") - t).abs() < 1e-6)
+            .map(|r| r.num("mass_kg_m2"))
+    }
 }
 
 /// Half of an I-section cut along the web axis, flange up, centred on its
@@ -556,6 +679,49 @@ fn read_sections() -> Vec<Entry> {
             },
             standard: GOST_3262,
             area_mm2: std::f64::consts::PI * t * (d - t),
+            radius: 0.0,
+        });
+    }
+    for (h, b, t, r, a) in channels_bent() {
+        out.push(Entry {
+            name: format!("Швеллер гнутый {}×{}×{}", fmt(h), fmt(b), fmt(t)),
+            family: Family::ChannelBent,
+            shape: ProfileShape::Channel {
+                height: h,
+                width: b,
+                web: t,
+                flange: t,
+            },
+            standard: GOST_8278,
+            area_mm2: a * 100.0,
+            radius: r,
+        });
+    }
+    for (b, t, r, a) in angles_bent() {
+        out.push(Entry {
+            name: format!("Уголок гнутый {}×{}×{}", fmt(b), fmt(b), fmt(t)),
+            family: Family::AngleBent,
+            shape: ProfileShape::Angle {
+                height: b,
+                width: b,
+                thickness: t,
+            },
+            standard: GOST_19771,
+            area_mm2: a * 100.0,
+            radius: r,
+        });
+    }
+    for (t, b) in flats() {
+        // Standing on edge like a plate: the width is the height.
+        out.push(Entry {
+            name: format!("Полоса {}×{}", fmt(t), fmt(b)),
+            family: Family::Flat,
+            shape: ProfileShape::Rectangle {
+                height: b,
+                width: t,
+            },
+            standard: GOST_103,
+            area_mm2: t * b,
             radius: 0.0,
         });
     }
@@ -946,6 +1112,104 @@ mod tests {
         assert!((vgp.mass_kg_m() - 1.66).abs() < 0.01);
         assert_eq!(table(PIPES_3262_CSV).len(), 47);
         assert_eq!(search("вгп 15×").len(), 4);
+    }
+
+    /// Bent section area: thickness times the developed midline, with
+    /// quarter bends of inner radius `r`.
+    fn bent_area(straight: f64, bends: f64, t: f64, r: f64) -> f64 {
+        t * (straight + bends * PI / 2.0 * (r + t / 2.0))
+    }
+
+    #[test]
+    fn bent_channels_and_angles_match_their_areas_within_one_percent() {
+        let channels = channels_bent();
+        assert_eq!(channels.len(), 173);
+        for (h, b, t, r, a) in channels {
+            let out = r + t;
+            let computed = bent_area(h - 2.0 * out + 2.0 * (b - out), 2.0, t, r);
+            let err = (computed - a * 100.0).abs() / (a * 100.0);
+            assert!(err < 0.01, "{h}×{b}×{t}: {err:.4}");
+        }
+        let angles = angles_bent();
+        assert_eq!(angles.len(), 19);
+        for (b, t, r, a) in angles {
+            let computed = bent_area(2.0 * (b - r - t), 1.0, t, r);
+            let err = (computed - a * 100.0).abs() / (a * 100.0);
+            assert!(err < 0.01, "{b}×{t}: {err:.4}");
+        }
+        // The mass column is 0,785·A (ρ = 7850 kg/m³).
+        for row in table(CHANNELS_BENT_CSV)
+            .iter()
+            .chain(table(ANGLES_BENT_CSV).iter())
+        {
+            let (a, m) = (row.num("area_cm2"), row.num("mass_kg_m"));
+            assert!(
+                (a * 0.785 - m).abs() / m < 0.01,
+                "{}",
+                row.text("designation")
+            );
+        }
+        let c = section("Швеллер гнутый 160×80×4").unwrap();
+        assert_eq!(
+            (c.family, c.standard),
+            (Family::ChannelBent, "ГОСТ 8278-83")
+        );
+        assert!((c.mass_kg_m() - 9.58).abs() < 0.01, "{}", c.mass_kg_m());
+        // b = 120 in the second copy (the first prints 20).
+        assert!(section("Швеллер гнутый 160×120×6").is_some());
+        let l = section("Уголок гнутый 80×80×6").unwrap();
+        assert_eq!((l.family, l.standard), (Family::AngleBent, "ГОСТ 19771-93"));
+        assert!((l.mass_kg_m() - 7.01).abs() < 0.01, "{}", l.mass_kg_m());
+        assert_eq!(search("швеллер гнутый 160×").len(), 24);
+    }
+
+    #[test]
+    fn flats_cover_gost_103() {
+        let flats = flats();
+        assert_eq!(flats.len(), 605);
+        for row in table(FLATS_CSV) {
+            let (t, b, m) = (row.num("t"), row.num("b"), row.num("mass_kg_m"));
+            assert!((t * b * 0.00785 - m).abs() < 0.0006, "{t}×{b}");
+        }
+        let f = section("Полоса 4×40").unwrap();
+        assert_eq!((f.family, f.standard), (Family::Flat, "ГОСТ 103-2006"));
+        assert_eq!(
+            f.shape,
+            ProfileShape::Rectangle {
+                height: 40.0,
+                width: 4.0
+            }
+        );
+        assert!((f.mass_kg_m() - 1.256).abs() < 1e-9);
+        // Not rolled: 10 mm wide strips come only 5 mm thick.
+        assert!(section("Полоса 4×10").is_none());
+        assert!(section("Полоса 80×150").is_some());
+    }
+
+    #[test]
+    fn plates_list_gost_19903_thicknesses_and_checker_masses() {
+        let t = plate_thicknesses();
+        assert_eq!(t.len(), 117);
+        assert!(t.windows(2).all(|w| w[0] < w[1]));
+        assert_eq!((t[0], t[t.len() - 1]), (0.4, 160.0));
+        assert!(is_plate_thickness(20.0) && is_plate_thickness(3.9));
+        // 33 mm was in older editions only.
+        assert!(!is_plate_thickness(33.0) && !is_plate_thickness(21.2));
+        for c in Checker::ALL {
+            let ts = c.thicknesses();
+            assert_eq!(ts, [2.5, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 12.0]);
+            let mut rib = 0.0;
+            for t in ts {
+                // Ribs add mass that grows with the thickness.
+                let r = c.mass_kg_m2(t).unwrap() - 7.85 * t;
+                assert!(r > rib && r < 0.6 * 7.85 * t, "{} {t}", c.word());
+                rib = r;
+            }
+            assert_eq!(Checker::from_word(c.word()), Some(c));
+        }
+        assert_eq!(Checker::Rhombic.mass_kg_m2(4.0), Some(33.5));
+        assert_eq!(Checker::Lentil.mass_kg_m2(4.0), Some(32.2));
+        assert_eq!(Checker::Lentil.mass_kg_m2(7.0), None);
     }
 
     #[test]

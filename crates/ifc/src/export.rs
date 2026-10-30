@@ -465,7 +465,14 @@ pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
             }
             ElementShape::Plate { thickness, .. } => (
                 format!("—{}", real(thickness.value()).trim_end_matches('.')),
-                Some(open_bim_model::library::PLATE_STANDARD.into()),
+                Some(
+                    if element.checker().is_some() {
+                        open_bim_model::library::CHECKER_STANDARD
+                    } else {
+                        open_bim_model::library::PLATE_STANDARD
+                    }
+                    .into(),
+                ),
             ),
         };
         let text = |w: &mut Writer, name: &str, value: &str| {
