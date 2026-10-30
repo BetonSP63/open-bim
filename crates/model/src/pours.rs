@@ -56,6 +56,8 @@ pub fn concrete_kind_name(code: &str) -> &str {
         "panel" => "Стена",
         "slab" => "Плита",
         "footing" => "Фундамент",
+        "strip_footing" => "Ленточный фундамент",
+        "raft" => "Фундаментная плита",
         other => other,
     }
 }
