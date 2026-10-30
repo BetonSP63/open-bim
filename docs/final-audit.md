@@ -1,5 +1,12 @@
 # Final audit — Open BIM 0.1.0 (2026-10-18)
 
+> **Update 2026-10-30.** This file records the 0.1.0 audits and is not rewritten.
+> Since then PRs #1–#72 merged. Current state: `docs/parity.csv` has 44 rows,
+> 30 verified and 14 open. Some limits below no longer hold: the section catalogue
+> is no longer synthetic (ГОСТ tables in `data/reference`), and concrete, rebar
+> and formwork now have a basic model (PR #58–#60) without ГОСТ КЖ documents.
+> Plan and decisions for 1.0: `docs/releases.md`, `docs/backlog.md`.
+
 **Verdict: Open BIM is not a full functional equivalent of commercial steel detailing software.**
 The verified scope is a first steel workflow on macOS ARM64 (model → connections
 → numbering/clashes → drawings → lists → IFC4 subset) with a hardened UI. 14 of 34
