@@ -48,8 +48,8 @@ fn placing_a_family_builds_parts_and_an_assembly_in_one_undo_step() {
     let (mut document, id) = placed();
     let p = document.project();
     let instance = &p.family_instances[&id];
-    // Seat plate, two ribs and the assembly.
-    assert_eq!(instance.children.len(), 4);
+    // Seat plate, two ribs, their welds, two holes and the assembly.
+    assert_eq!(instance.children.len(), 8);
     let seat = &p.elements[&instance.children["body-0-0"]];
     let ElementShape::Plate {
         thickness, frame, ..
@@ -87,8 +87,9 @@ fn changing_the_type_or_an_instance_value_rebuilds_with_the_same_ids() {
         .unwrap();
     let p = document.project();
     let after = &p.family_instances[&id];
-    // One rib left: the second one is gone with its part.
-    assert_eq!(after.children.len(), 3);
+    // One rib left: the second one is gone with its part and weld.
+    assert_eq!(after.children.len(), 6);
+    assert!(!after.children.contains_key("detail-0-1"));
     assert_eq!(after.children["body-0-0"], before.children["body-0-0"]);
     assert!(!p.elements.contains_key(&before.children["body-1-1"]));
     let ElementShape::Plate { thickness, .. } = &p.elements[&after.children["body-0-0"]].shape

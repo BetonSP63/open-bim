@@ -58,9 +58,10 @@ pub use drawing::{
 };
 pub use drawing_objects::{HatchPattern, LineType, SheetObject, SheetObjectKind};
 pub use family::{
-    Axis, BodyArray, BodyShape, Family, FamilyBody, FamilyInstance, FamilyParameter, FamilyPart,
-    FamilyType, FamilyValues, LocalShape, ParamKind, Placement, RefPlane, SpecMode,
-    rebuild_families, sample_families,
+    Axis, BodyArray, BodyShape, DetailShape, Family, FamilyBody, FamilyBuild, FamilyDetail,
+    FamilyDetailPart, FamilyInstance, FamilyParameter, FamilyPart, FamilyType, FamilyValues,
+    LocalDetail, LocalShape, ParamKind, Placement, RefPlane, SpecMode, rebuild_families,
+    sample_families,
 };
 pub use frame::{Frame, GridAxis, GridSettings, Level};
 pub use management::{Hierarchy, ListEntry, Management, Storey, Task};
