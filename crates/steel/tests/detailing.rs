@@ -45,6 +45,7 @@ fn pattern() -> BoltPattern {
         standard: "ISO 4014".into(),
         grade: "8.8".into(),
         points: Vec::new(),
+        slot: 0.0,
     }
 }
 

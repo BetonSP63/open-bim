@@ -95,14 +95,36 @@ fn concrete_parts_by_picks() {
             .properties
             .contains_key("fabrication_role")
     );
-    // Footing: 1500x1500, 600 below zero.
+    // Footing: sole 1500x1500 from -1800 to -1500 with a 900x900
+    // pedestal up to -150, one cast-in-place unit.
     b.execute(Cmd::ConcreteFooting);
     let r = b.pick(DVec3::new(0., 0., 0.));
-    let footing = commit(&mut b, r)[0];
+    let ids = commit(&mut b, r);
+    let (footing, pedestal) = (ids[0], ids[1]);
     let [lo, hi] = bounds(&b, footing);
     assert!(
-        near(lo, [-750., -750., -600.]) && near(hi, [750., 750., 0.]),
+        near(lo, [-750., -750., -1800.]) && near(hi, [750., 750., -1500.]),
         "{lo:?} {hi:?}"
+    );
+    let [lo, hi] = bounds(&b, pedestal);
+    assert!(
+        near(lo, [-450., -450., -1500.]) && near(hi, [450., 450., -150.]),
+        "{lo:?} {hi:?}"
+    );
+    let p = b.editor.document.project();
+    assert_eq!(
+        p.elements[&pedestal].properties[concrete::KEY],
+        PropertyValue::Text("pedestal".into())
+    );
+    let unit = p
+        .assemblies
+        .values()
+        .find(|a| a.members.contains(&pedestal))
+        .unwrap();
+    assert_eq!(unit.members, [footing, pedestal].into());
+    assert_eq!(
+        unit.properties[concrete::CAST_UNIT],
+        PropertyValue::Text(concrete::CAST_IN_PLACE.into())
     );
     // Another grade and section from the tool properties.
     b.execute(Cmd::ConcreteColumn);
@@ -182,7 +204,7 @@ fn pour_objects_breaks_and_units() {
     commit(&mut b, r);
     let objects = pours::objects(b.editor.document.project());
     assert_eq!(objects.len(), 2);
-    assert_eq!(objects[0].parts.len(), 3);
+    assert_eq!(objects[0].parts().len(), 3);
     assert_eq!(objects[0].grade, "В25");
     // Columns 0.4×0.4×3 = 0.48 m³ each, the triangular slab 6.4×3.2/2×0.2.
     let slab = 6.4 * 3.2 / 2. * 0.2;
@@ -205,6 +227,44 @@ fn pour_objects_breaks_and_units() {
         units.iter().map(|u| u.number).collect::<Vec<_>>(),
         [1, 2, 3]
     );
+    // The joint cuts the slab: both its sides are poured, the volumes add up.
+    let zones = pours::objects(b.editor.document.project());
+    let total: f64 = zones.iter().map(|z| z.volume_m3).sum();
+    assert!((total - (1.44 + slab)).abs() < 1e-6, "{total}");
+    assert_eq!(
+        zones
+            .iter()
+            .filter(|z| z.pieces.iter().any(|p| p.split))
+            .count(),
+        2
+    );
+    let csv = open_bim_reports::csv::pours(b.editor.document.project());
+    assert!(
+        csv.contains("Плита δ=200") && csv.contains("Итого по захватке"),
+        "{csv}"
+    );
+    // A horizontal joint at the slab bottom parts the columns from it.
+    b.execute(Cmd::PourBreakHorizontal);
+    b.pick(DVec3::new(-1000., -1000., 3000.));
+    let r = b.pick(DVec3::new(7000., 4000., 3000.));
+    commit(&mut b, r);
+    assert_eq!(pours::objects(b.editor.document.project()).len(), 5);
+    assert!(b.editor.document.project().pour_units_outdated());
+    let r = b.execute(Cmd::CalculatePours);
+    commit(&mut b, r);
+    let numbers: Vec<u32> = b
+        .editor
+        .document
+        .project()
+        .concrete
+        .units
+        .iter()
+        .map(|u| u.number)
+        .collect();
+    assert_eq!(numbers.len(), 5);
+    assert!(numbers.contains(&1) && numbers.contains(&3));
+    b.editor.history(false).unwrap();
+    b.editor.history(false).unwrap();
     // Undo the units, then the break.
     b.editor.history(false).unwrap();
     assert!(b.editor.document.project().concrete.units.is_empty());
@@ -218,4 +278,192 @@ fn pour_objects_breaks_and_units() {
     b.editor.commit("Сборный", &commands).unwrap();
     assert!(pours::objects(b.editor.document.project()).is_empty());
     assert!(b.execute(Cmd::CalculatePours).is_none());
+}
+
+#[test]
+fn concrete_classes_from_the_catalogue() {
+    let classes = concrete::grades();
+    assert_eq!(classes.first(), Some(&"В15"));
+    assert_eq!(classes.last(), Some(&"В60"));
+    let mut b = bench();
+    b.execute(Cmd::ConcreteColumn);
+    b.editor.draft.grade = "В60".into();
+    let r = b.pick(DVec3::new(0., 0., 0.));
+    let col = commit(&mut b, r)[0];
+    let p = b.editor.document.project();
+    let m = &p.materials[&p.elements[&col].material];
+    assert_eq!((m.name.as_str(), m.density_kg_m3), ("Бетон В60", 2500.));
+    assert_eq!(
+        open_bim_model::library::concrete_of(&m.name).unwrap().rb,
+        33.
+    );
+    b.editor.draft.grade = "В70".into();
+    assert!(b.pick(DVec3::new(6000., 0., 0.)).is_none());
+}
+
+#[test]
+fn strip_footing_raft_and_precast_parts() {
+    let mut b = bench();
+    // Strip: 600x500 with the top on the picked line.
+    b.execute(Cmd::ConcreteStripFooting);
+    b.pick(DVec3::new(0., 0., -1000.));
+    let r = b.pick(DVec3::new(6000., 0., -1000.));
+    let strip = commit(&mut b, r)[0];
+    let [lo, hi] = bounds(&b, strip);
+    assert!(
+        near(lo, [0., -300., -1500.]) && near(hi, [6000., 300., -1000.]),
+        "{lo:?} {hi:?}"
+    );
+    let p = b.editor.document.project();
+    assert_eq!(
+        p.elements[&strip].properties[concrete::KEY],
+        PropertyValue::Text("strip_footing".into())
+    );
+    assert!(
+        !p.assemblies
+            .values()
+            .any(|a| a.properties.contains_key(concrete::CAST_UNIT))
+    );
+    // Raft: 400 thick below the picked plane.
+    b.execute(Cmd::ConcreteRaft);
+    for p in [
+        [0., 0., -1000.],
+        [6000., 0., -1000.],
+        [6000., 6000., -1000.],
+    ] {
+        b.pick(DVec3::from_array(p));
+    }
+    let r = b.execute(Cmd::FinishPicks);
+    let raft = commit(&mut b, r)[0];
+    let [lo, hi] = bounds(&b, raft);
+    assert!((hi[2] + 1000.).abs() < 1e-6 && (lo[2] + 1400.).abs() < 1e-6);
+    assert_eq!(
+        b.editor.document.project().elements[&raft].properties[concrete::KEY],
+        PropertyValue::Text("raft".into())
+    );
+    // A precast pad without a pedestal is its own precast cast unit.
+    b.execute(Cmd::ConcreteFooting);
+    b.editor.draft.pedestal.clear();
+    b.editor.draft.precast = true;
+    let r = b.pick(DVec3::new(0., 12000., 0.));
+    let ids = commit(&mut b, r);
+    assert_eq!(ids.len(), 1);
+    let p = b.editor.document.project();
+    let unit = p
+        .assemblies
+        .values()
+        .find(|a| a.members.contains(&ids[0]))
+        .unwrap();
+    assert_eq!(
+        unit.properties[concrete::CAST_UNIT],
+        PropertyValue::Text(concrete::PRECAST.into())
+    );
+    // The pedestal top must be above the sole.
+    b.editor.draft.pedestal = "600x600".into();
+    b.editor.draft.pedestal_top = "-1600".into();
+    assert!(b.pick(DVec3::new(6000., 12000., 0.)).is_none());
+    // «Сборный ЖБ элемент» from the selection.
+    b.editor.selected = [strip].into();
+    let r = b.execute(Cmd::PrecastUnit);
+    commit(&mut b, r);
+    let p = b.editor.document.project();
+    let unit = p
+        .assemblies
+        .values()
+        .find(|a| a.members.contains(&strip))
+        .unwrap();
+    assert_eq!(
+        unit.properties[concrete::CAST_UNIT],
+        PropertyValue::Text(concrete::PRECAST.into())
+    );
+}
+
+#[test]
+fn openings_and_recesses() {
+    use open_bim_desktop::interaction::trim;
+    let mut b = bench();
+    // Slab 6000x6000x200, top at 3000.
+    b.execute(Cmd::ConcreteSlab);
+    for p in [
+        [0., 0., 3000.],
+        [6000., 0., 3000.],
+        [6000., 6000., 3000.],
+        [0., 6000., 3000.],
+    ] {
+        b.pick(DVec3::from_array(p));
+    }
+    let r = b.execute(Cmd::FinishPicks);
+    let slab = commit(&mut b, r)[0];
+    let volume = |b: &Workbench| {
+        b.editor
+            .document
+            .project()
+            .element_volume_mm3(slab)
+            .unwrap()
+            / 1e9
+    };
+    assert!((volume(&b) - 7.2).abs() < 1e-6, "{}", volume(&b));
+    let square = |x: f64, y: f64, z: f64| {
+        [
+            [x, y, z],
+            [x + 1000., y, z],
+            [x + 1000., y + 1000., z],
+            [x, y + 1000., z],
+        ]
+        .map(DVec3::from_array)
+    };
+    // Opening 1000x1000 through the slab, picked on its top face.
+    b.editor.selected = [slab].into();
+    b.execute(Cmd::ConcreteOpening);
+    for p in square(1000., 1000., 3000.) {
+        b.pick(p);
+    }
+    let r = b.execute(Cmd::FinishPicks);
+    commit(&mut b, r);
+    assert!((volume(&b) - 7.0).abs() < 1e-6, "{}", volume(&b));
+    // Recess 50 deep from the top face.
+    b.editor.selected = [slab].into();
+    b.execute(Cmd::ConcreteRecess);
+    b.tools.detailing.recess_depth = "50".into();
+    for p in square(3000., 3000., 3000.) {
+        b.pick(p);
+    }
+    let r = b.execute(Cmd::FinishPicks);
+    commit(&mut b, r);
+    assert!((volume(&b) - 6.95).abs() < 1e-6, "{}", volume(&b));
+    // ...and 100 deep from the bottom face, picked below the slab.
+    let p = b.editor.document.project();
+    let commands = trim::opening(p, slab, &square(4500., 1000., 2700.), Some(100.)).unwrap();
+    b.editor.commit("Ниша", &commands).unwrap();
+    assert!((volume(&b) - 6.85).abs() < 1e-6, "{}", volume(&b));
+    // Too deep, steel parts and too few points are refused.
+    let p = b.editor.document.project();
+    assert!(trim::opening(p, slab, &square(0., 0., 3000.), Some(200.)).is_err());
+    assert!(trim::opening(p, slab, &square(0., 0., 3000.)[..2], None).is_err());
+    // A door in a wall 200 thick: the opening runs across the thickness.
+    b.execute(Cmd::ConcretePanel);
+    b.pick(DVec3::new(0., 10000., 0.));
+    let r = b.pick(DVec3::new(6000., 10000., 0.));
+    let wall = commit(&mut b, r)[0];
+    let door = [
+        [1000., 10100., 0.],
+        [2000., 10100., 0.],
+        [2000., 10100., 2100.],
+        [1000., 10100., 2100.],
+    ]
+    .map(DVec3::from_array);
+    let p = b.editor.document.project();
+    let commands = trim::opening(p, wall, &door, None).unwrap();
+    b.editor.commit("Проём", &commands).unwrap();
+    let v = b
+        .editor
+        .document
+        .project()
+        .element_volume_mm3(wall)
+        .unwrap()
+        / 1e9;
+    assert!((v - (6. * 3. - 1. * 2.1) * 0.2).abs() < 1e-6, "{v}");
+    let steel = open_bim_model::example_steel_frame().unwrap();
+    let id = *steel.elements.keys().next().unwrap();
+    assert!(trim::opening(&steel, id, &square(0., 0., 0.), None).is_err());
 }

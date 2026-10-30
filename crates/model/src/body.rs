@@ -216,15 +216,21 @@ impl Project {
             .collect();
         let mut holes = Vec::new();
         let mut drilled = Vec::new();
+        let mut slotted = Vec::new();
         for detail in &details {
             if let DetailKind::Hole {
                 frame,
                 diameter,
                 depth,
+                slot,
                 ..
             } = &detail.kind
             {
                 frame.validate()?;
+                if *slot > 0.0 {
+                    slotted.push((frame, diameter, depth, slot));
+                    continue;
+                }
                 let z = frame.axes[2];
                 let end = frame.origin.0[2] + z[2] * depth;
                 if hollow.is_some()
@@ -243,6 +249,7 @@ impl Project {
             |e: open_bim_geometry::BodyError| ModelError::InvalidValue(e.to_string());
         if hollow.is_none()
             && drilled.is_empty()
+            && slotted.is_empty()
             && let Some(body) = uniform_cut_body(&contour, length, &holes, &details)
         {
             return Ok(body);
@@ -278,6 +285,12 @@ impl Project {
                 .drill(frame.axes, frame.origin.0, diameter / 2.0, *depth)
                 .map_err(geometry_error)?;
         }
+        for (frame, diameter, depth, slot) in slotted {
+            let tool = Body::prism(&slot_contour(*diameter, *slot), *depth, Point3([0.0; 3]))
+                .and_then(|b| b.rigid_transform(frame.axes, frame.origin.0))
+                .map_err(geometry_error)?;
+            body = body.difference(&tool).map_err(geometry_error)?;
+        }
         // Half-space clips and Boolean subtractions commute; clipping the
         // clean solid first keeps the kernel away from clipping Boolean output.
         let mut ordered = details.clone();
@@ -307,6 +320,24 @@ impl Project {
         }
         Ok(body)
     }
+}
+
+/// Outline of a slotted hole in its frame: two half circles of `diameter`
+/// `slot` apart along X, centred on the origin.
+pub fn slot_contour(diameter: f64, slot: f64) -> Vec<[f64; 2]> {
+    let r = diameter / 2.0;
+    let n = 16;
+    let mut out = Vec::with_capacity(2 * n + 2);
+    for (cx, from) in [
+        (slot / 2.0, -std::f64::consts::FRAC_PI_2),
+        (-slot / 2.0, std::f64::consts::FRAC_PI_2),
+    ] {
+        for i in 0..=n {
+            let a = from + std::f64::consts::PI * i as f64 / n as f64;
+            out.push([cx + r * a.cos(), r * a.sin()]);
+        }
+    }
+    out
 }
 
 /// Set subtraction and half-space intersection commute. For a uniform section

@@ -164,3 +164,41 @@ pub fn welds(r: &Reports) -> String {
         }),
     )
 }
+
+/// «Ведомость объёмов бетона по захваткам»: one line per element kind of a
+/// zone, the zone total, then the totals by concrete class.
+pub fn pours(project: &open_bim_model::Project) -> String {
+    let zones = project.pour_zones();
+    let mut rows = Vec::new();
+    for z in &zones {
+        for l in project.pour_rows(std::slice::from_ref(z)) {
+            rows.push(vec![
+                l.zone.to_string(),
+                l.grade,
+                l.element,
+                l.count.to_string(),
+                number(l.volume_m3),
+            ]);
+        }
+        rows.push(vec![
+            z.number.to_string(),
+            z.grade.clone(),
+            "Итого по захватке".into(),
+            String::new(),
+            number(z.volume_m3),
+        ]);
+    }
+    for (grade, v) in open_bim_model::pours::volumes_by_grade(&zones) {
+        rows.push(vec![
+            String::new(),
+            grade,
+            "Всего".into(),
+            String::new(),
+            number(v),
+        ]);
+    }
+    table(
+        &["Захватка", "Класс бетона", "Элемент", "Кол-во", "Объём, м³"],
+        rows.into_iter(),
+    )
+}

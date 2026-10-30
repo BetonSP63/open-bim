@@ -1,14 +1,20 @@
 //! NC data for steel fabrication machines in the DSTV format (`.nc1`).
 //!
 //! One file per part mark: the `ST` header (order, drawing, phase, mark,
-//! steel, quantity, section and its dimensions), holes in `BO`, the outer
-//! contour of plates in `AK`, then `EN`. Coordinates are millimetres from the
-//! start of the piece. On the web (`v`) and the back wall (`h`) `y` runs up
-//! from the underside of the section; on the flanges (`o`, `u`) it runs from
-//! the edge on the web side of channels and angles. Plates lie with their
-//! long side along `x`. What the format here does not carry yet (copes,
-//! skewed cuts, holes in round tubes) is listed as warnings and repeated in
-//! the file as `**` comments.
+//! steel, quantity, section and its dimensions, angles of skewed end cuts),
+//! face contours in `AK` (outer) and `IK` (inner), holes and slotted holes
+//! in `BO`, the part mark in `SI`, then `EN`. Coordinates are millimetres
+//! from the start of the piece. On the web (`v`) and the back wall (`h`)
+//! `y` runs up from the underside of the section; on the flanges (`o`, `u`)
+//! it runs from the edge on the web side of channels and angles. Plates lie
+//! with their long side along `x`. Plates always get their contour; members
+//! get a face contour where copes, openings or cuts at an angle to the axis
+//! change that face. What the format here does not carry (cuts through part
+//! of a wall, cuts at an angle to a wall, holes and cuts in round tubes) is
+//! listed as warnings and repeated in the file as `**` comments.
+mod faces;
+
+use faces::{Effect, Wall};
 use open_bim_model::{DetailKind, ElementShape, ObjectId, ProfileShape, Project};
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -44,17 +50,49 @@ pub struct NcFile {
     pub text: String,
     /// Piece length, mm.
     pub length: f64,
-    /// Holes: face, x, y, diameter (mm), sorted.
+    /// Round holes: face, x, y, diameter (mm), sorted.
     pub holes: Vec<(Face, f64, f64, f64)>,
+    /// Slotted holes: face, x and y of the middle, diameter, slot length
+    /// (centre distance of the half circles), angle of the slot to x (°).
+    pub slots: Vec<(Face, f64, f64, f64, f64, f64)>,
+    /// Face contours written as `AK` (outer) and `IK` (inner, `true`).
+    pub contours: Vec<(Face, bool, Vec<[f64; 2]>)>,
+    /// Part mark (`SI`): face, lower left corner of the text, text.
+    pub marking: Option<(Face, f64, f64, String)>,
+    /// Cut angles of the header: web start, web end, flange start, flange end (°).
+    pub angles: [f64; 4],
     /// Features of the part the file does not carry.
     pub warnings: Vec<String>,
     /// Separate UTF-8 bending card for developed stock.
     pub bending_card: Option<String>,
 }
 
+/// Export settings.
+#[derive(Clone, Debug)]
+pub struct NcOptions {
+    /// Write the part mark for hard stamping (`SI`).
+    pub marking: bool,
+    /// Letter height of the mark, mm.
+    pub text_height: f64,
+}
+
+impl Default for NcOptions {
+    fn default() -> Self {
+        Self {
+            marking: true,
+            text_height: 10.0,
+        }
+    }
+}
+
 /// Files for all parts of the project, one per part mark of the current
 /// numbering, with the number of parts of that mark as the quantity.
 pub fn export(project: &Project) -> Result<Vec<NcFile>, String> {
+    export_with(project, &NcOptions::default())
+}
+
+/// [`export`] with the given settings.
+pub fn export_with(project: &Project, options: &NcOptions) -> Result<Vec<NcFile>, String> {
     project.validate().map_err(|e| e.to_string())?;
     let numbering = open_bim_numbering::number(project).map_err(|e| e.to_string())?;
     let mut by_mark: BTreeMap<&String, Vec<ObjectId>> = BTreeMap::new();
@@ -66,10 +104,10 @@ pub fn export(project: &Project) -> Result<Vec<NcFile>, String> {
     for (mark, ids) in by_mark {
         let mut batch = Vec::new();
         match user_section(project, ids[0]) {
-            Some(true) => batch = welded_files(project, ids[0], mark, ids.len())?,
+            Some(true) => batch = welded_files(project, ids[0], mark, ids.len(), options)?,
             // Contour sections have no DSTV profile code.
             Some(false) => {}
-            None => batch.push(part_file(project, ids[0], mark, ids.len())?),
+            None => batch.push(part_file_with(project, ids[0], mark, ids.len(), options)?),
         }
         for mut file in batch {
             if !names.insert(file.name.clone()) {
@@ -103,6 +141,7 @@ fn welded_files(
     id: ObjectId,
     mark: &str,
     quantity: usize,
+    options: &NcOptions,
 ) -> Result<Vec<NcFile>, String> {
     let pieces = project
         .welded_pieces(id)
@@ -125,7 +164,7 @@ fn welded_files(
             thickness: open_bim_model::LengthMm::new(piece.thickness).map_err(|e| e.to_string())?,
             frame,
         };
-        let mut file = part_file(&strip, id, &format!("{mark}.{}", i + 1), quantity)?;
+        let mut file = part_file_with(&strip, id, &format!("{mark}.{}", i + 1), quantity, options)?;
         if featured {
             file.warnings
                 .push("отверстия и резы сварного сечения не переданы".into());
@@ -154,6 +193,17 @@ pub fn part_file(
     mark: &str,
     quantity: usize,
 ) -> Result<NcFile, String> {
+    part_file_with(project, id, mark, quantity, &NcOptions::default())
+}
+
+/// [`part_file`] with the given settings.
+pub fn part_file_with(
+    project: &Project,
+    id: ObjectId,
+    mark: &str,
+    quantity: usize,
+    options: &NcOptions,
+) -> Result<NcFile, String> {
     let element = project
         .elements
         .get(&id)
@@ -166,7 +216,7 @@ pub fn part_file(
         let mut stock = project.clone();
         stock.swept_parts.remove(&id);
         stock.elements.insert(id, blank);
-        let mut file = part_file(&stock, id, mark, quantity)?;
+        let mut file = part_file_with(&stock, id, mark, quantity, options)?;
         file.text = file.text.replacen(
             "ST\n",
             "ST\n** DEVELOPED STOCK BEFORE BENDING; SEE BENDING CARD\n",
@@ -202,14 +252,24 @@ pub fn part_file(
         .get(&element.material)
         .ok_or_else(|| format!("Нет материала детали {id}"))?;
     let mut warnings = Vec::new();
-    let mut holes = Vec::new();
     let details: Vec<&DetailKind> = project
         .details
         .values()
         .map(|d| &d.kind)
         .filter(|k| k.part() == Some(id))
         .collect();
-    let (section, length, contour) = match &element.shape {
+    let planes: Vec<([f64; 3], f64)> = details
+        .iter()
+        .filter_map(|k| match k {
+            DetailKind::PlaneCut { normal, offset, .. } => {
+                let n = normal.iter().map(|v| v * v).sum::<f64>().sqrt();
+                Some((normal.map(|v| v / n), offset / n))
+            }
+            _ => None,
+        })
+        .collect();
+    // Piece start in wall `u` and `w`, length and angles of the end cuts.
+    let (section, walls, plate, start, length, angles) = match &element.shape {
         ElementShape::Member {
             profile, length, ..
         } => {
@@ -219,49 +279,17 @@ pub fn part_file(
                 .ok_or_else(|| format!("Нет профиля детали {id}"))?;
             let section = member_section(&profile.name, &profile.shape)
                 .map_err(|e| format!("Профиль {}: {e}", profile.name))?;
-            let (mut start, mut end) = (0.0_f64, length.value());
-            for kind in &details {
-                match kind {
-                    DetailKind::PlaneCut { normal, offset, .. } => {
-                        let n = normal.iter().map(|v| v * v).sum::<f64>().sqrt();
-                        let [x, y, z] = normal.map(|v| v / n);
-                        if x.abs() < 1e-9 && y.abs() < 1e-9 {
-                            if z < 0.0 {
-                                start = start.max(-offset / n);
-                            } else {
-                                end = end.min(offset / n);
-                            }
-                        } else {
-                            warnings.push("косой рез торца не передан".into());
-                        }
-                    }
-                    DetailKind::BoxCut { .. } | DetailKind::PrismCut { .. } => {
-                        warnings.push("вырез не передан".into());
-                    }
-                    _ => {}
-                }
+            let (start, end) = member_extent(&profile.shape, length.value(), &planes)?;
+            let walls = member_walls(&profile.shape, length.value());
+            if walls.is_empty()
+                && details
+                    .iter()
+                    .any(|k| matches!(k, DetailKind::BoxCut { .. } | DetailKind::PrismCut { .. }))
+            {
+                warnings.push("вырез в круглой трубе не передан".into());
             }
-            if end - start <= 0.001 {
-                return Err(format!("Деталь {id}: резы не оставили длины"));
-            }
-            for kind in &details {
-                if let DetailKind::Hole {
-                    frame,
-                    diameter,
-                    depth,
-                    ..
-                } = kind
-                {
-                    let faces = member_faces(&profile.shape, frame.origin.0, frame.axes[2], *depth);
-                    if faces.is_empty() {
-                        warnings.push(format!("отверстие ⌀{} не передано", fmt(*diameter)));
-                    }
-                    for (face, y) in faces {
-                        holes.push((face, frame.origin.0[2] - start, y, *diameter));
-                    }
-                }
-            }
-            (section, end - start, None)
+            let angles = end_angles(&planes, &mut warnings);
+            (section, walls, false, [start, 0.0], end - start, angles)
         }
         ElementShape::Plate {
             contour, thickness, ..
@@ -270,62 +298,216 @@ pub fn part_file(
             let (min, max) = bounds(contour);
             let (dx, dy) = (max[0] - min[0], max[1] - min[1]);
             // Long side along x: turn a quarter clockwise when the plate is tall.
-            let turn = dy > dx;
-            let place = |p: [f64; 2]| {
-                if turn {
-                    [p[1] - min[1], max[0] - p[0]]
-                } else {
-                    [p[0] - min[0], p[1] - min[1]]
-                }
+            let (origin, u, w) = if dy > dx {
+                ([max[0], min[1], 0.0], [0.0, 1.0, 0.0], [-1.0, 0.0, 0.0])
+            } else {
+                ([min[0], min[1], 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0])
             };
-            let (length, width) = if turn { (dy, dx) } else { (dx, dy) };
-            for kind in &details {
-                match kind {
-                    DetailKind::Hole {
-                        frame, diameter, ..
-                    } => {
-                        let axis = frame.axes[2];
-                        if axis[0].abs() < 1e-6 && axis[1].abs() < 1e-6 {
-                            let [x, y] = place([frame.origin.0[0], frame.origin.0[1]]);
-                            holes.push((Face::Web, x, y, *diameter));
-                        } else {
-                            warnings.push(format!(
-                                "отверстие ⌀{} не по нормали к листу",
-                                fmt(*diameter)
-                            ));
-                        }
-                    }
-                    _ => warnings.push("вырез не передан".into()),
-                }
-            }
-            let mut points: Vec<[f64; 2]> = contour.iter().map(|p| place(*p)).collect();
-            let area: f64 = (0..points.len())
-                .map(|i| {
-                    let (a, b) = (points[i], points[(i + 1) % points.len()]);
-                    a[0] * b[1] - b[0] * a[1]
+            let mut wall = Wall {
+                face: Face::Web,
+                origin,
+                u,
+                w,
+                c: [0.0, 0.0, 1.0],
+                through: (0.0, t),
+                base: Vec::new(),
+            };
+            wall.base = contour
+                .iter()
+                .map(|p| {
+                    let q = wall.project([p[0], p[1], 0.0]);
+                    [q[0], q[1]]
                 })
-                .sum();
-            if area < 0.0 {
-                points.reverse();
+                .collect();
+            if faces::area(&wall.base) < 0.0 {
+                wall.base.reverse();
             }
             let section = Section {
-                profile: format!("PL{}x{}", fmt(t), fmt(width)),
+                profile: String::new(),
                 code: "B",
-                height: width,
+                height: 0.0,
                 width: t,
                 flange: t,
                 web: t,
-                area: width * t,
-                surface: 2.0 * (width + t),
+                area: 0.0,
+                surface: 0.0,
             };
-            (section, length, Some(points))
+            (section, vec![wall], true, [0.0; 2], 0.0, [0.0; 4])
         }
     };
+    let (mut section, mut start, mut length) = (section, start, length);
+
+    // Face regions.
+    let mut contours: Vec<(Face, bool, Vec<[f64; 2]>)> = Vec::new();
+    let mut regions: Vec<Vec<Vec<[f64; 2]>>> = Vec::new();
+    for wall in &walls {
+        let (mut halves, mut removed, mut gone, mut touched) =
+            (Vec::new(), Vec::new(), false, false);
+        for kind in &details {
+            match wall.effect(kind) {
+                Effect::None => {}
+                Effect::Half(a, k) => {
+                    halves.push((a, k));
+                    // Cuts square to the face are carried by the length and the angles.
+                    touched |= a[1].abs() > 1e-9;
+                }
+                Effect::Remove(polys) => {
+                    removed.extend(polys);
+                    touched = true;
+                }
+                Effect::Gone => gone = true,
+                Effect::Unsupported(why) => warnings.push(why.into()),
+            }
+        }
+        if gone {
+            regions.push(Vec::new());
+            continue;
+        }
+        let loops = faces::region(&wall.base, &halves, &removed);
+        if loops.iter().filter(|l| faces::area(l) > 0.0).count() > 1 {
+            warnings.push(format!(
+                "грань {} разделена резами на части",
+                wall.face.letter()
+            ));
+        }
+        if touched || plate {
+            for l in &loops {
+                contours.push((wall.face, faces::area(l) < 0.0, l.clone()));
+            }
+        }
+        regions.push(loops);
+    }
+    if plate {
+        let outer: Vec<[f64; 2]> = regions[0]
+            .iter()
+            .filter(|l| faces::area(l) > 0.0)
+            .flatten()
+            .copied()
+            .collect();
+        if outer.is_empty() {
+            return Err(format!("Деталь {id}: резы не оставили листа"));
+        }
+        let (min, max) = bounds(&outer);
+        start = min;
+        length = max[0] - min[0];
+        let width = max[1] - min[1];
+        let t = section.width;
+        section.profile = format!("PL{}x{}", fmt(t), fmt(width));
+        section.height = width;
+        section.area = width * t;
+        section.surface = 2.0 * (width + t);
+    }
+    if length <= 0.001 {
+        return Err(format!("Деталь {id}: резы не оставили длины"));
+    }
+    let shift = |p: [f64; 2]| [p[0] - start[0], p[1] - start[1]];
+    for c in &mut contours {
+        c.2 = c.2.iter().map(|p| shift(*p)).collect();
+    }
+    for r in &mut regions {
+        for l in r.iter_mut() {
+            *l = l.iter().map(|p| shift(*p)).collect();
+        }
+    }
+
+    // Holes on the walls they cross.
+    let mut holes = Vec::new();
+    let mut slots = Vec::new();
+    for kind in &details {
+        let DetailKind::Hole {
+            frame,
+            diameter,
+            depth,
+            slot,
+            ..
+        } = kind
+        else {
+            continue;
+        };
+        let mut placed = false;
+        for wall in &walls {
+            let along = faces_dot(frame.axes[2], wall.c);
+            if (along.abs() - 1.0).abs() > 1e-6 {
+                continue;
+            }
+            let q = wall.project(frame.origin.0);
+            let (a, b) = (q[2], q[2] + along * depth);
+            let (from, to) = wall.through;
+            if a.min(b) < to - 1e-6 && a.max(b) > from + 1e-6 {
+                let [x, y] = shift([q[0], q[1]]);
+                if *slot > 0.0 {
+                    let (cu, cw) = (
+                        faces_dot(frame.axes[0], wall.u),
+                        faces_dot(frame.axes[0], wall.w),
+                    );
+                    let mut angle = cw.atan2(cu).to_degrees();
+                    if angle > 90.0 + 1e-9 {
+                        angle -= 180.0;
+                    } else if angle <= -90.0 + 1e-9 {
+                        angle += 180.0;
+                    }
+                    let angle = if angle.abs() < 1e-9 { 0.0 } else { angle };
+                    slots.push((wall.face, x, y, *diameter, *slot, angle));
+                } else {
+                    holes.push((wall.face, x, y, *diameter));
+                }
+                placed = true;
+            }
+        }
+        if !placed {
+            warnings.push(if plate {
+                format!("отверстие ⌀{} не по нормали к листу", fmt(*diameter))
+            } else {
+                format!("отверстие ⌀{} не передано", fmt(*diameter))
+            });
+        }
+    }
     holes.sort_by(|a, b| {
         (a.0, a.1, a.2)
             .partial_cmp(&(b.0, b.1, b.2))
             .unwrap_or(std::cmp::Ordering::Equal)
     });
+    slots.sort_by(|a, b| {
+        (a.0, a.1, a.2)
+            .partial_cmp(&(b.0, b.1, b.2))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    // Part mark on the front face, clear of holes and cuts.
+    let marking = if options.marking {
+        let text: String = ascii(mark)
+            .chars()
+            .filter(|c| !c.is_ascii_control())
+            .take(40)
+            .collect();
+        let place = walls
+            .first()
+            .zip(regions.first())
+            .and_then(|(wall, loops)| {
+                mark_place(
+                    wall,
+                    loops,
+                    &start,
+                    &holes,
+                    &slots,
+                    &text,
+                    options.text_height,
+                    length,
+                )
+            });
+        match place {
+            Some((x, y)) => Some((walls[0].face, x, y, text)),
+            None => {
+                // Round tubes have no flat face for the mark.
+                if !text.is_empty() && !walls.is_empty() {
+                    warnings.push("маркировка не помещается на грани".into());
+                }
+                None
+            }
+        }
+    } else {
+        None
+    };
     warnings.sort();
     warnings.dedup();
 
@@ -360,27 +542,52 @@ pub fn part_file(
         0.0,
         section.area * material.density_kg_m3 / 1e6,
         section.surface / 1000.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
+        angles[0],
+        angles[1],
+        angles[2],
+        angles[3],
     ] {
         line(&number(v));
     }
     for info in [ascii(&element.name), "-".into(), "-".into(), "-".into()] {
         line(&value(&info));
     }
-    if let Some(points) = &contour {
-        line("AK");
-        for p in points.iter().chain(points.first()) {
-            line(&format!("  v {:>10.2} {:>10.2} {:>8.2}", p[0], p[1], 0.0));
+    for inner in [false, true] {
+        for (face, _, points) in contours.iter().filter(|c| c.1 == inner) {
+            line(if inner { "IK" } else { "AK" });
+            for p in points.iter().chain(points.first()) {
+                line(&format!(
+                    "  {} {:>10.2} {:>10.2} {:>8.2}",
+                    face.letter(),
+                    p[0],
+                    p[1],
+                    0.0
+                ));
+            }
         }
     }
-    if !holes.is_empty() {
+    if !holes.is_empty() || !slots.is_empty() {
         line("BO");
         for (face, x, y, d) in &holes {
             line(&format!("  {} {x:>10.2} {y:>10.2} {d:>8.2}", face.letter()));
         }
+        for (face, x, y, d, slot, angle) in &slots {
+            line(&format!(
+                "  {} {x:>10.2} {y:>10.2} {d:>8.2} {:>8.2}l {slot:>8.2} {:>8.2} {angle:>8.2}",
+                face.letter(),
+                0.0,
+                0.0
+            ));
+        }
+    }
+    if let Some((face, x, y, mark_text)) = &marking {
+        line("SI");
+        line(&format!(
+            "  {} {x:>10.2} {y:>10.2} {:>8.2} {} {mark_text}",
+            face.letter(),
+            0.0,
+            fmt(options.text_height)
+        ));
     }
     for warning in &warnings {
         line(&format!("** {}", ascii(warning)));
@@ -391,9 +598,224 @@ pub fn part_file(
         text,
         length,
         holes,
+        slots,
+        contours,
+        marking,
+        angles,
         warnings,
         bending_card: None,
     })
+}
+
+fn faces_dot(a: [f64; 3], b: [f64; 3]) -> f64 {
+    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+
+/// Start and end of a member along its axis after the plane cuts: the
+/// extreme points of the section outline between the cut planes.
+fn member_extent(
+    shape: &ProfileShape,
+    length: f64,
+    planes: &[([f64; 3], f64)],
+) -> Result<(f64, f64), String> {
+    let outline: Vec<[f64; 2]> = match *shape {
+        ProfileShape::CircularHollow { diameter, .. } => (0..64)
+            .map(|i| {
+                let a = std::f64::consts::TAU * i as f64 / 64.0;
+                [diameter / 2.0 * a.cos(), diameter / 2.0 * a.sin()]
+            })
+            .collect(),
+        ProfileShape::RectangularHollow { height, width, .. } => vec![
+            [-width / 2.0, -height / 2.0],
+            [width / 2.0, -height / 2.0],
+            [width / 2.0, height / 2.0],
+            [-width / 2.0, height / 2.0],
+        ],
+        _ => shape.solid_contour().map_err(|e| e.to_string())?,
+    };
+    let (mut start, mut end) = (f64::MAX, f64::MIN);
+    for p in outline {
+        let (mut lo, mut hi) = (0.0_f64, length);
+        for (n, k) in planes {
+            let b = k - n[0] * p[0] - n[1] * p[1];
+            if n[2].abs() < 1e-9 {
+                if b < -1e-9 {
+                    hi = lo - 1.0;
+                }
+            } else if n[2] > 0.0 {
+                hi = hi.min(b / n[2]);
+            } else {
+                lo = lo.max(b / n[2]);
+            }
+        }
+        if hi > lo {
+            start = start.min(lo);
+            end = end.max(hi);
+        }
+    }
+    if end - start <= 0.001 {
+        return Err("резы не оставили длины".into());
+    }
+    Ok((start, end))
+}
+
+/// Cut angles of the header, degrees from square: web start, web end,
+/// flange start, flange end. Positive where the piece is longer on the
+/// side of larger `y` of the face (top of the web; the flange edge away
+/// from the reference edge).
+fn end_angles(planes: &[([f64; 3], f64)], warnings: &mut Vec<String>) -> [f64; 4] {
+    let mut out = [0.0; 4];
+    for (end, sign) in [(0, -1.0), (1, 1.0)] {
+        let skew: Vec<_> = planes
+            .iter()
+            .filter(|(n, _)| n[2] * sign > 0.1 && (n[0].abs() > 1e-9 || n[1].abs() > 1e-9))
+            .collect();
+        match skew.as_slice() {
+            [] => {}
+            [(n, _)] => {
+                let at = |v: f64| {
+                    let a = (-sign * v / n[2]).atan().to_degrees();
+                    if a.abs() < 1e-9 { 0.0 } else { a }
+                };
+                out[end] = at(n[1]);
+                out[2 + end] = at(n[0]);
+            }
+            _ => warnings
+                .push("несколько косых резов на одном торце: углы в заголовке не заданы".into()),
+        }
+    }
+    out
+}
+
+/// Walls of a section along a member of `length`, `y` on the web and back
+/// wall from the underside, on the flanges from the −x edge.
+fn member_walls(shape: &ProfileShape, length: f64) -> Vec<Wall> {
+    let x = [1.0, 0.0, 0.0];
+    let y = [0.0, 1.0, 0.0];
+    let z = [0.0, 0.0, 1.0];
+    let rect = |w: f64| vec![[0.0, 0.0], [length, 0.0], [length, w], [0.0, w]];
+    // Web-like wall across x: w = y + h/2; flange-like across y: w = x + b/2.
+    let across_x = |face, h: f64, from: f64, to: f64| Wall {
+        face,
+        origin: [0.0, -h / 2.0, 0.0],
+        u: z,
+        w: y,
+        c: x,
+        through: (from, to),
+        base: rect(h),
+    };
+    let across_y = |face, b: f64, from: f64, to: f64| Wall {
+        face,
+        origin: [-b / 2.0, 0.0, 0.0],
+        u: z,
+        w: x,
+        c: y,
+        through: (from, to),
+        base: rect(b),
+    };
+    match *shape {
+        ProfileShape::ISection {
+            height: h,
+            width: b,
+            web: tw,
+            flange: tf,
+        } => vec![
+            across_x(Face::Web, h, -tw / 2.0, tw / 2.0),
+            across_y(Face::Top, b, h / 2.0 - tf, h / 2.0),
+            across_y(Face::Bottom, b, -h / 2.0, -h / 2.0 + tf),
+        ],
+        ProfileShape::Channel {
+            height: h,
+            width: b,
+            web: tw,
+            flange: tf,
+        } => vec![
+            across_x(Face::Web, h, -b / 2.0, -b / 2.0 + tw),
+            across_y(Face::Top, b, h / 2.0 - tf, h / 2.0),
+            across_y(Face::Bottom, b, -h / 2.0, -h / 2.0 + tf),
+        ],
+        ProfileShape::Angle {
+            height: h,
+            width: b,
+            thickness: t,
+        } => vec![
+            across_x(Face::Web, h, -b / 2.0, -b / 2.0 + t),
+            across_y(Face::Bottom, b, -h / 2.0, -h / 2.0 + t),
+        ],
+        ProfileShape::RectangularHollow {
+            height: h,
+            width: b,
+            thickness: t,
+        } => vec![
+            across_x(Face::Web, h, -b / 2.0, -b / 2.0 + t),
+            across_y(Face::Top, b, h / 2.0 - t, h / 2.0),
+            across_y(Face::Bottom, b, -h / 2.0, -h / 2.0 + t),
+            across_x(Face::Back, h, b / 2.0 - t, b / 2.0),
+        ],
+        ProfileShape::Rectangle {
+            height: h,
+            width: b,
+        } => vec![across_x(Face::Web, h, -b / 2.0, b / 2.0)],
+        ProfileShape::CircularHollow { .. }
+        | ProfileShape::Polygon { .. }
+        | ProfileShape::Welded { .. } => Vec::new(),
+    }
+}
+
+/// Lower left corner of the mark text on the face: the first place from the
+/// start of the piece, along the middle of the face, where the text lies on
+/// material away from holes.
+#[allow(clippy::too_many_arguments)]
+fn mark_place(
+    wall: &Wall,
+    loops: &[Vec<[f64; 2]>],
+    start: &[f64; 2],
+    holes: &[(Face, f64, f64, f64)],
+    slots: &[(Face, f64, f64, f64, f64, f64)],
+    text: &str,
+    height: f64,
+    length: f64,
+) -> Option<(f64, f64)> {
+    if text.is_empty() || height <= 0.0 {
+        return None;
+    }
+    let width = height * 0.8 * text.chars().count() as f64;
+    let (lo, hi) = bounds(&wall.base);
+    let middle = (lo[1] + hi[1]) / 2.0 - start[1];
+    let y = middle - height / 2.0;
+    let circles: Vec<([f64; 2], f64)> = holes
+        .iter()
+        .filter(|h| h.0 == wall.face)
+        .map(|h| ([h.1, h.2], h.3 / 2.0))
+        .chain(
+            slots
+                .iter()
+                .filter(|s| s.0 == wall.face)
+                .map(|s| ([s.1, s.2], (s.3 + s.4) / 2.0)),
+        )
+        .collect();
+    let gap = height / 2.0;
+    let mut x = 2.0 * height;
+    while x + width + 2.0 * height <= length + 1e-9 {
+        let corners = [
+            [x - gap, y - gap],
+            [x + width + gap, y - gap],
+            [x + width + gap, y + height + gap],
+            [x - gap, y + height + gap],
+            [x + width / 2.0, y + height / 2.0],
+        ];
+        let on_material = corners.iter().all(|p| faces::in_region(loops, *p));
+        let clear = circles.iter().all(|(c, r)| {
+            let dx = (c[0] - (x + width / 2.0)).abs() - width / 2.0 - gap;
+            let dy = (c[1] - (y + height / 2.0)).abs() - height / 2.0 - gap;
+            dx.max(0.0).hypot(dy.max(0.0)) > *r && !(dx < 0.0 && dy < 0.0)
+        });
+        if on_material && clear {
+            return Some((x, y));
+        }
+        x += height;
+    }
+    None
 }
 
 fn member_section(name: &str, shape: &ProfileShape) -> Result<Section, String> {
@@ -473,92 +895,6 @@ fn member_section(name: &str, shape: &ProfileShape) -> Result<Section, String> {
             section("B", height, width, width, width, solid()?)
         }
     })
-}
-
-/// Faces a hole of `depth` from `origin` along `axis` (part coordinates)
-/// passes through, with its `y` on each face.
-fn member_faces(
-    shape: &ProfileShape,
-    origin: [f64; 3],
-    axis: [f64; 3],
-    depth: f64,
-) -> Vec<(Face, f64)> {
-    // Walls as (face, across-axis, from, to): the slab of the section the
-    // hole must cross, normal to local x (0) or y (1).
-    let walls: Vec<(Face, usize, f64, f64)> = match *shape {
-        ProfileShape::ISection {
-            height: h,
-            width: _,
-            web: tw,
-            flange: tf,
-        } => vec![
-            (Face::Web, 0, -tw / 2.0, tw / 2.0),
-            (Face::Top, 1, h / 2.0 - tf, h / 2.0),
-            (Face::Bottom, 1, -h / 2.0, -h / 2.0 + tf),
-        ],
-        ProfileShape::Channel {
-            height: h,
-            width: w,
-            web: tw,
-            flange: tf,
-        } => vec![
-            (Face::Web, 0, -w / 2.0, -w / 2.0 + tw),
-            (Face::Top, 1, h / 2.0 - tf, h / 2.0),
-            (Face::Bottom, 1, -h / 2.0, -h / 2.0 + tf),
-        ],
-        ProfileShape::Angle {
-            height: h,
-            width: w,
-            thickness: t,
-        } => vec![
-            (Face::Web, 0, -w / 2.0, -w / 2.0 + t),
-            (Face::Bottom, 1, -h / 2.0, -h / 2.0 + t),
-        ],
-        ProfileShape::RectangularHollow {
-            height: h,
-            width: w,
-            thickness: t,
-        } => vec![
-            (Face::Web, 0, -w / 2.0, -w / 2.0 + t),
-            (Face::Back, 0, w / 2.0 - t, w / 2.0),
-            (Face::Top, 1, h / 2.0 - t, h / 2.0),
-            (Face::Bottom, 1, -h / 2.0, -h / 2.0 + t),
-        ],
-        ProfileShape::Rectangle { width: w, .. } => vec![(Face::Web, 0, -w / 2.0, w / 2.0)],
-        ProfileShape::CircularHollow { .. }
-        | ProfileShape::Polygon { .. }
-        | ProfileShape::Welded { .. } => Vec::new(),
-    };
-    let (height, width) = match *shape {
-        ProfileShape::ISection { height, width, .. }
-        | ProfileShape::Channel { height, width, .. }
-        | ProfileShape::Angle { height, width, .. }
-        | ProfileShape::RectangularHollow { height, width, .. }
-        | ProfileShape::Rectangle { height, width } => (height, width),
-        ProfileShape::CircularHollow { diameter, .. } => (diameter, diameter),
-        ProfileShape::Polygon { .. } | ProfileShape::Welded { .. } => {
-            let [h, w, ..] = shape.sizes();
-            (h, w)
-        }
-    };
-    let mut faces = Vec::new();
-    for (face, across, from, to) in walls {
-        let other = 1 - across;
-        if (axis[across].abs() - 1.0).abs() > 1e-6 {
-            continue;
-        }
-        let a = origin[across];
-        let b = a + axis[across] * depth;
-        if a.min(b) < to - 1e-6 && a.max(b) > from + 1e-6 {
-            let y = if other == 1 {
-                origin[1] + height / 2.0
-            } else {
-                origin[0] + width / 2.0
-            };
-            faces.push((face, y));
-        }
-    }
-    faces
 }
 
 fn bounds(points: &[[f64; 2]]) -> ([f64; 2], [f64; 2]) {

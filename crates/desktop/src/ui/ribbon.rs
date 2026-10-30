@@ -175,7 +175,21 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     item(Cmd::ConcreteBeam, Icon::ConcreteBeam, "Балка"),
                     item(Cmd::ConcretePanel, Icon::Panel, "Панель"),
                     item(Cmd::ConcreteSlab, Icon::Slab, "Перекрытие"),
-                    item(Cmd::ConcreteFooting, Icon::Footing, "Фундамент"),
+                ],
+            ),
+            (
+                "Фундаменты",
+                vec![
+                    item(Cmd::ConcreteFooting, Icon::Footing, "Столбчатый"),
+                    small(Cmd::ConcreteStripFooting, Icon::Footing, "Ленточный"),
+                    small(Cmd::ConcreteRaft, Icon::Slab, "Плита"),
+                ],
+            ),
+            (
+                "Проёмы",
+                vec![
+                    small(Cmd::ConcreteOpening, Icon::Delete, "Проём"),
+                    small(Cmd::ConcreteRecess, Icon::Delete, "Ниша"),
                 ],
             ),
             (
@@ -184,6 +198,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     small(Cmd::Item, Icon::Assembly, "Элемент"),
                     small(Cmd::Families, Icon::Component, "Семейства"),
                     small(Cmd::CastUnit, Icon::Assembly, "ЖБ элемент"),
+                    small(Cmd::PrecastUnit, Icon::Assembly, "Сборный ЖБ элемент"),
                 ],
             ),
             (
@@ -191,6 +206,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                 vec![
                     small(Cmd::PourObjects, Icon::Slab, "Захватки бетонирования"),
                     small(Cmd::PourBreak, Icon::Slab, "Шов бетонирования"),
+                    small(Cmd::PourBreakHorizontal, Icon::Slab, "Горизонтальный шов"),
                     small(
                         Cmd::CalculatePours,
                         Icon::Slab,
@@ -808,6 +824,8 @@ impl Workbench {
             Cmd::ConcretePanel => Some(K::Panel),
             Cmd::ConcreteSlab => Some(K::Slab),
             Cmd::ConcreteFooting => Some(K::Footing),
+            Cmd::ConcreteStripFooting => Some(K::StripFooting),
+            Cmd::ConcreteRaft => Some(K::Raft),
             _ => None,
         };
         tool.is_some() && self.engine.tool == tool

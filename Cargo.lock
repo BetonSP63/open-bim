@@ -2430,6 +2430,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "open-bim-sharing"
+version = "0.1.0"
+dependencies = [
+ "open-bim-model",
+ "open-bim-persistence",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "open-bim-steel"
 version = "0.1.0"
 dependencies = [

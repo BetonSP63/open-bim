@@ -101,3 +101,57 @@ fn an_item_family_is_one_line_of_its_host_assembly() {
     assert!(!own_rows.contains(&Row::Heading("Прочие изделия".into())));
     assert_eq!(own_rows.len(), 1 + 2);
 }
+
+#[test]
+fn bolts_of_a_family_are_standard_items_of_its_assembly() {
+    let mut d = Document::new(Project::default()).unwrap();
+    let mut seat = sample_families().remove(0);
+    seat.details.push(FamilyDetail {
+        name: "Болты к балке".into(),
+        bodies: vec!["Столик".into()],
+        visible: String::new(),
+        array: None,
+        shape: DetailShape::Bolts {
+            at: ["Лево + 40", "Y0 + A / 2", "Z0"].map(String::from),
+            normal: Axis::Z,
+            columns: "2".into(),
+            column_step: "B - 80".into(),
+            rows: "1".into(),
+            row_step: "0".into(),
+            diameter: "20".into(),
+            clearance: String::new(),
+            standard: "ГОСТ 7798-70".into(),
+            grade: "5.8".into(),
+        },
+    });
+    let instance = ObjectId(d.project().next_id + 10);
+    d.transact(
+        "Столик",
+        &[
+            Command::SetFamily {
+                family: Box::new(seat),
+            },
+            Command::CreateFamilyInstance {
+                instance: FamilyInstance {
+                    id: instance,
+                    family: "Столик опорный".into(),
+                    type_name: "С-2".into(),
+                    frame: Frame::default(),
+                    length: 0.,
+                    values: BTreeMap::from([("отв".into(), "нет".into())]),
+                    children: BTreeMap::new(),
+                },
+            },
+        ],
+    )
+    .unwrap();
+    let own = d.project().family_instances[&instance].children["assembly"];
+    let rows = assembly_specification(d.project(), own).unwrap();
+    let bolt = rows.iter().find_map(|r| match r {
+        Row::Cells(c) if c[2].starts_with("Болт М20") => Some(c.clone()),
+        _ => None,
+    });
+    let bolt = bolt.expect("no bolts in the specification");
+    assert_eq!(bolt[2], "Болт М20, класс прочности 5.8, ГОСТ 7798-70");
+    assert_eq!(bolt[3], "2");
+}

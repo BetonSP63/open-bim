@@ -228,6 +228,7 @@ pub fn rebuild_seats(project: &mut Project, previous: &Project) -> Result<(), Mo
                             frame: local,
                             diameter: t.bolt_diameter + t.clearance,
                             depth: recipe.hole_depth,
+                            slot: 0.0,
                         },
                     },
                 );

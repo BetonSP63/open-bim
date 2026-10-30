@@ -399,6 +399,7 @@ pub fn rebuild_custom(project: &mut Project, previous: &Project) -> Result<(), M
                                 frame,
                                 diameter: t.bolt_diameter + t.clearance,
                                 depth,
+                                slot: 0.0,
                             },
                         },
                     );

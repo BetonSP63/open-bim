@@ -26,6 +26,7 @@ fn hole_void_and_real_penetration_are_not_bounding_box_contacts() {
                 },
                 diameter: 22.,
                 depth: 10.,
+                slot: 0.0,
             },
         },
     );

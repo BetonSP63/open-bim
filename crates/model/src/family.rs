@@ -9,8 +9,9 @@
 //! A family placed by two points runs along X, and `L` is the distance
 //! between the points.
 use crate::{
-    Assembly, Element, ElementShape, Frame, LengthMm, MemberKind, ModelError, ObjectId,
-    PartPosition, Point3, Project, PropertyValue, formula,
+    Assembly, Detail, DetailKind, Element, ElementShape, Frame, LengthMm, MemberKind, ModelError,
+    ObjectId, PartPosition, Point3, Project, PropertyValue, WeldGost, WeldProcess, WeldSides,
+    WeldType, formula,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -18,9 +19,12 @@ use std::collections::{BTreeMap, BTreeSet};
 pub const MAX_FAMILY_PARAMETERS: usize = 128;
 pub const MAX_FAMILY_PLANES: usize = 128;
 pub const MAX_FAMILY_BODIES: usize = 64;
+pub const MAX_FAMILY_DETAILS: usize = 64;
 pub const MAX_FAMILY_TYPES: usize = 256;
 pub const MAX_ARRAY_COUNT: usize = 200;
 pub const MAX_FAMILY_PARTS: usize = 2000;
+/// Parts, details and the assembly of one placed family.
+pub const MAX_FAMILY_CHILDREN: usize = 20_000;
 
 /// Deepest nesting of families in families.
 pub const MAX_NESTING: usize = 4;
@@ -203,6 +207,108 @@ pub struct FamilyBody {
     pub shape: BodyShape,
 }
 
+/// Bolts, a weld, a cut or a hole of a family, tied to its bodies by
+/// name: the bolts make holes in the parts of `bodies`, the weld joins
+/// them, a cut or a hole goes into each of them.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FamilyDetail {
+    pub name: String,
+    /// Names of the bodies (every body of that name, a nested one with all
+    /// its parts). An arrayed detail joins copy k of a body arrayed with
+    /// the same number of copies, otherwise every copy.
+    pub bodies: Vec<String>,
+    /// Made while this formula is above zero; empty always.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub visible: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub array: Option<BodyArray>,
+    pub shape: DetailShape,
+}
+
+fn yes() -> bool {
+    true
+}
+
+fn is_true(v: &bool) -> bool {
+    *v
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum DetailShape {
+    /// A bolt group with its first bolt at `at` and the bolts along
+    /// `normal`: `columns` × `rows` bolts, the columns along the first and
+    /// the rows along the second axis across `normal` (as plate contour
+    /// points: (y, z) across X, (x, z) across Y, (x, y) across Z).
+    /// `clearance` is the hole over the bolt, empty: 2 mm, 3 mm from M27.
+    Bolts {
+        at: [String; 3],
+        normal: Axis,
+        columns: String,
+        column_step: String,
+        rows: String,
+        row_step: String,
+        diameter: String,
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        clearance: String,
+        /// Standard and strength class, or text parameters.
+        standard: String,
+        grade: String,
+    },
+    /// A weld along `path` (two or more points).
+    Weld {
+        path: Vec<[String; 3]>,
+        weld_type: WeldType,
+        size: String,
+        /// Shop weld; a site weld is marked «(монт.)».
+        #[serde(default = "yes", skip_serializing_if = "is_true")]
+        shop: bool,
+        #[serde(default, skip_serializing_if = "is_one_side")]
+        sides: WeldSides,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        around: bool,
+        #[serde(default, skip_serializing_if = "is_manual")]
+        process: WeldProcess,
+        #[serde(default, skip_serializing_if = "WeldGost::is_default")]
+        gost: WeldGost,
+    },
+    /// A cut by a prism: `contour` across `normal` (as a plate) from `at`
+    /// for `depth` towards + `normal`.
+    Cut {
+        normal: Axis,
+        at: String,
+        contour: Vec<[String; 2]>,
+        depth: String,
+    },
+    /// A round hole from `at` for `depth` towards + `normal`.
+    Hole {
+        at: [String; 3],
+        normal: Axis,
+        diameter: String,
+        depth: String,
+    },
+}
+
+fn is_one_side(v: &WeldSides) -> bool {
+    *v == WeldSides::One
+}
+
+fn is_manual(v: &WeldProcess) -> bool {
+    *v == WeldProcess::Manual
+}
+
+impl DetailShape {
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Bolts { .. } => "Болты",
+            Self::Weld { .. } => "Шов",
+            Self::Cut { .. } => "Вырез",
+            Self::Hole { .. } => "Отверстие",
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Placement {
@@ -245,6 +351,9 @@ pub struct Family {
     /// alone.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub nested: Vec<Family>,
+    /// Bolts, welds, cuts and holes on the bodies.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub details: Vec<FamilyDetail>,
 }
 
 /// Evaluated parameter and plane values of one family object.
@@ -277,6 +386,60 @@ pub struct FamilyPart {
     pub name: String,
     pub material: String,
     pub shape: LocalShape,
+}
+
+/// A bolt group, weld, cut or hole in family coordinates.
+#[derive(Clone, Debug, PartialEq)]
+pub enum LocalDetail {
+    /// Bolts at `frame` (Z along the bolts) on the array of steps.
+    Bolts {
+        frame: Frame,
+        steps_x: Vec<f64>,
+        steps_y: Vec<f64>,
+        diameter: f64,
+        clearance: f64,
+        standard: String,
+        grade: String,
+    },
+    Weld {
+        path: Vec<Point3>,
+        weld_type: WeldType,
+        size: f64,
+        shop: bool,
+        sides: WeldSides,
+        around: bool,
+        process: WeldProcess,
+        gost: WeldGost,
+    },
+    /// `contour` in the XY plane of `frame`, `depth` along its Z.
+    Cut {
+        frame: Frame,
+        contour: Vec<[f64; 2]>,
+        depth: f64,
+    },
+    /// From the origin of `frame` for `depth` along its Z.
+    Hole {
+        frame: Frame,
+        diameter: f64,
+        depth: f64,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct FamilyDetailPart {
+    /// Stable role in its object: «detail-<detail>-<copy>».
+    pub role: String,
+    pub name: String,
+    /// Roles of the parts it joins or cuts.
+    pub parts: Vec<String>,
+    pub shape: LocalDetail,
+}
+
+/// Everything an object of a family builds, in family coordinates.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct FamilyBuild {
+    pub parts: Vec<FamilyPart>,
+    pub details: Vec<FamilyDetailPart>,
 }
 
 fn bad<T>(message: String) -> Result<T, ModelError> {
@@ -483,6 +646,87 @@ impl Family {
                 }
             }
         }
+        if self.details.len() > MAX_FAMILY_DETAILS {
+            return bad(format!(
+                "Не больше {MAX_FAMILY_DETAILS} болтов, швов, вырезов и отверстий"
+            ));
+        }
+        for d in &self.details {
+            let what = |m: &str| format!("{} «{}»: {m}", d.shape.label(), d.name);
+            if d.name.trim().is_empty() || d.name.chars().count() > 128 {
+                return bad(format!("{}: имя до 128 знаков", d.shape.label()));
+            }
+            if d.bodies.is_empty() || d.bodies.len() > MAX_FAMILY_BODIES {
+                return bad(what("укажите тела, к которым он относится"));
+            }
+            for b in &d.bodies {
+                if !self.bodies.iter().any(|x| &x.name == b) {
+                    return bad(what(&format!("нет тела «{b}»")));
+                }
+            }
+            let mut formulas: Vec<&String> = vec![&d.visible];
+            if let Some(a) = &d.array {
+                formulas.push(&a.count);
+                formulas.extend(&a.step);
+            }
+            match &d.shape {
+                DetailShape::Bolts {
+                    at,
+                    columns,
+                    column_step,
+                    rows,
+                    row_step,
+                    diameter,
+                    clearance,
+                    standard,
+                    grade,
+                    ..
+                } => {
+                    if standard.trim().is_empty() || grade.trim().is_empty() {
+                        return bad(what("укажите стандарт и класс прочности болтов"));
+                    }
+                    formulas.extend(at);
+                    formulas.extend([
+                        columns,
+                        column_step,
+                        rows,
+                        row_step,
+                        diameter,
+                        clearance,
+                        standard,
+                        grade,
+                    ]);
+                }
+                DetailShape::Weld { path, size, .. } => {
+                    if !(2..=64).contains(&path.len()) {
+                        return bad(what("в пути шва от 2 до 64 точек"));
+                    }
+                    formulas.extend(path.iter().flatten());
+                    formulas.push(size);
+                }
+                DetailShape::Cut {
+                    at, contour, depth, ..
+                } => {
+                    if !(3..=64).contains(&contour.len()) {
+                        return bad(what("в контуре от 3 до 64 точек"));
+                    }
+                    formulas.extend(contour.iter().flatten());
+                    formulas.extend([at, depth]);
+                }
+                DetailShape::Hole {
+                    at,
+                    diameter,
+                    depth,
+                    ..
+                } => {
+                    formulas.extend(at);
+                    formulas.extend([diameter, depth]);
+                }
+            }
+            if formulas.into_iter().any(|f| long(f)) {
+                return bad(what("формула слишком длинная"));
+            }
+        }
         Ok(())
     }
 
@@ -657,7 +901,16 @@ impl Family {
 
     /// The parts of an object with `values`, in family coordinates.
     pub fn evaluate(&self, values: &FamilyValues) -> Result<Vec<FamilyPart>, String> {
+        Ok(self.build(values)?.parts)
+    }
+
+    /// The parts and the bolts, welds, cuts and holes of an object with
+    /// `values`, in family coordinates.
+    pub fn build(&self, values: &FamilyValues) -> Result<FamilyBuild, String> {
         let mut parts = Vec::new();
+        let mut details = Vec::new();
+        // Part roles of every body, by copy.
+        let mut copies: Vec<Vec<Vec<String>>> = vec![Vec::new(); self.bodies.len()];
         for (i, b) in self.bodies.iter().enumerate() {
             let what = |m: &str| format!("{} — {m}", b.name);
             let f = |src: &str, part: &str| {
@@ -693,6 +946,7 @@ impl Family {
             // (role suffix, name, material, shape) of the body's pieces.
             let single =
                 |shape: LocalShape| vec![(String::new(), b.name.clone(), material.clone(), shape)];
+            let mut inner = Vec::new();
             let pieces = match &b.shape {
                 BodyShape::Plate {
                     normal,
@@ -785,9 +1039,17 @@ impl Family {
                         origin: Point3([f(&at[0], "x")?, f(&at[1], "y")?, f(&at[2], "z")?]),
                         axes: [[c, sn, 0.], [-sn, c, 0.], [0., 0., 1.]],
                     };
-                    child
-                        .evaluate(&child_values)
-                        .map_err(|e| what(&e))?
+                    let built = child.build(&child_values).map_err(|e| what(&e))?;
+                    inner = built
+                        .details
+                        .into_iter()
+                        .map(|d| FamilyDetailPart {
+                            shape: placed_detail(&d.shape, &place),
+                            ..d
+                        })
+                        .collect();
+                    built
+                        .parts
                         .into_iter()
                         .map(|p| {
                             (
@@ -805,23 +1067,280 @@ impl Family {
                     origin: Point3(step.map(|s| s * k as f64)),
                     ..Frame::default()
                 };
+                let mut roles = Vec::new();
                 for (suffix, name, material, shape) in &pieces {
                     if parts.len() >= MAX_FAMILY_PARTS {
                         return Err(format!("Больше {MAX_FAMILY_PARTS} деталей в одном объекте"));
                     }
+                    let role = format!("body-{i}-{k}{suffix}");
+                    roles.push(role.clone());
                     parts.push(FamilyPart {
-                        role: format!("body-{i}-{k}{suffix}"),
+                        role,
                         name: name.clone(),
                         material: material.clone(),
                         shape: placed(shape, &shift),
                     });
                 }
+                for d in &inner {
+                    let prefix = |r: &String| format!("body-{i}-{k}.{r}");
+                    details.push(FamilyDetailPart {
+                        role: prefix(&d.role),
+                        name: d.name.clone(),
+                        parts: d.parts.iter().map(prefix).collect(),
+                        shape: placed_detail(&d.shape, &shift),
+                    });
+                }
+                copies[i].push(roles);
             }
         }
         if parts.is_empty() {
             return Err(format!("Семейство «{}» не дало ни одной детали", self.name));
         }
-        Ok(parts)
+        for (i, d) in self.details.iter().enumerate() {
+            let what = |m: &str| format!("{} «{}» — {m}", d.shape.label(), d.name);
+            let f = |src: &str, part: &str| {
+                formula::eval(src, &values.numbers).map_err(|e| format!("{}: {e}", what(part)))
+            };
+            if !d.visible.is_empty() && f(&d.visible, "видимость")? <= 0. {
+                continue;
+            }
+            let (count, step) = match &d.array {
+                None => (1, [0.; 3]),
+                Some(a) => {
+                    let n = f(&a.count, "число в массиве")?.round();
+                    if !(0. ..=MAX_ARRAY_COUNT as f64).contains(&n) {
+                        return Err(what(&format!("в массиве от 0 до {MAX_ARRAY_COUNT} копий")));
+                    }
+                    let step = [
+                        f(&a.step[0], "шаг x")?,
+                        f(&a.step[1], "шаг y")?,
+                        f(&a.step[2], "шаг z")?,
+                    ];
+                    (n as usize, step)
+                }
+            };
+            let g = |src: &str, part: &str| {
+                formula::eval(src, &values.numbers).map_err(|e| format!("{part}: {e}"))
+            };
+            let shape = self
+                .local_detail(&d.shape, values, &g)
+                .map_err(|e| what(&e))?;
+            for k in 0..count {
+                let mut targets: Vec<String> = Vec::new();
+                for (j, b) in self.bodies.iter().enumerate() {
+                    if !d.bodies.contains(&b.name) {
+                        continue;
+                    }
+                    let c = &copies[j];
+                    let roles: Vec<&String> = if d.array.is_some() && c.len() == count {
+                        c[k].iter().collect()
+                    } else {
+                        c.iter().flatten().collect()
+                    };
+                    for r in roles {
+                        if !targets.contains(r) {
+                            targets.push(r.clone());
+                        }
+                    }
+                }
+                // A body that is not there (hidden, zero copies) takes its
+                // bolts, welds and cuts with it.
+                if targets.is_empty() {
+                    continue;
+                }
+                if details.len() >= MAX_FAMILY_PARTS {
+                    return Err(format!(
+                        "Больше {MAX_FAMILY_PARTS} болтов, швов и вырезов в одном объекте"
+                    ));
+                }
+                let shift = Frame {
+                    origin: Point3(step.map(|s| s * k as f64)),
+                    ..Frame::default()
+                };
+                details.push(FamilyDetailPart {
+                    role: format!("detail-{i}-{k}"),
+                    name: d.name.clone(),
+                    parts: targets,
+                    shape: placed_detail(&shape, &shift),
+                });
+            }
+        }
+        Ok(FamilyBuild { parts, details })
+    }
+
+    /// `shape` with `values`; `f` evaluates a formula and names what failed.
+    fn local_detail(
+        &self,
+        shape: &DetailShape,
+        values: &FamilyValues,
+        f: &dyn Fn(&str, &str) -> Result<f64, String>,
+    ) -> Result<LocalDetail, String> {
+        let point = |p: &[String; 3], part: &str| -> Result<Point3, String> {
+            Ok(Point3([f(&p[0], part)?, f(&p[1], part)?, f(&p[2], part)?]))
+        };
+        // A text parameter's value, or the text itself.
+        let text = |src: &String| {
+            values
+                .texts
+                .get(src)
+                .filter(|_| {
+                    self.parameter(src)
+                        .is_some_and(|p| p.kind == ParamKind::Text)
+                })
+                .unwrap_or(src)
+                .trim()
+                .to_string()
+        };
+        Ok(match shape {
+            DetailShape::Bolts {
+                at,
+                normal,
+                columns,
+                column_step,
+                rows,
+                row_step,
+                diameter,
+                clearance,
+                standard,
+                grade,
+            } => {
+                let d = f(diameter, "диаметр")?;
+                if d <= 0. {
+                    return Err(format!("диаметр {d} мм должен быть больше нуля"));
+                }
+                let gap = if clearance.trim().is_empty() {
+                    if d >= 27. { 3. } else { 2. }
+                } else {
+                    f(clearance, "зазор")?
+                };
+                if gap < 0. {
+                    return Err(format!("зазор {gap} мм не может быть меньше нуля"));
+                }
+                let axes = across(*normal);
+                let mut origin = point(at, "первый болт")?;
+                let mut steps = [Vec::new(), Vec::new()];
+                for (k, (n, step, what)) in [
+                    (columns, column_step, "столбцов"),
+                    (rows, row_step, "рядов"),
+                ]
+                .into_iter()
+                .enumerate()
+                {
+                    let n = f(n, &format!("число {what}"))?.round();
+                    if !(1. ..=100.).contains(&n) {
+                        return Err(format!("число {what} от 1 до 100, получено {n}"));
+                    }
+                    if n < 2. {
+                        continue;
+                    }
+                    let mut s = f(step, &format!("шаг {what}"))?;
+                    // A negative step runs the bolts the other way.
+                    if s < 0. {
+                        s = -s;
+                        for (c, a) in origin.0.iter_mut().zip(axes[k]) {
+                            *c -= a * s * (n - 1.);
+                        }
+                    }
+                    if s <= d + gap {
+                        return Err(format!(
+                            "шаг {what} {s} мм должен быть больше отверстия {} мм",
+                            d + gap
+                        ));
+                    }
+                    steps[k] = vec![s; n as usize - 1];
+                }
+                let [steps_x, steps_y] = steps;
+                LocalDetail::Bolts {
+                    frame: Frame { origin, axes },
+                    steps_x,
+                    steps_y,
+                    diameter: d,
+                    clearance: gap,
+                    standard: text(standard),
+                    grade: text(grade),
+                }
+            }
+            DetailShape::Weld {
+                path,
+                weld_type,
+                size,
+                shop,
+                sides,
+                around,
+                process,
+                gost,
+            } => {
+                let size = f(size, "катет")?;
+                if size <= 0. {
+                    return Err(format!("катет {size} мм должен быть больше нуля"));
+                }
+                let mut points = Vec::new();
+                for (k, p) in path.iter().enumerate() {
+                    points.push(point(p, &format!("точка {}", k + 1))?);
+                }
+                if points.windows(2).any(|w| w[0].distance(w[1]) <= 0.001) {
+                    return Err("соседние точки шва совпадают".into());
+                }
+                LocalDetail::Weld {
+                    path: points,
+                    weld_type: *weld_type,
+                    size,
+                    shop: *shop,
+                    sides: *sides,
+                    around: *around,
+                    process: *process,
+                    gost: gost.clone(),
+                }
+            }
+            DetailShape::Cut {
+                normal,
+                at,
+                contour,
+                depth,
+            } => {
+                let at = f(at, "положение")?;
+                let depth = f(depth, "глубина")?;
+                if depth <= 0. {
+                    return Err(format!("глубина {depth} мм должна быть больше нуля"));
+                }
+                let mut points = Vec::new();
+                for (k, [u, v]) in contour.iter().enumerate() {
+                    let point = format!("точка {}", k + 1);
+                    points.push([f(u, &point)?, f(v, &point)?]);
+                }
+                let LocalShape::Plate { contour, frame, .. } = plate(*normal, at, &points, depth)?
+                else {
+                    unreachable!("plate() makes a plate")
+                };
+                LocalDetail::Cut {
+                    frame,
+                    contour,
+                    depth,
+                }
+            }
+            DetailShape::Hole {
+                at,
+                normal,
+                diameter,
+                depth,
+            } => {
+                let d = f(diameter, "диаметр")?;
+                let depth = f(depth, "глубина")?;
+                if d <= 0. || depth <= 0. {
+                    return Err("диаметр и глубина должны быть больше нуля".into());
+                }
+                let n = normal.index();
+                let unit = |i: usize| std::array::from_fn(|j| f64::from(u8::from(i == j)));
+                LocalDetail::Hole {
+                    frame: Frame {
+                        origin: point(at, "центр")?,
+                        axes: [unit((n + 1) % 3), unit((n + 2) % 3), unit(n)],
+                    },
+                    diameter: d,
+                    depth,
+                }
+            }
+        })
     }
 }
 
@@ -888,6 +1407,39 @@ fn placed(shape: &LocalShape, frame: &Frame) -> LocalShape {
             rotation: *rotation,
         },
     }
+}
+
+/// Axes of a bolt group across `normal`: the first two run as plate
+/// contour points do, the third completes a right-handed frame.
+fn across(normal: Axis) -> [[f64; 3]; 3] {
+    let unit = |i: usize| std::array::from_fn(|j| f64::from(u8::from(i == j)));
+    let (u, v) = match normal {
+        Axis::X => (1, 2),
+        Axis::Y => (0, 2),
+        Axis::Z => (0, 1),
+    };
+    let (a, b): ([f64; 3], [f64; 3]) = (unit(u), unit(v));
+    [a, b, cross(a, b)]
+}
+
+/// `shape` in the coordinates `frame` is given in.
+fn placed_detail(shape: &LocalDetail, frame: &Frame) -> LocalDetail {
+    let move_frame = |own: &Frame| Frame {
+        origin: frame.world(own.origin),
+        axes: own.axes.map(|a| direction(frame, a)),
+    };
+    let mut out = shape.clone();
+    match &mut out {
+        LocalDetail::Bolts { frame: own, .. }
+        | LocalDetail::Cut { frame: own, .. }
+        | LocalDetail::Hole { frame: own, .. } => *own = move_frame(own),
+        LocalDetail::Weld { path, .. } => {
+            for p in path {
+                *p = frame.world(*p);
+            }
+        }
+    }
+    out
 }
 
 /// A plate across `normal` at `at` with its contour in the other two axes;
@@ -1000,12 +1552,15 @@ impl FamilyInstance {
         }
         if self.values.len() > MAX_FAMILY_PARAMETERS
             || self.values.values().any(|v| long(v))
-            || self.children.len() > MAX_FAMILY_PARTS + 1
+            || self.children.len() > MAX_FAMILY_CHILDREN
         {
             return bad("Слишком много значений или деталей семейства".into());
         }
         for id in self.children.values() {
-            if !project.elements.contains_key(id) && !project.assemblies.contains_key(id) {
+            if !project.elements.contains_key(id)
+                && !project.assemblies.contains_key(id)
+                && !project.details.contains_key(id)
+            {
                 return Err(ModelError::MissingReference(*id));
             }
         }
@@ -1071,6 +1626,14 @@ pub fn instance_parts(
     project: &Project,
     instance: &FamilyInstance,
 ) -> Result<Vec<FamilyPart>, ModelError> {
+    Ok(instance_build(project, instance)?.parts)
+}
+
+/// The parts and details of `instance` in family coordinates.
+pub fn instance_build(
+    project: &Project,
+    instance: &FamilyInstance,
+) -> Result<FamilyBuild, ModelError> {
     let family = project.families.get(&instance.family).ok_or_else(|| {
         ModelError::InvalidValue(format!("В проекте нет семейства «{}»", instance.family))
     })?;
@@ -1083,7 +1646,218 @@ pub fn instance_parts(
             &model_values(project),
         )
         .map_err(fail)?;
-    family.evaluate(&values).map_err(fail)
+    family.build(&values).map_err(fail)
+}
+
+/// Roles of the model details `d` makes: the bolt group and its holes
+/// («<role>.hole-<part>-<bolt>»), the weld, a cut or a hole in each part
+/// («<role>.<part>»).
+fn detail_roles(d: &FamilyDetailPart) -> Vec<String> {
+    match &d.shape {
+        LocalDetail::Bolts {
+            steps_x, steps_y, ..
+        } => {
+            let bolts = (steps_x.len() + 1) * (steps_y.len() + 1);
+            std::iter::once(d.role.clone())
+                .chain(
+                    (0..d.parts.len())
+                        .flat_map(|p| (0..bolts).map(move |k| format!("{}.hole-{p}-{k}", d.role))),
+                )
+                .collect()
+        }
+        LocalDetail::Weld { .. } => vec![d.role.clone()],
+        LocalDetail::Cut { .. } | LocalDetail::Hole { .. } => (0..d.parts.len())
+            .map(|p| format!("{}.{p}", d.role))
+            .collect(),
+    }
+}
+
+/// The ID of the object of `role`, a new one the first time.
+fn child_id(
+    project: &mut Project,
+    instance: &mut FamilyInstance,
+    role: &str,
+) -> Result<ObjectId, ModelError> {
+    if let Some(id) = instance.children.get(role) {
+        return Ok(*id);
+    }
+    let id = project.allocate_id()?;
+    instance.children.insert(role.to_string(), id);
+    Ok(id)
+}
+
+/// `world` in the coordinates of `parent`.
+fn local_frame(world: &Frame, parent: &Frame) -> Frame {
+    let dot = |a: [f64; 3], b: [f64; 3]| (0..3).map(|i| a[i] * b[i]).sum::<f64>();
+    let delta: [f64; 3] = std::array::from_fn(|i| world.origin.0[i] - parent.origin.0[i]);
+    Frame {
+        origin: Point3(std::array::from_fn(|i| dot(parent.axes[i], delta))),
+        axes: std::array::from_fn(|i| std::array::from_fn(|j| dot(parent.axes[j], world.axes[i]))),
+    }
+}
+
+/// Points that bound a part in family coordinates, enough to size holes
+/// through it.
+fn corners(shape: &LocalShape) -> Vec<Point3> {
+    match shape {
+        LocalShape::Plate {
+            contour,
+            thickness,
+            frame,
+        } => contour
+            .iter()
+            .flat_map(|p| [0., *thickness].map(|z| frame.world(Point3([p[0], p[1], z]))))
+            .collect(),
+        LocalShape::Member { start, end, .. } => vec![*start, *end],
+    }
+}
+
+/// Model details of `built` for an object at `frame`, the parts already
+/// in `project` under the roles of `instance`.
+fn build_details(
+    project: &mut Project,
+    instance: &mut FamilyInstance,
+    built: &FamilyBuild,
+) -> Result<(), ModelError> {
+    let frame = instance.frame;
+    let world_frame = |own: &Frame| Frame {
+        origin: frame.world(own.origin),
+        axes: own.axes.map(|a| direction(&frame, a)),
+    };
+    for d in &built.details {
+        let ids: Vec<ObjectId> = d.parts.iter().map(|r| instance.children[r]).collect();
+        let parent = |project: &Project, id: ObjectId| *project.elements[&id].shape.frame();
+        let kind = match &d.shape {
+            LocalDetail::Bolts {
+                frame: own,
+                steps_x,
+                steps_y,
+                diameter,
+                clearance,
+                standard,
+                grade,
+            } => {
+                let group = world_frame(own);
+                // Holes through every part: from beyond the farthest corner
+                // on one side to beyond it on the other.
+                let reach = built
+                    .parts
+                    .iter()
+                    .filter(|p| d.parts.contains(&p.role))
+                    .flat_map(|p| corners(&p.shape))
+                    .map(|c| c.distance(own.origin))
+                    .fold(0., f64::max)
+                    + 1000.;
+                let positions = crate::bolt_positions(steps_x, steps_y, &[]);
+                let mut holes = BTreeSet::new();
+                for (p, id) in ids.iter().enumerate() {
+                    for (k, [x, y]) in positions.iter().enumerate() {
+                        let hole =
+                            child_id(project, instance, &format!("{}.hole-{p}-{k}", d.role))?;
+                        let start = Frame {
+                            origin: group.world(Point3([*x, *y, -reach])),
+                            ..group
+                        };
+                        let local = local_frame(&start, &parent(project, *id));
+                        project.details.insert(
+                            hole,
+                            Detail {
+                                id: hole,
+                                kind: DetailKind::Hole {
+                                    part: *id,
+                                    frame: local,
+                                    diameter: diameter + clearance,
+                                    depth: 2. * reach,
+                                },
+                            },
+                        );
+                        holes.insert(hole);
+                    }
+                }
+                DetailKind::BoltGroup {
+                    parts: ids.iter().copied().collect(),
+                    holes,
+                    frame: group,
+                    diameter: *diameter,
+                    clearance: *clearance,
+                    steps_x: steps_x.clone(),
+                    steps_y: steps_y.clone(),
+                    standard: standard.clone(),
+                    grade: grade.clone(),
+                    points: Vec::new(),
+                }
+            }
+            LocalDetail::Weld {
+                path,
+                weld_type,
+                size,
+                shop,
+                sides,
+                around,
+                process,
+                gost,
+            } => DetailKind::Weld {
+                parts: ids.iter().copied().collect(),
+                weld_type: *weld_type,
+                size: *size,
+                path: path.iter().map(|p| frame.world(*p)).collect(),
+                shop: *shop,
+                sides: *sides,
+                around: *around,
+                process: *process,
+                gost: gost.clone(),
+            },
+            LocalDetail::Cut {
+                frame: own,
+                contour,
+                depth,
+            } => {
+                for (p, id) in ids.iter().enumerate() {
+                    let cut = child_id(project, instance, &format!("{}.{p}", d.role))?;
+                    let local = local_frame(&world_frame(own), &parent(project, *id));
+                    project.details.insert(
+                        cut,
+                        Detail {
+                            id: cut,
+                            kind: DetailKind::PrismCut {
+                                part: *id,
+                                frame: local,
+                                contour: contour.clone(),
+                                length: *depth,
+                            },
+                        },
+                    );
+                }
+                continue;
+            }
+            LocalDetail::Hole {
+                frame: own,
+                diameter,
+                depth,
+            } => {
+                for (p, id) in ids.iter().enumerate() {
+                    let hole = child_id(project, instance, &format!("{}.{p}", d.role))?;
+                    let local = local_frame(&world_frame(own), &parent(project, *id));
+                    project.details.insert(
+                        hole,
+                        Detail {
+                            id: hole,
+                            kind: DetailKind::Hole {
+                                part: *id,
+                                frame: local,
+                                diameter: *diameter,
+                                depth: *depth,
+                            },
+                        },
+                    );
+                }
+                continue;
+            }
+        };
+        let id = child_id(project, instance, &d.role)?;
+        project.details.insert(id, Detail { id, kind });
+    }
+    Ok(())
 }
 
 /// Build again every family object whose instance, definition or model
@@ -1107,27 +1881,45 @@ pub fn rebuild_families(project: &mut Project, previous: &Project) -> Result<(),
                         old.name, instance.family
                     ));
                 }
+                let (old, new) = (previous.details.get(id), project.details.get(id));
+                if let (Some(old), Some(new)) = (old, new)
+                    && old != new
+                {
+                    return bad(format!(
+                        "Болты, швы и вырезы строит семейство «{}»: измените его параметры",
+                        instance.family
+                    ));
+                }
             }
             continue;
         }
-        let parts = instance_parts(project, &instance)?;
+        let built = instance_build(project, &instance)?;
+        let parts = &built.parts;
         let family = project.families[&instance.family].clone();
         let keep: BTreeSet<String> = parts
             .iter()
             .map(|p| p.role.clone())
+            .chain(built.details.iter().flat_map(detail_roles))
             .chain(["assembly".to_string()])
             .collect();
+        if keep.len() > MAX_FAMILY_CHILDREN {
+            return bad(format!(
+                "Семейство «{}»: больше {MAX_FAMILY_CHILDREN} объектов в одном размещении",
+                family.name
+            ));
+        }
         for (role, id) in std::mem::take(&mut instance.children) {
             if keep.contains(&role) {
                 instance.children.insert(role, id);
             } else {
                 project.elements.remove(&id);
                 project.assemblies.remove(&id);
+                project.details.remove(&id);
             }
         }
         let frame = instance.frame;
         let mut ids = Vec::new();
-        for part in &parts {
+        for part in parts {
             let material = material_id(project, &part.material)?;
             let shape = match &part.shape {
                 LocalShape::Plate {
@@ -1162,14 +1954,7 @@ pub fn rebuild_families(project: &mut Project, previous: &Project) -> Result<(),
                     )?
                 }
             };
-            let id = match instance.children.get(&part.role) {
-                Some(id) => *id,
-                None => {
-                    let id = project.allocate_id()?;
-                    instance.children.insert(part.role.clone(), id);
-                    id
-                }
-            };
+            let id = child_id(project, &mut instance, &part.role)?;
             let mut properties = project
                 .elements
                 .get(&id)
@@ -1199,14 +1984,8 @@ pub fn rebuild_families(project: &mut Project, previous: &Project) -> Result<(),
             );
             ids.push(id);
         }
-        let assembly = match instance.children.get("assembly") {
-            Some(id) => *id,
-            None => {
-                let id = project.allocate_id()?;
-                instance.children.insert("assembly".into(), id);
-                id
-            }
-        };
+        build_details(project, &mut instance, &built)?;
+        let assembly = child_id(project, &mut instance, "assembly")?;
         let mut properties = project
             .assemblies
             .get(&assembly)
@@ -1295,6 +2074,18 @@ pub fn sample_families() -> Vec<Family> {
                 max: Some(4.),
             },
             length("отступ", "Отступ рёбер от края", false, "20"),
+            FamilyParameter {
+                name: s("отв"),
+                label: s("Отверстия под балку"),
+                kind: ParamKind::YesNo,
+                group: s("Отверстия"),
+                of_type: false,
+                value: s("да"),
+                formula: String::new(),
+                min: None,
+                max: None,
+            },
+            length("d0", "Диаметр отверстий", false, "22"),
         ],
         types: vec![
             sizes("С-1", ["150", "100", "120", "14"]),
@@ -1370,6 +2161,57 @@ pub fn sample_families() -> Vec<Family> {
                 },
             },
         ],
+        details: vec![
+            FamilyDetail {
+                name: s("Шов ребра"),
+                bodies: vec![s("Столик"), s("Ребро")],
+                visible: s("n > 0"),
+                array: Some(BodyArray {
+                    count: s("n"),
+                    step: [
+                        s("if(n > 1, (B - 2 * отступ - tr) / (n - 1), 0)"),
+                        s("0"),
+                        s("0"),
+                    ],
+                }),
+                shape: DetailShape::Weld {
+                    path: vec![
+                        [
+                            s("if(n > 1, Лево + отступ, X0 - tr / 2)"),
+                            s("Y0"),
+                            s("Низ_столика"),
+                        ],
+                        [
+                            s("if(n > 1, Лево + отступ, X0 - tr / 2)"),
+                            s("Перед"),
+                            s("Низ_столика"),
+                        ],
+                    ],
+                    weld_type: WeldType::Fillet,
+                    size: s("6"),
+                    shop: true,
+                    sides: WeldSides::Both,
+                    around: false,
+                    process: WeldProcess::Manual,
+                    gost: WeldGost::default(),
+                },
+            },
+            FamilyDetail {
+                name: s("Отверстие под балку"),
+                bodies: vec![s("Столик")],
+                visible: s("отв"),
+                array: Some(BodyArray {
+                    count: s("2"),
+                    step: [s("B - 80"), s("0"), s("0")],
+                }),
+                shape: DetailShape::Hole {
+                    at: [s("Лево + 40"), s("Y0 + A / 2"), s("Низ_столика - 1")],
+                    normal: Axis::Z,
+                    diameter: s("d0"),
+                    depth: s("t + 2"),
+                },
+            },
+        ],
     };
     let profile = |name: &str, label: &str, value: &str| FamilyParameter {
         name: s(name),
@@ -1385,6 +2227,7 @@ pub fn sample_families() -> Vec<Family> {
     let ladder = Family {
         name: s("Стремянка"),
         nested: Vec::new(),
+        details: Vec::new(),
         description: s("Две тетивы и ступени с шагом; ставится по двум точкам"),
         placement: Placement::TwoPoints,
         spec: SpecMode::Assembly,

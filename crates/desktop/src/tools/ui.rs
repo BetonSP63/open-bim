@@ -257,7 +257,7 @@ impl ToolsUi {
                                 Some(Pick::New(m)) => {
                                     editor.draft.material = m.id;
                                     action = Some(Action::Commit(
-                                        format!("Сталь из каталога: {}", m.name),
+                                        format!("Материал из каталога: {}", m.name),
                                         vec![open_bim_commands::Command::CreateMaterial {
                                             material: m,
                                         }],
@@ -274,7 +274,7 @@ impl ToolsUi {
                     plate_rows(ui, &mut editor.draft);
                 }
                 if kind.is_concrete() {
-                    if kind != ToolKind::Slab {
+                    if !matches!(kind, ToolKind::Slab | ToolKind::Raft) {
                         let l = ui.label("Сечение b x h, мм");
                         ui.add(
                             egui::TextEdit::singleline(&mut editor.draft.section)
@@ -288,9 +288,49 @@ impl ToolsUi {
                         .selected_text(editor.draft.grade.as_str())
                         .width(field_width(ui))
                         .show_ui(ui, |ui| {
-                            for g in crate::interaction::concrete::GRADES {
-                                ui.selectable_value(&mut editor.draft.grade, g.into(), g);
+                            for c in open_bim_model::library::concrete_classes() {
+                                ui.selectable_value(&mut editor.draft.grade, c.name.into(), c.name)
+                                    .on_hover_text(format!(
+                                        "Rb = {} МПа, Rbt = {} МПа, Eb = {} МПа (СП 63.13330)",
+                                        open_bim_reports::fmt(c.rb),
+                                        open_bim_reports::fmt(c.rbt),
+                                        open_bim_reports::fmt(c.eb)
+                                    ));
                             }
+                        })
+                        .response
+                        .labelled_by(l.id);
+                    ui.end_row();
+                    if kind == ToolKind::Footing {
+                        let l = ui.label("Подколонник b x h, мм");
+                        ui.add(
+                            egui::TextEdit::singleline(&mut editor.draft.pedestal)
+                                .hint_text("нет")
+                                .desired_width(field_width(ui)),
+                        )
+                        .labelled_by(l.id)
+                        .on_hover_text("Пусто — подошва без подколонника");
+                        ui.end_row();
+                        let l = ui.label("Верх подколонника, мм");
+                        ui.add(
+                            egui::TextEdit::singleline(&mut editor.draft.pedestal_top)
+                                .desired_width(field_width(ui)),
+                        )
+                        .labelled_by(l.id)
+                        .on_hover_text("Отсчёт как у верха подошвы");
+                        ui.end_row();
+                    }
+                    let l = ui.label("Тип элемента");
+                    egui::ComboBox::new("cast type", "")
+                        .selected_text(if editor.draft.precast {
+                            "Сборный"
+                        } else {
+                            "Монолитный"
+                        })
+                        .width(field_width(ui))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut editor.draft.precast, false, "Монолитный");
+                            ui.selectable_value(&mut editor.draft.precast, true, "Сборный");
                         })
                         .response
                         .labelled_by(l.id);
