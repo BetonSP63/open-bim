@@ -92,6 +92,7 @@ pub fn rebuild_base_plates(project: &mut Project, previous: &Project) -> Result<
                         },
                         diameter: t.bolt_diameter + t.clearance,
                         depth: t.thickness + 2.0,
+                        slot: 0.0,
                     },
                 },
             );

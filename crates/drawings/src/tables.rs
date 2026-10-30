@@ -748,6 +748,12 @@ pub fn assortment(project: &Project, id: ObjectId) -> (String, String) {
                 ProfileShape::CircularHollow { .. } => "Трубы круглые",
                 ProfileShape::RectangularHollow { .. } => "Трубы профильные",
                 ProfileShape::Rectangle { .. } => "Прокат прямоугольный",
+                ProfileShape::Polygon { .. }
+                    if open_bim_model::library::section(&p.name)
+                        .is_some_and(|e| e.name.starts_with("Тавр")) =>
+                {
+                    "Тавры из двутавров"
+                }
                 ProfileShape::Polygon { .. } => "Профили по контуру",
                 // Listed by plates in the specification (`rolled_steel`).
                 ProfileShape::Welded { .. } => "Сечения сварные",
@@ -925,6 +931,75 @@ pub fn rolled_steel_table(rs: &RolledSteel) -> Table {
         columns,
         header: 20.,
         name_column: 0,
+        rows,
+    }
+}
+
+/// «Ведомость объёмов бетона по захваткам»: per zone its elements with
+/// counts and volumes and the zone total, then the totals by class.
+pub fn pour_schedule_table(project: &Project, zones: &[open_bim_model::PourZone]) -> Table {
+    let m3 = |v: f64| format!("{v:.2}").replace('.', ",");
+    let mut rows = Vec::new();
+    for z in zones {
+        let lines = project.pour_rows(std::slice::from_ref(z));
+        for (k, l) in lines.iter().enumerate() {
+            let first = k == 0;
+            rows.push(Row::Cells(vec![
+                if first {
+                    z.number.to_string()
+                } else {
+                    String::new()
+                },
+                if first {
+                    z.grade.clone()
+                } else {
+                    String::new()
+                },
+                l.element.clone(),
+                l.count.to_string(),
+                m3(l.volume_m3),
+            ]));
+        }
+        rows.push(Row::Cells(vec![
+            String::new(),
+            String::new(),
+            "Итого по захватке".into(),
+            String::new(),
+            m3(z.volume_m3),
+        ]));
+    }
+    let total: f64 = zones.iter().map(|z| z.volume_m3).sum();
+    rows.push(Row::Cells(vec![
+        String::new(),
+        String::new(),
+        "Всего".into(),
+        String::new(),
+        m3(total),
+    ]));
+    let by_grade = open_bim_model::pours::volumes_by_grade(zones);
+    if by_grade.len() > 1 {
+        for (grade, v) in by_grade {
+            rows.push(Row::Cells(vec![
+                String::new(),
+                grade.clone(),
+                format!("в т. ч. бетон {grade}"),
+                String::new(),
+                m3(v),
+            ]));
+        }
+    }
+    Table {
+        title: Some("Ведомость объёмов бетона по захваткам".into()),
+        columns: vec![
+            column("№\nзахватки", 15., Align::Middle),
+            column("Класс\nбетона", 18., Align::Middle),
+            column("Элемент", 70., Align::Start),
+            column("Кол.", 12., Align::Middle),
+            column("Объём,\nм³", 20., Align::Middle),
+        ],
+        groups: Vec::new(),
+        header: HEADER,
+        name_column: 2,
         rows,
     }
 }

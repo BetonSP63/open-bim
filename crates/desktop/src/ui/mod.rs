@@ -944,7 +944,9 @@ impl Workbench {
             | Cmd::ConcreteBeam
             | Cmd::ConcretePanel
             | Cmd::ConcreteSlab
-            | Cmd::ConcreteFooting => {
+            | Cmd::ConcreteFooting
+            | Cmd::ConcreteStripFooting
+            | Cmd::ConcreteRaft => {
                 let (mode, kind) = tool(match cmd {
                     Cmd::ToolAxis => ToolKind::Axis,
                     Cmd::ToolBeam => ToolKind::Beam,
@@ -954,6 +956,8 @@ impl Workbench {
                     Cmd::ConcretePanel => ToolKind::Panel,
                     Cmd::ConcreteSlab => ToolKind::Slab,
                     Cmd::ConcreteFooting => ToolKind::Footing,
+                    Cmd::ConcreteStripFooting => ToolKind::StripFooting,
+                    Cmd::ConcreteRaft => ToolKind::Raft,
                     _ => ToolKind::Plate,
                 });
                 self.mode = mode;
@@ -1028,6 +1032,8 @@ impl Workbench {
             | Cmd::CutLine
             | Cmd::CutPart
             | Cmd::CutPolygon
+            | Cmd::ConcreteOpening
+            | Cmd::ConcreteRecess
             | Cmd::EdgeChamfer
             | Cmd::SplitPart
             | Cmd::CombineParts
@@ -1050,6 +1056,8 @@ impl Workbench {
                     Cmd::CutLine => TrimTool::CutLine,
                     Cmd::CutPart => TrimTool::CutPart,
                     Cmd::CutPolygon => TrimTool::CutPolygon,
+                    Cmd::ConcreteOpening => TrimTool::Opening,
+                    Cmd::ConcreteRecess => TrimTool::Recess,
                     Cmd::EdgeChamfer => TrimTool::EdgeChamfer,
                     Cmd::SplitPart => TrimTool::Split,
                     Cmd::CombineParts => TrimTool::Combine,
@@ -1101,11 +1109,11 @@ impl Workbench {
                     }
                 };
             }
-            Cmd::CastUnit => {
+            Cmd::CastUnit | Cmd::PrecastUnit => {
                 let r = crate::interaction::concrete::cast_unit(
                     self.editor.document.project(),
                     &self.editor.selected,
-                    false,
+                    cmd == Cmd::PrecastUnit,
                 );
                 return match r {
                     Ok(commands) => Some(Request::Action(Action::Commit(
@@ -1184,12 +1192,16 @@ impl Workbench {
                 let n = crate::interaction::pours::objects(self.editor.document.project()).len();
                 self.message(format!("Захваток бетонирования: {n}"));
             }
-            Cmd::PourBreak => {
+            Cmd::PourBreak | Cmd::PourBreakHorizontal => {
                 use crate::interaction::trim::{TrimPicker, TrimTool};
                 self.engine.cancel();
                 self.detail.cancel();
                 self.mode = Mode::Model;
-                self.trim = TrimPicker::start(TrimTool::PourBreak);
+                self.trim = TrimPicker::start(if cmd == Cmd::PourBreak {
+                    TrimTool::PourBreak
+                } else {
+                    TrimTool::PourBreakHorizontal
+                });
                 self.message(self.prompt());
             }
             Cmd::CalculatePours => {
@@ -2360,6 +2372,16 @@ impl Workbench {
                 trim::cut_polygon(project, *p, polygon, normal)
             }
             (TrimTool::CutPolygon, _, _) => Err("Нужно не меньше 3 вершин выреза".into()),
+            (TrimTool::Opening, [p], polygon) if polygon.len() >= 3 => {
+                trim::opening(project, *p, polygon, None)
+            }
+            (TrimTool::Recess, [p], polygon) if polygon.len() >= 3 => {
+                crate::tools::number(&self.tools.detailing.recess_depth)
+                    .and_then(|depth| trim::opening(project, *p, polygon, Some(depth)))
+            }
+            (TrimTool::Opening | TrimTool::Recess, _, _) => {
+                Err("Нужно не меньше 3 вершин контура".into())
+            }
             (TrimTool::EdgeChamfer, [part], [a, b]) => {
                 let legs = &self.tools.detailing.edge_chamfer;
                 crate::tools::number(&legs[0]).and_then(|first| {
@@ -2409,7 +2431,10 @@ impl Workbench {
             }
             (TrimTool::AddedMaterial, _, _) => Err("Нужно не меньше 3 вершин контура".into()),
             (TrimTool::PourBreak, [], [a, b]) => {
-                crate::interaction::pours::add_break(project, *a, *b)
+                crate::interaction::pours::add_break(project, *a, *b, false)
+            }
+            (TrimTool::PourBreakHorizontal, [], [a, b]) => {
+                crate::interaction::pours::add_break(project, *a, *b, true)
             }
             (TrimTool::RigidLink, [], [a, b]) => {
                 crate::interaction::analysis::add_link(project, self.analysis.active, *a, *b)
@@ -3506,6 +3531,9 @@ impl Workbench {
             }
             Some(crate::interaction::pours::PourAction::Select(parts)) => {
                 self.editor.selected = parts;
+            }
+            Some(crate::interaction::pours::PourAction::Message(text)) => {
+                self.message(text);
             }
             None => {}
         }

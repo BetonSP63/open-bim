@@ -80,6 +80,8 @@ pub enum Step {
         #[serde(default = "one")]
         count: u32,
     },
+    /// Fix part positions and shipping marks («Нумеровать»).
+    Number,
     Commit(String),
     Rollback,
     Undo,
@@ -399,6 +401,14 @@ fn run_step(
             }
             *selection = copies.clone();
             report("copy", copies, String::new())
+        }
+        Step::Number => {
+            let positions = session.number()?;
+            report(
+                "number",
+                Vec::new(),
+                format!("Позиций деталей: {positions}"),
+            )
         }
         Step::Commit(label) => {
             let message = match session.commit(label)? {

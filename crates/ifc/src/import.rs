@@ -1508,6 +1508,7 @@ pub fn import(text: &str) -> Result<(Project, ImportReport), String> {
                         frame: local.frame(),
                         diameter: 2. * r,
                         depth: odepth,
+                        slot: 0.0,
                     },
                     Shape::Profile(ProfileShape::Rectangle { width, height })
                         if (local.axes[0][0] - 1.).abs() < 1e-9

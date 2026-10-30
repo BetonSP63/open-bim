@@ -35,19 +35,27 @@ pub enum ToolKind {
     Panel,
     Slab,
     Footing,
+    StripFooting,
+    Raft,
 }
 impl ToolKind {
     pub fn is_plate(self) -> bool {
         matches!(
             self,
-            Self::Plate | Self::Gusset | Self::Stiffener | Self::Slab
+            Self::Plate | Self::Gusset | Self::Stiffener | Self::Slab | Self::Raft
         )
     }
 
     pub fn is_concrete(self) -> bool {
         matches!(
             self,
-            Self::ConcreteColumn | Self::ConcreteBeam | Self::Panel | Self::Slab | Self::Footing
+            Self::ConcreteColumn
+                | Self::ConcreteBeam
+                | Self::Panel
+                | Self::Slab
+                | Self::Footing
+                | Self::StripFooting
+                | Self::Raft
         )
     }
 
@@ -55,8 +63,8 @@ impl ToolKind {
     pub fn base(self) -> Self {
         match self {
             Self::ConcreteColumn | Self::Footing => Self::Column,
-            Self::ConcreteBeam | Self::Panel => Self::Beam,
-            Self::Slab => Self::Plate,
+            Self::ConcreteBeam | Self::Panel | Self::StripFooting => Self::Beam,
+            Self::Slab | Self::Raft => Self::Plate,
             k => k,
         }
     }
@@ -74,6 +82,8 @@ impl ToolKind {
             Self::Panel => "Панель",
             Self::Slab => "Перекрытие",
             Self::Footing => "Фундамент",
+            Self::StripFooting => "Ленточный фундамент",
+            Self::Raft => "Фундаментная плита",
         }
     }
 }
@@ -104,6 +114,12 @@ pub struct Draft {
     /// Concrete section «ширина x высота», mm, and grade («В25»).
     pub section: String,
     pub grade: String,
+    /// Pad footing pedestal «ширина x высота», mm (empty: none), and its
+    /// top, mm, measured like `top`.
+    pub pedestal: String,
+    pub pedestal_top: String,
+    /// The placed concrete part is precast: it becomes a precast cast unit.
+    pub precast: bool,
 }
 impl Default for Draft {
     fn default() -> Self {
@@ -127,6 +143,9 @@ impl Default for Draft {
             top_level: None,
             section: "400x400".into(),
             grade: "В25".into(),
+            pedestal: String::new(),
+            pedestal_top: "0".into(),
+            precast: false,
         }
     }
 }
@@ -187,12 +206,9 @@ impl Draft {
 
     pub fn commands(&self, project: &Project) -> Result<Vec<Command>, String> {
         if self.kind.is_concrete() {
-            let (mut out, staged, draft) =
-                crate::interaction::concrete::prepare(project, self.kind, self)?;
-            let mut rest = draft.commands(&staged)?;
-            crate::interaction::concrete::mark(&mut rest, self.kind);
-            out.extend(rest);
-            return Ok(out);
+            return crate::interaction::concrete::build(project, self.kind, self, |p, d| {
+                d.commands(p)
+            });
         }
         let id = ObjectId(project.next_id);
         let start = point(&self.start)?;

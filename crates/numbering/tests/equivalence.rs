@@ -82,6 +82,7 @@ fn material_profile_and_holes_change_manufacture_and_affected_assemblies() {
                             },
                             diameter: 22.,
                             depth: 100.,
+                            slot: 0.0,
                         },
                     },
                 );

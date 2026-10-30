@@ -371,7 +371,11 @@ impl Project {
         }
         if ids.len() > 1_000_000
             || self.next_id == 0
-            || ids.last().is_some_and(|id| id.0 >= self.next_id)
+            // Only the counter's own ID range must be free above it.
+            || ids
+                .range(ObjectId(self.next_id)..)
+                .next()
+                .is_some_and(|id| id.0 / crate::ID_BLOCK == self.next_id / crate::ID_BLOCK)
         {
             return Err(ModelError::InvalidValue(
                 "Счётчик ID или количество объектов".into(),

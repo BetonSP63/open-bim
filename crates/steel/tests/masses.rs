@@ -34,6 +34,7 @@ fn fabrication_mass_matches_independent_reference_values() {
                 },
                 diameter: 20.,
                 depth: 22.,
+                slot: 0.0,
             }),
             "box_cut" => Some(DetailKind::BoxCut {
                 part: ObjectId(8),

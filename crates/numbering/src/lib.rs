@@ -249,9 +249,14 @@ pub fn part_key_data(project: &Project, id: ObjectId) -> Result<Value, ModelErro
                 frame,
                 diameter,
                 depth,
+                slot,
                 ..
             } => {
-                json!({"kind":"hole","frame":frame_key(frame),"diameter":dimensions(diameter),"depth":dimensions(depth)})
+                let mut hole = json!({"kind":"hole","frame":frame_key(frame),"diameter":dimensions(diameter),"depth":dimensions(depth)});
+                if *slot > 0.0 {
+                    hole["slot"] = dimensions(slot);
+                }
+                hole
             }
             DetailKind::BoxCut { origin, size, .. } => {
                 json!({"kind":"box_cut","origin":dimensions(origin),"size":dimensions(size)})

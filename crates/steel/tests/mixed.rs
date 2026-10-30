@@ -32,6 +32,7 @@ fn combined_hole_and_cuts_match_independent_mass_fixtures() {
             },
             diameter: 20.,
             depth: 22.,
+            slot: 0.0,
         }];
         let case = row["case"].as_str().unwrap();
         if case.contains("box") {

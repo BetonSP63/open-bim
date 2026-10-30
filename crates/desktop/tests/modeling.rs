@@ -362,6 +362,7 @@ fn linked_bolts_and_weld_follow_whole_group_rigid_edits() {
                     },
                     diameter: 22.,
                     depth: 42.,
+                    slot: 0.0,
                 },
             },
         });
@@ -527,6 +528,7 @@ fn mirrored_local_cuts_and_blind_holes_preserve_net_volume() {
             },
             diameter: 10.,
             depth: 11.,
+            slot: 0.0,
         },
     ];
     for kind in kinds {

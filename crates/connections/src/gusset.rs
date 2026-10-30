@@ -279,6 +279,7 @@ pub fn rebuild_gussets(project: &mut Project, previous: &Project) -> Result<(), 
                             frame: local,
                             diameter: t.bolt_diameter + t.clearance,
                             depth: recipe.hole_depth,
+                            slot: 0.0,
                         },
                     },
                 );
