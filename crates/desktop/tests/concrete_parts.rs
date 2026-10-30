@@ -182,7 +182,7 @@ fn pour_objects_breaks_and_units() {
     commit(&mut b, r);
     let objects = pours::objects(b.editor.document.project());
     assert_eq!(objects.len(), 2);
-    assert_eq!(objects[0].parts.len(), 3);
+    assert_eq!(objects[0].parts().len(), 3);
     assert_eq!(objects[0].grade, "В25");
     // Columns 0.4×0.4×3 = 0.48 m³ each, the triangular slab 6.4×3.2/2×0.2.
     let slab = 6.4 * 3.2 / 2. * 0.2;
@@ -205,6 +205,44 @@ fn pour_objects_breaks_and_units() {
         units.iter().map(|u| u.number).collect::<Vec<_>>(),
         [1, 2, 3]
     );
+    // The joint cuts the slab: both its sides are poured, the volumes add up.
+    let zones = pours::objects(b.editor.document.project());
+    let total: f64 = zones.iter().map(|z| z.volume_m3).sum();
+    assert!((total - (1.44 + slab)).abs() < 1e-6, "{total}");
+    assert_eq!(
+        zones
+            .iter()
+            .filter(|z| z.pieces.iter().any(|p| p.split))
+            .count(),
+        2
+    );
+    let csv = open_bim_reports::csv::pours(b.editor.document.project());
+    assert!(
+        csv.contains("Плита δ=200") && csv.contains("Итого по захватке"),
+        "{csv}"
+    );
+    // A horizontal joint at the slab bottom parts the columns from it.
+    b.execute(Cmd::PourBreakHorizontal);
+    b.pick(DVec3::new(-1000., -1000., 3000.));
+    let r = b.pick(DVec3::new(7000., 4000., 3000.));
+    commit(&mut b, r);
+    assert_eq!(pours::objects(b.editor.document.project()).len(), 5);
+    assert!(b.editor.document.project().pour_units_outdated());
+    let r = b.execute(Cmd::CalculatePours);
+    commit(&mut b, r);
+    let numbers: Vec<u32> = b
+        .editor
+        .document
+        .project()
+        .concrete
+        .units
+        .iter()
+        .map(|u| u.number)
+        .collect();
+    assert_eq!(numbers.len(), 5);
+    assert!(numbers.contains(&1) && numbers.contains(&3));
+    b.editor.history(false).unwrap();
+    b.editor.history(false).unwrap();
     // Undo the units, then the break.
     b.editor.history(false).unwrap();
     assert!(b.editor.document.project().concrete.units.is_empty());

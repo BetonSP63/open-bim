@@ -43,6 +43,7 @@ pub enum TrimTool {
     AreaLoad,
     CopyAnalysis,
     PourBreak,
+    PourBreakHorizontal,
     RebarLongitudinal,
     RebarStirrup,
     RebarMesh,
@@ -93,6 +94,7 @@ impl TrimTool {
             Self::AreaLoad => "Нагрузка по площади",
             Self::CopyAnalysis => "Получить расчётные свойства",
             Self::PourBreak => "Шов бетонирования",
+            Self::PourBreakHorizontal => "Горизонтальный шов",
             Self::RebarLongitudinal => "Продольная арматура",
             Self::RebarStirrup => "Поперечная арматура",
             Self::RebarMesh => "Арматура по грани",
@@ -112,9 +114,11 @@ impl TrimTool {
         use Need::*;
         match self {
             Self::ConstructionPoint | Self::AnalysisNode | Self::PointLoad => &[Point],
-            Self::RigidLink | Self::MergeNodes | Self::LineLoad | Self::PourBreak => {
-                &[Point, Point]
-            }
+            Self::RigidLink
+            | Self::MergeNodes
+            | Self::LineLoad
+            | Self::PourBreak
+            | Self::PourBreakHorizontal => &[Point, Point],
             Self::AreaLoad | Self::RebarGuide => &[Polygon],
             Self::RebarLongitudinal
             | Self::RebarStirrup
@@ -202,6 +206,10 @@ impl TrimTool {
             (Self::RebarSingle, _) => "Укажите конец стержня",
             (Self::PourBreak, 0) => "Укажите начало шва бетонирования",
             (Self::PourBreak, _) => "Укажите конец шва бетонирования",
+            (Self::PourBreakHorizontal, 0) => {
+                "Укажите угол области шва на его отметке (низ плиты, верх колонны)"
+            }
+            (Self::PourBreakHorizontal, _) => "Укажите противоположный угол области в плане",
             (Self::RigidLink, 0) => "Укажите первый узел",
             (Self::RigidLink, _) => "Укажите второй узел",
             (Self::MergeNodes, 0) => "Укажите узел, который остаётся",

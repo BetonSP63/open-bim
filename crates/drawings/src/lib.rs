@@ -4,6 +4,7 @@
 pub mod conventions;
 pub mod font;
 pub mod general_data;
+mod pour_marks;
 pub mod projection;
 pub mod qr;
 pub mod sample;
@@ -316,6 +317,18 @@ pub fn fingerprint(project: &Project, id: ObjectId) -> Option<String> {
     let mut value = value;
     if let (Some(swept), Some(object)) = (project.swept_parts.get(&id), value.as_object_mut()) {
         object.insert("swept_part".into(), serde_json::json!(swept));
+    }
+    // Joints and stored zone numbers are drawn on concrete parts; parts
+    // without them keep their fingerprints.
+    let concrete = &project.concrete;
+    if project.concrete_type(id).is_some()
+        && (!concrete.breaks.is_empty() || !concrete.units.is_empty())
+        && let Some(object) = value.as_object_mut()
+    {
+        object.insert(
+            "pours".into(),
+            serde_json::json!({"breaks": concrete.breaks, "units": concrete.units}),
+        );
     }
     // A fixed mark (numbering run) is drawn too; absent marks keep the
     // fingerprints of never-numbered models unchanged.
@@ -1089,9 +1102,13 @@ pub fn title_block_area(project: &Project, drawing: &Drawing) -> Result<[f64; 4]
 pub fn specification(project: &Project, kind: &DrawingKind) -> Option<tables::Table> {
     match kind {
         DrawingKind::General { .. } => {
-            let parts = drawing_parts(project, kind);
+            let (concrete, parts): (Vec<ObjectId>, Vec<ObjectId>) = drawing_parts(project, kind)
+                .into_iter()
+                .partition(|id| project.concrete_type(*id).is_some());
             if parts.is_empty() {
-                return None;
+                // A concrete arrangement lists the volumes of its pour zones.
+                let zones = drawing_zones(project, &concrete);
+                return (!zones.is_empty()).then(|| tables::pour_schedule_table(project, &zones));
             }
             tables::rolled_steel(project, &parts)
                 .ok()
@@ -1102,6 +1119,19 @@ pub fn specification(project: &Project, kind: &DrawingKind) -> Option<tables::Ta
             .map(|rows| tables::form7(Some("Спецификация"), rows)),
         _ => None,
     }
+}
+
+/// Pour zones holding any of the given parts.
+pub fn drawing_zones(project: &Project, parts: &[ObjectId]) -> Vec<open_bim_model::PourZone> {
+    if parts.is_empty() {
+        return Vec::new();
+    }
+    let parts: BTreeSet<ObjectId> = parts.iter().copied().collect();
+    project
+        .pour_zones()
+        .into_iter()
+        .filter(|z| z.pieces.iter().any(|p| parts.contains(&p.part)))
+        .collect()
 }
 
 fn title_block(
@@ -1450,6 +1480,28 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
                     .fold(g.bounds[0], |r, p| [r[0].min(p[0]), r[1].min(p[1])]);
                 conventions::axes(project, view, ctx, g, reach);
                 conventions::levels(project, view, ctx, g);
+            }
+        }
+        // Construction joints and pour zones of the concrete shown.
+        let concrete: Vec<ObjectId> = parts
+            .iter()
+            .copied()
+            .filter(|id| project.concrete_type(*id).is_some())
+            .collect();
+        if !concrete.is_empty() {
+            let zones = drawing_zones(project, &concrete);
+            let shown: BTreeSet<ObjectId> = concrete.into_iter().collect();
+            for view in drawing.views.iter().filter(|v| v.node.is_none()) {
+                if let Some(g) = views.iter_mut().find(|g| g.id == view.id) {
+                    pour_marks::annotate(
+                        project,
+                        &zones,
+                        &shown,
+                        &contexts[&view.id],
+                        matches!(view.direction, ViewDirection::Top | ViewDirection::Bottom),
+                        g,
+                    );
+                }
             }
         }
     }
