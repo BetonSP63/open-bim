@@ -24,6 +24,7 @@ pub struct ViewEdit {
     /// `Some(None)` returns the view to the drawing scale.
     pub scale: Option<Option<f64>>,
     pub depth: Option<f64>,
+    pub appearance: Option<open_bim_model::ViewAppearance>,
 }
 
 impl DrawingEditor {
@@ -64,6 +65,9 @@ impl DrawingEditor {
             scale: None,
             node: None,
             source,
+            section_host: None,
+            appearance: Default::default(),
+            unfolded: false,
         });
         d.validate().map_err(|e| e.to_string())?;
         self.selected_view = Some(id);
@@ -102,6 +106,9 @@ impl DrawingEditor {
             scale,
             node: None,
             source: cut.source,
+            section_host: Some(cut.host),
+            appearance: Default::default(),
+            unfolded: false,
         });
         d.validate().map_err(|e| e.to_string())?;
         let n = d.views.iter().filter(|v| v.section.is_some()).count();
@@ -137,8 +144,8 @@ impl DrawingEditor {
             view.name = name.into();
         }
         if let Some(direction) = edit.direction {
-            if view.node.is_some() {
-                return Err("Направление узла задаёт его основной вид".into());
+            if view.node.is_some() || view.unfolded {
+                return Err("Направление узла или развёртки задано построением".into());
             }
             view.direction = direction;
         }
@@ -150,6 +157,9 @@ impl DrawingEditor {
                 return Err("Глубина задаётся только у разреза".into());
             }
             view.section = Some(depth);
+        }
+        if let Some(appearance) = edit.appearance {
+            view.appearance = appearance;
         }
         d.validate().map_err(|e| e.to_string())?;
         self.replace(editor, &format!("вид {id} изменён"), d)?;
@@ -202,6 +212,9 @@ impl DrawingEditor {
         }
         if d.views.len() == 1 {
             return Err("Последний вид чертежа удалить нельзя".into());
+        }
+        if d.views.iter().any(|v| v.section_host == Some(id)) {
+            return Err("Сначала удалите разрезы, поставленные на этом виде".into());
         }
         d.views.retain(|v| v.id != id);
         let before = d.dimensions.len();

@@ -19,6 +19,9 @@ pub struct ExportReport {
     pub columns: usize,
     pub plates: usize,
     pub openings: usize,
+    /// Parts exported as a tessellated rather than analytic IFC body.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tessellated: Vec<ObjectId>,
     /// Model data outside the IFC subset, by kind, with object IDs.
     pub skipped: BTreeMap<String, Vec<ObjectId>>,
 }
@@ -312,49 +315,78 @@ pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
         let frame = element.shape.frame();
         let place = w.placement(local(frame, project.origin), frame.axes[2], frame.axes[0]);
         let lp = w.add(format!("IFCLOCALPLACEMENT(#{storey_lp},#{place})"));
-        let (profile, depth) = match &element.shape {
-            ElementShape::Member {
-                profile, length, ..
-            } => {
-                let def = match profiles.get(profile) {
-                    Some(def) => *def,
-                    None => {
-                        let p = &project.profiles[profile];
-                        let def = profile_def(&mut w, &p.name, &p.shape);
-                        profiles.insert(*profile, def);
-                        def
-                    }
-                };
-                (def, length.value())
-            }
-            ElementShape::Plate {
-                contour, thickness, ..
-            } => {
-                let mut points: Vec<u64> = contour
-                    .iter()
-                    .map(|p| {
-                        w.add(format!(
-                            "IFCCARTESIANPOINT(({},{}))",
-                            real(p[0]),
-                            real(p[1])
-                        ))
-                    })
-                    .collect();
-                points.push(points[0]);
-                let poly = w.add(format!("IFCPOLYLINE(({}))", refs(&points)));
-                (
-                    w.add(format!("IFCARBITRARYCLOSEDPROFILEDEF(.AREA.,$,#{poly})")),
-                    thickness.value(),
-                )
-            }
+        let swept = project.swept_parts.contains_key(&element.id);
+        let rep = if swept {
+            // IFC4 tessellation preserves the actual swept body. It is a
+            // polygonal approximation, not an IfcExtrudedAreaSolid.
+            let (points, triangles) = project
+                .element_body(element.id)
+                .map_err(|e| format!("Деталь {}: {e}", element.id))?
+                .tessellation_f64()
+                .map_err(|e| format!("Деталь {}: {e}", element.id))?;
+            let coordinates = points
+                .iter()
+                .map(|p| format!("({},{},{})", real(p[0]), real(p[1]), real(p[2])))
+                .collect::<Vec<_>>()
+                .join(",");
+            let indices = triangles
+                .iter()
+                .map(|t| format!("({},{},{})", t[0] + 1, t[1] + 1, t[2] + 1))
+                .collect::<Vec<_>>()
+                .join(",");
+            let vertices = w.add(format!("IFCCARTESIANPOINTLIST3D(({coordinates}))"));
+            let solid = w.add(format!(
+                "IFCTRIANGULATEDFACESET(#{vertices},$,.T.,({indices}),$)"
+            ));
+            report.tessellated.push(element.id);
+            w.add(format!(
+                "IFCSHAPEREPRESENTATION(#{body},'Body','Tessellation',(#{solid}))"
+            ))
+        } else {
+            let (profile, depth) = match &element.shape {
+                ElementShape::Member {
+                    profile, length, ..
+                } => {
+                    let def = match profiles.get(profile) {
+                        Some(def) => *def,
+                        None => {
+                            let p = &project.profiles[profile];
+                            let def = profile_def(&mut w, &p.name, &p.shape);
+                            profiles.insert(*profile, def);
+                            def
+                        }
+                    };
+                    (def, length.value())
+                }
+                ElementShape::Plate {
+                    contour, thickness, ..
+                } => {
+                    let mut points: Vec<u64> = contour
+                        .iter()
+                        .map(|p| {
+                            w.add(format!(
+                                "IFCCARTESIANPOINT(({},{}))",
+                                real(p[0]),
+                                real(p[1])
+                            ))
+                        })
+                        .collect();
+                    points.push(points[0]);
+                    let poly = w.add(format!("IFCPOLYLINE(({}))", refs(&points)));
+                    (
+                        w.add(format!("IFCARBITRARYCLOSEDPROFILEDEF(.AREA.,$,#{poly})")),
+                        thickness.value(),
+                    )
+                }
+            };
+            let solid = w.add(format!(
+                "IFCEXTRUDEDAREASOLID(#{profile},#{identity},#{z},{})",
+                real(depth)
+            ));
+            w.add(format!(
+                "IFCSHAPEREPRESENTATION(#{body},'Body','SweptSolid',(#{solid}))"
+            ))
         };
-        let solid = w.add(format!(
-            "IFCEXTRUDEDAREASOLID(#{profile},#{identity},#{z},{})",
-            real(depth)
-        ));
-        let rep = w.add(format!(
-            "IFCSHAPEREPRESENTATION(#{body},'Body','SweptSolid',(#{solid}))"
-        ));
         let shape = w.add(format!("IFCPRODUCTDEFINITIONSHAPE($,$,(#{rep}))"));
         let gid = element_guid(project, element.id);
         let name = encode(&element.name);
@@ -478,7 +510,7 @@ pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
         for detail in project
             .details
             .values()
-            .filter(|d| d.kind.part() == Some(element.id))
+            .filter(|d| !swept && d.kind.part() == Some(element.id))
         {
             let (frame_local, profile, depth) = match &detail.kind {
                 DetailKind::Hole {

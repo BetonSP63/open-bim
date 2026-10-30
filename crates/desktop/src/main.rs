@@ -210,6 +210,11 @@ impl Desktop {
         bench.section_height = options.section.unwrap_or(1500.0);
         bench.load_delay_ms = options.load_delay_ms;
         let mut camera = Camera::default();
+        if let Some(view) = bench.views.first() {
+            camera.yaw = view.yaw;
+            camera.pitch = view.pitch;
+            camera.orthographic = view.orthographic;
+        }
         camera.fit(overlay::model_bounds(&scene, &project).unwrap_or(scene.bounds));
         let error = Arc::new(Mutex::new(None));
         let state = cc.wgpu_render_state.as_ref().ok_or("GPU недоступен")?;
@@ -380,6 +385,17 @@ impl Desktop {
     }
     /// Zoom to the model extent including the grid («Вписать»).
     fn fit(&mut self) {
+        if let Some(open_bim_desktop::ui::views::ModelView {
+            kind: open_bim_desktop::ui::views::ViewKind::Node { bounds: [min, max] },
+            ..
+        }) = self.bench.views.get(self.bench.active_view)
+        {
+            self.camera.fit(open_bim_renderer::Bounds {
+                min: DVec3::from_array(*min),
+                max: DVec3::from_array(*max),
+            });
+            return;
+        }
         let bounds = overlay::model_bounds(&self.scene, self.bench.editor.document.project())
             .unwrap_or(self.scene.bounds);
         self.camera.fit(bounds);
@@ -448,7 +464,16 @@ impl Desktop {
                     self.camera.yaw = view.yaw;
                     self.camera.pitch = view.pitch;
                     self.camera.orthographic = view.orthographic;
-                    self.fit();
+                    if let open_bim_desktop::ui::views::ViewKind::Node { bounds: [min, max] } =
+                        view.kind
+                    {
+                        self.camera.fit(open_bim_renderer::Bounds {
+                            min: DVec3::from_array(min),
+                            max: DVec3::from_array(max),
+                        });
+                    } else {
+                        self.fit();
+                    }
                 }
                 Request::FitSelected => {
                     let project = self.bench.editor.document.project();
@@ -478,6 +503,10 @@ impl Desktop {
                 Request::Loaded(scene) => {
                     self.bench.objects = scene.instances.len();
                     self.scene = scene;
+                    let view = self.bench.views[self.bench.active_view].clone();
+                    self.camera.yaw = view.yaw;
+                    self.camera.pitch = view.pitch;
+                    self.camera.orthographic = view.orthographic;
                     self.fit();
                 }
             }
@@ -646,12 +675,27 @@ impl eframe::App for Desktop {
         let ctx = ui.ctx().clone();
         self.screenshot(&ctx);
         self.benchmark(&ctx);
+        if let Some(view) = self.bench.views.get_mut(self.bench.active_view) {
+            view.yaw = self.camera.yaw;
+            view.pitch = self.camera.pitch;
+            view.orthographic = self.camera.orthographic;
+            view.render = self.bench.display.mode;
+        }
         let mut requests = self.bench.panels(ui);
         requests.append(&mut self.pending);
         self.handle(&ctx, requests);
         let representation = self
             .bench
             .applied_representation(Arc::as_ptr(&self.scene) as usize);
+        self.view.edge_pen = self
+            .bench
+            .views
+            .get(self.bench.active_view)
+            .and_then(|v| v.edge_pen)
+            .map(|mut pen| {
+                pen.width *= ctx.pixels_per_point() as f64;
+                pen
+            });
         self.view.hidden = self.bench.hidden.clone();
         self.view
             .hidden

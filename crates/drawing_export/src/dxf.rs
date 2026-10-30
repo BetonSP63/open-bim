@@ -6,6 +6,11 @@ use std::fmt::Write;
 
 pub fn layer(style: LineStyle) -> (&'static str, i32, &'static str) {
     match style {
+        LineStyle::Custom(pen) => match pen.line_type {
+            open_bim_model::LineType::Solid => ("OB_VISIBLE", 7, "CONTINUOUS"),
+            open_bim_model::LineType::Dashed => ("OB_HIDDEN", 8, "DASHED"),
+            open_bim_model::LineType::DashDot => ("OB_DASHDOT", 7, "DASHDOT"),
+        },
         LineStyle::Visible => ("OB_VISIBLE", 7, "CONTINUOUS"),
         LineStyle::Hidden => ("OB_HIDDEN", 8, "DASHED"),
         LineStyle::Section => ("OB_SECTION", 7, "CONTINUOUS"),
@@ -58,7 +63,7 @@ fn pair(out: &mut String, code: i32, value: impl std::fmt::Display) {
 
 fn polyline(out: &mut String, line: &Polyline) {
     let (name, _, _) = layer(line.style);
-    if line.points.len() == 2 {
+    if line.points.len() == 2 && !matches!(line.style, LineStyle::Custom(_)) {
         pair(out, 0, "LINE");
         pair(out, 8, name);
         for (i, p) in line.points.iter().enumerate() {
@@ -74,6 +79,11 @@ fn polyline(out: &mut String, line: &Polyline) {
     pair(out, 0, "POLYLINE");
     pair(out, 8, name);
     pair(out, 66, 1);
+    // R12 stores printed width as constant polyline width (paper mm).
+    if let LineStyle::Custom(pen) = line.style {
+        pair(out, 40, n(pen.width));
+        pair(out, 41, n(pen.width));
+    }
     pair(out, 10, 0);
     pair(out, 20, 0);
     pair(out, 30, 0);

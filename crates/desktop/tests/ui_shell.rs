@@ -232,6 +232,7 @@ fn commands_are_named_unique_searchable_and_not_stubs() {
             b.editor.active,
             b.job.is_some(),
             b.tools.focus_property,
+            b.swept_dialog.is_some(),
         );
         let request = b.execute(spec.cmd);
         let after = (
@@ -242,6 +243,7 @@ fn commands_are_named_unique_searchable_and_not_stubs() {
             b.editor.active,
             b.job.is_some(),
             b.tools.focus_property,
+            b.swept_dialog.is_some(),
         );
         let effect = request.is_some()
             || before != after

@@ -427,6 +427,9 @@ pub fn edit_commands(
             *id
         };
         if let Some(source) = project.elements.get(id) {
+            if mirror.is_some() && project.swept_parts.contains_key(id) {
+                return Err("Зеркальное отражение гнутой детали пока не поддерживается".into());
+            }
             if copy {
                 copies.insert(*id, target_id);
             }
@@ -452,7 +455,14 @@ pub fn edit_commands(
                 }
             }
             commands.push(if copy {
-                Command::Create { element }
+                if let Some(swept) = project.swept_parts.get(id) {
+                    Command::CreateSwept {
+                        element,
+                        swept: swept.clone(),
+                    }
+                } else {
+                    Command::Create { element }
+                }
             } else {
                 Command::ReplaceElement { element }
             });
@@ -907,11 +917,12 @@ impl Editor {
             .map(|(k, v)| format!("{k}: {}", v.len()))
             .collect();
         Ok(format!(
-            "IFC4: балок {}, колонн {}, пластин {}, проёмов {}; вне подмножества — {}",
+            "IFC4: балок {}, колонн {}, пластин {}, проёмов {}; деталей с полигональной геометрией {}; вне подмножества — {}",
             report.beams,
             report.columns,
             report.plates,
             report.openings,
+            report.tessellated.len(),
             if skipped.is_empty() {
                 "нет".into()
             } else {
@@ -928,13 +939,22 @@ impl Editor {
         std::fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
         for entry in std::fs::read_dir(&folder).map_err(|e| e.to_string())? {
             let path = entry.map_err(|e| e.to_string())?.path();
-            if path.extension().is_some_and(|e| e == "nc1") {
+            if path.extension().is_some_and(|e| e == "nc1")
+                || path
+                    .file_name()
+                    .is_some_and(|n| n.to_string_lossy().ends_with(".bend.txt"))
+            {
                 std::fs::remove_file(&path).map_err(|e| e.to_string())?;
             }
         }
         let mut notes = 0;
         for file in &files {
             std::fs::write(folder.join(&file.name), &file.text).map_err(|e| e.to_string())?;
+            if let Some(card) = &file.bending_card {
+                let name = file.name.trim_end_matches(".nc1");
+                std::fs::write(folder.join(format!("{name}.bend.txt")), card)
+                    .map_err(|e| e.to_string())?;
+            }
             notes += file.warnings.len();
         }
         self.record(&format!("Экспорт NC {}", folder.display()));
@@ -945,7 +965,7 @@ impl Editor {
             if notes == 0 {
                 "все вырезы и отверстия переданы".into()
             } else {
-                format!("не передано элементов обработки: {notes}, см. строки «**» в файлах")
+                format!("примечаний: {notes}, см. строки «**» и карты *.bend.txt")
             }
         ))
     }

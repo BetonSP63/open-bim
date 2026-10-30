@@ -48,6 +48,8 @@ pub struct NcFile {
     pub holes: Vec<(Face, f64, f64, f64)>,
     /// Features of the part the file does not carry.
     pub warnings: Vec<String>,
+    /// Separate UTF-8 bending card for developed stock.
+    pub bending_card: Option<String>,
 }
 
 /// Files for all parts of the project, one per part mark of the current
@@ -156,6 +158,45 @@ pub fn part_file(
         .elements
         .get(&id)
         .ok_or_else(|| format!("Нет детали {id}"))?;
+    if project.swept_parts.contains_key(&id) {
+        let blank = project.fabrication_blank(id).map_err(|e| e.to_string())?;
+        let mut card = project
+            .bending_card(id, mark, quantity)
+            .map_err(|e| e.to_string())?;
+        let mut stock = project.clone();
+        stock.swept_parts.remove(&id);
+        stock.elements.insert(id, blank);
+        let mut file = part_file(&stock, id, mark, quantity)?;
+        file.text = file.text.replacen(
+            "ST\n",
+            "ST\n** DEVELOPED STOCK BEFORE BENDING; SEE BENDING CARD\n",
+            1,
+        );
+        file.warnings
+            .push("Раскрой заготовки до гибки; см. отдельную карту гибки".into());
+        if let Some(open_bim_model::SweptPart::BentPlate {
+            width,
+            first_length,
+            radius,
+            angle,
+            ..
+        }) = project.swept_parts.get(&id)
+            && let ElementShape::Plate { thickness, .. } = element.shape
+        {
+            let developed = project
+                .part_developed_length(id)
+                .map_err(|e| e.to_string())?;
+            let station = first_length + (radius + thickness.value() / 2.) * angle.abs() / 2.;
+            let (axis, coordinate) = if *width > developed {
+                ("Y", developed - station)
+            } else {
+                ("X", station)
+            };
+            writeln!(card,"Ось сгиба в координатах файла NC: {axis} = {coordinate:.3} мм (длинная сторона заготовки направлена по X).").unwrap();
+        }
+        file.bending_card = Some(card);
+        return Ok(file);
+    }
     let material = project
         .materials
         .get(&element.material)
@@ -351,6 +392,7 @@ pub fn part_file(
         length,
         holes,
         warnings,
+        bending_card: None,
     })
 }
 

@@ -16,6 +16,7 @@ pub mod icons;
 pub mod jobs;
 pub mod keytips;
 pub mod management;
+mod node_views;
 pub mod palette;
 pub mod plugins;
 pub mod profile_dialog;
@@ -26,6 +27,7 @@ pub mod representation;
 pub mod ribbon;
 pub mod schedule;
 pub mod section_editor;
+pub mod swept;
 pub mod theme;
 pub mod view_tools;
 pub mod views;
@@ -224,6 +226,7 @@ pub struct Workbench {
     pub section_editor: section_editor::SectionEditor,
     /// Open grid dialog («Сетка осей…»).
     pub grid: Option<crate::interaction::tools::GridSpec>,
+    pub swept_dialog: Option<swept::Dialog>,
     /// Fitting, cutting and construction commands in progress.
     pub trim: crate::interaction::trim::TrimPicker,
     /// Part display mode and transparency («Отображение»).
@@ -290,6 +293,7 @@ pub struct Workbench {
     pub treatment: String,
     /// Model views (3D, plans, elevations) and the active one.
     pub views: Vec<views::ModelView>,
+    stored_model_views: Vec<open_bim_model::ModelViewDefinition>,
     pub active_view: usize,
     /// View depth of the active view (two clip planes).
     pub clip: [Option<open_bim_renderer::ClipPlane>; 2],
@@ -402,6 +406,7 @@ impl Workbench {
             components: Default::default(),
             component_editor: Default::default(),
             grid: None,
+            swept_dialog: None,
             trim: Default::default(),
             display: Default::default(),
             document_info: None,
@@ -440,6 +445,7 @@ impl Workbench {
             corners: Default::default(),
             treatment: TREATMENTS[1].into(),
             views: vec![views::ModelView::model_3d()],
+            stored_model_views: Vec::new(),
             active_view: 0,
             clip: [None, None],
             contextual: true,
@@ -491,6 +497,7 @@ impl Workbench {
         };
         let project = bench.editor.document.project().clone();
         bench.tools.autosave.mark_saved(&project);
+        bench.reload_model_views();
         bench
     }
 
@@ -692,7 +699,7 @@ impl Workbench {
                     }
                     self.drawings = DrawingEditor::new();
                     self.reports.reports = None;
-                    self.hidden.clear();
+                    self.reload_model_views();
                     let project = self.editor.document.project().clone();
                     if std::mem::take(&mut self.recovering) {
                         self.tools.autosave.mark_recovered(&project);
@@ -904,6 +911,29 @@ impl Workbench {
                     self.display.mode.label(),
                     self.display.transparency * 100.
                 ));
+            }
+            Cmd::ToolCurvedBeam | Cmd::ToolPolyBeam | Cmd::ToolBentPlate => {
+                self.mode = Mode::Model;
+                self.engine.cancel();
+                self.editor.cancel();
+                let kind = match cmd {
+                    Cmd::ToolCurvedBeam => swept::Kind::Arc,
+                    Cmd::ToolPolyBeam => swept::Kind::Poly,
+                    _ => swept::Kind::Plate,
+                };
+                self.swept_dialog = Some(swept::Dialog::new(
+                    kind,
+                    self.editor.draft.profile,
+                    self.editor.draft.material,
+                ));
+                if let Some(dialog) = &mut self.swept_dialog {
+                    dialog.editable = self
+                        .editor
+                        .selected
+                        .iter()
+                        .find(|id| self.editor.document.project().swept_parts.contains_key(id))
+                        .copied();
+                }
             }
             Cmd::ToolAxis
             | Cmd::ToolBeam
@@ -1461,11 +1491,22 @@ impl Workbench {
                 });
             }
             Cmd::GridViews => {
+                let nodes: Vec<_> = self
+                    .views
+                    .iter()
+                    .filter(|v| matches!(v.kind, views::ViewKind::Node { .. }))
+                    .cloned()
+                    .collect();
                 self.views = views::grid_views(self.editor.document.project());
+                self.views.extend(nodes);
                 self.active_view = 0;
                 self.mode = Mode::Model;
                 self.side_panel = Some(chrome::SidePanel::Views);
-                self.message(format!("Создано видов: {}", self.views.len()));
+                if let Err(error) = self.store_model_views("Создать виды по сетке")
+                {
+                    self.message(error);
+                }
+                return self.apply_view(0);
             }
             Cmd::PanelViews => {
                 self.mode = Mode::Model;
@@ -1616,11 +1657,16 @@ impl Workbench {
             Cmd::ToggleProjection => return Some(Request::ToggleProjection),
             Cmd::ShowAll => {
                 self.hidden.clear();
-                self.message("Все объекты показаны");
+                self.store_view_visibility();
+                self.message("Все объекты показаны в текущем виде");
             }
             Cmd::HideSelected => {
                 self.hidden.extend(self.editor.selected.iter().copied());
-                self.message(format!("Скрыто объектов: {}", self.editor.selected.len()));
+                self.store_view_visibility();
+                self.message(format!(
+                    "Скрыто объектов в текущем виде: {}",
+                    self.editor.selected.len()
+                ));
             }
             Cmd::ToggleSection => {
                 self.section_enabled = !self.section_enabled;
@@ -2518,8 +2564,11 @@ impl Workbench {
     /// switch camera, view depth and work plane (each view keeps its own).
     pub fn apply_view(&mut self, index: usize) -> Option<Request> {
         let view = self.views.get(index)?.clone();
-        if let Some(current) = self.views.get_mut(self.active_view) {
+        if index != self.active_view
+            && let Some(current) = self.views.get_mut(self.active_view)
+        {
             current.workplane = self.engine.workplane;
+            current.hidden = self.hidden.clone();
         }
         self.active_view = index;
         self.engine.workplane = view.workplane;
@@ -2527,6 +2576,8 @@ impl Workbench {
             self.tools.workplane = format!("{:.0}", view.workplane.origin.z);
         }
         self.clip = view.clip;
+        self.hidden = view.hidden.clone();
+        self.display.mode = view.render;
         self.message(format!("Вид: {}", view.name));
         Some(Request::ApplyView(Box::new(view)))
     }
@@ -3389,6 +3440,9 @@ impl Workbench {
     pub fn panels(&mut self, ui: &mut egui::Ui) -> Vec<Request> {
         let ctx = ui.ctx().clone();
         let mut requests = Vec::new();
+        if let Some(request) = self.sync_model_views() {
+            requests.push(request);
+        }
         self.engine.plate_mode = self.editor.draft.plate_mode;
         self.keytips_input(&ctx, &mut requests);
         self.lock_keys(&ctx);
@@ -3592,6 +3646,33 @@ impl Workbench {
         if std::mem::take(&mut self.management.status_changed) {
             self.representation_version += 1;
         }
+        if let Some(dialog) = &mut self.swept_dialog {
+            let (open, create) = dialog.show(&ctx, self.editor.document.project());
+            if create {
+                let result = dialog
+                    .command(self.editor.document.project())
+                    .and_then(|command| {
+                        let mut candidate = self.editor.document.clone();
+                        candidate
+                            .transact("Гнутая деталь", std::slice::from_ref(&command))
+                            .map_err(|e| e.to_string())?;
+                        Scene::from_project(candidate.project()).map_err(|e| e.to_string())?;
+                        Ok(command)
+                    });
+                match result {
+                    Ok(command) => {
+                        requests.push(Request::Action(Action::Commit(
+                            "Гнутая деталь".into(),
+                            vec![command],
+                        )));
+                        self.swept_dialog = None;
+                    }
+                    Err(e) => self.message(e),
+                }
+            } else if !open {
+                self.swept_dialog = None;
+            }
+        }
         self.grid_window(&ctx, &mut requests);
         self.components_window(&ctx);
         self.component_editor_window(&ctx);
@@ -3603,6 +3684,13 @@ impl Workbench {
         self.special_window(&ctx, &mut requests);
         self.filter_window(&ctx);
         self.chrome(ui, &mut requests);
+        if self
+            .views
+            .get(self.active_view)
+            .is_some_and(|view| view.hidden != self.hidden)
+        {
+            self.store_view_visibility();
+        }
         self.sync_selection();
         if self.focus_target.take() == Some(FocusArea::Viewport) {
             // Viewport: no widget keeps focus, so keys drive the view and picks.

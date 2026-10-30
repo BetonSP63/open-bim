@@ -444,6 +444,9 @@ impl Session {
     /// The stored member as an object value.
     pub fn select_member(&self, id: ObjectId) -> Result<Member> {
         let p = &self.working;
+        if p.swept_parts.contains_key(&id) {
+            return invalid("Чтение гнутой балки как прямой не поддерживается");
+        }
         let element = p.elements.get(&id).ok_or(ApiError::NotFound(id))?;
         let ElementShape::Member {
             member_kind,
@@ -537,6 +540,9 @@ impl Session {
 
     pub fn select_plate(&self, id: ObjectId) -> Result<Plate> {
         let p = &self.working;
+        if p.swept_parts.contains_key(&id) {
+            return invalid("Чтение гнутого листа как плоского не поддерживается");
+        }
         let element = p.elements.get(&id).ok_or(ApiError::NotFound(id))?;
         let ElementShape::Plate {
             contour,
@@ -706,7 +712,17 @@ impl Session {
             let existing;
             (element.id, existing) = self.element_id(&mut next);
             copies.push(element.id);
-            commands.push(place(element, existing));
+            if let Some(swept) = self.working.swept_parts.get(id) {
+                if existing {
+                    return invalid("Повторное использование ID гнутой детали не поддерживается");
+                }
+                commands.push(Command::CreateSwept {
+                    element,
+                    swept: swept.clone(),
+                });
+            } else {
+                commands.push(place(element, existing));
+            }
         }
         commands.push(Command::Transform {
             ids: copies.clone(),

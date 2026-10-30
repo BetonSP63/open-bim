@@ -9,6 +9,7 @@ pub mod qr;
 pub mod sample;
 pub mod sheet_objects;
 pub mod svg;
+mod swept_drawing;
 pub mod tables;
 pub mod title_block;
 pub mod wizard;
@@ -37,7 +38,7 @@ const LEG_SIGN_WIDTH: f64 = 0.85;
 /// Notes and weld signs: font 2.5.
 pub const TEXT_HEIGHT: f64 = conventions::em(2.5);
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LineStyle {
     Visible,
@@ -52,6 +53,7 @@ pub enum LineStyle {
     /// Thick dashed / dash-dot user lines.
     ThickDashed,
     ThickDashDot,
+    Custom(open_bim_model::LinePen),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -187,6 +189,14 @@ pub fn drawing_basis(project: &Project, kind: &DrawingKind) -> Result<Basis, Err
         .get(&part)
         .ok_or_else(|| format!("Деталь #{} не найдена", part.0))?;
     let f = element.shape.frame();
+    if project.swept_parts.contains_key(&part) {
+        return Ok(Basis {
+            origin: f.origin.0,
+            x: f.axes[0],
+            y: f.axes[1],
+            z: f.axes[2],
+        });
+    }
     Ok(match element.shape {
         ElementShape::Member { .. } => Basis {
             origin: f.origin.0,
@@ -304,6 +314,9 @@ pub fn fingerprint(project: &Project, id: ObjectId) -> Option<String> {
         serde_json::to_value(project.details.get(&id)?).ok()?
     };
     let mut value = value;
+    if let (Some(swept), Some(object)) = (project.swept_parts.get(&id), value.as_object_mut()) {
+        object.insert("swept_part".into(), serde_json::json!(swept));
+    }
     // A fixed mark (numbering run) is drawn too; absent marks keep the
     // fingerprints of never-numbered models unchanged.
     if let (Some(mark), Some(object)) = (project.numbering.get(&id), value.as_object_mut()) {
@@ -384,6 +397,67 @@ pub fn issue(project: &Project, drawing: &Drawing) -> Result<Drawing, Error> {
 pub fn anchor_point(project: &Project, anchor: &Anchor) -> Option<V3> {
     let element = project.elements.get(&anchor.object)?;
     let frame = element.shape.frame();
+    if let Some(swept) = project.swept_parts.get(&anchor.object) {
+        use open_bim_model::SweptPart;
+        let local = match (swept, anchor.point) {
+            (
+                SweptPart::CurvedBeam {
+                    center,
+                    radius,
+                    start_angle,
+                    sweep_angle,
+                },
+                AnchorPoint::Start | AnchorPoint::End,
+            ) => {
+                let a = start_angle
+                    + if anchor.point == AnchorPoint::End {
+                        *sweep_angle
+                    } else {
+                        0.
+                    };
+                [
+                    center[0] + radius * a.cos(),
+                    center[1] + radius * a.sin(),
+                    0.,
+                ]
+            }
+            (SweptPart::PolyBeam { points, .. }, AnchorPoint::Start | AnchorPoint::End) => {
+                let p = if anchor.point == AnchorPoint::End {
+                    points.last()?
+                } else {
+                    points.first()?
+                };
+                [p[0], p[1], 0.]
+            }
+            (
+                SweptPart::BentPlate {
+                    width,
+                    first_length,
+                    second_length,
+                    radius,
+                    angle,
+                },
+                AnchorPoint::Vertex { index },
+            ) if index < 4 => {
+                let a = angle.abs();
+                let end = [
+                    radius * a.sin() + second_length * a.cos(),
+                    (radius * (1. - a.cos()) + second_length * a.sin()) * angle.signum(),
+                ];
+                let p = if index == 1 || index == 2 {
+                    end
+                } else {
+                    [-first_length, 0.]
+                };
+                [p[0], p[1], if index >= 2 { *width } else { 0. }]
+            }
+            (SweptPart::BentPlate { first_length, .. }, AnchorPoint::Start) => {
+                [-first_length, 0., 0.]
+            }
+            _ => return None,
+        };
+        return Some(frame.world(Point3(local)).0);
+    }
     match (&element.shape, anchor.point) {
         (_, AnchorPoint::Start) => Some(frame.origin.0),
         (ElementShape::Member { length, .. }, AnchorPoint::End) => {
@@ -621,6 +695,8 @@ fn view_graphic(
     meshes: &[PartMesh],
     marks: &BTreeMap<ObjectId, String>,
 ) -> (ViewGraphic, ViewContext) {
+    // Hidden objects neither draw nor occlude other parts. Keep extents stable
+    // so hiding a part does not shift the remaining geometry or dimensions.
     let vb = ViewBasis::new(basis, view.direction);
     let scale = view_scale(drawing, view);
     let cut = view.section;
@@ -652,6 +728,17 @@ fn view_graphic(
         scale,
         position: view.position,
         bounds: [lo, hi],
+    };
+    let filtered;
+    let meshes = if view.appearance.hidden_objects.is_empty() {
+        meshes
+    } else {
+        filtered = meshes
+            .iter()
+            .filter(|m| !view.appearance.hidden_objects.contains(&m.id))
+            .cloned()
+            .collect::<Vec<_>>();
+        &filtered
     };
     let mut lines = Vec::new();
     let tolerance = 0.02 * scale;
@@ -740,6 +827,26 @@ fn view_graphic(
                     style: LineStyle::Section,
                     object: Some(m.id),
                 });
+            }
+        }
+    }
+    let default = open_bim_model::ViewAppearance::default();
+    lines.retain(|line| view.appearance.show_hidden || line.style != LineStyle::Hidden);
+    for line in &mut lines {
+        let pens = match line.style {
+            LineStyle::Visible => Some((view.appearance.visible, default.visible)),
+            LineStyle::Hidden => Some((view.appearance.hidden, default.hidden)),
+            LineStyle::Section => Some((view.appearance.section, default.section)),
+            _ => None,
+        };
+        if let Some((pen, original)) = pens {
+            let pen = line
+                .object
+                .and_then(|id| view.appearance.objects.get(&id))
+                .copied()
+                .unwrap_or(pen);
+            if pen != original {
+                line.style = LineStyle::Custom(pen);
             }
         }
     }
@@ -1103,7 +1210,7 @@ fn host_view<'a>(
     drawing
         .views
         .iter()
-        .filter(|v| v.node.is_none() && v.section.is_none())
+        .filter(|v| v.node.is_none() && v.section.is_none() && !v.unfolded)
         .find_map(|view| {
             let (basis, _, meshes) = frames.of(view);
             let (g, ctx) = view_graphic(drawing, view, basis, meshes, &marks);
@@ -1243,13 +1350,32 @@ pub fn anchor_candidates(
     let mut out = Vec::new();
     for view in &drawing.views {
         let (basis, shown, meshes) = frames.of(view);
+        let stock = swept_drawing::flat_project(project, drawing, view)?;
+        let flat;
+        let source = stock.as_ref().unwrap_or(project);
+        let meshes = if view.unfolded {
+            let part = view
+                .source
+                .or(match drawing.kind {
+                    DrawingKind::Part { part } => Some(part),
+                    _ => None,
+                })
+                .ok_or("Нет детали")?;
+            flat = vec![PartMesh::new(source, part)?];
+            flat.as_slice()
+        } else {
+            meshes
+        };
         let (_, context) = view_graphic(drawing, view, basis, meshes, &marks);
         let multi = matches!(drawing.kind, DrawingKind::Multi { .. });
         for a in anchors
             .iter()
             .filter(|a| !multi || shown.contains(&a.object))
         {
-            if let Some(w) = anchor_point(project, a) {
+            if view.appearance.hidden_objects.contains(&a.object) {
+                continue;
+            }
+            if let Some(w) = anchor_point(source, a) {
                 let q = context.basis.project(w);
                 out.push((view.id, *a, context.paper([q[0], q[1]])));
             }
@@ -1269,18 +1395,38 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
         .unwrap_or_default();
     let mut views: Vec<ViewGraphic> = Vec::new();
     let mut contexts = BTreeMap::new();
+    let mut flat_projects = BTreeMap::new();
     for view in &drawing.views {
         let (basis, _, meshes) = frames.of(view);
-        let (graphic, context) = view_graphic(drawing, view, basis, meshes, &marks);
+        let stock = swept_drawing::flat_project(project, drawing, view)?;
+        let flat;
+        let meshes = if let Some(stock) = &stock {
+            let part = view
+                .source
+                .or(match drawing.kind {
+                    DrawingKind::Part { part } => Some(part),
+                    _ => None,
+                })
+                .ok_or("Нет детали")?;
+            flat = vec![PartMesh::new(stock, part)?];
+            flat.as_slice()
+        } else {
+            meshes
+        };
+        let (mut graphic, context) = view_graphic(drawing, view, basis, meshes, &marks);
+        swept_drawing::annotate(project, drawing, view, &context, &mut graphic)?;
         views.push(graphic);
         contexts.insert(view.id, context);
+        if let Some(stock) = stock {
+            flat_projects.insert(view.id, stock);
+        }
     }
     let dimensions: Vec<DimensionGraphic> = drawing
         .dimensions
         .iter()
         .map(|d| {
             dimension(
-                project,
+                flat_projects.get(&d.view).unwrap_or(project),
                 d,
                 &contexts[&d.view],
                 conventions::uses_ticks(drawing),
@@ -1345,6 +1491,12 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
     for section in drawing.views.iter().filter(|v| v.section.is_some()) {
         let t = contexts[&section.id].basis.toward;
         let host = drawing.views.iter().find(|v| {
+            if let Some(id) = section.section_host {
+                return v.id == id;
+            }
+            if v.source != section.source || v.node.is_some() || v.section.is_some() {
+                return false;
+            }
             let h = contexts[&v.id].basis.toward;
             v.id != section.id && (t[0] * h[0] + t[1] * h[1] + t[2] * h[2]).abs() < 1e-6
         });
@@ -1771,6 +1923,9 @@ fn views(directions: &[(ViewDirection, &str)], positions: &[[f64; 2]]) -> Vec<Dr
             scale: None,
             node: None,
             source: None,
+            section_host: None,
+            appearance: Default::default(),
+            unfolded: false,
         })
         .collect()
 }
@@ -1782,6 +1937,9 @@ pub fn part_drawing(
     part: ObjectId,
     number: &str,
 ) -> Result<Drawing, Error> {
+    if project.swept_parts.contains_key(&part) {
+        return swept_drawing::part_drawing(project, id, part, number);
+    }
     let element = project
         .elements
         .get(&part)
@@ -2131,6 +2289,9 @@ pub fn multi_drawing(
                 scale: None,
                 node: None,
                 source: Some(b.object),
+                section_host: None,
+                appearance: Default::default(),
+                unfolded: false,
             });
             top -= h + gap;
             if k == 0

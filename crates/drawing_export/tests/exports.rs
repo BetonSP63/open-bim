@@ -16,7 +16,116 @@ fn bless_or_compare(name: &str, bytes: &[u8]) {
         std::fs::write(&path, bytes).unwrap();
     }
     let expected = std::fs::read(&path).unwrap_or_else(|_| panic!("{name} missing"));
-    assert!(expected == bytes, "{name} differs from reference export");
+    if expected == bytes {
+        return;
+    }
+    // The references are blessed on macOS ARM64 and must match there byte for
+    // byte. Elsewhere the libm behind CSG tessellation rounds a few vertices
+    // differently (a few micrometres of paper), so other platforms compare
+    // structure exactly and coordinates within a tolerance. Never bless the
+    // references from another platform.
+    if cfg!(target_os = "macos") {
+        panic!("{name} differs from reference export");
+    }
+    let same = if name.ends_with(".pdf") {
+        pdf_close(&expected, bytes)
+    } else {
+        text_close(
+            &String::from_utf8_lossy(&expected),
+            &String::from_utf8_lossy(bytes),
+        )
+    };
+    assert!(
+        same,
+        "{name} differs from reference export beyond tolerance"
+    );
+}
+
+/// Paper millimetres; platform drift observed so far stays below 0.003.
+const TOLERANCE: f64 = 0.01;
+
+/// Splits text into alternating non-numeric runs and numbers.
+fn tokens(text: &str) -> Vec<Result<f64, &str>> {
+    let bytes = text.as_bytes();
+    let mut out = Vec::new();
+    let (mut i, mut start) = (0, 0);
+    while i < bytes.len() {
+        let sign = bytes[i] == b'-' && bytes.get(i + 1).is_some_and(u8::is_ascii_digit);
+        if sign || bytes[i].is_ascii_digit() {
+            let mut end = i + usize::from(sign);
+            while end < bytes.len() && (bytes[end].is_ascii_digit() || bytes[end] == b'.') {
+                end += 1;
+            }
+            if start < i {
+                out.push(Err(&text[start..i]));
+            }
+            match text[i..end].parse() {
+                Ok(value) => out.push(Ok(value)),
+                Err(_) => out.push(Err(&text[i..end])),
+            }
+            (i, start) = (end, end);
+        } else {
+            i += 1;
+        }
+    }
+    if start < bytes.len() {
+        out.push(Err(&text[start..]));
+    }
+    out
+}
+
+fn text_close(expected: &str, actual: &str) -> bool {
+    let (a, b) = (tokens(expected), tokens(actual));
+    a.len() == b.len()
+        && a.iter().zip(&b).all(|pair| match pair {
+            (Ok(x), Ok(y)) => (x - y).abs() <= TOLERANCE,
+            (x, y) => x == y,
+        })
+}
+
+/// Splits a PDF into its dictionary text and inflated streams.
+fn pdf_parts(pdf: &[u8]) -> (String, Vec<String>) {
+    use std::io::Read;
+    let (mut skeleton, mut streams, mut rest) = (Vec::new(), Vec::new(), pdf);
+    while let Some(at) = find(rest, b"stream\n") {
+        let head = &rest[..at];
+        let body = &rest[at + 7..];
+        let end = find(body, b"\nendstream").expect("unterminated stream");
+        let raw = &body[..end];
+        let dict = &head[head.windows(3).rposition(|w| w == b"obj").unwrap_or(0)..];
+        let data = if find(dict, b"/FlateDecode").is_some() {
+            let mut out = Vec::new();
+            flate2::read::ZlibDecoder::new(raw)
+                .read_to_end(&mut out)
+                .unwrap();
+            out
+        } else {
+            raw.to_vec()
+        };
+        skeleton.extend_from_slice(head);
+        streams.push(String::from_utf8_lossy(&data).into_owned());
+        rest = &body[end + 10..];
+    }
+    skeleton.extend_from_slice(rest);
+    // Lengths and cross-reference offsets follow the stream sizes; keep only
+    // the structure of the dictionaries.
+    let skeleton = String::from_utf8_lossy(&skeleton).replace(|c: char| c.is_ascii_digit(), "");
+    (skeleton, streams)
+}
+
+fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+    haystack.windows(needle.len()).position(|w| w == needle)
+}
+
+fn pdf_close(expected: &[u8], actual: &[u8]) -> bool {
+    let (a_skeleton, a_streams) = pdf_parts(expected);
+    let (b_skeleton, b_streams) = pdf_parts(actual);
+    a_skeleton == b_skeleton
+        && a_streams.len() == b_streams.len()
+        && a_streams
+            .iter()
+            .zip(&b_streams)
+            .all(|(a, b)| text_close(a, b))
 }
 
 /// Control set: A3 part/assembly sheets of the control model and an A1

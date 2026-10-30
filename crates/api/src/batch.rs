@@ -441,6 +441,13 @@ fn run_step(
             let dir = resolve(base, dir);
             for file in &files {
                 write(&dir.join(&file.name), file.text.as_bytes())?;
+                let card_path =
+                    dir.join(format!("{}.bend.txt", file.name.trim_end_matches(".nc1")));
+                if let Some(card) = &file.bending_card {
+                    write(&card_path, card.as_bytes())?;
+                } else if card_path.is_file() {
+                    std::fs::remove_file(&card_path).map_err(|e| ApiError::Io(e.to_string()))?;
+                }
             }
             report(
                 "export_nc",

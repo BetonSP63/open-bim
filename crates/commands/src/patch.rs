@@ -56,6 +56,7 @@ fn apply<T: Clone>(map: &mut BTreeMap<ObjectId, T>, changes: &MapDelta<T>, forwa
 #[derive(Clone, Debug)]
 pub(crate) struct Patch {
     elements: MapDelta<Element>,
+    swept_parts: MapDelta<open_bim_model::SweptPart>,
     assemblies: MapDelta<Assembly>,
     materials: MapDelta<Material>,
     profiles: MapDelta<Profile>,
@@ -75,6 +76,7 @@ pub(crate) struct Patch {
     numbering: Option<Delta<BTreeMap<ObjectId, String>>>,
     /// Grid properties before and after, when they differ.
     grid: Option<Delta<open_bim_model::GridSettings>>,
+    model_views: Option<Delta<Vec<open_bim_model::ModelViewDefinition>>>,
     management: Option<Delta<open_bim_model::Management>>,
     analysis: Option<Delta<open_bim_model::Analysis>>,
     parametric: Option<Delta<open_bim_model::Parametric>>,
@@ -89,6 +91,7 @@ pub(crate) struct Patch {
 impl Patch {
     pub fn between(before: &Project, after: &Project, label: String) -> Self {
         let elements = differences(&before.elements, &after.elements);
+        let swept_parts = differences(&before.swept_parts, &after.swept_parts);
         let assemblies = differences(&before.assemblies, &after.assemblies);
         let materials = differences(&before.materials, &after.materials);
         let profiles = differences(&before.profiles, &after.profiles);
@@ -110,6 +113,10 @@ impl Patch {
                 before: Some((before.document.clone(), before.changes.clone())),
                 after: Some((after.document.clone(), after.changes.clone())),
             });
+        let model_views = (before.model_views != after.model_views).then(|| Delta {
+            before: Some(before.model_views.clone()),
+            after: Some(after.model_views.clone()),
+        });
         let grid = (before.grid != after.grid).then(|| Delta {
             before: Some(before.grid.clone()),
             after: Some(after.grid.clone()),
@@ -140,6 +147,7 @@ impl Patch {
         });
         let mut touched: BTreeSet<_> = elements
             .keys()
+            .chain(swept_parts.keys())
             .chain(assemblies.keys())
             .chain(materials.keys())
             .chain(profiles.keys())
@@ -158,6 +166,7 @@ impl Patch {
         dependencies(after, &mut touched);
         Self {
             elements,
+            swept_parts,
             assemblies,
             materials,
             profiles,
@@ -174,6 +183,7 @@ impl Patch {
             document,
             numbering,
             grid,
+            model_views,
             management,
             analysis,
             parametric,
@@ -188,6 +198,7 @@ impl Patch {
 
     pub fn apply(&self, project: &mut Project, forward: bool) {
         apply(&mut project.elements, &self.elements, forward);
+        apply(&mut project.swept_parts, &self.swept_parts, forward);
         apply(&mut project.assemblies, &self.assemblies, forward);
         apply(&mut project.materials, &self.materials, forward);
         apply(&mut project.profiles, &self.profiles, forward);
@@ -221,6 +232,12 @@ impl Patch {
             let side = if forward { &delta.after } else { &delta.before };
             if let Some(marks) = side {
                 project.numbering = marks.clone();
+            }
+        }
+        if let Some(delta) = &self.model_views {
+            let side = if forward { &delta.after } else { &delta.before };
+            if let Some(views) = side {
+                project.model_views = views.clone();
             }
         }
         if let Some(delta) = &self.grid {

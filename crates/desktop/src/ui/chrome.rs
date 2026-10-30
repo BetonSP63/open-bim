@@ -2310,6 +2310,15 @@ impl Workbench {
             self.run(Cmd::GridViews, requests);
         }
         ui.separator();
+        if ui.button("Создать вид узла по выбранным").clicked() {
+            match self.create_node_view() {
+                Ok(request) => requests.push(request),
+                Err(error) => self.message(error),
+            }
+        }
+        if ui.button("Редактировать текущий вид").clicked() {
+            self.view_tools.properties_open = true;
+        }
         let mut chosen = None;
         for (i, view) in self.views.iter().enumerate() {
             if ui
