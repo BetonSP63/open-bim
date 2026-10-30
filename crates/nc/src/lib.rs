@@ -156,6 +156,11 @@ pub fn part_file(
         .elements
         .get(&id)
         .ok_or_else(|| format!("Нет детали {id}"))?;
+    if project.swept_parts.contains_key(&id) {
+        return Err(format!(
+            "Деталь {id}: экспорт гнутых деталей в NC пока не поддерживается; ранее созданные NC-файлы не обновлены и могут быть устаревшими"
+        ));
+    }
     let material = project
         .materials
         .get(&element.material)

@@ -33,6 +33,21 @@ impl Project {
             .elements
             .get(&id)
             .ok_or(ModelError::MissingReference(id))?;
+        if self.swept_parts.contains_key(&id) {
+            let (points, _) = self
+                .element_body(id)?
+                .tessellation_f64()
+                .map_err(|e| ModelError::InvalidValue(e.to_string()))?;
+            let mut bounds = [[f64::INFINITY; 3], [f64::NEG_INFINITY; 3]];
+            for point in points {
+                let world = part.shape.frame().world(Point3(point));
+                for i in 0..3 {
+                    bounds[0][i] = bounds[0][i].min(world.0[i]);
+                    bounds[1][i] = bounds[1][i].max(world.0[i]);
+                }
+            }
+            return Ok(bounds);
+        }
         let (points, depth) = match &part.shape {
             ElementShape::Plate {
                 contour, thickness, ..
@@ -91,6 +106,79 @@ impl Project {
             .elements
             .get(&id)
             .ok_or(ModelError::MissingReference(id))?;
+        if let Some(swept) = self.swept_parts.get(&id) {
+            swept.validate(&element.shape)?;
+            if self.details.values().any(|d| d.kind.part() == Some(id)) {
+                return Err(ModelError::InvalidValue(
+                    "Обработка гнутых деталей пока не поддерживается".into(),
+                ));
+            }
+            let err = |e: open_bim_geometry::BodyError| ModelError::InvalidValue(e.to_string());
+            return match (swept, &element.shape) {
+                (
+                    crate::SweptPart::CurvedBeam {
+                        center,
+                        radius,
+                        start_angle,
+                        sweep_angle,
+                    },
+                    ElementShape::Member { profile, .. },
+                ) => {
+                    let shape = &self
+                        .profiles
+                        .get(profile)
+                        .ok_or(ModelError::MissingReference(*profile))?
+                        .shape;
+                    Body::sweep_arc(
+                        &shape.solid_contour()?,
+                        *center,
+                        *radius,
+                        *start_angle,
+                        *sweep_angle,
+                        Point3([0.; 3]),
+                    )
+                    .map_err(err)
+                }
+                (
+                    crate::SweptPart::PolyBeam {
+                        points,
+                        bend_radius,
+                    },
+                    ElementShape::Member { profile, .. },
+                ) => {
+                    let shape = &self
+                        .profiles
+                        .get(profile)
+                        .ok_or(ModelError::MissingReference(*profile))?
+                        .shape;
+                    let path = crate::swept::rounded_path(points, *bend_radius)?;
+                    Body::sweep_polyline(&shape.solid_contour()?, &path, Point3([0.; 3]))
+                        .map_err(err)
+                }
+                (
+                    crate::SweptPart::BentPlate {
+                        width,
+                        first_length,
+                        second_length,
+                        radius,
+                        angle,
+                    },
+                    ElementShape::Plate { thickness, .. },
+                ) => {
+                    let contour = crate::swept::bent_plate_contour(
+                        *first_length,
+                        *second_length,
+                        *radius,
+                        *angle,
+                        thickness.value(),
+                    )?;
+                    Body::prism(&contour, *width, Point3([0.; 3])).map_err(err)
+                }
+                _ => Err(ModelError::InvalidValue(
+                    "Несовместимая форма гнутой детали".into(),
+                )),
+            };
+        }
         let mut hollow = None;
         let (contour, length) = match &element.shape {
             ElementShape::Plate {

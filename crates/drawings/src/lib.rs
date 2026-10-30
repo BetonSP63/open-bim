@@ -304,6 +304,9 @@ pub fn fingerprint(project: &Project, id: ObjectId) -> Option<String> {
         serde_json::to_value(project.details.get(&id)?).ok()?
     };
     let mut value = value;
+    if let (Some(swept), Some(object)) = (project.swept_parts.get(&id), value.as_object_mut()) {
+        object.insert("swept_part".into(), serde_json::json!(swept));
+    }
     // A fixed mark (numbering run) is drawn too; absent marks keep the
     // fingerprints of never-numbered models unchanged.
     if let (Some(mark), Some(object)) = (project.numbering.get(&id), value.as_object_mut()) {
@@ -1782,6 +1785,9 @@ pub fn part_drawing(
     part: ObjectId,
     number: &str,
 ) -> Result<Drawing, Error> {
+    if project.swept_parts.contains_key(&part) {
+        return Err("Виды и размеры гнутой детали пока не поддерживаются".into());
+    }
     let element = project
         .elements
         .get(&part)

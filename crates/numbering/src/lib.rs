@@ -75,6 +75,68 @@ fn dimensions<T: Serialize>(value: T) -> Value {
     v
 }
 
+/// Manufacturing geometry expressed independently of the local origin and rotation.
+fn swept_key(sweep: &open_bim_model::SweptPart) -> Result<Value, ModelError> {
+    use open_bim_model::SweptPart;
+    match sweep {
+        SweptPart::CurvedBeam {
+            radius,
+            sweep_angle,
+            ..
+        } => Ok(json!({
+            "kind": "curved_beam", "radius": dimensions(radius), "angle": dimensions(sweep_angle)
+        })),
+        SweptPart::BentPlate { .. } => Ok(dimensions(sweep)),
+        SweptPart::PolyBeam {
+            points,
+            bend_radius,
+        } => {
+            if points.len() < 2 || !points.iter().flatten().all(|v| v.is_finite()) {
+                return Err(ModelError::InvalidValue(
+                    "Недопустимая траектория полибалки".into(),
+                ));
+            }
+            let mut simplified: Vec<[f64; 2]> = Vec::new();
+            for &point in points {
+                while simplified.len() >= 2 {
+                    let a = simplified[simplified.len() - 2];
+                    let b = simplified[simplified.len() - 1];
+                    let u = [b[0] - a[0], b[1] - a[1]];
+                    let v = [point[0] - b[0], point[1] - b[1]];
+                    let product = u[0].hypot(u[1]) * v[0].hypot(v[1]);
+                    if product > 0.0
+                        && (u[0] * v[1] - u[1] * v[0]).abs() <= product * 1e-12
+                        && u[0] * v[0] + u[1] * v[1] > 0.0
+                    {
+                        simplified.pop();
+                    } else {
+                        break;
+                    }
+                }
+                simplified.push(point);
+            }
+            let origin = simplified[0];
+            let delta = [simplified[1][0] - origin[0], simplified[1][1] - origin[1]];
+            let length = delta[0].hypot(delta[1]);
+            if length <= 0.001 {
+                return Err(ModelError::InvalidValue(
+                    "Нулевая длина участка полибалки".into(),
+                ));
+            }
+            let u = [delta[0] / length, delta[1] / length];
+            let relative: Vec<[f64; 2]> = simplified
+                .iter()
+                .map(|p| {
+                    let d = [p[0] - origin[0], p[1] - origin[1]];
+                    [d[0] * u[0] + d[1] * u[1], -d[0] * u[1] + d[1] * u[0]]
+                })
+                .collect();
+            Ok(json!({"kind":"poly_beam", "points": dimensions(relative),
+                "bend_radius": dimensions(if simplified.len() == 2 { 0.0 } else { *bend_radius })}))
+        }
+    }
+}
+
 fn frame_key(frame: &Frame) -> Value {
     let mut axes = json!(frame.axes);
     quantize(&mut axes, 1e9);
@@ -142,20 +204,38 @@ pub fn part_key_data(project: &Project, id: ObjectId) -> Result<Value, ModelErro
         .materials
         .get(&part.material)
         .ok_or(ModelError::MissingReference(part.material))?;
-    let shape = match &part.shape {
-        ElementShape::Member {
-            profile, length, ..
-        } => {
-            let profile = project
-                .profiles
-                .get(profile)
-                .ok_or(ModelError::MissingReference(*profile))?;
-            json!({"kind":"member", "profile": dimensions(&profile.shape), "length": dimensions(length.value())})
-        }
-        ElementShape::Plate {
-            contour, thickness, ..
-        } => {
-            json!({"kind":"plate", "contour":canonical_contour(contour),"thickness":dimensions(thickness.value())})
+    let shape = if let Some(sweep) = project.swept_parts.get(&id) {
+        // The straight member length and flat plate contour are compatibility
+        // placeholders. The actual dimensions are held in the swept shape.
+        let base = match &part.shape {
+            ElementShape::Member { profile, .. } => {
+                let profile = project
+                    .profiles
+                    .get(profile)
+                    .ok_or(ModelError::MissingReference(*profile))?;
+                json!({"kind":"member", "profile": dimensions(&profile.shape)})
+            }
+            ElementShape::Plate { thickness, .. } => {
+                json!({"kind":"plate", "thickness":dimensions(thickness.value())})
+            }
+        };
+        json!({"base": base, "sweep": swept_key(sweep)?})
+    } else {
+        match &part.shape {
+            ElementShape::Member {
+                profile, length, ..
+            } => {
+                let profile = project
+                    .profiles
+                    .get(profile)
+                    .ok_or(ModelError::MissingReference(*profile))?;
+                json!({"kind":"member", "profile": dimensions(&profile.shape), "length": dimensions(length.value())})
+            }
+            ElementShape::Plate {
+                contour, thickness, ..
+            } => {
+                json!({"kind":"plate", "contour":canonical_contour(contour),"thickness":dimensions(thickness.value())})
+            }
         }
     };
     let mut features = Vec::new();

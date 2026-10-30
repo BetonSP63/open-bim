@@ -99,6 +99,32 @@ pub fn section(project: &Project, id: ObjectId) -> Result<(String, f64), Error> 
         .elements
         .get(&id)
         .ok_or_else(|| format!("Деталь #{} не найдена", id.0))?;
+    if let Some(sweep) = project.swept_parts.get(&id) {
+        let length = project
+            .part_developed_length(id)
+            .map_err(|e| e.to_string())?;
+        return match (sweep, &element.shape) {
+            (
+                open_bim_model::SweptPart::BentPlate { width, .. },
+                ElementShape::Plate { thickness, .. },
+            ) => Ok((
+                format!("—{}×{}", fmt(thickness.value()), fmt(*width)),
+                length,
+            )),
+            (_, ElementShape::Member { profile, .. }) => Ok((
+                project
+                    .profiles
+                    .get(profile)
+                    .ok_or_else(|| format!("Профиль #{} не найден", profile.0))?
+                    .name
+                    .clone(),
+                length,
+            )),
+            _ => Err(format!(
+                "Деталь #{id}: форма не соответствует телу заметания"
+            )),
+        };
+    }
     Ok(match &element.shape {
         ElementShape::Member {
             profile, length, ..

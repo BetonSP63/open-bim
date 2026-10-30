@@ -277,3 +277,34 @@ fn control_model_file_matches_sample() {
     }
     assert_eq!(open_bim_persistence::load(&path).unwrap(), f.project);
 }
+
+#[test]
+fn swept_part_changes_invalidate_fingerprint() {
+    use open_bim_model::SweptPart;
+    let f = fixture();
+    let mut project = f.project;
+    project
+        .details
+        .retain(|_, detail| detail.kind.part() != Some(f.beam));
+    project.swept_parts.insert(
+        f.beam,
+        SweptPart::PolyBeam {
+            points: vec![[0., 0.], [1000., 0.], [1000., 1000.]],
+            bend_radius: 0.,
+        },
+    );
+    let before = open_bim_drawings::fingerprint(&project, f.beam).unwrap();
+    let error = part_drawing(&project, ObjectId(900), f.beam, "ПБ-1").unwrap_err();
+    assert!(error.contains("Виды и размеры гнутой детали"));
+    project.swept_parts.insert(
+        f.beam,
+        SweptPart::PolyBeam {
+            points: vec![[0., 0.], [1100., 0.], [1100., 1000.]],
+            bend_radius: 0.,
+        },
+    );
+    assert_ne!(
+        before,
+        open_bim_drawings::fingerprint(&project, f.beam).unwrap()
+    );
+}

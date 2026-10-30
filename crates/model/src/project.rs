@@ -124,6 +124,13 @@ pub struct Project {
         deserialize_with = "unique_map"
     )]
     pub drawings: BTreeMap<ObjectId, crate::Drawing>,
+    /// Parameters of swept parts, keyed by their element ID.
+    #[serde(
+        default,
+        skip_serializing_if = "BTreeMap::is_empty",
+        deserialize_with = "unique_map"
+    )]
+    pub swept_parts: BTreeMap<ObjectId, crate::SweptPart>,
     /// Construction lines and circles (snap targets, never on drawings).
     #[serde(
         default,
@@ -207,6 +214,7 @@ impl Default for Project {
             details: BTreeMap::new(),
             connections: BTreeMap::new(),
             drawings: BTreeMap::new(),
+            swept_parts: BTreeMap::new(),
             construction: BTreeMap::new(),
             dimensions: BTreeMap::new(),
             plugins: BTreeMap::new(),
@@ -257,7 +265,42 @@ impl Project {
     }
 
     pub fn element_volume_mm3(&self, id: ObjectId) -> Result<f64, ModelError> {
-        if self.details.values().any(|d| d.kind.part() == Some(id)) {
+        if let Some(crate::SweptPart::BentPlate { width, .. }) = self.swept_parts.get(&id) {
+            let element = self
+                .elements
+                .get(&id)
+                .ok_or(ModelError::MissingReference(id))?;
+            if let ElementShape::Plate { thickness, .. } = &element.shape {
+                if self.details.values().any(|d| d.kind.part() == Some(id)) {
+                    return Err(ModelError::InvalidValue(
+                        "Обработка гнутых деталей пока не поддерживается".into(),
+                    ));
+                }
+                return Ok(width * thickness.value() * self.part_developed_length(id)?);
+            }
+        }
+        if self.swept_parts.contains_key(&id) {
+            let element = self
+                .elements
+                .get(&id)
+                .ok_or(ModelError::MissingReference(id))?;
+            if let ElementShape::Member { profile, .. } = &element.shape {
+                let profile = self
+                    .profiles
+                    .get(profile)
+                    .ok_or(ModelError::MissingReference(*profile))?;
+                crate::swept::validate_swept_profile(profile)?;
+                if profile.area_mm2.is_some() {
+                    // The supported catalogue shapes here are centrally symmetric,
+                    // so their centroid lies on the reference line.
+                    self.element_body(id)?;
+                    return Ok(profile.area_mm2()? * self.part_developed_length(id)?);
+                }
+            }
+        }
+        if self.swept_parts.contains_key(&id)
+            || self.details.values().any(|d| d.kind.part() == Some(id))
+        {
             return self
                 .element_body(id)?
                 .volume_mm3()

@@ -121,6 +121,9 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                 vec![
                     item(Cmd::ToolColumn, Icon::Column, "Колонна"),
                     item(Cmd::ToolBeam, Icon::Beam, "Балка"),
+                    small(Cmd::ToolCurvedBeam, Icon::Beam, "Гнутая балка"),
+                    small(Cmd::ToolPolyBeam, Icon::Beam, "Полибалка"),
+                    small(Cmd::ToolBentPlate, Icon::Plate, "Гнутый лист"),
                     item(Cmd::ToolPlate, Icon::Plate, "Пластина"),
                     small(Cmd::ToolGusset, Icon::Plate, "Косынка"),
                     small(Cmd::ToolStiffener, Icon::Plate, "Ребро"),

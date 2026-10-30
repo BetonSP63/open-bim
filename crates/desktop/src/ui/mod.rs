@@ -26,6 +26,7 @@ pub mod representation;
 pub mod ribbon;
 pub mod schedule;
 pub mod section_editor;
+pub mod swept;
 pub mod theme;
 pub mod view_tools;
 pub mod views;
@@ -224,6 +225,7 @@ pub struct Workbench {
     pub section_editor: section_editor::SectionEditor,
     /// Open grid dialog («Сетка осей…»).
     pub grid: Option<crate::interaction::tools::GridSpec>,
+    pub swept_dialog: Option<swept::Dialog>,
     /// Fitting, cutting and construction commands in progress.
     pub trim: crate::interaction::trim::TrimPicker,
     /// Part display mode and transparency («Отображение»).
@@ -402,6 +404,7 @@ impl Workbench {
             components: Default::default(),
             component_editor: Default::default(),
             grid: None,
+            swept_dialog: None,
             trim: Default::default(),
             display: Default::default(),
             document_info: None,
@@ -903,6 +906,21 @@ impl Workbench {
                     "Отображение: {} (прозрачность {:.0} %)",
                     self.display.mode.label(),
                     self.display.transparency * 100.
+                ));
+            }
+            Cmd::ToolCurvedBeam | Cmd::ToolPolyBeam | Cmd::ToolBentPlate => {
+                self.mode = Mode::Model;
+                self.engine.cancel();
+                self.editor.cancel();
+                let kind = match cmd {
+                    Cmd::ToolCurvedBeam => swept::Kind::Arc,
+                    Cmd::ToolPolyBeam => swept::Kind::Poly,
+                    _ => swept::Kind::Plate,
+                };
+                self.swept_dialog = Some(swept::Dialog::new(
+                    kind,
+                    self.editor.draft.profile,
+                    self.editor.draft.material,
                 ));
             }
             Cmd::ToolAxis
@@ -3573,6 +3591,33 @@ impl Workbench {
         }
         if std::mem::take(&mut self.management.status_changed) {
             self.representation_version += 1;
+        }
+        if let Some(dialog) = &mut self.swept_dialog {
+            let (open, create) = dialog.show(&ctx, self.editor.document.project());
+            if create {
+                let result = dialog
+                    .command(self.editor.document.project())
+                    .and_then(|command| {
+                        let mut candidate = self.editor.document.clone();
+                        candidate
+                            .transact("Создать гнутую деталь", std::slice::from_ref(&command))
+                            .map_err(|e| e.to_string())?;
+                        Scene::from_project(candidate.project()).map_err(|e| e.to_string())?;
+                        Ok(command)
+                    });
+                match result {
+                    Ok(command) => {
+                        requests.push(Request::Action(Action::Commit(
+                            "Создать гнутую деталь".into(),
+                            vec![command],
+                        )));
+                        self.swept_dialog = None;
+                    }
+                    Err(e) => self.message(e),
+                }
+            } else if !open {
+                self.swept_dialog = None;
+            }
         }
         self.grid_window(&ctx, &mut requests);
         self.components_window(&ctx);

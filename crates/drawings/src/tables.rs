@@ -481,6 +481,30 @@ fn part_name(project: &Project, id: ObjectId) -> Result<String, Error> {
         .elements
         .get(&id)
         .ok_or_else(|| format!("Деталь #{} не найдена", id.0))?;
+    if let Some(swept) = project.swept_parts.get(&id) {
+        let length = project
+            .part_developed_length(id)
+            .map_err(|e| e.to_string())?;
+        return match (swept, &element.shape) {
+            (
+                open_bim_model::SweptPart::BentPlate { width, .. },
+                ElementShape::Plate { thickness, .. },
+            ) => Ok(format!(
+                "Гнутый лист —{}×{}, развёртка L={}",
+                crate::format_mm(thickness.value()),
+                crate::format_mm(*width),
+                crate::format_mm(length)
+            )),
+            (_, ElementShape::Member { profile, .. }) => {
+                let name = project
+                    .profiles
+                    .get(profile)
+                    .map_or_else(|| format!("профиль #{}", profile.0), |p| p.name.clone());
+                Ok(format!("{name}, развёртка L={}", crate::format_mm(length)))
+            }
+            _ => Err("Несовместимая форма гнутой детали".into()),
+        };
+    }
     Ok(match &element.shape {
         ElementShape::Member {
             profile, length, ..
@@ -908,6 +932,26 @@ pub fn rolled_steel_table(rs: &RolledSteel) -> Table {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bent_plate_name_uses_developed_length() {
+        let fixture = crate::sample::control_project();
+        let mut project = fixture.project;
+        project.swept_parts.insert(
+            fixture.plate,
+            open_bim_model::SweptPart::BentPlate {
+                width: 200.,
+                first_length: 100.,
+                second_length: 80.,
+                radius: 10.,
+                angle: std::f64::consts::FRAC_PI_2,
+            },
+        );
+        let expected = project.part_developed_length(fixture.plate).unwrap();
+        let text = part_name(&project, fixture.plate).unwrap();
+        assert!(text.contains("Гнутый лист"));
+        assert!(text.contains(&format!("развёртка L={}", crate::format_mm(expected))));
+    }
 
     #[test]
     fn form_widths_follow_the_appendices() {

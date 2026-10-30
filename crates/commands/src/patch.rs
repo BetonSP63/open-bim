@@ -56,6 +56,7 @@ fn apply<T: Clone>(map: &mut BTreeMap<ObjectId, T>, changes: &MapDelta<T>, forwa
 #[derive(Clone, Debug)]
 pub(crate) struct Patch {
     elements: MapDelta<Element>,
+    swept_parts: MapDelta<open_bim_model::SweptPart>,
     assemblies: MapDelta<Assembly>,
     materials: MapDelta<Material>,
     profiles: MapDelta<Profile>,
@@ -89,6 +90,7 @@ pub(crate) struct Patch {
 impl Patch {
     pub fn between(before: &Project, after: &Project, label: String) -> Self {
         let elements = differences(&before.elements, &after.elements);
+        let swept_parts = differences(&before.swept_parts, &after.swept_parts);
         let assemblies = differences(&before.assemblies, &after.assemblies);
         let materials = differences(&before.materials, &after.materials);
         let profiles = differences(&before.profiles, &after.profiles);
@@ -140,6 +142,7 @@ impl Patch {
         });
         let mut touched: BTreeSet<_> = elements
             .keys()
+            .chain(swept_parts.keys())
             .chain(assemblies.keys())
             .chain(materials.keys())
             .chain(profiles.keys())
@@ -158,6 +161,7 @@ impl Patch {
         dependencies(after, &mut touched);
         Self {
             elements,
+            swept_parts,
             assemblies,
             materials,
             profiles,
@@ -188,6 +192,7 @@ impl Patch {
 
     pub fn apply(&self, project: &mut Project, forward: bool) {
         apply(&mut project.elements, &self.elements, forward);
+        apply(&mut project.swept_parts, &self.swept_parts, forward);
         apply(&mut project.assemblies, &self.assemblies, forward);
         apply(&mut project.materials, &self.materials, forward);
         apply(&mut project.profiles, &self.profiles, forward);

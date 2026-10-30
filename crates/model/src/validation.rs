@@ -251,6 +251,21 @@ impl Project {
                 }
             }
         }
+        for (id, swept) in &self.swept_parts {
+            let element = self
+                .elements
+                .get(id)
+                .ok_or(ModelError::MissingReference(*id))?;
+            swept.validate(&element.shape)?;
+            if let ElementShape::Member { profile, .. } = &element.shape {
+                let profile = self
+                    .profiles
+                    .get(profile)
+                    .ok_or(ModelError::MissingReference(*profile))?;
+                crate::swept::validate_swept_profile(profile)?;
+            }
+            self.element_body(*id)?;
+        }
         for (key, value) in &self.axes {
             register(*key, value.id)?;
             text(&value.name)?;
@@ -266,6 +281,15 @@ impl Project {
             valid_point(Point3([0.0, 0.0, value.elevation_mm]))?;
         }
         for (key, value) in &self.details {
+            if value
+                .kind
+                .part()
+                .is_some_and(|id| self.swept_parts.contains_key(&id))
+            {
+                return Err(ModelError::InvalidValue(
+                    "Отверстия и вырезы гнутых деталей пока не поддерживаются".into(),
+                ));
+            }
             register(*key, value.id)?;
             value.kind.validate(self)?;
         }

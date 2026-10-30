@@ -23,6 +23,7 @@ mod position;
 mod project;
 pub mod sections;
 pub mod shapes;
+mod swept;
 mod validation;
 pub mod weld;
 
@@ -72,6 +73,7 @@ pub use sections::{
     SectionDefinition, SectionPlate, SectionWeld, Sections, WeldedPiece, WeldedSeam,
 };
 pub use shapes::{ItemShape, ShapePart, Shapes};
+pub use swept::SweptPart;
 pub use validation::{ModelError, polygon_area};
 pub use weld::{
     Intermittent, Joint, JointKind, LEG_SIGN, WeldGost, WeldProcess, WeldSides, WeldType,
