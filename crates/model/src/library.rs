@@ -167,6 +167,7 @@ const PIPES_3262_CSV: &str =
     include_str!("../../../data/reference/pipes_water_gas_gost_3262_75.csv");
 const TUBES_CSV: &str = include_str!("../../../data/reference/hollow_sections_gost_30245_2003.csv");
 const STEELS_CSV: &str = include_str!("../../../data/reference/steel_grades.csv");
+const CONCRETE_CSV: &str = include_str!("../../../data/reference/concrete_classes.csv");
 
 /// Rows of a reference table as `column → value`; quoted cells (notes) may
 /// hold commas, the columns read here never do.
@@ -634,6 +635,70 @@ pub fn steel(id: ObjectId, name: &str) -> Option<Material> {
         })
 }
 
+/// Heavy concrete: classes and density per ГОСТ 26633-2015.
+pub const CONCRETE_STANDARD: &str = "ГОСТ 26633-2015";
+/// Density of reinforced concrete, kg/m³.
+pub const CONCRETE_DENSITY: f64 = 2500.0;
+
+/// A concrete class by compressive strength with the resistances of
+/// СП 63.13330.2018 (tables 6.7, 6.8, 6.11), MPa.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ConcreteClass {
+    /// «В25» (Cyrillic В).
+    pub name: &'static str,
+    pub rb_n: f64,
+    pub rbt_n: f64,
+    pub rb: f64,
+    pub rbt: f64,
+    pub eb: f64,
+}
+
+/// Heavy concrete classes В15–В60 in strength order (`concrete_classes.csv`).
+pub fn concrete_classes() -> Vec<ConcreteClass> {
+    table(CONCRETE_CSV)
+        .iter()
+        .map(|r| ConcreteClass {
+            name: r.text("class"),
+            rb_n: r.num("Rbn_MPa"),
+            rbt_n: r.num("Rbtn_MPa"),
+            rb: r.num("Rb_MPa"),
+            rbt: r.num("Rbt_MPa"),
+            eb: r.num("Eb_MPa"),
+        })
+        .collect()
+}
+
+/// A concrete class by name; Latin B is accepted for Cyrillic В («B25»).
+pub fn concrete_class(name: &str) -> Option<ConcreteClass> {
+    let name = name.trim().replace('B', "В");
+    concrete_classes().into_iter().find(|c| c.name == name)
+}
+
+/// Project material name of a concrete class: «Бетон В25».
+pub fn concrete_name(class: &str) -> String {
+    format!("Бетон {class}")
+}
+
+/// A concrete class as a project material.
+pub fn concrete(id: ObjectId, class: &str) -> Option<Material> {
+    concrete_class(class).map(|c| Material {
+        id,
+        name: concrete_name(c.name),
+        density_kg_m3: CONCRETE_DENSITY,
+    })
+}
+
+/// Concrete class of a material named «Бетон В25» (or «… B25 …»).
+pub fn concrete_of(material_name: &str) -> Option<ConcreteClass> {
+    let lower = material_name.to_lowercase();
+    if !lower.contains("бетон") {
+        return None;
+    }
+    material_name
+        .split(|c: char| c.is_whitespace() || c == '·' || c == ',')
+        .find_map(concrete_class)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -642,6 +707,34 @@ mod tests {
     /// Area from the dimensions: flanges, web and the four root fillets.
     fn i_area(h: f64, b: f64, s: f64, t: f64, r: f64) -> f64 {
         2.0 * b * t + (h - 2.0 * t) * s + (4.0 - PI) * r * r
+    }
+
+    #[test]
+    fn concrete_classes_follow_the_reliability_factors() {
+        let classes = concrete_classes();
+        let names: Vec<&str> = classes.iter().map(|c| c.name).collect();
+        assert_eq!(
+            names,
+            [
+                "В15", "В20", "В25", "В30", "В35", "В40", "В45", "В50", "В55", "В60"
+            ]
+        );
+        for c in &classes {
+            // Design values are the normative ones over γb = 1.3 and γbt = 1.5,
+            // rounded as in the code's tables.
+            assert!((c.rb - c.rb_n / 1.3).abs() / c.rb < 0.03, "{}", c.name);
+            assert!((c.rbt - c.rbt_n / 1.5).abs() / c.rbt < 0.03, "{}", c.name);
+        }
+        for w in classes.windows(2) {
+            assert!(w[1].rb > w[0].rb && w[1].eb > w[0].eb, "{}", w[1].name);
+        }
+        let b25 = concrete(ObjectId(7), "B25").unwrap();
+        assert_eq!(b25.name, "Бетон В25");
+        assert_eq!(b25.density_kg_m3, 2500.0);
+        assert_eq!(concrete_of("Бетон В30").unwrap().rb, 17.0);
+        assert_eq!(concrete_of("Бетон B60 · ГОСТ 26633").unwrap().name, "В60");
+        assert!(concrete_of("С255").is_none());
+        assert!(concrete_class("В65").is_none());
     }
 
     #[test]
