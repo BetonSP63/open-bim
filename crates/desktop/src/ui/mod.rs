@@ -887,6 +887,7 @@ impl Workbench {
             Cmd::Undo => return Some(Request::Action(Action::Undo)),
             Cmd::Redo => return Some(Request::Action(Action::Redo)),
             Cmd::ExportIfc => return Some(Request::Action(Action::ExportIfc)),
+            Cmd::ExportIfc43 => return Some(Request::Action(Action::ExportIfc43)),
             Cmd::ExportNc => return Some(Request::Action(Action::ExportNc)),
             Cmd::ImportIfc => return Some(Request::Action(Action::ImportIfc)),
             Cmd::ModeModel => self.mode = Mode::Model,

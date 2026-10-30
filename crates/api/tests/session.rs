@@ -253,6 +253,7 @@ fn batch_macro_runs_steps_and_writes_files() {
             {{ "move": {{ "vector": [0, 0, 300] }} }},
             {{ "commit": "Поднять" }},
             {{ "export_ifc": "out/model.ifc" }},
+            {{ "export_ifc43": "out/model-IFC4X3.ifc" }},
             {{ "export_reports": "out/reports" }},
             {{ "save": "out/model.obim" }}
         ] }}"#
@@ -269,6 +270,9 @@ fn batch_macro_runs_steps_and_writes_files() {
         "only the copies got the property"
     );
     assert!(dir.join("out/model.ifc").exists());
+    let ifc43 = std::fs::read_to_string(dir.join("out/model-IFC4X3.ifc")).unwrap();
+    assert!(ifc43.contains("FILE_SCHEMA(('IFC4X3_ADD2'));"));
+    assert_eq!(report.steps[8].action, "export_ifc43");
     assert!(dir.join("out/reports/parts.csv").exists());
     let saved = open_bim_persistence::load(dir.join("out/model.obim")).unwrap();
     assert_eq!(&saved, session.committed());

@@ -125,7 +125,7 @@ pub const FIELDS: &[Field] = &[
     ),
     field(
         IFC,
-        "Подтип (IFC4)",
+        "Подтип",
         open_bim_ifc::IFC_PREDEFINED_PROPERTY,
         Kind::IfcPredefined,
     ),
@@ -268,7 +268,12 @@ impl FieldBuffer {
                             .show_ui(ui, |ui| {
                                 ui.selectable_value(value, String::new(), "По типу объекта");
                                 for (e, _) in open_bim_ifc::ENTITIES {
-                                    ui.selectable_value(value, e.to_string(), *e);
+                                    let shown = if open_bim_ifc::ifc4x3_only(e) {
+                                        format!("{e} (IFC4.3)")
+                                    } else {
+                                        e.to_string()
+                                    };
+                                    ui.selectable_value(value, e.to_string(), shown);
                                 }
                             })
                             .response
@@ -289,7 +294,14 @@ impl FieldBuffer {
                             .show_ui(ui, |ui| {
                                 ui.selectable_value(value, String::new(), "По умолчанию");
                                 for t in types {
-                                    ui.selectable_value(value, t.to_string(), *t);
+                                    // Types IFC4 lacks are marked; IFC4 export
+                                    // writes them as USERDEFINED.
+                                    let shown = if open_bim_ifc::ifc4x3_only(t) {
+                                        format!("{t} (IFC4.3)")
+                                    } else {
+                                        t.to_string()
+                                    };
+                                    ui.selectable_value(value, t.to_string(), shown);
                                 }
                             })
                             .response

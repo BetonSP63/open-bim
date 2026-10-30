@@ -9,6 +9,7 @@
 //!     { "copy": { "vector": [0, 6000, 0], "count": 3 } },
 //!     { "commit": "Балки перекрытия" },
 //!     { "export_ifc": "frame.ifc" },
+//!     { "export_ifc43": "frame-IFC4X3.ifc" },
 //!     { "save": "frame.obim" } ] }
 //! ```
 //!
@@ -87,6 +88,8 @@ pub enum Step {
     /// Save to the given file, or back to the opened one.
     Save(Option<String>),
     ExportIfc(String),
+    /// The same in IFC4.3 (IFC4X3_ADD2).
+    ExportIfc43(String),
     /// Folder for one `.nc1` file per part mark.
     ExportNc(String),
     /// Folder for the part, assembly and fastener lists (CSV).
@@ -429,13 +432,17 @@ fn run_step(
             let written = session.save(path.as_deref())?;
             report("save", Vec::new(), written.display().to_string())
         }
-        Step::ExportIfc(path) => {
+        Step::ExportIfc(path) | Step::ExportIfc43(path) => {
+            let (schema, kind) = match step {
+                Step::ExportIfc43(_) => (open_bim_ifc::Schema::Ifc4x3, "export_ifc43"),
+                _ => (open_bim_ifc::Schema::Ifc4, "export_ifc"),
+            };
             let (text, summary) =
-                open_bim_ifc::export(session.for_export()?).map_err(ApiError::Io)?;
+                open_bim_ifc::export_schema(session.for_export()?, schema).map_err(ApiError::Io)?;
             let path = resolve(base, path);
             write(&path, text.as_bytes())?;
             report(
-                "export_ifc",
+                kind,
                 Vec::new(),
                 format!(
                     "{}: балок {}, колонн {}, пластин {}",

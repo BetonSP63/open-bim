@@ -152,6 +152,16 @@ impl Default for Draft {
         }
     }
 }
+/// File of the IFC4.3 export next to the project: `<name>-IFC4X3.ifc`, so
+/// it does not replace the IFC4 file.
+pub fn ifc43_path(project: &Path) -> PathBuf {
+    let stem = project
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "model".into());
+    project.with_file_name(format!("{stem}-IFC4X3.ifc"))
+}
+
 pub fn number(text: &str) -> Result<f64, String> {
     let value = text
         .trim()
@@ -929,7 +939,15 @@ impl Editor {
     }
     /// IFC4 export; returns a short report of skipped model data.
     pub fn export_ifc(&mut self, path: &Path) -> Result<String, String> {
-        let (text, report) = open_bim_ifc::export(self.document.project())?;
+        self.export_ifc_schema(path, open_bim_ifc::Schema::Ifc4)
+    }
+    /// IFC export in the given schema; returns a short report.
+    pub fn export_ifc_schema(
+        &mut self,
+        path: &Path,
+        schema: open_bim_ifc::Schema,
+    ) -> Result<String, String> {
+        let (text, report) = open_bim_ifc::export_schema(self.document.project(), schema)?;
         std::fs::write(path, text).map_err(|e| e.to_string())?;
         self.record(&format!("Экспорт IFC {}", path.display()));
         let skipped: Vec<String> = report
@@ -937,8 +955,17 @@ impl Editor {
             .iter()
             .map(|(k, v)| format!("{k}: {}", v.len()))
             .collect();
+        let downgraded = if report.downgraded.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "; подтипов IFC4.3 записано как USERDEFINED: {}",
+                report.downgraded.len()
+            )
+        };
         Ok(format!(
-            "IFC4: балок {}, колонн {}, пластин {}, проёмов {}; деталей с полигональной геометрией {}; вне подмножества — {}",
+            "{}: балок {}, колонн {}, пластин {}, проёмов {}; деталей с полигональной геометрией {}; вне подмножества — {}{downgraded}",
+            schema.label(),
             report.beams,
             report.columns,
             report.plates,
@@ -990,7 +1017,7 @@ impl Editor {
             }
         ))
     }
-    /// IFC import (IFC2x3 or IFC4, from any program). An empty model is
+    /// IFC import (IFC2x3, IFC4 or IFC4.3, from any program). An empty model is
     /// replaced by the file; otherwise the file's objects are added to the
     /// model as one undoable step. The message summarises sections matched to
     /// the ГОСТ catalogue and what was left out.

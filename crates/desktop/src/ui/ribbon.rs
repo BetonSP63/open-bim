@@ -444,6 +444,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                 "Обмен",
                 vec![
                     small(Cmd::ExportIfc, Icon::Ifc, "Экспорт IFC"),
+                    small(Cmd::ExportIfc43, Icon::Ifc, "Экспорт IFC4.3"),
                     small(Cmd::ImportIfc, Icon::Ifc, "Импорт IFC"),
                     small(Cmd::ConvertIfc, Icon::Ifc, "Преобразовать объекты IFC"),
                     small(Cmd::ExportNc, Icon::Ifc, "Экспорт NC"),
@@ -718,6 +719,7 @@ impl Workbench {
                 Cmd::SaveProject,
                 Cmd::ExampleFrame,
                 Cmd::ExportIfc,
+                Cmd::ExportIfc43,
                 Cmd::ImportIfc,
                 Cmd::ReleaseSet,
             ] {

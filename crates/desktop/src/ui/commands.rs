@@ -156,6 +156,7 @@ pub enum Cmd {
     ApplyProperty,
     NumberAndCheck,
     ExportIfc,
+    ExportIfc43,
     ExportNc,
     ImportIfc,
     DocumentManager,
@@ -285,6 +286,13 @@ pub const ALL: &[Spec] = &[
         keywords: "ifc обмен выгрузить",
     },
     Spec {
+        cmd: Cmd::ExportIfc43,
+        label: "Экспорт IFC4.3",
+        category: "Файл",
+        shortcut: None,
+        keywords: "ifc ifc4x3 4.3 обмен выгрузить мосты инфраструктура",
+    },
+    Spec {
         cmd: Cmd::ExportNc,
         label: "Экспорт NC (DSTV)",
         category: "Файл",
@@ -293,10 +301,10 @@ pub const ALL: &[Spec] = &[
     },
     Spec {
         cmd: Cmd::ImportIfc,
-        label: "Импорт IFC (IFC2x3, IFC4)",
+        label: "Импорт IFC (IFC2x3, IFC4, IFC4.3)",
         category: "Файл",
         shortcut: s(CMD, Key::I),
-        keywords: "ifc обмен загрузить импорт модели внешних программ ifc2x3",
+        keywords: "ifc обмен загрузить импорт модели внешних программ ifc2x3 ifc4x3",
     },
     Spec {
         cmd: Cmd::Undo,

@@ -1,0 +1,428 @@
+{
+ "connections.ifc": {
+  "schema": "IFC4X3_ADD2",
+  "elements": 16,
+  "schema_errors": 0,
+  "shapes": {
+   "1aCvDuhZ1Qo9ainvaBmsr3": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 17424000.0
+   },
+   "2Z$svb7wnRIeXB4fcPXBuS": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 17417976.9
+   },
+   "1jLd6Yih5SDAx94ohLuh6H": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 17424000.0
+   },
+   "0LMYeLUf1KtPRrBiIRn$MI": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 17417976.9
+   },
+   "3qHNwklRHSYhweubdyRmAi": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 653884.5
+   },
+   "0WED51M$bMmPG_$f9xBf$T": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 653884.5
+   },
+   "0rn5tgyfTMc9pm0gYwouSq": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 17424000.0
+   },
+   "3H4lbv7kPH7ewYD5cQitgg": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 17424000.0
+   },
+   "1xmP1O1qfV4BP_hArG0OPX": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 58529884.5
+   },
+   "2jJ3JtSKbOfANmPQEFvO7x": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 58544942.3
+   },
+   "2bp$JQ4dHJ$Oi6dnkYr6JG": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 58529884.5
+   },
+   "31eOXg5lDRAwlILtv$qzMr": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 58544942.3
+   },
+   "0M73KB_MnU1wJjxEceucEd": {
+    "type": "IfcPlate",
+    "predefined": "SHEET",
+    "object_type": null,
+    "volume_mm3": 3152355.6
+   },
+   "16lfX1ob9TIh7wkGJkV0OV": {
+    "type": "IfcPlate",
+    "predefined": "SHEET",
+    "object_type": null,
+    "volume_mm3": 3152355.6
+   },
+   "1eaQ2TVyPGYA2axXVRK2Ua": {
+    "type": "IfcPlate",
+    "predefined": "SHEET",
+    "object_type": null,
+    "volume_mm3": 2521884.5
+   },
+   "3eh00I$Q1JVPAjoIjMDeR2": {
+    "type": "IfcPlate",
+    "predefined": "SHEET",
+    "object_type": null,
+    "volume_mm3": 2521884.5
+   }
+  }
+ },
+ "curved.ifc": {
+  "schema": "IFC4X3_ADD2",
+  "elements": 7,
+  "schema_errors": 0,
+  "shapes": {
+   "2Z$svb7wnRIeXB4fcPXBuS": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 34848000.0
+   },
+   "2jJ3JtSKbOfANmPQEFvO7x": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 34848000.0
+   },
+   "0rn5tgyfTMc9pm0gYwouSq": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 5807999.8
+   },
+   "3H4lbv7kPH7ewYD5cQitgg": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 17424000.0
+   },
+   "1aCvDuhZ1Qo9ainvaBmsr3": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 17424000.0
+   },
+   "1xmP1O1qfV4BP_hArG0OPX": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 17424000.0
+   },
+   "1jLd6Yih5SDAx94ohLuh6H": {
+    "type": "IfcPlate",
+    "predefined": "SHEET",
+    "object_type": null,
+    "volume_mm3": 3200000.0
+   }
+  }
+ },
+ "drawing-control.ifc": {
+  "schema": "IFC4X3_ADD2",
+  "elements": 2,
+  "schema_errors": 0,
+  "shapes": {
+   "0rn5tgyfTMc9pm0gYwouSq": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 17417976.9
+   },
+   "1xmP1O1qfV4BP_hArG0OPX": {
+    "type": "IfcPlate",
+    "predefined": "SHEET",
+    "object_type": null,
+    "volume_mm3": 2384942.3
+   }
+  }
+ },
+ "steel-frame.ifc": {
+  "schema": "IFC4X3_ADD2",
+  "elements": 7,
+  "schema_errors": 0,
+  "shapes": {
+   "2Z$svb7wnRIeXB4fcPXBuS": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 34848000.0
+   },
+   "2jJ3JtSKbOfANmPQEFvO7x": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 34848000.0
+   },
+   "0rn5tgyfTMc9pm0gYwouSq": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 17424000.0
+   },
+   "3H4lbv7kPH7ewYD5cQitgg": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 17424000.0
+   },
+   "1aCvDuhZ1Qo9ainvaBmsr3": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 17424000.0
+   },
+   "1xmP1O1qfV4BP_hArG0OPX": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 17424000.0
+   },
+   "1jLd6Yih5SDAx94ohLuh6H": {
+    "type": "IfcPlate",
+    "predefined": "SHEET",
+    "object_type": null,
+    "volume_mm3": 3200000.0
+   }
+  }
+ },
+ "types-as-ifc4.ifc": {
+  "schema": "IFC4",
+  "elements": 16,
+  "schema_errors": 0,
+  "shapes": {
+   "1aCvDuhZ1Qo9ainvaBmsr3": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 17424000.0
+   },
+   "2Z$svb7wnRIeXB4fcPXBuS": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 17417976.9
+   },
+   "1jLd6Yih5SDAx94ohLuh6H": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 17424000.0
+   },
+   "0LMYeLUf1KtPRrBiIRn$MI": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 17417976.9
+   },
+   "3qHNwklRHSYhweubdyRmAi": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 653884.5
+   },
+   "0WED51M$bMmPG_$f9xBf$T": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 653884.5
+   },
+   "0rn5tgyfTMc9pm0gYwouSq": {
+    "type": "IfcBuildingElementProxy",
+    "predefined": "USERDEFINED",
+    "object_type": "POT",
+    "volume_mm3": 17424000.0
+   },
+   "3H4lbv7kPH7ewYD5cQitgg": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 17424000.0
+   },
+   "1xmP1O1qfV4BP_hArG0OPX": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 58529884.5
+   },
+   "2jJ3JtSKbOfANmPQEFvO7x": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 58544942.3
+   },
+   "2bp$JQ4dHJ$Oi6dnkYr6JG": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 58529884.5
+   },
+   "31eOXg5lDRAwlILtv$qzMr": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 58544942.3
+   },
+   "0M73KB_MnU1wJjxEceucEd": {
+    "type": "IfcPlate",
+    "predefined": "USERDEFINED",
+    "object_type": "BASE_PLATE",
+    "volume_mm3": 3152355.6
+   },
+   "16lfX1ob9TIh7wkGJkV0OV": {
+    "type": "IfcPlate",
+    "predefined": "SHEET",
+    "object_type": null,
+    "volume_mm3": 3152355.6
+   },
+   "1eaQ2TVyPGYA2axXVRK2Ua": {
+    "type": "IfcPlate",
+    "predefined": "SHEET",
+    "object_type": null,
+    "volume_mm3": 2521884.5
+   },
+   "3eh00I$Q1JVPAjoIjMDeR2": {
+    "type": "IfcPlate",
+    "predefined": "SHEET",
+    "object_type": null,
+    "volume_mm3": 2521884.5
+   }
+  }
+ },
+ "types.ifc": {
+  "schema": "IFC4X3_ADD2",
+  "elements": 16,
+  "schema_errors": 0,
+  "shapes": {
+   "1aCvDuhZ1Qo9ainvaBmsr3": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 17424000.0
+   },
+   "2Z$svb7wnRIeXB4fcPXBuS": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 17417976.9
+   },
+   "1jLd6Yih5SDAx94ohLuh6H": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 17424000.0
+   },
+   "0LMYeLUf1KtPRrBiIRn$MI": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 17417976.9
+   },
+   "3qHNwklRHSYhweubdyRmAi": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 653884.5
+   },
+   "0WED51M$bMmPG_$f9xBf$T": {
+    "type": "IfcBeam",
+    "predefined": "BEAM",
+    "object_type": null,
+    "volume_mm3": 653884.5
+   },
+   "0rn5tgyfTMc9pm0gYwouSq": {
+    "type": "IfcBearing",
+    "predefined": "POT",
+    "object_type": null,
+    "volume_mm3": 17424000.0
+   },
+   "3H4lbv7kPH7ewYD5cQitgg": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 17424000.0
+   },
+   "1xmP1O1qfV4BP_hArG0OPX": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 58529884.5
+   },
+   "2jJ3JtSKbOfANmPQEFvO7x": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 58544942.3
+   },
+   "2bp$JQ4dHJ$Oi6dnkYr6JG": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 58529884.5
+   },
+   "31eOXg5lDRAwlILtv$qzMr": {
+    "type": "IfcColumn",
+    "predefined": "COLUMN",
+    "object_type": null,
+    "volume_mm3": 58544942.3
+   },
+   "0M73KB_MnU1wJjxEceucEd": {
+    "type": "IfcPlate",
+    "predefined": "BASE_PLATE",
+    "object_type": null,
+    "volume_mm3": 3152355.6
+   },
+   "16lfX1ob9TIh7wkGJkV0OV": {
+    "type": "IfcPlate",
+    "predefined": "SHEET",
+    "object_type": null,
+    "volume_mm3": 3152355.6
+   },
+   "1eaQ2TVyPGYA2axXVRK2Ua": {
+    "type": "IfcPlate",
+    "predefined": "SHEET",
+    "object_type": null,
+    "volume_mm3": 2521884.5
+   },
+   "3eh00I$Q1JVPAjoIjMDeR2": {
+    "type": "IfcPlate",
+    "predefined": "SHEET",
+    "object_type": null,
+    "volume_mm3": 2521884.5
+   }
+  }
+ }
+}

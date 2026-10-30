@@ -966,8 +966,14 @@
     "tab": "УПРАВЛЕНИЕ"
   },
   {
+    "button": "Экспорт IFC4.3",
+    "command": "Экспорт IFC4.3",
+    "group": "Обмен",
+    "tab": "УПРАВЛЕНИЕ"
+  },
+  {
     "button": "Импорт IFC",
-    "command": "Импорт IFC (IFC2x3, IFC4)",
+    "command": "Импорт IFC (IFC2x3, IFC4, IFC4.3)",
     "group": "Обмен",
     "tab": "УПРАВЛЕНИЕ"
   },

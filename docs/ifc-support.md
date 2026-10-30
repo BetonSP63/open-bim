@@ -1,10 +1,38 @@
 # IFC support (phase 14)
 
-Contract: **IFC4 ADD2 TC1** (`FILE_SCHEMA(('IFC4'))`), STEP physical file
-(ISO 10303-21), length unit millimetre. IFC4.3 (IFC4X3) is tracked separately in
-`docs/parity.csv` (row `ifc43`, open); IFC4X3 files are read as IFC4 with a warning
-and 4.3-specific entities listed as unsupported. Import also reads **IFC2X3**
-(files of other programs); older schemas are rejected. User guide:
+Contract: **IFC4 ADD2 TC1** (`FILE_SCHEMA(('IFC4'))`) and **IFC4.3 ADD2**
+(`FILE_SCHEMA(('IFC4X3_ADD2'))`, ISO 16739-1:2024), STEP physical file
+(ISO 10303-21), length unit millimetre. Import also reads **IFC2X3** (files of
+other programs); older schemas are rejected, the drafts IFC4X1/IFC4X2 are read
+as IFC4.3 with a warning.
+
+## IFC4.3
+
+* «Экспорт IFC4.3» (ribbon «Обмен», file menu, command line; batch API step
+  `export_ifc43`) writes `<project>-IFC4X3.ifc` next to the IFC4 file
+  (`open_bim_ifc::export_schema(project, Schema::Ifc4x3)`). The subset is the
+  same; IFC4.3 adds the optional `IfcDerivedUnit.Name` and
+  `IfcCartesianPointList3D.TagList` (written as `$`). Header view definition:
+  `notYetAssigned` (IFC4.3 has no design transfer view).
+* Predefined types new in IFC4.3 can be chosen on a part («Подтип», marked
+  «(IFC4.3)»): beams `GIRDER_SEGMENT`, `PIERCAP`, `EDGEBEAM`, …; columns
+  `PIERSTEM`, …; members `TIEBAR`, `STIFFENING_RIB`, cables, …; plates
+  `BASE_PLATE`, `GUSSET_PLATE`, `STIFFENER_PLATE`, `SPLICE_PLATE`, `FLANGE_PLATE`,
+  `WEB_PLATE`, `COVER_PLATE`; railings `FENCE`; slabs `TRACKSLAB`, `PAVING`, …;
+  and the class `IfcBearing` (`POT`, `ELASTOMERIC`, …). An IFC4 export writes
+  them as `.USERDEFINED.` with the type name as ObjectType (IfcBearing as
+  `IfcBuildingElementProxy`) and lists the parts in `ExportReport.downgraded`;
+  import turns such a USERDEFINED name back into the IFC4.3 type.
+* Import keeps a predefined type other than the default (`BEAM`, `COLUMN`,
+  `SHEET`, `NOTDEFINED`) and a USERDEFINED ObjectType in the part properties
+  `ifc_predefined_type` / `ifc_object_type`, so they survive re-export.
+* IFC4.3 facilities (`IfcBridge`, `IfcRoad`, `IfcRailway`, `IfcMarineFacility`,
+  `IfcFacility`) and their parts are read like a building: elements contained
+  in them are imported with the full placement chain. Infrastructure objects
+  outside the subset are listed in words (`IfcBearing` «опорные части»,
+  `IfcAlignment` «трассы», courses and kerbs «дорожная одежда», earthworks,
+  track elements). Placements along an alignment (`IfcLinearPlacement`) are
+  not supported: such a part is skipped with an issue. User guide:
 [help/model-import.md](help/model-import.md).
 
 ## Supported subset (export and import)
@@ -58,6 +86,13 @@ transaction. Elements the model rejects are dropped one by one (`skipped`).
   unit scale 0.001 m, geometry kernel volumes equal phase-9 independent
   references for 12 drilled parts (relative 2e-3); `render.py` renders the files
   with IfcOpenShell tessellation (`*-ifcopenshell.png`).
+* `crates/ifc/tests/ifc43.rs` + `tests/fixtures/ifc/ifc4x3/verify.py` —
+  IfcOpenShell 0.9.0 validates the IFC4.3 files of the three models, a curved
+  (tessellated) beam, IFC4.3 types and their IFC4 fallback with zero statements
+  (schema, attribute counts and EXPRESS rules, checked by file path; a negative
+  control gives 3); element volumes equal those of the IFC4 files; a bridge
+  file of another program (IfcBridge, IfcBridgePart, girder, bearing,
+  alignment) validates and is imported.
 * GUI: `tests/ifc_flow/` — export, new project, import in the native app; the
   exported file is byte-identical to the validated fixture.
 
