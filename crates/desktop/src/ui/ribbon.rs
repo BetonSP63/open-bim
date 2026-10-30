@@ -587,7 +587,9 @@ impl Workbench {
                         ui.horizontal(|ui| {
                             // Three small buttons stacked; captions of groups
                             // are not shown, as in the reference ribbon.
-                            ui.set_min_height(76.);
+                            // Leave space for the horizontal scrollbar below
+                            // the three-row buttons, including wrapped labels.
+                            ui.set_min_height(92.);
                             ui.add_space(STRIP - 4.);
                             self.select_tools(ui, requests);
                             ui.separator();

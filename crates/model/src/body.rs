@@ -41,9 +41,9 @@ impl Project {
             let mut bounds = [[f64::INFINITY; 3], [f64::NEG_INFINITY; 3]];
             for point in points {
                 let world = part.shape.frame().world(Point3(point));
-                for i in 0..3 {
-                    bounds[0][i] = bounds[0][i].min(world.0[i]);
-                    bounds[1][i] = bounds[1][i].max(world.0[i]);
+                for (i, coordinate) in world.0.into_iter().enumerate() {
+                    bounds[0][i] = bounds[0][i].min(coordinate);
+                    bounds[1][i] = bounds[1][i].max(coordinate);
                 }
             }
             return Ok(bounds);
