@@ -724,6 +724,12 @@ pub fn assortment(project: &Project, id: ObjectId) -> (String, String) {
                 ProfileShape::CircularHollow { .. } => "Трубы круглые",
                 ProfileShape::RectangularHollow { .. } => "Трубы профильные",
                 ProfileShape::Rectangle { .. } => "Прокат прямоугольный",
+                ProfileShape::Polygon { .. }
+                    if open_bim_model::library::section(&p.name)
+                        .is_some_and(|e| e.name.starts_with("Тавр")) =>
+                {
+                    "Тавры из двутавров"
+                }
                 ProfileShape::Polygon { .. } => "Профили по контуру",
                 // Listed by plates in the specification (`rolled_steel`).
                 ProfileShape::Welded { .. } => "Сечения сварные",

@@ -49,7 +49,7 @@ pub enum Outcome {
 }
 
 /// Types shown as the first level of the catalogue tree.
-pub const GROUPS: [(&str, &[Family]); 4] = [
+pub const GROUPS: [(&str, &[Family]); 5] = [
     (
         "Двутавры",
         &[
@@ -60,13 +60,25 @@ pub const GROUPS: [(&str, &[Family]); 4] = [
             Family::IBeamWide,
             Family::IBeamColumn,
             Family::IBeamSloped,
+            Family::IBeamNormalSto,
+            Family::IBeamWideSto,
+            Family::IBeamColumnSto,
         ],
+    ),
+    (
+        "Тавры",
+        &[Family::TeeNormal, Family::TeeWide, Family::TeeColumn],
     ),
     ("Швеллеры", &[Family::Channel, Family::ChannelP]),
     ("Уголки", &[Family::Angle, Family::AngleUnequal]),
     (
         "Трубы",
-        &[Family::Pipe, Family::SquareTube, Family::RectTube],
+        &[
+            Family::Pipe,
+            Family::PipeWaterGas,
+            Family::SquareTube,
+            Family::RectTube,
+        ],
     ),
 ];
 

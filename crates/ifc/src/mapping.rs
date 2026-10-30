@@ -519,10 +519,14 @@ pub fn family_word(family: Family) -> &'static str {
         | Family::IBeamColumn
         | Family::IBeamNormal57837
         | Family::IBeamWide57837
-        | Family::IBeamColumn57837 => "двутавр",
+        | Family::IBeamColumn57837
+        | Family::IBeamNormalSto
+        | Family::IBeamWideSto
+        | Family::IBeamColumnSto => "двутавр",
+        Family::TeeNormal | Family::TeeWide | Family::TeeColumn => "тавр",
         Family::Channel | Family::ChannelP => "швеллер",
         Family::Angle | Family::AngleUnequal => "уголок",
-        Family::Pipe | Family::SquareTube | Family::RectTube => "труба",
+        Family::Pipe | Family::PipeWaterGas | Family::SquareTube | Family::RectTube => "труба",
     }
 }
 
