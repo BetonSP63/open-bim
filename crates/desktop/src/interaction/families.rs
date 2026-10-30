@@ -675,7 +675,8 @@ mod tests {
         // tr equals the default and is not stored.
         assert_eq!(changed.values.len(), 1);
         d.transact("Изменить", &c).unwrap();
-        assert_eq!(d.project().family_instances[&instance.id].children.len(), 3);
+        // Plate, one rib, its weld, two holes and the assembly.
+        assert_eq!(d.project().family_instances[&instance.id].children.len(), 6);
         // Placing again does not add the family a second time.
         let c = place(d.project(), &seat, "С-1", DVec3::new(500., 0., 0.), None).unwrap();
         assert_eq!(c.len(), 1);

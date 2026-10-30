@@ -225,6 +225,7 @@ pub fn rebuild_fin_plates(project: &mut Project, previous: &Project) -> Result<(
                             frame: local,
                             diameter: t.bolt_diameter + t.clearance,
                             depth: recipe.hole_depth,
+                            slot: 0.0,
                         },
                     },
                 );

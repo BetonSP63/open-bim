@@ -44,6 +44,7 @@ pub enum Cmd {
     PrecastUnit,
     PourObjects,
     PourBreak,
+    PourBreakHorizontal,
     CalculatePours,
     RebarStirrup,
     RebarLongitudinal,
@@ -548,6 +549,13 @@ pub const ALL: &[Spec] = &[
         category: "Бетон",
         shortcut: None,
         keywords: "шов захватка разрез бетонирование",
+    },
+    Spec {
+        cmd: Cmd::PourBreakHorizontal,
+        label: "Горизонтальный шов",
+        category: "Бетон",
+        shortcut: None,
+        keywords: "шов горизонтальный захватка ярус отметка бетонирование",
     },
     Spec {
         cmd: Cmd::CalculatePours,

@@ -22,7 +22,9 @@ pub mod numbering_rules;
 pub mod parametric;
 mod plugin;
 mod position;
+pub mod pours;
 mod project;
+pub mod rebar;
 pub mod sections;
 pub mod shapes;
 mod swept;
@@ -34,6 +36,7 @@ pub use analysis::{
     Analysis, AnalysisModel, Load, LoadGroup, LoadKind, LoadShape, Members, PartAnalysis, PartRole,
     RigidLink,
 };
+pub use body::slot_contour;
 pub use catalog::{Material, Profile, ProfileShape};
 pub use changes::{Change, REASONS, SheetChange, SheetChangeKind};
 pub use concrete::{Concrete, FormPanel, PourBreak, PourUnit, Prop, RebarKind, RebarSet};
@@ -58,9 +61,10 @@ pub use drawing::{
 };
 pub use drawing_objects::{HatchPattern, LineType, SheetObject, SheetObjectKind};
 pub use family::{
-    Axis, BodyArray, BodyShape, Family, FamilyBody, FamilyInstance, FamilyParameter, FamilyPart,
-    FamilyType, FamilyValues, LocalShape, ParamKind, Placement, RefPlane, SpecMode,
-    rebuild_families, sample_families,
+    Axis, BodyArray, BodyShape, DetailShape, Family, FamilyBody, FamilyBuild, FamilyDetail,
+    FamilyDetailPart, FamilyInstance, FamilyParameter, FamilyPart, FamilyType, FamilyValues,
+    LocalDetail, LocalShape, ParamKind, Placement, RefPlane, SpecMode, rebuild_families,
+    sample_families,
 };
 pub use frame::{Frame, GridAxis, GridSettings, Level};
 pub use management::{Hierarchy, ListEntry, Management, Storey, Task};
@@ -68,9 +72,14 @@ pub use open_bim_geometry::{GeometryError, LengthMm, Point3};
 pub use parametric::{Binding, ParamField, Parametric};
 pub use plugin::{MAX_PLUGIN_INPUTS, PluginInput, PluginInstance, PluginValue};
 pub use position::{AtDepth, OnPlane, PartPosition, Rotation, place, reference_line};
+pub use pours::{PourPiece, PourRow, PourZone};
 pub use project::{
-    Assembly, Element, ElementShape, MemberKind, ObjectId, Project, PropertyValue, Units,
+    Assembly, Element, ElementShape, ID_BLOCK, MemberKind, ObjectId, Project, PropertyValue, Units,
     example_steel_frame,
+};
+pub use rebar::{
+    Anchorage, BarSurface, Hook, HookKind, REBAR_CLASSES, RebarClass, RebarRule, Stress, anchorage,
+    rebar_class, rebuild_rebars,
 };
 pub use sections::{
     SectionDefinition, SectionPlate, SectionWeld, Sections, WeldedPiece, WeldedSeam,

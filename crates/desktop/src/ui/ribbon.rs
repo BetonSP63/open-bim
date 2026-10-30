@@ -206,6 +206,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                 vec![
                     small(Cmd::PourObjects, Icon::Slab, "Захватки бетонирования"),
                     small(Cmd::PourBreak, Icon::Slab, "Шов бетонирования"),
+                    small(Cmd::PourBreakHorizontal, Icon::Slab, "Горизонтальный шов"),
                     small(
                         Cmd::CalculatePours,
                         Icon::Slab,

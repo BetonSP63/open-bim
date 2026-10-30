@@ -1191,12 +1191,16 @@ impl Workbench {
                 let n = crate::interaction::pours::objects(self.editor.document.project()).len();
                 self.message(format!("Захваток бетонирования: {n}"));
             }
-            Cmd::PourBreak => {
+            Cmd::PourBreak | Cmd::PourBreakHorizontal => {
                 use crate::interaction::trim::{TrimPicker, TrimTool};
                 self.engine.cancel();
                 self.detail.cancel();
                 self.mode = Mode::Model;
-                self.trim = TrimPicker::start(TrimTool::PourBreak);
+                self.trim = TrimPicker::start(if cmd == Cmd::PourBreak {
+                    TrimTool::PourBreak
+                } else {
+                    TrimTool::PourBreakHorizontal
+                });
                 self.message(self.prompt());
             }
             Cmd::CalculatePours => {
@@ -2426,7 +2430,10 @@ impl Workbench {
             }
             (TrimTool::AddedMaterial, _, _) => Err("Нужно не меньше 3 вершин контура".into()),
             (TrimTool::PourBreak, [], [a, b]) => {
-                crate::interaction::pours::add_break(project, *a, *b)
+                crate::interaction::pours::add_break(project, *a, *b, false)
+            }
+            (TrimTool::PourBreakHorizontal, [], [a, b]) => {
+                crate::interaction::pours::add_break(project, *a, *b, true)
             }
             (TrimTool::RigidLink, [], [a, b]) => {
                 crate::interaction::analysis::add_link(project, self.analysis.active, *a, *b)
@@ -3523,6 +3530,9 @@ impl Workbench {
             }
             Some(crate::interaction::pours::PourAction::Select(parts)) => {
                 self.editor.selected = parts;
+            }
+            Some(crate::interaction::pours::PourAction::Message(text)) => {
+                self.message(text);
             }
             None => {}
         }

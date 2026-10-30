@@ -17,6 +17,8 @@ pub struct BoltPattern {
     pub grade: String,
     /// Circle or list bolt positions in the group frame (empty: the array of steps).
     pub points: Vec<[f64; 2]>,
+    /// Slotted holes in every part: extra length along the group X, mm (0 — round).
+    pub slot: f64,
 }
 
 /// Build one atomic transaction: all associated holes plus the bolt group.
@@ -65,6 +67,7 @@ pub fn bolt_commands(project: &Project, pattern: &BoltPattern) -> Result<Vec<Com
                         frame,
                         diameter: pattern.diameter + pattern.clearance,
                         depth: pattern.hole_depth,
+                        slot: pattern.slot,
                     },
                 };
                 candidate.details.insert(id, detail.clone());

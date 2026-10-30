@@ -6,6 +6,7 @@ use crate::interaction::rebar::{self as rb, RebarSettings};
 use crate::interaction::trim::{TrimPicker, TrimTool};
 use eframe::egui;
 use open_bim_model::ObjectId;
+use open_bim_model::rebar::{HookKind, Stress};
 
 #[derive(Default)]
 pub struct RebarUi {
@@ -174,7 +175,80 @@ impl Workbench {
                         ui.label("Продольных на грани");
                         ui.add(egui::DragValue::new(&mut s.per_face).range(2..=50));
                         ui.end_row();
+                        for (label, id, hook) in [
+                            ("Концы стержней", "rebar hook", &mut s.hook),
+                            ("Концы хомутов", "rebar stirrup hook", &mut s.stirrup_hook),
+                        ] {
+                            ui.label(label);
+                            egui::ComboBox::from_id_salt(id)
+                                .selected_text(hook.label())
+                                .show_ui(ui, |ui| {
+                                    for k in HookKind::ALL {
+                                        ui.selectable_value(hook, k, k.label());
+                                    }
+                                });
+                            ui.end_row();
+                        }
+                        let min = s.min_bend();
+                        ui.label("Диаметр оправки, мм");
+                        ui.horizontal(|ui| {
+                            let mut own = s.bend_diameter.is_some();
+                            ui.checkbox(&mut own, "задать")
+                                .on_hover_text("Без флажка: наименьший по СП 63 для класса и диаметра");
+                            match (own, s.bend_diameter) {
+                                (true, None) => s.bend_diameter = Some(min),
+                                (false, Some(_)) => s.bend_diameter = None,
+                                _ => {}
+                            }
+                            if let Some(d) = &mut s.bend_diameter {
+                                ui.add(egui::DragValue::new(d).range(s.diameter..=10_000.));
+                            } else {
+                                ui.label(open_bim_reports::fmt(min));
+                            }
+                        });
+                        ui.end_row();
+                        ui.label("Длина поставки, мм");
+                        ui.horizontal(|ui| {
+                            let mut lap = s.stock_length.is_some();
+                            ui.checkbox(&mut lap, "стыковать внахлёст")
+                                .on_hover_text("Более длинные стержни делятся с нахлёстом по СП 63");
+                            match (lap, s.stock_length) {
+                                (true, None) => s.stock_length = Some(11_700.),
+                                (false, Some(_)) => s.stock_length = None,
+                                _ => {}
+                            }
+                            if let Some(l) = &mut s.stock_length {
+                                ui.add(egui::DragValue::new(l).range(500.0..=100_000.));
+                            }
+                        });
+                        ui.end_row();
                     });
+                // Anchorage in the concrete of the selected part (В25 when
+                // none is selected or its class is unknown).
+                let host = self
+                    .editor
+                    .selected
+                    .iter()
+                    .find(|id| project.elements.contains_key(id))
+                    .copied();
+                let rbt = host.map_or(1.05, |h| open_bim_model::rebar::host_rbt(project, h));
+                let up = |v: f64| (v / 10.).ceil() * 10.;
+                if let (Some(t), Some(c)) = (
+                    s.anchorage(rbt, Stress::Tension),
+                    s.anchorage(rbt, Stress::Compression),
+                ) {
+                    ui.label(format!(
+                        "По СП 63 при Rbt = {rbt} МПа: анкеровка {} мм (сжатие {} мм), нахлёст {} мм (сжатие {} мм)",
+                        up(t.anchorage),
+                        up(c.anchorage),
+                        up(t.lap),
+                        up(c.lap)
+                    ))
+                    .on_hover_text(
+                        "l0,an = Rs·ds/(4·η1·η2·Rbt); lan ≥ 0,3·l0,an, 15ds, 200 мм; \
+                         ll = 1,2·l0,an ≥ 20ds, 250 мм (не более 50% стыков в сечении)",
+                    );
+                }
                 ui.separator();
                 ui.strong(format!("Наборы: {}", project.concrete.rebars.len()));
                 let mut remove = None;

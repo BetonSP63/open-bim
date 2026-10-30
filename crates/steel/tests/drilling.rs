@@ -35,6 +35,7 @@ fn blind_and_transverse_holes_change_exact_body_and_mass() {
                     frame,
                     diameter: 10.,
                     depth,
+                    slot: 0.0,
                 },
             },
         );

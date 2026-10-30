@@ -352,6 +352,7 @@ pub fn bolt_pattern(
         standard: props.standard.clone(),
         grade: props.grade.clone(),
         points,
+        slot: props.slot()?,
     })
 }
 
