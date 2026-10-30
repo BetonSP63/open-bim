@@ -23,6 +23,7 @@ pub mod parametric;
 mod plugin;
 mod position;
 mod project;
+pub mod rebar;
 pub mod sections;
 pub mod shapes;
 mod swept;
@@ -71,6 +72,10 @@ pub use position::{AtDepth, OnPlane, PartPosition, Rotation, place, reference_li
 pub use project::{
     Assembly, Element, ElementShape, MemberKind, ObjectId, Project, PropertyValue, Units,
     example_steel_frame,
+};
+pub use rebar::{
+    Anchorage, BarSurface, Hook, HookKind, REBAR_CLASSES, RebarClass, RebarRule, Stress, anchorage,
+    rebar_class, rebuild_rebars,
 };
 pub use sections::{
     SectionDefinition, SectionPlate, SectionWeld, Sections, WeldedPiece, WeldedSeam,
