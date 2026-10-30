@@ -220,6 +220,107 @@ pub fn change(
     Ok(vec![Command::ReplaceFamilyInstance { instance }])
 }
 
+fn number(v: f64) -> String {
+    let r = (v * 1000.).round() / 1000.;
+    if r == 0. { "0".into() } else { format!("{r}") }
+}
+
+/// A family from the selected parts, relative to their lowest corner:
+/// beams and columns become members on their reference lines, plates
+/// across a model axis become plates; sizes are numbers to replace with
+/// formulas in the editor.
+pub fn from_parts(
+    project: &Project,
+    selected: &BTreeSet<ObjectId>,
+    name: &str,
+) -> Result<Family, String> {
+    use open_bim_model::{Axis, BodyShape, ElementShape, FamilyBody, FamilyType};
+    let parts: Vec<ObjectId> = selected
+        .iter()
+        .copied()
+        .filter(|id| project.elements.contains_key(id))
+        .collect();
+    if parts.is_empty() {
+        return Err("Выберите детали, из которых сделать семейство".into());
+    }
+    let mut base = [f64::INFINITY; 3];
+    for id in &parts {
+        let b = project.element_bounds(*id).map_err(|e| e.to_string())?;
+        base = std::array::from_fn(|k| base[k].min(b[0][k]));
+    }
+    let rel = |p: [f64; 3], k: usize| number(p[k] - base[k]);
+    let mut family = super::family_editor::blank(name);
+    family.parameters.retain(|p| p.name == "Материал");
+    family.planes.clear();
+    family.types = vec![FamilyType {
+        name: "Тип 1".into(),
+        values: BTreeMap::new(),
+    }];
+    family.bodies.clear();
+    for id in &parts {
+        let e = &project.elements[id];
+        let grade = project
+            .materials
+            .get(&e.material)
+            .map(|m| m.name.split(" · ").next().unwrap_or(&m.name).to_string())
+            .unwrap_or_else(|| "С255".into());
+        let shape = match &e.shape {
+            ElementShape::Member { profile, .. } => {
+                let (start, end, _) = project
+                    .member_reference_line(&e.shape)
+                    .ok_or_else(|| format!("«{}»: нет профиля", e.name))?;
+                BodyShape::Member {
+                    profile: project.profiles[profile].name.clone(),
+                    start: std::array::from_fn(|k| rel(start.0, k)),
+                    end: std::array::from_fn(|k| rel(end.0, k)),
+                    rotation: String::new(),
+                }
+            }
+            ElementShape::Plate {
+                contour,
+                thickness,
+                frame,
+            } => {
+                let n = frame.axes[2];
+                let k = (0..3)
+                    .find(|k| (n[*k].abs() - 1.).abs() < 1e-9)
+                    .ok_or_else(|| format!("«{}»: пластина не поперёк оси модели", e.name))?;
+                let (u, v) = match k {
+                    0 => (1, 2),
+                    1 => (0, 2),
+                    _ => (0, 1),
+                };
+                let face = frame.origin.0[k] - if n[k] < 0. { thickness.value() } else { 0. };
+                BodyShape::Plate {
+                    normal: [Axis::X, Axis::Y, Axis::Z][k],
+                    at: number(face - base[k]),
+                    contour: contour
+                        .iter()
+                        .map(|q| {
+                            let w = frame.world(open_bim_model::Point3([q[0], q[1], 0.])).0;
+                            [rel(w, u), rel(w, v)]
+                        })
+                        .collect(),
+                    thickness: number(thickness.value()),
+                }
+            }
+        };
+        family.bodies.push(FamilyBody {
+            name: e.name.clone(),
+            material: if grade == family.parameters[0].value {
+                "Материал".into()
+            } else {
+                grade
+            },
+            visible: String::new(),
+            array: None,
+            shape,
+        });
+    }
+    family.validate().map_err(|e| e.to_string())?;
+    Ok(family)
+}
+
 /// What the «Семейства» window asks for.
 pub enum FamiliesAction {
     Commit(String, Vec<Command>),
@@ -309,6 +410,23 @@ impl FamiliesWindow {
                             .find(|n| !list.iter().any(|(f, _)| &f.name == n))
                             .unwrap_or_default();
                         action = Some(FamiliesAction::Edit(super::family_editor::blank(&name)));
+                    }
+                    if ui
+                        .small_button("Из выделенных деталей")
+                        .on_hover_text(
+                            "Детали становятся телами семейства с размерами числами; \
+                             дальше их можно заменить формулами",
+                        )
+                        .clicked()
+                    {
+                        let name = (1..)
+                            .map(|k| format!("Семейство {k}"))
+                            .find(|n| !list.iter().any(|(f, _)| &f.name == n))
+                            .unwrap_or_default();
+                        action = Some(match from_parts(project, selected, &name) {
+                            Ok(f) => FamiliesAction::Edit(f),
+                            Err(e) => FamiliesAction::Message(e),
+                        });
                     }
                 });
                 egui::ScrollArea::vertical()
@@ -561,6 +679,35 @@ mod tests {
         // Placing again does not add the family a second time.
         let c = place(d.project(), &seat, "С-1", DVec3::new(500., 0., 0.), None).unwrap();
         assert_eq!(c.len(), 1);
+    }
+
+    #[test]
+    fn selected_parts_become_a_family_that_builds_them_again() {
+        let p = open_bim_model::example_steel_frame().unwrap();
+        let ids: BTreeSet<ObjectId> = p.elements.keys().copied().collect();
+        let f = from_parts(&p, &ids, "Рама").unwrap();
+        assert_eq!(f.bodies.len(), ids.len());
+        // Placed at the lowest corner the family gives the same parts.
+        let mut base = [f64::INFINITY; 3];
+        for id in &ids {
+            let b = p.element_bounds(*id).unwrap();
+            base = std::array::from_fn(|k| base[k].min(b[0][k]));
+        }
+        let mut d = Document::new(p.clone()).unwrap();
+        let c = place(d.project(), &f, "Тип 1", DVec3::from_array(base), None).unwrap();
+        d.transact("Рама", &c).unwrap();
+        let q = d.project();
+        let instance = q.family_instances.values().next().unwrap();
+        for (i, id) in ids.iter().enumerate() {
+            let copy = instance.children[&format!("body-{i}-0")];
+            let (a, b) = (
+                p.element_bounds(*id).unwrap(),
+                q.element_bounds(copy).unwrap(),
+            );
+            for k in 0..3 {
+                assert!((a[0][k] - b[0][k]).abs() < 0.01 && (a[1][k] - b[1][k]).abs() < 0.01);
+            }
+        }
     }
 
     #[test]
