@@ -1,7 +1,10 @@
-use crate::{MAX_JOURNAL_BYTES, MAX_PROJECT_BYTES, PersistenceError, decode, encode, read_bounded};
+use crate::{
+    MAX_JOURNAL_BYTES, MAX_PROJECT_BYTES, PersistenceError, decode, encode, read_bounded,
+    sync_parent,
+};
 use open_bim_model::Project;
 use sha2::{Digest, Sha256};
-use std::fs::{File, OpenOptions};
+use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
 
@@ -45,7 +48,14 @@ pub fn append_checkpoint(
                 "Неверная сигнатура автосохранения".into(),
             ));
         }
-        if current > 8 && recover_checkpoints(path)?.discarded_tail_bytes > 0 {
+        // Read through the locked handle: on Windows the lock is mandatory
+        // and a second handle could not read the journal.
+        let mut bytes = Vec::new();
+        file.seek(SeekFrom::Start(0))?;
+        (&mut file)
+            .take(MAX_JOURNAL_BYTES + 1)
+            .read_to_end(&mut bytes)?;
+        if current > 8 && parse_checkpoints(&bytes)?.discarded_tail_bytes > 0 {
             return Err(PersistenceError::InvalidFormat(
                 "Журнал имеет незавершённый хвост; восстановите проект и начните новый журнал"
                     .into(),
@@ -59,16 +69,18 @@ pub fn append_checkpoint(
     record.extend_from_slice(COMMIT);
     file.write_all(&record)?;
     file.sync_all()?;
-    let parent = path
-        .parent()
-        .filter(|p| !p.as_os_str().is_empty())
-        .unwrap_or(Path::new("."));
-    File::open(parent)?.sync_all()?;
+    sync_parent(path)?;
     Ok(())
 }
 
 pub fn recover_checkpoints(path: impl AsRef<Path>) -> Result<Recovery, PersistenceError> {
-    let bytes = read_bounded(path.as_ref(), MAX_JOURNAL_BYTES)?;
+    parse_checkpoints(&read_bounded(path.as_ref(), MAX_JOURNAL_BYTES)?)
+}
+
+fn parse_checkpoints(bytes: &[u8]) -> Result<Recovery, PersistenceError> {
+    if bytes.len() as u64 > MAX_JOURNAL_BYTES {
+        return Err(PersistenceError::LimitExceeded);
+    }
     if bytes.len() < 8 || &bytes[..8] != MAGIC {
         return Err(PersistenceError::InvalidFormat(
             "Неверный журнал автосохранения".into(),

@@ -66,14 +66,8 @@ pub fn search_dirs(project_path: &str, extra: &str) -> Vec<PathBuf> {
     if let Some(parent) = Path::new(project_path).parent() {
         dirs.push(parent.join("plugins"));
     }
-    if let Some(home) = std::env::var_os("HOME") {
-        dirs.push(
-            PathBuf::from(home)
-                .join("Library")
-                .join("Application Support")
-                .join("Open BIM")
-                .join("plugins"),
-        );
+    if let Some(data) = user_data_dir() {
+        dirs.push(data.join("Open BIM").join("plugins"));
     }
     if let Some(list) = std::env::var_os("OPEN_BIM_PLUGINS") {
         dirs.extend(std::env::split_paths(&list).filter(|d| !d.as_os_str().is_empty()));
@@ -84,6 +78,21 @@ pub fn search_dirs(project_path: &str, extra: &str) -> Vec<PathBuf> {
     let mut seen = BTreeSet::new();
     dirs.retain(|d| seen.insert(d.clone()));
     dirs
+}
+
+/// The per-user application data folder of the platform.
+fn user_data_dir() -> Option<PathBuf> {
+    if cfg!(windows) {
+        return std::env::var_os("APPDATA").map(PathBuf::from);
+    }
+    let home = PathBuf::from(std::env::var_os("HOME")?);
+    Some(if cfg!(target_os = "macos") {
+        home.join("Library").join("Application Support")
+    } else {
+        std::env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| home.join(".local").join("share"))
+    })
 }
 
 impl PluginsUi {

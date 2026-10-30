@@ -29,3 +29,24 @@ jobs:
       - run: cargo build --workspace --locked
       - run: cargo test --workspace --locked --no-fail-fast
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+  windows:
+    name: Windows x86_64
+    runs-on: windows-2025
+    env:
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_INCREMENTAL: 0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned toolchain
+        run: rustup toolchain install 1.99.0 --profile minimal --component clippy
+      - run: cargo build --workspace --locked
+      - run: cargo test --workspace --locked --no-fail-fast
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - name: Package
+        run: pwsh -File scripts/package-windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: open-bim-windows-x86_64
+          path: dist/*.zip
+          retention-days: 14

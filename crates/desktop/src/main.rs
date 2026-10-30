@@ -1,3 +1,5 @@
+// Release builds on Windows start without a console window.
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 use eframe::egui;
 use egui_wgpu::wgpu;
 use open_bim_desktop::interaction::selection;
@@ -124,13 +126,49 @@ impl Options {
                             .map_err(|_| "Некорректная высота")?,
                     )
                 }
+                // A bare project file, as the file manager passes it on
+                // double click or «Открыть с помощью».
+                _ if !arg.starts_with("--") && arg.ends_with(".obim") => {
+                    options.project_path.get_or_insert_with(|| arg.clone());
+                    options.open = Some(arg);
+                }
                 _ => return Err(format!("Неизвестный аргумент: {arg}")),
             }
         }
         if options.section.is_some_and(|v| !v.is_finite()) {
             return Err("Высота должна быть конечной".into());
         }
+        if std::env::args_os().len() == 1 {
+            options.package_defaults();
+        }
         Ok(options)
+    }
+
+    /// Started without arguments from the Windows package: open the bundled
+    /// example and save into the user's Documents, as the macOS launcher
+    /// does. The program folder itself may be read-only.
+    fn package_defaults(&mut self) {
+        if !cfg!(windows) {
+            return;
+        }
+        let example = std::env::current_exe().ok().and_then(|exe| {
+            let path = exe.parent()?.join("examples").join("steel-release.obim");
+            path.is_file().then_some(path)
+        });
+        let Some(example) = example else {
+            return;
+        };
+        let Some(profile) = std::env::var_os("USERPROFILE") else {
+            return;
+        };
+        self.open = Some(example.to_string_lossy().into_owned());
+        self.project_path = Some(
+            PathBuf::from(profile)
+                .join("Documents")
+                .join("Open BIM проект.obim")
+                .to_string_lossy()
+                .into_owned(),
+        );
     }
 }
 struct Desktop {

@@ -228,3 +228,29 @@ fn forced_termination_recovers_last_completed_transaction() {
     assert_eq!(recovered.checkpoints, 1);
     assert_eq!(recovered.discarded_tail_bytes, 0);
 }
+
+#[test]
+fn cyrillic_folders_hold_saves_overwrites_and_autosave_journals() {
+    let temp = Temp::new();
+    let folder = temp.0.join("Объект «Склад» №2").join("Конструкции КМ");
+    std::fs::create_dir_all(&folder).unwrap();
+    let path = folder.join("Каркас.obim");
+    let mut project = example_steel_frame().unwrap();
+    save_atomic(&path, &project).unwrap();
+    project.name = "Каркас, изм. 1".into();
+    project.revision = 1;
+    save_atomic(&path, &project).unwrap();
+    assert_eq!(load(&path).unwrap(), project);
+
+    let journal = folder.join("Каркас.obima");
+    append_checkpoint(&journal, &project).unwrap();
+    append_checkpoint(&journal, &project).unwrap();
+    let recovered = recover_checkpoints(&journal).unwrap();
+    assert_eq!(recovered.project, project);
+    assert_eq!(recovered.checkpoints, 2);
+    let names: Vec<_> = std::fs::read_dir(&folder)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().into_string().unwrap())
+        .collect();
+    assert_eq!(names.len(), 2, "temporary files left behind: {names:?}");
+}
