@@ -22,6 +22,7 @@ pub mod numbering_rules;
 pub mod parametric;
 mod plugin;
 mod position;
+pub mod pours;
 mod project;
 pub mod sections;
 pub mod shapes;
@@ -70,6 +71,7 @@ pub use open_bim_geometry::{GeometryError, LengthMm, Point3};
 pub use parametric::{Binding, ParamField, Parametric};
 pub use plugin::{MAX_PLUGIN_INPUTS, PluginInput, PluginInstance, PluginValue};
 pub use position::{AtDepth, OnPlane, PartPosition, Rotation, place, reference_line};
+pub use pours::{PourPiece, PourRow, PourZone};
 pub use project::{
     Assembly, Element, ElementShape, MemberKind, ObjectId, Project, PropertyValue, Units,
     example_steel_frame,

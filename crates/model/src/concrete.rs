@@ -6,19 +6,93 @@ use std::collections::BTreeSet;
 
 use crate::{ModelError, ObjectId, Point3};
 
-/// «Шов бетонирования»: a vertical plane through the line `start`–`end`.
+/// «Шов бетонирования». A vertical joint is the plane through the line
+/// `start`–`end` seen from above and reaches as far as that line. A
+/// horizontal joint is the plane at the level of `start` over the plan
+/// rectangle with the corners `start` and `end`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PourBreak {
     pub start: Point3,
     pub end: Point3,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub horizontal: bool,
 }
 
 impl PourBreak {
-    /// Signed side of a point: >0 left of start→end seen from above.
-    pub fn side(&self, p: [f64; 3]) -> f64 {
+    /// Unit normal and offset of the joint plane, normal·p = offset. A
+    /// vertical joint's normal points left of start→end seen from above.
+    pub fn plane(&self) -> ([f64; 3], f64) {
         let (a, b) = (self.start.0, self.end.0);
-        (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])
+        if self.horizontal {
+            return ([0., 0., 1.], a[2]);
+        }
+        let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
+        let l = dx.hypot(dy).max(1e-12);
+        let n = [-dy / l, dx / l, 0.];
+        (n, n[0] * a[0] + n[1] * a[1])
+    }
+
+    /// Signed distance of a point from the joint plane, mm.
+    pub fn side(&self, p: [f64; 3]) -> f64 {
+        let (n, d) = self.plane();
+        n[0] * p[0] + n[1] * p[1] + n[2] * p[2] - d
+    }
+
+    /// Whether a point of the joint plane lies within the joint's reach.
+    pub fn covers(&self, x: [f64; 3]) -> bool {
+        let (a, b) = (self.start.0, self.end.0);
+        if self.horizontal {
+            return (0..2).all(|k| x[k] >= a[k].min(b[k]) - 1. && x[k] <= a[k].max(b[k]) + 1.);
+        }
+        let d = [b[0] - a[0], b[1] - a[1]];
+        let u = ((x[0] - a[0]) * d[0] + (x[1] - a[1]) * d[1]) / (d[0] * d[0] + d[1] * d[1]);
+        (-1e-9..=1. + 1e-9).contains(&u)
+    }
+
+    /// Whether the joint passes between two points: they lie on opposite
+    /// sides and the segment between them meets the plane within reach.
+    pub fn separates(&self, p: [f64; 3], q: [f64; 3]) -> bool {
+        let (sp, sq) = (self.side(p), self.side(q));
+        if sp * sq >= 0. {
+            return false;
+        }
+        let t = sp / (sp - sq);
+        self.covers(std::array::from_fn(|k| p[k] + (q[k] - p[k]) * t))
+    }
+
+    /// Whether the joint cuts a box [min, max]: the plane passes through it
+    /// and the joint reaches it in plan.
+    pub fn cuts(&self, b: &[[f64; 3]; 2]) -> bool {
+        const EPS: f64 = 1.;
+        let sides: Vec<f64> = (0..8)
+            .map(|i| self.side(std::array::from_fn(|k| b[(i >> k) & 1][k])))
+            .collect();
+        let (lo, hi) = sides
+            .iter()
+            .fold((f64::MAX, f64::MIN), |(l, h), s| (l.min(*s), h.max(*s)));
+        if lo > -EPS || hi < EPS {
+            return false;
+        }
+        let (a, e) = (self.start.0, self.end.0);
+        if self.horizontal {
+            return (0..2).all(|k| a[k].min(e[k]) < b[1][k] && a[k].max(e[k]) > b[0][k]);
+        }
+        // The joint line clipped to the box in plan (Liang–Barsky).
+        let (mut t0, mut t1) = (0f64, 1f64);
+        for k in 0..2 {
+            let d = e[k] - a[k];
+            if d.abs() < 1e-12 {
+                if a[k] < b[0][k] || a[k] > b[1][k] {
+                    return false;
+                }
+                continue;
+            }
+            let (u, v) = ((b[0][k] - a[k]) / d, (b[1][k] - a[k]) / d);
+            t0 = t0.max(u.min(v));
+            t1 = t1.min(u.max(v));
+        }
+        t0 < t1
     }
 }
 
@@ -29,6 +103,10 @@ pub struct PourUnit {
     pub number: u32,
     pub grade: String,
     pub parts: BTreeSet<ObjectId>,
+    /// Centre of the zone when it was stored: tells apart the zones of a
+    /// part split by a joint.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub centre: Option<Point3>,
 }
 
 /// How a bar set was made.
@@ -176,14 +254,19 @@ impl Concrete {
             if !s.iter().chain(&e).all(|v| v.is_finite() && v.abs() <= 1e9) {
                 return bad("Шов бетонирования: неверные координаты");
             }
+            if b.horizontal && ((e[0] - s[0]).abs() < 1. || (e[1] - s[1]).abs() < 1.) {
+                return bad("Горизонтальный шов: укажите два угла области в плане");
+            }
             if (e[0] - s[0]).hypot(e[1] - s[1]) < 1. {
                 return bad("Шов бетонирования: точки совпадают в плане");
             }
         }
+        // A part split by a joint is poured in two units, so only the
+        // numbers must differ.
         let mut seen = BTreeSet::new();
         for u in &self.units {
-            if u.parts.iter().any(|p| !seen.insert(*p)) {
-                return bad("Деталь входит в две единицы бетонирования");
+            if !seen.insert(u.number) {
+                return bad("Номер захватки повторяется");
             }
         }
         let mut numbers = BTreeSet::new();
