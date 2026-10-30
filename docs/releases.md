@@ -1,5 +1,24 @@
 # Releases
 
+## Application branding and native packaging
+
+The default application logo is the structural letter O, shared by all native
+packages. The source and generated ICNS/ICO/PNG assets live in `assets/icons`.
+The macOS bundle declares `CFBundleIconFile`; the Windows build embeds the ICO
+using `winresource`; the native viewport embeds the PNG. Linux ships hicolor
+icons and `org.openbim.OpenBIM.desktop`, matching the window's application ID.
+
+Native packaging entry points:
+
+- macOS: `scripts/package-macos.sh` → `.app` and `.zip`.
+- Windows (PowerShell 7): `scripts/package-windows.ps1` → `.zip` with EXEs.
+- Linux: `scripts/package-linux.sh` → `.tar.gz`; the included `install.sh`
+  installs binaries, icons and the desktop entry under `~/.local` by default.
+
+The `Native application packages` workflow builds these on their respective
+GitHub runners when manually dispatched. Windows/Linux support in the original
+0.1.0 audit below remains unverified until native builds and runtime checks pass.
+
 ## 0.1.0 — first steel release (local, macOS ARM64)
 
 Package: `scripts/package-macos.sh` → `dist/Open BIM.app` and

@@ -1674,10 +1674,15 @@ fn gizmo_axis_at(camera: &Camera, rect: egui::Rect, p: egui::Pos2) -> Option<Nam
 fn main() -> eframe::Result {
     let options = Options::parse().map_err(|e| eframe::Error::AppCreation(e.into()))?;
     let size = options.size.unwrap_or([1280.0, 800.0]);
+    let icon =
+        eframe::icon_data::from_png_bytes(include_bytes!("../../../assets/icons/256x256.png"))
+            .map_err(|e| eframe::Error::AppCreation(e.into()))?;
     eframe::run_native(
         "Open BIM",
         eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default()
+                .with_app_id("org.openbim.OpenBIM")
+                .with_icon(icon)
                 .with_inner_size(size)
                 .with_min_inner_size([1000.0, 600.0]),
             renderer: eframe::Renderer::Wgpu,

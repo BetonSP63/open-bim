@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Open BIM
+Comment=Building structure modeling and detailing
+Comment[ru]=Моделирование и деталировка строительных конструкций
+Exec=open-bim-desktop
+Icon=org.openbim.OpenBIM
+Terminal=false
+Categories=Graphics;3DGraphics;Engineering;
+Keywords=BIM;CAD;IFC;
+StartupWMClass=org.openbim.OpenBIM

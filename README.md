@@ -1,3 +1,5 @@
+<img src="assets/icons/128x128.png" width="128" height="128" alt="Логотип Open BIM">
+
 # Open BIM
 
 Открытое desktop-приложение на Rust для моделирования и деталировки строительных конструкций. Разработка начинается со стали на macOS ARM64, затем добавляются бетон и арматура.
@@ -27,7 +29,38 @@ scripts/package-macos.sh
 ```
 
 Создаёт `dist/Open BIM.app` и zip-архив (без подписи и нотаризации, см. [релизы](docs/releases.md)).
+Основной значок приложения — объёмная буква **O** из профилей с голубой узловой
+пластиной. Один исходник используется в macOS (`.icns`), Windows (`.ico`) и Linux
+(PNG); исходник и размеры находятся в [`assets/icons`](assets/icons/README.md).
 Управление с клавиатуры: ⌘P — поиск команд, F1 — все горячие клавиши, F2/F3/F4 — модель/чертежи/ведомости.
+
+## Упаковка для Windows и Linux
+
+На Windows с Rust MSVC, Visual Studio Build Tools / Windows SDK и PowerShell 7:
+
+```powershell
+./scripts/package-windows.ps1
+```
+
+В `dist/` создаётся ZIP с EXE, содержащим значок приложения, и примерами моделей.
+
+На Linux с Rust, C/C++ toolchain, pkg-config и пакетами разработки Wayland,
+xkbcommon и Vulkan (Ubuntu: `libwayland-dev libxkbcommon-dev libvulkan-dev`):
+
+```sh
+scripts/package-linux.sh
+```
+
+Распакуйте архив из `dist/` и запустите внутри `./install.sh`: приложение и ярлык
+с основным значком установятся в `~/.local`. Для другого каталога передайте
+абсолютный префикс: `./install.sh /path/to/prefix`. Оконные бэкенды X11 и Wayland
+включены для Linux; для выбора файлов нужен работающий `xdg-desktop-portal`
+с бэкендом окружения рабочего стола.
+
+Все три упаковки также доступны через ручной запуск workflow
+`Native application packages` в GitHub Actions. Локальная проверка на macOS
+не подтверждает работу приложения на Windows и Linux; для этого нужны нативные
+сборки и запуск на соответствующих системах.
 
 ## Пример стального выпуска
 

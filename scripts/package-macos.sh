@@ -22,6 +22,7 @@ cp target/release/open-bim-synthetic "$app/Contents/MacOS/open-bim-synthetic"
 cp tests/fixtures/steel_release/source.obim "$app/Contents/Resources/examples/steel-release.obim"
 cp tests/fixtures/drawings/control.obim "$app/Contents/Resources/examples/drawing-control.obim"
 cp LICENSE README.md "$app/Contents/Resources/"
+cp assets/icons/open-bim.icns "$app/Contents/Resources/OpenBIM.icns"
 cat > "$app/Contents/MacOS/Open BIM" <<'LAUNCH'
 #!/bin/sh
 # Launcher: opens the bundled steel example when started without arguments.
@@ -42,6 +43,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>CFBundleIdentifier</key><string>org.openbim.desktop</string>
   <key>CFBundleName</key><string>Open BIM</string>
   <key>CFBundleDisplayName</key><string>Open BIM</string>
+  <key>CFBundleIconFile</key><string>OpenBIM.icns</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$version</string>
   <key>CFBundleVersion</key><string>$version</string>
