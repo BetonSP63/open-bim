@@ -26,6 +26,15 @@ pub enum Family {
     IBeamNormal57837,
     IBeamWide57837,
     IBeamColumn57837,
+    IBeamExtraNormal57837,
+    IBeamExtraColumn57837,
+    IBeamPile57837,
+    IBeamNormalSto,
+    IBeamWideSto,
+    IBeamColumnSto,
+    TeeNormal,
+    TeeWide,
+    TeeColumn,
     Channel,
     ChannelP,
     Angle,
@@ -33,22 +42,33 @@ pub enum Family {
     Pipe,
     SquareTube,
     RectTube,
+    PipeWaterGas,
 }
 
 impl Family {
-    pub const ALL: [Self; 14] = [
+    pub const ALL: [Self; 24] = [
         Self::IBeamNormal57837,
         Self::IBeamWide57837,
         Self::IBeamColumn57837,
+        Self::IBeamExtraNormal57837,
+        Self::IBeamExtraColumn57837,
+        Self::IBeamPile57837,
         Self::IBeamNormal,
         Self::IBeamWide,
         Self::IBeamColumn,
         Self::IBeamSloped,
+        Self::IBeamNormalSto,
+        Self::IBeamWideSto,
+        Self::IBeamColumnSto,
+        Self::TeeNormal,
+        Self::TeeWide,
+        Self::TeeColumn,
         Self::Channel,
         Self::ChannelP,
         Self::Angle,
         Self::AngleUnequal,
         Self::Pipe,
+        Self::PipeWaterGas,
         Self::SquareTube,
         Self::RectTube,
     ];
@@ -61,11 +81,21 @@ impl Family {
             Self::IBeamNormal57837 => "Двутавры балочные Б (ГОСТ Р 57837)",
             Self::IBeamWide57837 => "Двутавры широкополочные Ш (ГОСТ Р 57837)",
             Self::IBeamColumn57837 => "Двутавры колонные К (ГОСТ Р 57837)",
+            Self::IBeamExtraNormal57837 => "Двутавры дополнительные балочные ДБ (ГОСТ Р 57837)",
+            Self::IBeamExtraColumn57837 => "Двутавры дополнительные колонные ДК (ГОСТ Р 57837)",
+            Self::IBeamPile57837 => "Двутавры свайные С (ГОСТ Р 57837)",
+            Self::IBeamNormalSto => "Двутавры балочные Б (СТО АСЧМ 20-93)",
+            Self::IBeamWideSto => "Двутавры широкополочные Ш (СТО АСЧМ 20-93)",
+            Self::IBeamColumnSto => "Двутавры колонные К (СТО АСЧМ 20-93)",
+            Self::TeeNormal => "Тавры из двутавров Б (ГОСТ 26020)",
+            Self::TeeWide => "Тавры из двутавров Ш (ГОСТ 26020)",
+            Self::TeeColumn => "Тавры из двутавров К (ГОСТ 26020)",
             Self::Channel => "Швеллеры с уклоном полок У (ГОСТ 8240)",
             Self::ChannelP => "Швеллеры с параллельными гранями полок П (ГОСТ 8240)",
             Self::Angle => "Уголки равнополочные (ГОСТ 8509)",
             Self::AngleUnequal => "Уголки неравнополочные (ГОСТ 8510)",
-            Self::Pipe => "Трубы круглые (ГОСТ 10704)",
+            Self::Pipe => "Трубы электросварные (ГОСТ 10704)",
+            Self::PipeWaterGas => "Трубы водогазопроводные ВГП (ГОСТ 3262)",
             Self::SquareTube => "Трубы квадратные (ГОСТ 30245)",
             Self::RectTube => "Трубы прямоугольные (ГОСТ 30245)",
         }
@@ -114,75 +144,27 @@ const GOST_8240: &str = "ГОСТ 8240-97";
 const GOST_8509: &str = "ГОСТ 8509-93";
 const GOST_8510: &str = "ГОСТ 8510-86";
 const GOST_10704: &str = "ГОСТ 10704-91";
+const GOST_3262: &str = "ГОСТ 3262-75";
+const STO_ASCM: &str = "СТО АСЧМ 20-93";
+/// Suffix that keeps СТО АСЧМ 20-93 names apart from ГОСТ 26020 and
+/// ГОСТ Р 57837.
+const SUFFIX_STO: &str = " (СТО АСЧМ)";
+/// Prefix of a tee cut from a ГОСТ 26020 beam along the web axis.
+const TEE_PREFIX: &str = "Тавр ½";
 const GOST_30245: &str = "ГОСТ 30245-2003";
-
-/// ГОСТ 26020-83: name, h, b, s, t, R, A cm².
-const I_PARALLEL: [(&str, f64, f64, f64, f64, f64, f64); 55] = [
-    ("10Б1", 100., 55., 4.1, 5.7, 7., 10.32),
-    ("12Б1", 117.6, 64., 3.8, 5.1, 7., 11.03),
-    ("12Б2", 120., 64., 4.4, 6.3, 7., 13.21),
-    ("14Б1", 137.4, 73., 3.8, 5.6, 7., 13.39),
-    ("14Б2", 140., 73., 4.7, 6.9, 7., 16.43),
-    ("16Б1", 157., 82., 4.0, 5.9, 9., 16.18),
-    ("16Б2", 160., 82., 5.0, 7.4, 9., 20.09),
-    ("18Б1", 177., 91., 4.3, 6.5, 9., 19.58),
-    ("18Б2", 180., 91., 5.3, 8.0, 9., 23.95),
-    ("20Б1", 200., 100., 5.6, 8.5, 12., 28.49),
-    ("23Б1", 230., 110., 5.6, 9.0, 12., 32.91),
-    ("26Б1", 258., 120., 5.8, 8.5, 12., 35.62),
-    ("26Б2", 261., 120., 6.0, 10.0, 12., 39.70),
-    ("30Б1", 296., 140., 5.8, 8.5, 15., 41.92),
-    ("30Б2", 299., 140., 6.0, 10.0, 15., 46.67),
-    ("35Б1", 346., 155., 6.2, 8.5, 18., 49.53),
-    ("35Б2", 349., 155., 6.5, 10.0, 18., 55.17),
-    ("40Б1", 392., 165., 7.0, 9.5, 21., 61.25),
-    ("40Б2", 396., 165., 7.5, 11.5, 21., 69.72),
-    ("45Б1", 443., 180., 7.8, 11.0, 21., 76.23),
-    ("45Б2", 447., 180., 8.4, 13.0, 21., 85.96),
-    ("50Б1", 492., 200., 8.8, 12.0, 21., 92.98),
-    ("50Б2", 496., 200., 9.2, 14.0, 21., 102.8),
-    ("55Б1", 543., 220., 9.5, 13.5, 24., 113.37),
-    ("55Б2", 547., 220., 10.0, 15.5, 24., 124.75),
-    ("60Б1", 593., 230., 10.5, 15.5, 24., 135.26),
-    ("60Б2", 597., 230., 11.0, 17.5, 24., 147.3),
-    ("20Ш1", 193., 150., 6.0, 9.0, 13., 38.95),
-    ("23Ш1", 226., 155., 6.5, 10.0, 14., 46.08),
-    ("26Ш1", 251., 180., 7.0, 10.0, 16., 54.37),
-    ("26Ш2", 255., 180., 7.5, 12.0, 16., 62.73),
-    ("30Ш1", 291., 200., 8.0, 11.0, 18., 68.31),
-    ("30Ш2", 295., 200., 8.5, 13.0, 18., 77.65),
-    ("35Ш1", 338., 250., 9.5, 12.5, 20., 95.67),
-    ("35Ш2", 341., 250., 10.0, 14.0, 20., 104.74),
-    ("40Ш1", 388., 300., 9.5, 14.0, 22., 122.4),
-    ("40Ш2", 392., 300., 11.5, 16.0, 22., 141.6),
-    ("50Ш1", 484., 300., 11.0, 15.0, 26., 145.7),
-    ("50Ш2", 489., 300., 14.5, 17.5, 26., 176.6),
-    ("60Ш1", 580., 320., 12.0, 17.0, 28., 181.1),
-    ("20К1", 195., 200., 6.5, 10.0, 13., 52.82),
-    ("20К2", 198., 200., 7.0, 11.5, 13., 59.7),
-    ("23К1", 227., 240., 7.0, 10.5, 14., 66.51),
-    ("23К2", 230., 240., 8.0, 12.0, 14., 75.77),
-    ("26К1", 255., 260., 8.0, 12.0, 16., 83.08),
-    ("26К2", 258., 260., 9.0, 13.5, 16., 93.19),
-    ("26К3", 262., 260., 10.0, 15.5, 16., 105.9),
-    ("30К1", 296., 300., 9.0, 13.5, 18., 108.0),
-    ("30К2", 300., 300., 10.0, 15.5, 18., 122.7),
-    ("30К3", 304., 300., 11.5, 17.5, 18., 138.72),
-    ("35К1", 343., 350., 10.0, 15.0, 20., 139.7),
-    ("35К2", 348., 350., 11.0, 17.5, 20., 160.4),
-    ("35К3", 353., 350., 13.0, 20.0, 20., 184.1),
-    ("40К1", 393., 400., 11.0, 16.5, 22., 175.8),
-    ("40К2", 400., 400., 13.0, 20.0, 22., 210.96),
-];
 
 /// Sourced reference tables (`data/reference`, see its `sources.md`).
 const I_8239_CSV: &str = include_str!("../../../data/reference/i_beams_gost_8239_89.csv");
+const I_26020_CSV: &str = include_str!("../../../data/reference/i_beams_gost_26020_83.csv");
 const I_57837_CSV: &str = include_str!("../../../data/reference/i_beams_gost_r_57837_2017.csv");
+const I_STO_CSV: &str = include_str!("../../../data/reference/i_beams_sto_ascm_20_93.csv");
 const CHANNELS_CSV: &str = include_str!("../../../data/reference/channels_gost_8240_97.csv");
 const ANGLES_CSV: &str = include_str!("../../../data/reference/angles_equal_gost_8509_93.csv");
 const ANGLES_UNEQUAL_CSV: &str =
     include_str!("../../../data/reference/angles_unequal_gost_8510_86.csv");
 const PIPES_CSV: &str = include_str!("../../../data/reference/pipes_round_gost_10704_91.csv");
+const PIPES_3262_CSV: &str =
+    include_str!("../../../data/reference/pipes_water_gas_gost_3262_75.csv");
 const TUBES_CSV: &str = include_str!("../../../data/reference/hollow_sections_gost_30245_2003.csv");
 const STEELS_CSV: &str = include_str!("../../../data/reference/steel_grades.csv");
 
@@ -256,9 +238,9 @@ fn i_sloped() -> Vec<(&'static str, f64, f64, f64, f64, f64, f64)> {
         .collect()
 }
 
-/// ГОСТ Р 57837-2017 rows: designation, h, b, tw, tf, r, A cm².
-fn i_57837() -> Vec<(&'static str, f64, f64, f64, f64, f64, f64)> {
-    table(I_57837_CSV)
+/// Parallel-flange beam rows: designation, h, b, tw, tf, r, A cm².
+fn i_rows(csv: &'static str) -> Vec<(&'static str, f64, f64, f64, f64, f64, f64)> {
+    table(csv)
         .iter()
         .map(|r| {
             let n = |c| r.num(c);
@@ -273,6 +255,21 @@ fn i_57837() -> Vec<(&'static str, f64, f64, f64, f64, f64, f64)> {
             )
         })
         .collect()
+}
+
+/// ГОСТ 26020-83, series Б, Ш and К.
+fn i_26020() -> Vec<(&'static str, f64, f64, f64, f64, f64, f64)> {
+    i_rows(I_26020_CSV)
+}
+
+/// ГОСТ Р 57837-2017.
+fn i_57837() -> Vec<(&'static str, f64, f64, f64, f64, f64, f64)> {
+    i_rows(I_57837_CSV)
+}
+
+/// СТО АСЧМ 20-93, series Б, Ш and К.
+fn i_sto() -> Vec<(&'static str, f64, f64, f64, f64, f64, f64)> {
+    i_rows(I_STO_CSV)
 }
 
 /// ГОСТ 8240-97, series У and П: №, h, b, s, t (mean flange), R, A cm².
@@ -324,6 +321,33 @@ fn pipes() -> Vec<(f64, f64)> {
         .collect()
 }
 
+/// ГОСТ 3262-75: nominal bore Dy, D, t.
+fn pipes_3262() -> Vec<(&'static str, f64, f64)> {
+    table(PIPES_3262_CSV)
+        .iter()
+        .map(|r| (r.text("Dy"), r.num("D"), r.num("t")))
+        .collect()
+}
+
+/// Half of an I-section cut along the web axis, flange up, centred on its
+/// bounds like the other shapes.
+fn tee(h: f64, b: f64, s: f64, t: f64) -> ProfileShape {
+    let (y0, y1) = (-h / 4.0, h / 4.0);
+    ProfileShape::Polygon {
+        outer: vec![
+            [-s / 2.0, y0],
+            [s / 2.0, y0],
+            [s / 2.0, y1 - t],
+            [b / 2.0, y1 - t],
+            [b / 2.0, y1],
+            [-b / 2.0, y1],
+            [-b / 2.0, y1 - t],
+            [-s / 2.0, y1 - t],
+        ],
+        voids: Vec::new(),
+    }
+}
+
 /// ГОСТ 30245-2003: H, B, t, outer corner radius R, A cm².
 fn tubes() -> Vec<(f64, f64, f64, f64, f64)> {
     table(TUBES_CSV)
@@ -356,7 +380,8 @@ fn all() -> &'static [Entry] {
 
 fn read_sections() -> Vec<Entry> {
     let mut out = Vec::new();
-    for (name, h, b, s, t, r, a) in I_PARALLEL {
+    let parallel = i_26020();
+    for &(name, h, b, s, t, r, a) in &parallel {
         let family = if name.contains('Б') {
             Family::IBeamNormal
         } else if name.contains('Ш') {
@@ -379,7 +404,13 @@ fn read_sections() -> Vec<Entry> {
         });
     }
     for (name, h, b, s, t, r, a) in i_57837() {
-        let family = if name.contains('Б') {
+        let family = if name.contains("ДБ") {
+            Family::IBeamExtraNormal57837
+        } else if name.contains("ДК") {
+            Family::IBeamExtraColumn57837
+        } else if name.contains('С') {
+            Family::IBeamPile57837
+        } else if name.contains('Б') {
             Family::IBeamNormal57837
         } else if name.contains('Ш') {
             Family::IBeamWide57837
@@ -396,6 +427,28 @@ fn read_sections() -> Vec<Entry> {
                 flange: t,
             },
             standard: GOST_57837,
+            area_mm2: a * 100.0,
+            radius: r,
+        });
+    }
+    for (name, h, b, s, t, r, a) in i_sto() {
+        let family = if name.contains('Б') {
+            Family::IBeamNormalSto
+        } else if name.contains('Ш') {
+            Family::IBeamWideSto
+        } else {
+            Family::IBeamColumnSto
+        };
+        out.push(Entry {
+            name: format!("{name}{SUFFIX_STO}"),
+            family,
+            shape: ProfileShape::ISection {
+                height: h,
+                width: b,
+                web: s,
+                flange: t,
+            },
+            standard: STO_ASCM,
             area_mm2: a * 100.0,
             radius: r,
         });
@@ -431,6 +484,23 @@ fn read_sections() -> Vec<Entry> {
             },
             standard: GOST_8240,
             area_mm2: a * 100.0,
+            radius: r,
+        });
+    }
+    for &(name, h, b, s, t, r, a) in &parallel {
+        let family = if name.contains('Б') {
+            Family::TeeNormal
+        } else if name.contains('Ш') {
+            Family::TeeWide
+        } else {
+            Family::TeeColumn
+        };
+        out.push(Entry {
+            name: format!("{TEE_PREFIX}{name}"),
+            family,
+            shape: tee(h, b, s, t),
+            standard: GOST_26020,
+            area_mm2: a * 50.0,
             radius: r,
         });
     }
@@ -471,6 +541,19 @@ fn read_sections() -> Vec<Entry> {
                 thickness: t,
             },
             standard: GOST_10704,
+            area_mm2: std::f64::consts::PI * t * (d - t),
+            radius: 0.0,
+        });
+    }
+    for (dy, d, t) in pipes_3262() {
+        out.push(Entry {
+            name: format!("Труба ВГП {dy}×{}", fmt(t)),
+            family: Family::PipeWaterGas,
+            shape: ProfileShape::CircularHollow {
+                diameter: d,
+                thickness: t,
+            },
+            standard: GOST_3262,
             area_mm2: std::f64::consts::PI * t * (d - t),
             radius: 0.0,
         });
@@ -563,7 +646,9 @@ mod tests {
 
     #[test]
     fn parallel_flange_beams_match_their_areas_within_one_percent() {
-        for (name, h, b, s, t, r, a) in I_PARALLEL {
+        let rows = i_26020();
+        assert_eq!(rows.len(), 65);
+        for (name, h, b, s, t, r, a) in rows {
             let computed = i_area(h, b, s, t, r);
             let listed = a * 100.0;
             let err = (computed - listed).abs() / listed;
@@ -574,7 +659,7 @@ mod tests {
     #[test]
     fn gost_57837_beams_match_their_areas_within_one_percent() {
         let rows = i_57837();
-        assert_eq!(rows.len(), 171);
+        assert_eq!(rows.len(), 340);
         for (name, h, b, s, t, r, a) in rows {
             let computed = i_area(h, b, s, t, r);
             let listed = a * 100.0;
@@ -587,6 +672,17 @@ mod tests {
         assert_eq!(new.standard, "ГОСТ Р 57837-2017");
         assert!((new.area_mm2 - 2716.0).abs() < 1.0);
         assert_eq!(section("20Б1").unwrap().standard, "ГОСТ 26020-83");
+        // The official 2019 edition with Amendment 1: all series.
+        for (name, family) in [
+            ("40К19 (Р 57837)", Family::IBeamColumn57837),
+            ("35К1.5 (Р 57837)", Family::IBeamColumn57837),
+            ("100ДБ3 (Р 57837)", Family::IBeamExtraNormal57837),
+            ("10ДК0 (Р 57837)", Family::IBeamExtraColumn57837),
+            ("40С3 (Р 57837)", Family::IBeamPile57837),
+        ] {
+            assert_eq!(section(name).unwrap().family, family, "{name}");
+        }
+        assert!(section("20Б0 (Р 57837)").is_none());
     }
 
     #[test]
@@ -654,11 +750,109 @@ mod tests {
             assert_eq!(section(&e.name).as_ref(), Some(e));
         }
         assert!(all.len() > 1200);
-        assert_eq!(search("30б").len(), 2 + 4);
+        // ГОСТ 26020, Р 57837, СТО АСЧМ and the two tees.
+        assert_eq!(search("30б").len(), 2 + 4 + 2 + 2);
+        assert_eq!(search("30дб").len(), 8);
         assert_eq!(search("30б 57837").len(), 4);
         assert_eq!(search("Труба 219×").len(), 14);
         assert!((section("20Б1").unwrap().mass_kg_m() - 22.4).abs() < 0.05);
         assert!((section("I20").unwrap().mass_kg_m() - 21.0).abs() < 0.05);
+    }
+
+    #[test]
+    fn sto_beams_match_their_areas_and_keep_their_own_names() {
+        let rows = i_sto();
+        assert_eq!(rows.len(), 74);
+        for (name, h, b, s, t, r, a) in rows {
+            let err = (i_area(h, b, s, t, r) - a * 100.0).abs() / (a * 100.0);
+            assert!(err < 0.01, "{name}: {err:.4}");
+        }
+        // Same name, other sections: 20Б1 is 200×100×5.5×8 here.
+        let sto = section("20Б1 (СТО АСЧМ)").unwrap();
+        assert_eq!(sto.standard, "СТО АСЧМ 20-93");
+        assert_eq!(sto.family, Family::IBeamNormalSto);
+        assert!((sto.area_mm2 - 2716.0).abs() < 1.0);
+        assert_eq!(
+            section("100Ш4 (СТО АСЧМ)").unwrap().family,
+            Family::IBeamWideSto
+        );
+        assert_eq!(
+            section("40К5 (СТО АСЧМ)").unwrap().family,
+            Family::IBeamColumnSto
+        );
+    }
+
+    #[test]
+    fn deep_gost_26020_beams_are_listed() {
+        for name in ["70Б1", "80Б2", "90Б1", "100Б4"] {
+            assert_eq!(section(name).unwrap().standard, "ГОСТ 26020-83", "{name}");
+        }
+        // 100Б4: A = 400,6 cm², 314,5 kg/m.
+        assert!((section("100Б4").unwrap().mass_kg_m() - 314.5).abs() < 0.1);
+    }
+
+    #[test]
+    fn tees_are_halves_of_their_beams() {
+        let beams: Vec<_> = sections()
+            .into_iter()
+            .filter(|e| {
+                matches!(
+                    e.family,
+                    Family::IBeamNormal | Family::IBeamWide | Family::IBeamColumn
+                )
+            })
+            .collect();
+        for beam in &beams {
+            let tee = section(&format!("Тавр ½{}", beam.name)).unwrap();
+            assert_eq!(tee.standard, beam.standard);
+            assert!((2.0 * tee.area_mm2 - beam.area_mm2).abs() < 1e-6);
+            let half = beam.shape.area_mm2().unwrap() / 2.0;
+            assert!(
+                (tee.shape.area_mm2().unwrap() - half).abs() < 1e-6,
+                "{}",
+                tee.name
+            );
+            let ProfileShape::ISection { height, width, .. } = beam.shape else {
+                panic!()
+            };
+            let [x0, x1, y0, y1] = tee.shape.bounds().unwrap();
+            assert!((x1 - x0 - width).abs() < 1e-9 && (y1 - y0 - height / 2.0).abs() < 1e-9);
+            assert!((x0 + x1).abs() < 1e-9 && (y0 + y1).abs() < 1e-9);
+        }
+        let t = section("Тавр ½30Ш1").unwrap();
+        assert_eq!(t.family, Family::TeeWide);
+        assert!((t.mass_kg_m() - 26.8).abs() < 0.05, "{}", t.mass_kg_m());
+    }
+
+    #[test]
+    fn pipes_cover_gost_10704_and_water_gas_pipes() {
+        let pipes = pipes();
+        assert_eq!(pipes.len(), 803);
+        let (dmin, dmax) = pipes
+            .iter()
+            .fold((f64::MAX, 0.0f64), |(a, b), (d, _)| (a.min(*d), b.max(*d)));
+        assert_eq!((dmin, dmax), (10.0, 1420.0));
+        // The mass of the tables is the exact formula of the standards.
+        for row in table(PIPES_CSV).iter().chain(table(PIPES_3262_CSV).iter()) {
+            let (d, t, m) = (row.num("D"), row.num("t"), row.num("mass_kg_m"));
+            let f = 0.0246615 * t * (d - t);
+            assert!((f - m).abs() <= 0.011 + 0.002 * m, "{d}×{t}: {m} vs {f:.3}");
+        }
+        assert!(section("Труба 1420×20").is_some());
+        assert!(section("Труба 159×8").is_none());
+        let vgp = section("Труба ВГП 20×2,8").unwrap();
+        assert_eq!(vgp.standard, "ГОСТ 3262-75");
+        assert_eq!(vgp.family, Family::PipeWaterGas);
+        assert_eq!(
+            vgp.shape,
+            ProfileShape::CircularHollow {
+                diameter: 26.8,
+                thickness: 2.8
+            }
+        );
+        assert!((vgp.mass_kg_m() - 1.66).abs() < 0.01);
+        assert_eq!(table(PIPES_3262_CSV).len(), 47);
+        assert_eq!(search("вгп 15×").len(), 4);
     }
 
     #[test]
