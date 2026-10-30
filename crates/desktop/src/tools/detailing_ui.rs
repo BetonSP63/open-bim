@@ -57,6 +57,8 @@ pub struct DetailingUi {
     pub size: [String; 3],
     pub diameter: String,
     pub depth: String,
+    /// Slotted holes: extra length along the hole (group) X, mm; empty or 0 — round.
+    pub slot: String,
     pub offset: String,
     pub axis: usize,
     pub clearance: String,
@@ -109,6 +111,7 @@ impl Default for DetailingUi {
             size: ["20".into(), "20".into(), "22".into()],
             diameter: "20".into(),
             depth: "42".into(),
+            slot: "0".into(),
             offset: "150".into(),
             axis: 2,
             clearance: "2".into(),
@@ -144,6 +147,17 @@ impl Default for DetailingUi {
     }
 }
 impl DetailingUi {
+    /// Slot length of the holes, mm (0 for round holes).
+    pub fn slot(&self) -> Result<f64, String> {
+        if self.slot.trim().is_empty() {
+            return Ok(0.0);
+        }
+        let slot = number(&self.slot)?;
+        if slot < 0.0 {
+            return Err("Длина овала не может быть отрицательной".into());
+        }
+        Ok(slot)
+    }
     pub fn commands(
         &self,
         project: &Project,
@@ -178,6 +192,7 @@ impl DetailingUi {
                     standard: self.standard.clone(),
                     grade: self.grade.clone(),
                     points,
+                    slot: self.slot()?,
                 },
             )
             .map_err(|e| e.to_string());
@@ -196,6 +211,7 @@ impl DetailingUi {
                     frame,
                     diameter: number(&self.diameter)?,
                     depth: number(&self.depth)?,
+                    slot: self.slot()?,
                 },
                 DetailTool::Plane => DetailKind::PlaneCut {
                     part,
@@ -269,6 +285,7 @@ impl DetailingUi {
                 DetailTool::Hole | DetailTool::Bolts => {
                     field(ui, "Диаметр, мм", &mut self.diameter);
                     field(ui, "Глубина, мм", &mut self.depth);
+                    field(ui, "Овал по X, мм", &mut self.slot);
                     if self.kind == DetailTool::Bolts {
                         field(ui, "Зазор отверстия, мм", &mut self.clearance);
                         field(ui, "Шаги X через ;", &mut self.steps_x);

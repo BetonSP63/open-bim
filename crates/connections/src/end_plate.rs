@@ -339,6 +339,7 @@ pub fn rebuild_end_plates(project: &mut Project, previous: &Project) -> Result<(
                                 frame,
                                 diameter: t.bolt_diameter + t.clearance,
                                 depth: recipe.hole_depth,
+                                slot: 0.0,
                             },
                         },
                     );

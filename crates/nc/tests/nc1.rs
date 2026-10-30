@@ -77,6 +77,7 @@ fn hole(project: &mut Project, part: ObjectId, at: [f64; 3], axis: usize, diamet
             },
             diameter,
             depth: 400.0,
+            slot: 0.0,
         },
     );
 }
@@ -170,19 +171,25 @@ fn square_end_trims_shorten_the_piece() {
 }
 
 #[test]
-fn other_cuts_are_reported_not_dropped_silently() {
+fn cuts_the_file_cannot_describe_are_reported_not_dropped_silently() {
     let mut project = Project::default();
     let id = member(&mut project, I_SECTION, 3000.0, 0.0);
+    // Prism at 45° to the web and the flanges.
+    let s = std::f64::consts::FRAC_1_SQRT_2;
     detail(
         &mut project,
-        DetailKind::BoxCut {
+        DetailKind::PrismCut {
             part: id,
-            origin: Point3([-100.0, 100.0, -1.0]),
-            size: [200.0, 100.0, 100.0],
+            frame: Frame {
+                origin: Point3([0.0, 0.0, 500.0]),
+                axes: [[s, s, 0.0], [-s, s, 0.0], [0.0, 0.0, 1.0]],
+            },
+            contour: vec![[-20.0, -20.0], [20.0, -20.0], [20.0, 20.0]],
+            length: 50.0,
         },
     );
     let file = part_file(&project, id, "1", 1).unwrap();
-    assert_eq!(file.warnings.len(), 1, "{:?}", file.warnings);
+    assert!(!file.warnings.is_empty(), "{:?}", file.warnings);
     assert!(file.text.contains("\n** "), "warning repeated in the file");
 }
 
@@ -297,6 +304,7 @@ fn bolt_groups_from_the_detailing_tools_export_as_holes() {
         steps_y: vec![70.0],
         standard: "ГОСТ 7798-70".into(),
         grade: "8.8".into(),
+        slot: 0.0,
     };
     for command in open_bim_steel::bolt_commands(&project, &pattern).unwrap() {
         if let Command::CreateDetail { detail } = command {

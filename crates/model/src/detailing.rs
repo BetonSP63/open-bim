@@ -20,6 +20,10 @@ fn is_manual(p: &WeldProcess) -> bool {
     *p == WeldProcess::Manual
 }
 
+fn is_zero(v: &f64) -> bool {
+    *v == 0.0
+}
+
 fn is_one_side(s: &WeldSides) -> bool {
     *s == WeldSides::One
 }
@@ -59,6 +63,10 @@ pub enum DetailKind {
         frame: Frame,
         diameter: f64,
         depth: f64,
+        /// Slotted hole: extra length along the frame X, centred on the
+        /// origin (centre distance of the two half circles), mm; 0 — round.
+        #[serde(default, skip_serializing_if = "is_zero")]
+        slot: f64,
     },
     BoltGroup {
         parts: BTreeSet<ObjectId>,
@@ -251,10 +259,15 @@ impl DetailKind {
                 frame,
                 diameter,
                 depth,
+                slot,
             } => {
                 part(*id)?;
                 frame.validate()?;
-                if !positive(*diameter) || !positive(*depth) {
+                if !positive(*diameter)
+                    || !positive(*depth)
+                    || !slot.is_finite()
+                    || !(0.0..=1e5).contains(slot)
+                {
                     return Err(invalid());
                 }
             }
