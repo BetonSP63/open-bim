@@ -109,6 +109,9 @@ pub enum Command {
     SetDocumentInfo {
         info: Box<open_bim_model::DocumentInfo>,
     },
+    SetModelViews {
+        views: Vec<open_bim_model::ModelViewDefinition>,
+    },
     RenameProject {
         name: String,
     },
@@ -757,6 +760,15 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
                     properties.remove(key);
                 }
             }
+        }
+        Command::SetModelViews { views } => {
+            if views.len() > 256 {
+                return Err(ModelError::InvalidValue("Слишком много видов модели".into()).into());
+            }
+            for view in views {
+                view.validate()?;
+            }
+            project.model_views = views.clone();
         }
         Command::RenameProject { name } => project.name = name.clone(),
         Command::SetGridSettings { settings } => {

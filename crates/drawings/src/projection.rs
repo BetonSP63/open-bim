@@ -77,6 +77,7 @@ impl ViewBasis {
 }
 
 /// World-placed tessellation of one part with a ray-cast acceleration tree.
+#[derive(Clone)]
 pub struct PartMesh {
     pub id: ObjectId,
     pub vertices: Vec<V3>,

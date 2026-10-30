@@ -9,6 +9,8 @@ struct MeshBuffers {
     /// Feature edges as a line list (same vertex layout, zero normals).
     edges: wgpu::Buffer,
     edge_count: u32,
+    wide_edges: wgpu::Buffer,
+    wide_count: u32,
 }
 struct Target {
     color: wgpu::TextureView,
@@ -21,6 +23,7 @@ pub struct GpuRenderer {
     /// See-through parts: blended, depth tested but not written.
     transparent: wgpu::RenderPipeline,
     edges: wgpu::RenderPipeline,
+    wide_edges: wgpu::RenderPipeline,
     composite: wgpu::RenderPipeline,
     uniform: wgpu::Buffer,
     uniform_group: wgpu::BindGroup,
@@ -37,12 +40,14 @@ fn bytes(values: impl IntoIterator<Item = f32>) -> Vec<u8> {
     values.into_iter().flat_map(f32::to_le_bytes).collect()
 }
 const VERTEX: [wgpu::VertexAttribute; 2] = wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
+const EDGE: [wgpu::VertexAttribute; 3] =
+    wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 7 => Float32x2];
 const INSTANCE: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![2 => Float32x4, 3 => Float32x4, 4 => Float32x4, 5 => Float32x4, 6 => Float32x4];
 impl GpuRenderer {
     pub fn new(device: &wgpu::Device, target_format: wgpu::TextureFormat) -> Self {
         let uniform = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("camera + section"),
-            size: 96,
+            size: 112,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -97,19 +102,19 @@ impl GpuRenderer {
             bind_group_layouts: &[Some(&uniform_layout)],
             immediate_size: 0,
         });
-        let geometry = |label, fragment, topology, blend, depth_write, cull_mode| {
+        let geometry = |label, fragment, topology, blend, depth_write, cull_mode, wide| {
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some(label),
                 layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &shader,
-                    entry_point: Some("vs"),
+                    entry_point: Some(if wide { "vs_edge" } else { "vs" }),
                     compilation_options: Default::default(),
                     buffers: &[
                         Some(wgpu::VertexBufferLayout {
-                            array_stride: 24,
+                            array_stride: if wide { 32 } else { 24 },
                             step_mode: wgpu::VertexStepMode::Vertex,
-                            attributes: &VERTEX,
+                            attributes: if wide { &EDGE } else { &VERTEX },
                         }),
                         Some(wgpu::VertexBufferLayout {
                             array_stride: 80,
@@ -146,7 +151,7 @@ impl GpuRenderer {
             })
         };
         let triangles = wgpu::PrimitiveTopology::TriangleList;
-        let pipeline = geometry("BIM geometry", "fs", triangles, None, true, None);
+        let pipeline = geometry("BIM geometry", "fs", triangles, None, true, None, false);
         let transparent = geometry(
             "BIM see-through geometry",
             "fs",
@@ -156,6 +161,7 @@ impl GpuRenderer {
             // Closed, consistently wound solids: the far side of a see-through
             // part is its own back faces, which would only darken it twice.
             Some(wgpu::Face::Back),
+            false,
         );
         let edges = geometry(
             "BIM feature edges",
@@ -164,6 +170,16 @@ impl GpuRenderer {
             None,
             false,
             None,
+            false,
+        );
+        let wide_edges = geometry(
+            "BIM styled edges",
+            "fs_wide_edge",
+            triangles,
+            None,
+            false,
+            None,
+            true,
         );
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("viewport composite"),
@@ -209,6 +225,7 @@ impl GpuRenderer {
             pipeline,
             transparent,
             edges,
+            wide_edges,
             composite,
             uniform,
             uniform_group,
@@ -303,7 +320,20 @@ impl GpuRenderer {
                         }
                     }
                     let mut lines = Vec::new();
+                    let mut wide = Vec::new();
                     for edge in crate::scene::feature_edges(mesh, 25.0) {
+                        for corner in [
+                            [0., -1.],
+                            [1., -1.],
+                            [1., 1.],
+                            [0., -1.],
+                            [1., 1.],
+                            [0., 1.],
+                        ] {
+                            wide.extend(edge[0].to_array().map(|v| v as f32));
+                            wide.extend(edge[1].to_array().map(|v| v as f32));
+                            wide.extend(corner);
+                        }
                         for p in edge {
                             lines.extend(p.to_array().map(|v| v as f32));
                             lines.extend([0.0f32; 3]);
@@ -312,7 +342,17 @@ impl GpuRenderer {
                     if lines.is_empty() {
                         lines.resize(12, 0.0);
                     }
+                    let wide_count = (wide.len() / 8) as u32;
+                    if wide.is_empty() {
+                        wide.resize(8, 0.);
+                    }
                     MeshBuffers {
+                        wide_count,
+                        wide_edges: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("shared styled edges"),
+                            contents: &bytes(wide),
+                            usage: wgpu::BufferUsages::VERTEX,
+                        }),
                         count: (vertices.len() / 6) as u32,
                         vertices: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                             label: Some("shared profile mesh"),
@@ -405,6 +445,17 @@ impl GpuRenderer {
                 ]
             }));
         }
+        let (width, pattern) = state.edge_pen.map_or((1., 0.), |pen| {
+            (
+                pen.width as f32,
+                match pen.line_type {
+                    open_bim_model::LineType::Solid => 0.,
+                    open_bim_model::LineType::Dashed => 1.,
+                    open_bim_model::LineType::DashDot => 2.,
+                },
+            )
+        });
+        values.extend([size[0] as f32, size[1] as f32, width, pattern]);
         queue.write_buffer(&self.uniform, 0, &bytes(values));
         let target = self.target.as_ref().expect("target resized");
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -447,16 +498,35 @@ impl GpuRenderer {
                 pass.draw(0..mesh.count, 0..self.counts[i][layer]);
             }
         }
-        if display.mode != crate::scene::RenderMode::Shaded {
-            pass.set_pipeline(&self.edges);
+        if display.mode != crate::scene::RenderMode::Shaded || state.edge_pen.is_some() {
+            let styled = state.edge_pen.is_some();
+            pass.set_pipeline(if styled {
+                &self.wide_edges
+            } else {
+                &self.edges
+            });
             for layer in 0..2 {
                 for (i, mesh) in self.meshes.iter().enumerate() {
                     if self.counts[i][layer] == 0 {
                         continue;
                     }
-                    pass.set_vertex_buffer(0, mesh.edges.slice(..));
+                    pass.set_vertex_buffer(
+                        0,
+                        if styled {
+                            mesh.wide_edges.slice(..)
+                        } else {
+                            mesh.edges.slice(..)
+                        },
+                    );
                     pass.set_vertex_buffer(1, self.instances[i][layer].slice(..));
-                    pass.draw(0..mesh.edge_count, 0..self.counts[i][layer]);
+                    pass.draw(
+                        0..if styled {
+                            mesh.wide_count
+                        } else {
+                            mesh.edge_count
+                        },
+                        0..self.counts[i][layer],
+                    );
                 }
             }
         }

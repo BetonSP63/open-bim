@@ -16,6 +16,7 @@ pub mod formula;
 mod frame;
 pub mod library;
 pub mod management;
+mod model_views;
 pub mod numbering_rules;
 pub mod parametric;
 mod plugin;
@@ -25,6 +26,7 @@ pub mod sections;
 pub mod shapes;
 mod swept;
 mod validation;
+mod view_settings;
 pub mod weld;
 
 pub use analysis::{
@@ -79,3 +81,7 @@ pub use weld::{
     Intermittent, Joint, JointKind, LEG_SIGN, WeldGost, WeldProcess, WeldSides, WeldType,
     weld_advice, weld_mark, weld_notes, welded_length,
 };
+
+pub use view_settings::{LinePen, ViewAppearance};
+
+pub use model_views::{ModelViewDefinition, ModelViewKind, ModelViewRender};

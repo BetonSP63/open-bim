@@ -66,6 +66,8 @@ fn part_views_hidden_lines_sections_and_reference_svg() {
         scale: Some(10.),
         node: None,
         source: None,
+        section_host: None,
+        appearance: Default::default(),
     });
     let sheet = generate(&f.project, &d).unwrap();
     let s = d.scale;

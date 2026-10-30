@@ -44,6 +44,12 @@ fn mm(v: f64) -> String {
     open_bim_reports::fmt(v)
 }
 
+impl ViewTools {
+    pub(super) fn reset_edit(&mut self) {
+        self.edited = None;
+    }
+}
+
 impl Workbench {
     /// Paint the selected parts with the chosen colour (view only).
     pub fn paint_selected(&mut self) {
@@ -136,7 +142,7 @@ impl Workbench {
                 .map_or([String::new(), String::new()], |d| d.map(mm));
         }
         let mut open = true;
-        let (mut apply, mut save_new) = (false, false);
+        let (mut apply, mut save_new, mut draw_node, mut delete) = (false, false, false, false);
         let mut orthographic = view.orthographic;
         let mut mode = self.display.mode;
         egui::Window::new("Свойства вида")
@@ -181,15 +187,74 @@ impl Workbench {
                             }
                         }
                     });
+                let mut pen = view.edge_pen;
+                ui.collapsing("Линии в модели", |ui| {
+                    let mut custom = pen.is_some();
+                    if ui.checkbox(&mut custom, "Настроить линии этого вида").changed() {
+                        pen = custom.then_some(open_bim_model::LinePen { line_type: open_bim_model::LineType::Solid, width: 1. });
+                    }
+                    if let Some(pen) = &mut pen {
+                        egui::ComboBox::from_id_salt("model edge type").selected_text(pen.line_type.label()).show_ui(ui, |ui| {
+                            for kind in open_bim_model::LineType::ALL { ui.selectable_value(&mut pen.line_type, kind, kind.label()); }
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Толщина на экране, пт");
+                            ui.add(egui::DragValue::new(&mut pen.width).speed(0.05).range(0.05..=2.));
+                        });
+                    }
+                });
+                if pen != view.edge_pen {
+                    self.views[index].edge_pen = pen;
+                    if let Err(error) = self.store_model_views("Линии в виде модели") { self.message(error); }
+                }
+                let mut hidden = view.hidden.clone();
+                ui.collapsing("Детали в этом виде", |ui| {
+                    egui::ScrollArea::vertical().max_height(180.).show(ui, |ui| {
+                        for (id, element) in &self.editor.document.project().elements {
+                            let mut shown = !hidden.contains(id);
+                            if ui.checkbox(&mut shown, format!("#{} {}", id.0, element.name)).changed() {
+                                if shown { hidden.remove(id); } else { hidden.insert(*id); }
+                            }
+                        }
+                    });
+                });
+                if hidden != view.hidden {
+                    self.views[index].hidden = hidden.clone();
+                    self.hidden = hidden;
+                    if let Err(error) = self.store_model_views("Видимость в виде") { self.message(error); }
+                }
+                if matches!(view.kind, super::views::ViewKind::Node { .. }) {
+                    draw_node = ui.button("Создать чертёж узла").on_hover_text("Линии, толщины и видимость редактируются отдельно для каждого вида чертежа").clicked();
+                }
                 ui.horizontal(|ui| {
                     apply = ui.button("Изменить").clicked();
                     save_new = ui.button("Сохранить как новый вид").clicked();
+                    delete = ui.add_enabled(self.views.len() > 1, egui::Button::new("Удалить вид")).clicked();
                 });
             });
         self.view_tools.properties_open = open;
-        self.display.mode = mode;
+        if draw_node && let Err(error) = self.create_node_drawing() {
+            self.message(error);
+        }
+        if delete {
+            match self.delete_model_view() {
+                Ok(request) => requests.push(request),
+                Err(error) => self.message(error),
+            }
+            return;
+        }
+        if self.display.mode != mode {
+            self.display.mode = mode;
+            self.views[index].render = mode;
+            if let Err(error) = self.store_model_views("Отображение вида") {
+                self.message(error);
+            }
+        }
         if orthographic != view.orthographic {
             self.views[index].orthographic = orthographic;
+            if let Err(error) = self.store_model_views("Проекция вида") {
+                self.message(error);
+            }
             requests.push(Request::Projection(orthographic));
         }
         if !(apply || save_new) {
@@ -205,6 +270,10 @@ impl Workbench {
                     index
                 };
                 self.view_tools.edited = None;
+                if let Err(error) = self.store_model_views("Свойства вида") {
+                    self.message(error);
+                    return;
+                }
                 if let Some(request) = self.apply_view(target) {
                     requests.push(request);
                 }

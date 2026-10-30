@@ -131,6 +131,8 @@ pub struct Project {
         deserialize_with = "unique_map"
     )]
     pub swept_parts: BTreeMap<ObjectId, crate::SweptPart>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub model_views: Vec<crate::ModelViewDefinition>,
     /// Construction lines and circles (snap targets, never on drawings).
     #[serde(
         default,
@@ -215,6 +217,7 @@ impl Default for Project {
             connections: BTreeMap::new(),
             drawings: BTreeMap::new(),
             swept_parts: BTreeMap::new(),
+            model_views: Vec::new(),
             construction: BTreeMap::new(),
             dimensions: BTreeMap::new(),
             plugins: BTreeMap::new(),

@@ -76,6 +76,7 @@ pub(crate) struct Patch {
     numbering: Option<Delta<BTreeMap<ObjectId, String>>>,
     /// Grid properties before and after, when they differ.
     grid: Option<Delta<open_bim_model::GridSettings>>,
+    model_views: Option<Delta<Vec<open_bim_model::ModelViewDefinition>>>,
     management: Option<Delta<open_bim_model::Management>>,
     analysis: Option<Delta<open_bim_model::Analysis>>,
     parametric: Option<Delta<open_bim_model::Parametric>>,
@@ -112,6 +113,10 @@ impl Patch {
                 before: Some((before.document.clone(), before.changes.clone())),
                 after: Some((after.document.clone(), after.changes.clone())),
             });
+        let model_views = (before.model_views != after.model_views).then(|| Delta {
+            before: Some(before.model_views.clone()),
+            after: Some(after.model_views.clone()),
+        });
         let grid = (before.grid != after.grid).then(|| Delta {
             before: Some(before.grid.clone()),
             after: Some(after.grid.clone()),
@@ -178,6 +183,7 @@ impl Patch {
             document,
             numbering,
             grid,
+            model_views,
             management,
             analysis,
             parametric,
@@ -226,6 +232,12 @@ impl Patch {
             let side = if forward { &delta.after } else { &delta.before };
             if let Some(marks) = side {
                 project.numbering = marks.clone();
+            }
+        }
+        if let Some(delta) = &self.model_views {
+            let side = if forward { &delta.after } else { &delta.before };
+            if let Some(views) = side {
+                project.model_views = views.clone();
             }
         }
         if let Some(delta) = &self.grid {

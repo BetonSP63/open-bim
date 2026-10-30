@@ -567,9 +567,12 @@ impl Workbench {
         let ribbon = egui::Panel::top("ribbon")
             .frame(egui::Frame::side_top_panel(ui.style()).fill(fill))
             .show(ui, |ui| {
-                // Less the blue strip and the select/inquire column.
-                let available = ui.available_width() - STRIP - 40.;
                 let tab = self.ribbon_tab;
+                let leading_id = egui::Id::new(("ribbon leading width", tab.title()));
+                let leading = ui
+                    .data(|d| d.get_temp::<f32>(leading_id))
+                    .unwrap_or(STRIP + 64.);
+                let available = ui.available_width() - leading;
                 let groups = groups(tab);
                 // Widths of the expanded groups, measured on earlier frames.
                 let widths_id = egui::Id::new(("ribbon group widths", tab.title()));
@@ -585,6 +588,7 @@ impl Workbench {
                     .id_salt("ribbon scroll")
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
+                            let row_start = ui.cursor().left();
                             // Three small buttons stacked; captions of groups
                             // are not shown, as in the reference ribbon.
                             // Leave space for the horizontal scrollbar below
@@ -593,6 +597,8 @@ impl Workbench {
                             ui.add_space(STRIP - 4.);
                             self.select_tools(ui, requests);
                             ui.separator();
+                            let leading = ui.cursor().left() - row_start;
+                            ui.data_mut(|d| d.insert_temp(leading_id, leading));
                             for (i, (name, items)) in groups.iter().enumerate() {
                                 if collapsed[i] {
                                     // Too narrow a window: the group folds into one
@@ -622,7 +628,8 @@ impl Workbench {
                                     ui.separator();
                                     continue;
                                 }
-                                let group = ui.vertical(|ui| {
+                                let group_start = ui.cursor().left();
+                                ui.vertical(|ui| {
                                     ui.horizontal(|ui| {
                                         // Large buttons in a row, small ones in columns of three.
                                         let mut column: Vec<&Item> = Vec::new();
@@ -655,8 +662,10 @@ impl Workbench {
                                         }
                                     });
                                 });
-                                widths[i] = group.response.rect.width();
                                 ui.separator();
+                                // collapse() adds eight points per group. Keep
+                                // the remaining separator and spacing here.
+                                widths[i] = (ui.cursor().left() - group_start - 8.).max(0.);
                             }
                         })
                     });

@@ -569,6 +569,66 @@ impl DrawingEditor {
                     ui.end_row();
                 }
             });
+        let mut appearance = view.appearance.clone();
+        ui.collapsing("Линии и видимость", |ui| {
+            for (caption, pen) in [
+                ("Видимые линии", &mut appearance.visible),
+                ("Невидимые линии", &mut appearance.hidden),
+                ("Линии среза", &mut appearance.section),
+            ] {
+                ui.push_id(caption, |ui| {
+                    pen_editor(ui, caption, pen);
+                });
+            }
+            ui.checkbox(&mut appearance.show_hidden, "Показывать невидимые линии");
+            ui.label("Детали в этом виде");
+            let parts = open_bim_drawings::drawing_parts(editor.document.project(), &drawing.kind);
+            egui::ScrollArea::vertical()
+                .id_salt("view visibility")
+                .max_height(180.)
+                .show(ui, |ui| {
+                    for id in parts {
+                        let Some(element) = editor.document.project().elements.get(&id) else {
+                            continue;
+                        };
+                        let mut shown = !appearance.hidden_objects.contains(&id);
+                        if ui
+                            .checkbox(&mut shown, format!("#{} {}", id.0, element.name))
+                            .changed()
+                        {
+                            if shown {
+                                appearance.hidden_objects.remove(&id);
+                            } else {
+                                appearance.hidden_objects.insert(id);
+                            }
+                        }
+                        ui.push_id(id.0, |ui| {
+                            let mut custom = appearance.objects.contains_key(&id);
+                            if ui.checkbox(&mut custom, "Свои линии").changed() {
+                                if custom {
+                                    appearance.objects.insert(id, appearance.visible);
+                                } else {
+                                    appearance.objects.remove(&id);
+                                }
+                            }
+                            if let Some(pen) = appearance.objects.get_mut(&id) {
+                                pen_editor(ui, "Линии детали", pen);
+                            }
+                        });
+                    }
+                });
+        });
+        if appearance != view.appearance {
+            let r = self.edit_view(
+                editor,
+                id,
+                ViewEdit {
+                    appearance: Some(appearance),
+                    ..Default::default()
+                },
+            );
+            report(self, r);
+        }
         ui.horizontal_wrapped(|ui| {
             if ui.button("Применить").clicked() {
                 let depth = if view.section.is_some() {
@@ -830,4 +890,24 @@ impl DrawingEditor {
             None => {}
         }
     }
+}
+
+fn pen_editor(ui: &mut egui::Ui, caption: &str, pen: &mut open_bim_model::LinePen) {
+    ui.label(caption);
+    ui.horizontal(|ui| {
+        egui::ComboBox::from_id_salt("line type")
+            .selected_text(pen.line_type.label())
+            .show_ui(ui, |ui| {
+                for kind in open_bim_model::LineType::ALL {
+                    ui.selectable_value(&mut pen.line_type, kind, kind.label());
+                }
+            });
+        ui.add(
+            egui::DragValue::new(&mut pen.width)
+                .speed(0.01)
+                .range(0.05..=2.)
+                .suffix(" мм"),
+        )
+        .on_hover_text("Толщина на бумаге");
+    });
 }

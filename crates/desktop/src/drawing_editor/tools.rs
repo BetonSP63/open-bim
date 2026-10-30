@@ -266,6 +266,8 @@ impl DrawingEditor {
             scale: Some(node_scale),
             node: Some(open_bim_model::NodeRegion { centre, radius }),
             source: host_source,
+            section_host: None,
+            appearance: Default::default(),
         });
         d.validate().map_err(|e| e.to_string())?;
         self.selected_view = Some(id);

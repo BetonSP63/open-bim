@@ -137,7 +137,11 @@ fn every_ribbon_button_runs_its_registry_command_by_mouse() {
                     b.drawings.create_part(&mut b.editor).unwrap();
                 }
                 b.ribbon_tab = tab;
-                frame(&ctx, &mut b, [1280., 800.], vec![]);
+                // Expanded widths and the leading tools are measured before
+                // deciding which groups fold on the following frame.
+                for _ in 0..3 {
+                    frame(&ctx, &mut b, [1280., 800.], vec![]);
+                }
                 let out = frame(&ctx, &mut b, [1280., 800.], vec![]).0;
                 // Ribbon buttons live in the top band; the side strip reuses some names.
                 let in_band = |out: &egui::FullOutput, label: &str| {
@@ -171,7 +175,19 @@ fn every_ribbon_button_runs_its_registry_command_by_mouse() {
                 let before = state(&b);
                 let (_, requests) = frame(&ctx, &mut b, [1280., 800.], click(found.3));
                 let (_, later) = frame(&ctx, &mut b, [1280., 800.], vec![]);
-                let effect = !requests.is_empty() || !later.is_empty() || state(&b) != before;
+                let mut effect = !requests.is_empty() || !later.is_empty() || state(&b) != before;
+                // A folded group may have the same label as one of its
+                // commands. The first click opens the group menu.
+                if !effect && it.label == group {
+                    let menu = frame(&ctx, &mut b, [1280., 800.], vec![]).0;
+                    if let Some(button) = nodes(&menu).into_iter().find(|(role, name, _, at)| {
+                        *role == Role::Button && name == it.label && *at != found.3
+                    }) {
+                        let (_, requests) = frame(&ctx, &mut b, [1280., 800.], click(button.3));
+                        let (_, later) = frame(&ctx, &mut b, [1280., 800.], vec![]);
+                        effect = !requests.is_empty() || !later.is_empty() || state(&b) != before;
+                    }
+                }
                 match it.cmd {
                     Some(cmd) => {
                         assert!(found.2, "{}: disabled", it.label);

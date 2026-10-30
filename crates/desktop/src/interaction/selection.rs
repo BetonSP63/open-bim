@@ -66,12 +66,25 @@ fn v(p: Point3) -> DVec3 {
 }
 
 /// World corners of a part's solid, ordered contour × [start, end]:
-/// `[c0 start, c0 end, c1 start, c1 end, …]`.
+/// `[c0 start, c0 end, c1 start, c1 end, …]`; swept parts return
+/// vertices of their actual tessellation.
 pub fn corners(project: &Project, id: ObjectId) -> Result<Vec<DVec3>, String> {
     let e = project
         .elements
         .get(&id)
         .ok_or_else(|| format!("Нет детали #{}", id.0))?;
+    if project.swept_parts.contains_key(&id) {
+        let (points, _) = project
+            .element_body(id)
+            .map_err(|e| e.to_string())?
+            .tessellation_f64()
+            .map_err(|e| e.to_string())?;
+        let frame = e.shape.frame();
+        return Ok(points
+            .into_iter()
+            .map(|p| v(frame.world(Point3(p))))
+            .collect());
+    }
     let (contour, length) = match &e.shape {
         ElementShape::Plate {
             contour, thickness, ..
@@ -144,6 +157,29 @@ pub fn segments(project: &Project, id: ObjectId) -> Vec<(DVec3, DVec3)> {
             DetailKind::Weld { path, .. } => path.windows(2).map(|w| (v(w[0]), v(w[1]))).collect(),
             _ => Vec::new(),
         };
+    }
+    if project.swept_parts.contains_key(&id) {
+        let Some(element) = project.elements.get(&id) else {
+            return Vec::new();
+        };
+        let Ok(body) = project.element_body(id) else {
+            return Vec::new();
+        };
+        let Ok((points, triangles)) = body.tessellation_f64() else {
+            return Vec::new();
+        };
+        let mesh = open_bim_renderer::DisplayMesh {
+            positions: points.into_iter().map(DVec3::from_array).collect(),
+            triangles,
+        };
+        let frame = element.shape.frame();
+        return open_bim_renderer::feature_edges(&mesh, 25.)
+            .into_iter()
+            .map(|edge| {
+                let [a, b] = edge.map(|p| v(frame.world(Point3(p.to_array()))));
+                (a, b)
+            })
+            .collect();
     }
     let Ok(c) = corners(project, id) else {
         return Vec::new();

@@ -126,6 +126,11 @@ pub struct DrawingView {
     /// Part or assembly the view shows on a «Комплексный чертёж».
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<ObjectId>,
+    /// The view on which the section was placed; absent in older files.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub section_host: Option<u32>,
+    #[serde(default, skip_serializing_if = "crate::ViewAppearance::is_default")]
+    pub appearance: crate::ViewAppearance,
 }
 
 /// Square region of a view plane: centre (u, v) and half side, model mm.
@@ -330,6 +335,19 @@ impl Drawing {
         }
         let mut ids = std::collections::BTreeSet::new();
         for view in &self.views {
+            view.appearance.validate()?;
+            if let Some(host) = view.section_host
+                && (view.section.is_none()
+                    || host == view.id
+                    || !self.views.iter().any(|v| {
+                        v.id == host
+                            && v.section.is_none()
+                            && v.node.is_none()
+                            && v.source == view.source
+                    }))
+            {
+                return invalid("основной вид разреза");
+            }
             if !ids.insert(view.id) || !text(&view.name) || !on_sheet(view.position) {
                 return invalid("вид");
             }

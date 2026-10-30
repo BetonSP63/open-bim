@@ -37,7 +37,7 @@ const LEG_SIGN_WIDTH: f64 = 0.85;
 /// Notes and weld signs: font 2.5.
 pub const TEXT_HEIGHT: f64 = conventions::em(2.5);
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LineStyle {
     Visible,
@@ -52,6 +52,7 @@ pub enum LineStyle {
     /// Thick dashed / dash-dot user lines.
     ThickDashed,
     ThickDashDot,
+    Custom(open_bim_model::LinePen),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -624,6 +625,8 @@ fn view_graphic(
     meshes: &[PartMesh],
     marks: &BTreeMap<ObjectId, String>,
 ) -> (ViewGraphic, ViewContext) {
+    // Hidden objects neither draw nor occlude other parts. Keep extents stable
+    // so hiding a part does not shift the remaining geometry or dimensions.
     let vb = ViewBasis::new(basis, view.direction);
     let scale = view_scale(drawing, view);
     let cut = view.section;
@@ -655,6 +658,17 @@ fn view_graphic(
         scale,
         position: view.position,
         bounds: [lo, hi],
+    };
+    let filtered;
+    let meshes = if view.appearance.hidden_objects.is_empty() {
+        meshes
+    } else {
+        filtered = meshes
+            .iter()
+            .filter(|m| !view.appearance.hidden_objects.contains(&m.id))
+            .cloned()
+            .collect::<Vec<_>>();
+        &filtered
     };
     let mut lines = Vec::new();
     let tolerance = 0.02 * scale;
@@ -743,6 +757,26 @@ fn view_graphic(
                     style: LineStyle::Section,
                     object: Some(m.id),
                 });
+            }
+        }
+    }
+    let default = open_bim_model::ViewAppearance::default();
+    lines.retain(|line| view.appearance.show_hidden || line.style != LineStyle::Hidden);
+    for line in &mut lines {
+        let pens = match line.style {
+            LineStyle::Visible => Some((view.appearance.visible, default.visible)),
+            LineStyle::Hidden => Some((view.appearance.hidden, default.hidden)),
+            LineStyle::Section => Some((view.appearance.section, default.section)),
+            _ => None,
+        };
+        if let Some((pen, original)) = pens {
+            let pen = line
+                .object
+                .and_then(|id| view.appearance.objects.get(&id))
+                .copied()
+                .unwrap_or(pen);
+            if pen != original {
+                line.style = LineStyle::Custom(pen);
             }
         }
     }
@@ -1348,6 +1382,12 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
     for section in drawing.views.iter().filter(|v| v.section.is_some()) {
         let t = contexts[&section.id].basis.toward;
         let host = drawing.views.iter().find(|v| {
+            if let Some(id) = section.section_host {
+                return v.id == id;
+            }
+            if v.source != section.source || v.node.is_some() || v.section.is_some() {
+                return false;
+            }
             let h = contexts[&v.id].basis.toward;
             v.id != section.id && (t[0] * h[0] + t[1] * h[1] + t[2] * h[2]).abs() < 1e-6
         });
@@ -1774,6 +1814,8 @@ fn views(directions: &[(ViewDirection, &str)], positions: &[[f64; 2]]) -> Vec<Dr
             scale: None,
             node: None,
             source: None,
+            section_host: None,
+            appearance: Default::default(),
         })
         .collect()
 }
@@ -2137,6 +2179,8 @@ pub fn multi_drawing(
                 scale: None,
                 node: None,
                 source: Some(b.object),
+                section_host: None,
+                appearance: Default::default(),
             });
             top -= h + gap;
             if k == 0

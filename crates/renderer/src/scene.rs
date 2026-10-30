@@ -153,6 +153,8 @@ pub struct ViewState {
     /// Second clip plane: the depth of a plan or elevation view (view depth).
     pub depth: Option<ClipPlane>,
     pub display: Display,
+    /// Optional screen edge pen; width is in physical pixels.
+    pub edge_pen: Option<open_bim_model::LinePen>,
 }
 
 /// How parts are drawn («Отображение»).
@@ -373,7 +375,7 @@ impl Scene {
                     (index, [0.86, 0.61, 0.26, 1.0])
                 }
             };
-            if featured.contains(&element.id) {
+            if featured.contains(&element.id) || project.swept_parts.contains_key(&element.id) {
                 let body = project
                     .element_body(element.id)
                     .map_err(|e| RenderError(e.to_string()))?;

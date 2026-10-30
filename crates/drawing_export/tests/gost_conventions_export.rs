@@ -19,6 +19,8 @@ fn reference_sheets_for_conventions() {
         scale: Some(100.),
         node: None,
         source: None,
+        section_host: None,
+        appearance: Default::default(),
     });
     // «Узел 1»: the joint of column 1/А and the beam at +3,600 at 1:20.
     ga.views.push(DrawingView {
@@ -33,6 +35,8 @@ fn reference_sheets_for_conventions() {
             radius: 500.,
         }),
         source: None,
+        section_host: None,
+        appearance: Default::default(),
     });
     let f = control_project();
     let part = part_drawing(&f.project, ObjectId(9100), f.beam, "КМД-1").unwrap();

@@ -24,6 +24,15 @@ fn deflate(data: &[u8]) -> Result<Vec<u8>, String> {
 fn style(style: LineStyle) -> (f64, &'static str, &'static str) {
     let (_, width, _) = open_bim_drawings::svg::stroke(style);
     match style {
+        LineStyle::Custom(pen) => (
+            width,
+            match pen.line_type {
+                open_bim_model::LineType::Solid => "[] 0 d",
+                open_bim_model::LineType::Dashed => "[3 1.5] 0 d",
+                open_bim_model::LineType::DashDot => "[12 3 1 3] 0 d",
+            },
+            "0 0 0 RG",
+        ),
         LineStyle::Hidden => (width, "[3 1.5] 0 d", "0 0 0 RG"),
         LineStyle::Lost => (width, "[1 1] 0 d", "0.85 0 0 RG"),
         LineStyle::DashDot | LineStyle::ThickDashDot => (width, "[12 3 1 3] 0 d", "0 0 0 RG"),
