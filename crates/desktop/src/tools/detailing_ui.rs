@@ -99,6 +99,8 @@ pub struct DetailingUi {
     pub point_divisions: String,
     /// «Фаска кромки»: legs, mm (the second empty = equal legs).
     pub edge_chamfer: [String; 2],
+    /// «Ниша»: depth from the face, mm.
+    pub recess_depth: String,
 }
 impl Default for DetailingUi {
     fn default() -> Self {
@@ -140,6 +142,7 @@ impl Default for DetailingUi {
             stiffener_snip: "20".into(),
             point_divisions: "4".into(),
             edge_chamfer: ["10".into(), String::new()],
+            recess_depth: "100".into(),
         }
     }
 }

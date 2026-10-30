@@ -89,6 +89,8 @@ pub fn prompt(kind: ToolKind, picked: usize) -> String {
         ToolKind::Panel => "панели",
         ToolKind::Slab => "перекрытия",
         ToolKind::Footing => "фундамента",
+        ToolKind::StripFooting => "ленточного фундамента",
+        ToolKind::Raft => "фундаментной плиты",
     };
     match (picks(kind), picked) {
         (Picks::Exactly(1), _) => format!("Укажите положение {object}"),
@@ -300,11 +302,9 @@ pub fn commands(
     draft: &crate::tools::Draft,
 ) -> Result<Vec<Command>, String> {
     if kind.is_concrete() {
-        let (mut out, staged, draft) = concrete::prepare(project, kind, draft)?;
-        let mut rest = commands(&staged, kind.base(), points, workplane, &draft)?;
-        concrete::mark(&mut rest, kind);
-        out.extend(rest);
-        return Ok(out);
+        return concrete::build(project, kind, draft, |p, d| {
+            commands(p, kind.base(), points, workplane, d)
+        });
     }
     let id = ObjectId(project.next_id);
     let p = |v: DVec3| Point3(v.to_array());

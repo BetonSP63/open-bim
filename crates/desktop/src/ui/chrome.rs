@@ -1272,6 +1272,8 @@ impl Workbench {
                         | TrimTool::Stiffener
                         | TrimTool::PointsOnLine
                         | TrimTool::EdgeChamfer
+                        | TrimTool::Opening
+                        | TrimTool::Recess
                 )
             )
     }
@@ -1322,6 +1324,24 @@ impl Workbench {
                     "Скос вдоль всей кромки: у угла сечения — по двум граням,",
                     "у торца — катет a по торцу и b вдоль детали.",
                     "1. Щёлкните деталь, 2. начало кромки, 3. её конец",
+                ],
+            ),
+            (_, Some(TrimTool::Opening)) => (
+                "Проём",
+                &[
+                    "Сквозной проём в перекрытии, плите или стене",
+                    "поперёк её толщины по контуру на грани.",
+                    "1. Щёлкните деталь, 2. укажите вершины контура,",
+                    "3. Enter или средняя кнопка — проём готов",
+                ],
+            ),
+            (_, Some(TrimTool::Recess)) => (
+                "Ниша",
+                &[
+                    "Углубление на заданную глубину с той грани,",
+                    "у которой указан контур.",
+                    "1. Щёлкните деталь, 2. укажите вершины контура,",
+                    "3. Enter или средняя кнопка — ниша готова",
                 ],
             ),
             (_, Some(TrimTool::PointsOnLine)) => (
@@ -1394,6 +1414,14 @@ impl Workbench {
                         }
                     });
             }
+            (_, Some(TrimTool::Recess)) => {
+                ui.horizontal(|ui| {
+                    let l = ui.label("Глубина ниши, мм");
+                    ui.text_edit_singleline(&mut d.recess_depth)
+                        .labelled_by(l.id);
+                });
+            }
+            (_, Some(TrimTool::Opening)) => {}
             (_, Some(TrimTool::PointsOnLine)) => {
                 ui.horizontal(|ui| {
                     let l = ui.label("Число частей");
@@ -1737,6 +1765,8 @@ impl Workbench {
             (Cmd::ConcretePanel, "Панель"),
             (Cmd::ConcreteSlab, "Перекрытие"),
             (Cmd::ConcreteFooting, "Фундамент"),
+            (Cmd::ConcreteStripFooting, "Ленточный фундамент"),
+            (Cmd::ConcreteRaft, "Фундаментная плита"),
             (Cmd::ToolAxis, "Ось"),
             (Cmd::GridDialog, "Сетка"),
         ];
