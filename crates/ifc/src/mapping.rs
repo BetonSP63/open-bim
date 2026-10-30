@@ -519,10 +519,17 @@ pub fn family_word(family: Family) -> &'static str {
         | Family::IBeamColumn
         | Family::IBeamNormal57837
         | Family::IBeamWide57837
-        | Family::IBeamColumn57837 => "двутавр",
+        | Family::IBeamColumn57837
+        | Family::IBeamExtraNormal57837
+        | Family::IBeamExtraColumn57837
+        | Family::IBeamPile57837
+        | Family::IBeamNormalSto
+        | Family::IBeamWideSto
+        | Family::IBeamColumnSto => "двутавр",
+        Family::TeeNormal | Family::TeeWide | Family::TeeColumn => "тавр",
         Family::Channel | Family::ChannelP => "швеллер",
         Family::Angle | Family::AngleUnequal => "уголок",
-        Family::Pipe | Family::SquareTube | Family::RectTube => "труба",
+        Family::Pipe | Family::PipeWaterGas | Family::SquareTube | Family::RectTube => "труба",
     }
 }
 
@@ -549,7 +556,7 @@ mod tests {
         assert_eq!(named("L100*8_8509_93"), ["L100×8"]);
         assert_eq!(named("Гн.150x100x6"), ["Гн 150×100×6"]);
         assert_eq!(named("Труба 114x4.5"), ["Труба 114×4,5"]);
-        assert_eq!(named("40K1"), ["40К1"]);
+        assert_eq!(named("40K1"), ["40К1", "40К1 (Р 57837)"]);
         assert!(named("HEA200").is_empty());
     }
 
