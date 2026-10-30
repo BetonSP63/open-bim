@@ -38,7 +38,6 @@ use crate::tools::ToolKind;
 use open_bim_commands::Command;
 use open_bim_model::{
     Element, ElementShape, Frame, GridAxis, LengthMm, MemberKind, ObjectId, Point3, Project,
-    PropertyValue,
 };
 use open_bim_renderer::DVec3;
 pub use workplane::Workplane;
@@ -434,10 +433,7 @@ pub fn commands(
                             axes: workplane.axes.map(|a| a.to_array()),
                         },
                     },
-                    properties: std::collections::BTreeMap::from([(
-                        "fabrication_role".into(),
-                        PropertyValue::Text(role.into()),
-                    )]),
+                    properties: draft.plate_properties(role),
                 },
             }])
         }

@@ -49,7 +49,7 @@ pub enum Outcome {
 }
 
 /// Types shown as the first level of the catalogue tree.
-pub const GROUPS: [(&str, &[Family]); 5] = [
+pub const GROUPS: [(&str, &[Family]); 6] = [
     (
         "Двутавры",
         &[
@@ -72,8 +72,14 @@ pub const GROUPS: [(&str, &[Family]); 5] = [
         "Тавры",
         &[Family::TeeNormal, Family::TeeWide, Family::TeeColumn],
     ),
-    ("Швеллеры", &[Family::Channel, Family::ChannelP]),
-    ("Уголки", &[Family::Angle, Family::AngleUnequal]),
+    (
+        "Швеллеры",
+        &[Family::Channel, Family::ChannelP, Family::ChannelBent],
+    ),
+    (
+        "Уголки",
+        &[Family::Angle, Family::AngleUnequal, Family::AngleBent],
+    ),
     (
         "Трубы",
         &[
@@ -83,6 +89,7 @@ pub const GROUPS: [(&str, &[Family]); 5] = [
             Family::RectTube,
         ],
     ),
+    ("Полосы", &[Family::Flat]),
 ];
 
 /// State of one profile window; one per field, kept in egui memory.

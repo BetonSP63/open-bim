@@ -271,13 +271,7 @@ impl ToolsUi {
                     ui.end_row();
                 }
                 if kind.is_plate() {
-                    let l = ui.label("Толщина, мм");
-                    ui.add(
-                        egui::TextEdit::singleline(&mut editor.draft.thickness)
-                            .desired_width(field_width(ui)),
-                    )
-                    .labelled_by(l.id);
-                    ui.end_row();
+                    plate_rows(ui, &mut editor.draft);
                 }
                 if kind.is_concrete() {
                     if kind != ToolKind::Slab {
@@ -758,5 +752,66 @@ pub fn twin_editor(ui: &mut egui::Ui, draft: &mut crate::tools::Draft) {
                 .labelled_by(l.id);
         });
         ui.small("Вторая деталь зеркальна первой; зазор — под фасонку или прокладки.");
+    }
+}
+
+/// «Лист» (plain ГОСТ 19903 or checker ГОСТ 8568) and «Толщина» rows of the
+/// plate tools; the thickness menu lists the standard's thicknesses and a
+/// note flags a thickness the standard does not roll.
+fn plate_rows(ui: &mut egui::Ui, draft: &mut super::Draft) {
+    use crate::ui::property_pane::field_width;
+    use open_bim_model::library::{self, Checker};
+    let label = |c: Option<Checker>| match c {
+        None => format!("Листовой, {}", library::PLATE_STANDARD),
+        Some(c) => format!("Рифлёный {}, {}", c.word(), library::CHECKER_STANDARD),
+    };
+    let l = ui.label("Лист");
+    egui::ComboBox::new("plate_kind", "")
+        .selected_text(label(draft.checker))
+        .width(field_width(ui))
+        .show_ui(ui, |ui| {
+            for c in [None, Some(Checker::Rhombic), Some(Checker::Lentil)] {
+                ui.selectable_value(&mut draft.checker, c, label(c));
+            }
+        })
+        .response
+        .labelled_by(l.id);
+    ui.end_row();
+    let thicknesses = match draft.checker {
+        None => library::plate_thicknesses(),
+        Some(c) => c.thicknesses(),
+    };
+    let l = ui.label("Толщина, мм");
+    ui.horizontal(|ui| {
+        ui.add(
+            egui::TextEdit::singleline(&mut draft.thickness).desired_width(field_width(ui) - 28.0),
+        )
+        .labelled_by(l.id);
+        ui.menu_button("▾", |ui| {
+            egui::ScrollArea::vertical()
+                .max_height(320.0)
+                .show(ui, |ui| {
+                    for t in &thicknesses {
+                        let text = format!("{t}");
+                        if ui.button(&text).clicked() {
+                            draft.thickness = text;
+                            ui.close();
+                        }
+                    }
+                });
+        })
+        .response
+        .on_hover_text("Толщины по стандарту");
+    });
+    ui.end_row();
+    let t = draft.thickness.trim().replace(',', ".").parse::<f64>().ok();
+    if t.is_some_and(|t| !thicknesses.iter().any(|v| (v - t).abs() < 1e-6)) {
+        ui.label("");
+        let standard = match draft.checker {
+            None => library::PLATE_STANDARD,
+            Some(_) => library::CHECKER_STANDARD,
+        };
+        ui.weak(format!("Такой толщины нет в {standard}"));
+        ui.end_row();
     }
 }

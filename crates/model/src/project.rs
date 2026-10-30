@@ -75,6 +75,21 @@ pub struct Element {
     pub properties: BTreeMap<String, PropertyValue>,
 }
 
+impl Element {
+    /// Checker pattern (ГОСТ 8568-77) and base thickness of a plate whose
+    /// «Рифление» property names one.
+    pub fn checker(&self) -> Option<(crate::library::Checker, f64)> {
+        let ElementShape::Plate { thickness, .. } = &self.shape else {
+            return None;
+        };
+        let Some(PropertyValue::Text(word)) = self.properties.get(crate::library::CHECKER_PROPERTY)
+        else {
+            return None;
+        };
+        crate::library::Checker::from_word(word).map(|c| (c, thickness.value()))
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Assembly {
@@ -340,6 +355,12 @@ impl Project {
             .density_kg_m3;
         if !density.is_finite() || density <= 0.0 {
             return Err(ModelError::InvalidValue("Плотность материала".into()));
+        }
+        if let Some((checker, t)) = element.checker() {
+            // The standard's mass of 1 m² includes the ribs.
+            if let Some(m2) = checker.mass_kg_m2(t) {
+                return Ok(self.element_volume_mm3(id)? / t / 1e6 * m2);
+            }
         }
         Ok(self.element_volume_mm3(id)? / 1e9 * density)
     }

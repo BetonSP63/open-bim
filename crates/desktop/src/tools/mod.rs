@@ -86,6 +86,8 @@ pub struct Draft {
     pub profile: ObjectId,
     pub material: ObjectId,
     pub thickness: String,
+    /// Checker plate pattern of ГОСТ 8568-77; `None` for plain plate.
+    pub checker: Option<open_bim_model::library::Checker>,
     /// Plate contour picking mode and position across the thickness.
     pub plate_mode: crate::interaction::polygon::PlateMode,
     pub plate_position: crate::interaction::polygon::PlatePosition,
@@ -115,6 +117,7 @@ impl Default for Draft {
             profile: ObjectId(2),
             material: ObjectId(1),
             thickness: "20".into(),
+            checker: None,
             contour: "0,0; 400,0; 400,300; 0,300".into(),
             plate_mode: Default::default(),
             plate_position: Default::default(),
@@ -259,10 +262,7 @@ impl Draft {
                         ToolKind::Stiffener => "stiffener",
                         _ => "plate",
                     };
-                    std::collections::BTreeMap::from([(
-                        "fabrication_role".into(),
-                        PropertyValue::Text(role.into()),
-                    )])
+                    self.plate_properties(role)
                 } else {
                     Default::default()
                 },
@@ -270,6 +270,27 @@ impl Draft {
         }])
     }
 }
+impl Draft {
+    /// Properties of a new plate: its fabrication role and the checker
+    /// pattern, when one is chosen.
+    pub fn plate_properties(
+        &self,
+        role: &str,
+    ) -> std::collections::BTreeMap<String, PropertyValue> {
+        let mut out = std::collections::BTreeMap::from([(
+            "fabrication_role".into(),
+            PropertyValue::Text(role.into()),
+        )]);
+        if let Some(c) = self.checker {
+            out.insert(
+                open_bim_model::library::CHECKER_PROPERTY.into(),
+                PropertyValue::Text(c.word().into()),
+            );
+        }
+        out
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum Edit {
     PlateShape {

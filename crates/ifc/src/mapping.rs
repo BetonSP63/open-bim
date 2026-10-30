@@ -423,6 +423,10 @@ pub fn outline(names: &[&str], contour: &[[f64; 2]], voids: &[Vec<[f64; 2]>]) ->
     let tolerance = |v: f64| (0.015 * v).max(1.);
     let mut best: Option<(f64, Entry, Orientation)> = None;
     for entry in library::sections() {
+        // Rectangles are told above; anything else is not a strip.
+        if entry.family == Family::Flat {
+            continue;
+        }
         let Ok(sharp) = entry.shape.solid_contour() else {
             continue;
         };
@@ -527,8 +531,9 @@ pub fn family_word(family: Family) -> &'static str {
         | Family::IBeamWideSto
         | Family::IBeamColumnSto => "двутавр",
         Family::TeeNormal | Family::TeeWide | Family::TeeColumn => "тавр",
-        Family::Channel | Family::ChannelP => "швеллер",
-        Family::Angle | Family::AngleUnequal => "уголок",
+        Family::Channel | Family::ChannelP | Family::ChannelBent => "швеллер",
+        Family::Angle | Family::AngleUnequal | Family::AngleBent => "уголок",
+        Family::Flat => "полоса",
         Family::Pipe | Family::PipeWaterGas | Family::SquareTube | Family::RectTube => "труба",
     }
 }

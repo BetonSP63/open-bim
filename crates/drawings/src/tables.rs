@@ -741,23 +741,21 @@ pub fn assortment(project: &Project, id: ObjectId) -> (String, String) {
             let Some(p) = project.profiles.get(profile) else {
                 return ("Профили".into(), format!("#{}", profile.0));
             };
-            let kind = match p.shape {
+            // Bent sections, strips and tees are named by their family.
+            let family = open_bim_model::library::section(&p.name)
+                .filter(|e| e.shape == p.shape)
+                .and_then(|e| e.family.assortment());
+            let kind = family.unwrap_or(match p.shape {
                 ProfileShape::ISection { .. } => "Двутавры",
                 ProfileShape::Angle { .. } => "Уголки",
                 ProfileShape::Channel { .. } => "Швеллеры",
                 ProfileShape::CircularHollow { .. } => "Трубы круглые",
                 ProfileShape::RectangularHollow { .. } => "Трубы профильные",
                 ProfileShape::Rectangle { .. } => "Прокат прямоугольный",
-                ProfileShape::Polygon { .. }
-                    if open_bim_model::library::section(&p.name)
-                        .is_some_and(|e| e.name.starts_with("Тавр")) =>
-                {
-                    "Тавры из двутавров"
-                }
                 ProfileShape::Polygon { .. } => "Профили по контуру",
                 // Listed by plates in the specification (`rolled_steel`).
                 ProfileShape::Welded { .. } => "Сечения сварные",
-            };
+            });
             // ГОСТ 21.502: «Наименование профиля, ГОСТ, ТУ».
             let kind = match &p.standard {
                 Some(standard) => format!("{kind} {standard}"),
@@ -766,10 +764,17 @@ pub fn assortment(project: &Project, id: ObjectId) -> (String, String) {
             (kind, p.name.clone())
         }
         ElementShape::Plate { thickness, .. } => (
-            format!(
-                "Прокат листовой {}",
-                open_bim_model::library::PLATE_STANDARD
-            ),
+            match element.checker() {
+                Some((checker, _)) => format!(
+                    "Лист рифлёный {} {}",
+                    checker.word(),
+                    open_bim_model::library::CHECKER_STANDARD
+                ),
+                None => format!(
+                    "Прокат листовой {}",
+                    open_bim_model::library::PLATE_STANDARD
+                ),
+            },
             format!("—{}", crate::format_mm(thickness.value())),
         ),
     }
