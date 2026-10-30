@@ -1,0 +1,3 @@
+# Byte-exact checkout on every platform: reference exports and CSV fixtures
+# are compared byte for byte, and some of them use CRLF on purpose.
+* -text

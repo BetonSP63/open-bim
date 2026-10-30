@@ -209,6 +209,21 @@ pub fn save_atomic_with_fault(
     }
     drop(file);
     std::fs::rename(&temporary, path)?;
+    sync_parent(path)?;
+    Ok(())
+}
+
+/// Flushes the directory entry of `path` so a rename or a new file survives
+/// a crash. Windows cannot open a folder as a file and journals NTFS
+/// metadata itself, so there the step is skipped.
+pub(crate) fn sync_parent(path: &Path) -> Result<(), PersistenceError> {
+    if cfg!(windows) {
+        return Ok(());
+    }
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
     File::open(parent)?.sync_all()?;
     Ok(())
 }

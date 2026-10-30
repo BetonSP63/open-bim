@@ -11,6 +11,22 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
+/// The POSIX shell that runs the test scripts: `/bin/sh`, or on Windows the
+/// `sh.exe` of Git for Windows found on `PATH`.
+fn shell() -> String {
+    if !cfg!(windows) {
+        return "/bin/sh".into();
+    }
+    std::env::var_os("PATH")
+        .into_iter()
+        .flat_map(|p| std::env::split_paths(&p).collect::<Vec<_>>())
+        .map(|d| d.join("sh.exe"))
+        .find(|p| p.is_file())
+        .unwrap_or_else(|| PathBuf::from(r"C:\Program Files\Git\bin\sh.exe"))
+        .to_string_lossy()
+        .into_owned()
+}
+
 fn temp_dir(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("open-bim-plugins-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
@@ -33,7 +49,7 @@ fn write_plugin(project_dir: &Path) {
     .unwrap();
     let manifest = json!({
         "name": "Балка", "kind": "model", "code": "БАЛКА",
-        "program": "/bin/sh", "args": ["run.sh"],
+        "program": shell(), "args": ["run.sh"],
         "inputs": [
             { "name": "start", "type": "point", "prompt": "Начало" },
             { "name": "host", "type": "parts", "prompt": "Опоры" }
@@ -186,7 +202,7 @@ echo "{\"steps\":[{\"insert_plate\":{\"name\":\"Пластина $n\",\"material
 "#;
     std::fs::write(dir.join("run.sh"), script).unwrap();
     let manifest = json!({
-        "name": "Оголовок", "kind": "model", "program": "/bin/sh", "args": ["run.sh"],
+        "name": "Оголовок", "kind": "model", "program": shell(), "args": ["run.sh"],
         "inputs": [ { "name": "column", "type": "part", "prompt": "Колонна" } ],
         "attributes": [ { "name": "size", "label": "Размер", "type": "number", "default": 300 } ],
         "timeout_s": 20
