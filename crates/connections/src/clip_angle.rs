@@ -372,6 +372,7 @@ pub fn rebuild_clip_angles(project: &mut Project, previous: &Project) -> Result<
                                 frame: local,
                                 diameter: template.bolt_diameter + template.clearance,
                                 depth,
+                                slot: 0.0,
                             },
                         },
                     );

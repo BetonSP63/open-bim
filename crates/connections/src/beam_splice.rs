@@ -340,6 +340,7 @@ pub fn rebuild_beam_splices(project: &mut Project, previous: &Project) -> Result
                                 frame,
                                 diameter: t.bolt_diameter + t.clearance,
                                 depth: group.hole_depth,
+                                slot: 0.0,
                             },
                         },
                     );

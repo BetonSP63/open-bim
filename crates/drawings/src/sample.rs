@@ -56,6 +56,7 @@ pub fn control_project() -> Fixture {
                     },
                     diameter: 22.,
                     depth: 40.,
+                    slot: 0.0,
                 },
             },
         );
@@ -92,6 +93,7 @@ pub fn control_project() -> Fixture {
                     },
                     diameter: 22.,
                     depth: 20.,
+                    slot: 0.0,
                 },
             },
         );

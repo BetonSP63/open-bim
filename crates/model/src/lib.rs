@@ -34,6 +34,7 @@ pub use analysis::{
     Analysis, AnalysisModel, Load, LoadGroup, LoadKind, LoadShape, Members, PartAnalysis, PartRole,
     RigidLink,
 };
+pub use body::slot_contour;
 pub use catalog::{Material, Profile, ProfileShape};
 pub use changes::{Change, REASONS, SheetChange, SheetChangeKind};
 pub use concrete::{Concrete, FormPanel, PourBreak, PourUnit, Prop, RebarKind, RebarSet};

@@ -67,7 +67,11 @@ fn nc_is_straight_stock_with_a_separate_bending_card_and_preserved_model() {
         let (p, id) = part(swept);
         let before = p.clone();
         let file = part_file(&p, id, "12", 3).unwrap();
-        assert!((file.length - expected).abs() < 1e-9);
+        assert!(
+            (file.length - expected).abs() < 1e-9,
+            "{} {expected}",
+            file.length
+        );
         assert!(file.text.is_ascii());
         assert!(file.text.contains("DEVELOPED STOCK BEFORE BENDING"));
         let card = file.bending_card.unwrap();
@@ -98,6 +102,7 @@ fn flat_plate_contour_and_neutral_bend_line_have_independent_dimensions() {
         .unwrap();
     let coordinates: Vec<_> = block
         .lines()
+        .take_while(|l| l.starts_with("  "))
         .filter_map(|l| {
             let f: Vec<_> = l.split_whitespace().collect();
             (f.first() == Some(&"v"))
