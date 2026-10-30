@@ -21,6 +21,7 @@ pub fn ga(project: &Project) -> Drawing {
         source: None,
         section_host: None,
         appearance: Default::default(),
+        unfolded: false,
     });
     // «Узел 1»: the joint of column 1/А and the beam at +3,600 at 1:20.
     d.views.push(DrawingView {
@@ -37,6 +38,7 @@ pub fn ga(project: &Project) -> Drawing {
         source: None,
         section_host: None,
         appearance: Default::default(),
+        unfolded: false,
     });
     d
 }

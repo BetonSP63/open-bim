@@ -126,6 +126,11 @@ pub fn render(sheet: &Sheet) -> String {
             LineStyle::Visible,
             LineStyle::Section,
             LineStyle::Thin,
+            LineStyle::DashDot,
+            LineStyle::ThickDashed,
+            LineStyle::ThickDashDot,
+            LineStyle::Frame,
+            LineStyle::Lost,
         ] {
             for line in view.lines.iter().filter(|l| l.style == style) {
                 polyline(&mut out, line, h);

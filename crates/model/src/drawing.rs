@@ -131,6 +131,9 @@ pub struct DrawingView {
     pub section_host: Option<u32>,
     #[serde(default, skip_serializing_if = "crate::ViewAppearance::is_default")]
     pub appearance: crate::ViewAppearance,
+    /// Flat blank of a bent sheet, independent of the formed geometry.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub unfolded: bool,
 }
 
 /// Square region of a view plane: centre (u, v) and half side, model mm.
@@ -336,6 +339,13 @@ impl Drawing {
         let mut ids = std::collections::BTreeSet::new();
         for view in &self.views {
             view.appearance.validate()?;
+            if view.unfolded
+                && (view.direction != ViewDirection::Front
+                    || view.section.is_some()
+                    || view.node.is_some())
+            {
+                return invalid("развёртка должна быть видом спереди без сечения и узла");
+            }
             if let Some(host) = view.section_host
                 && (view.section.is_none()
                     || host == view.id

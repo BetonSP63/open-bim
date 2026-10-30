@@ -926,6 +926,14 @@ impl Workbench {
                     self.editor.draft.profile,
                     self.editor.draft.material,
                 ));
+                if let Some(dialog) = &mut self.swept_dialog {
+                    dialog.editable = self
+                        .editor
+                        .selected
+                        .iter()
+                        .find(|id| self.editor.document.project().swept_parts.contains_key(id))
+                        .copied();
+                }
             }
             Cmd::ToolAxis
             | Cmd::ToolBeam
@@ -3628,7 +3636,7 @@ impl Workbench {
                     .and_then(|command| {
                         let mut candidate = self.editor.document.clone();
                         candidate
-                            .transact("Создать гнутую деталь", std::slice::from_ref(&command))
+                            .transact("Гнутая деталь", std::slice::from_ref(&command))
                             .map_err(|e| e.to_string())?;
                         Scene::from_project(candidate.project()).map_err(|e| e.to_string())?;
                         Ok(command)
@@ -3636,7 +3644,7 @@ impl Workbench {
                 match result {
                     Ok(command) => {
                         requests.push(Request::Action(Action::Commit(
-                            "Создать гнутую деталь".into(),
+                            "Гнутая деталь".into(),
                             vec![command],
                         )));
                         self.swept_dialog = None;

@@ -68,6 +68,7 @@ fn part_views_hidden_lines_sections_and_reference_svg() {
         source: None,
         section_host: None,
         appearance: Default::default(),
+        unfolded: false,
     });
     let sheet = generate(&f.project, &d).unwrap();
     let s = d.scale;
@@ -296,8 +297,9 @@ fn swept_part_changes_invalidate_fingerprint() {
         },
     );
     let before = open_bim_drawings::fingerprint(&project, f.beam).unwrap();
-    let error = part_drawing(&project, ObjectId(900), f.beam, "ПБ-1").unwrap_err();
-    assert!(error.contains("Виды и размеры гнутой детали"));
+    let drawing = part_drawing(&project, ObjectId(900), f.beam, "ПБ-1").unwrap();
+    assert_eq!(drawing.views.len(), 3);
+    assert!(generate(&project, &drawing).is_ok());
     project.swept_parts.insert(
         f.beam,
         SweptPart::PolyBeam {

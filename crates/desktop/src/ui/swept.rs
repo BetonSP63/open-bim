@@ -14,6 +14,9 @@ pub enum Kind {
 
 pub struct Dialog {
     pub kind: Kind,
+    pub target: Option<ObjectId>,
+    pub editable: Option<ObjectId>,
+    pub axes: [[f64; 3]; 3],
     pub profile: ObjectId,
     pub material: ObjectId,
     pub name: String,
@@ -33,6 +36,9 @@ impl Dialog {
     pub fn new(kind: Kind, profile: ObjectId, material: ObjectId) -> Self {
         Self {
             kind,
+            target: None,
+            editable: None,
+            axes: Frame::default().axes,
             profile,
             material,
             name: match kind {
@@ -63,10 +69,70 @@ impl Dialog {
             second: "500".into(),
         }
     }
+    pub fn load(&mut self, project: &Project, id: ObjectId) -> Result<(), String> {
+        let element = project.elements.get(&id).ok_or("Деталь не найдена")?;
+        let swept = project
+            .swept_parts
+            .get(&id)
+            .ok_or("Выберите гнутую деталь")?;
+        self.target = Some(id);
+        self.name = element.name.clone();
+        self.material = element.material;
+        self.origin = element.shape.frame().origin.0.map(|v| v.to_string());
+        self.axes = element.shape.frame().axes;
+        self.three_points = false;
+        match swept {
+            SweptPart::CurvedBeam {
+                center,
+                radius,
+                start_angle,
+                sweep_angle,
+            } => {
+                self.kind = Kind::Arc;
+                self.center = format!("{},{}", center[0], center[1]);
+                self.radius = radius.to_string();
+                self.start = start_angle.to_degrees().to_string();
+                self.angle = sweep_angle.to_degrees().to_string();
+            }
+            SweptPart::PolyBeam {
+                points,
+                bend_radius,
+            } => {
+                self.kind = Kind::Poly;
+                self.radius = bend_radius.to_string();
+                self.points = points
+                    .iter()
+                    .map(|p| format!("{},{}", p[0], p[1]))
+                    .collect::<Vec<_>>()
+                    .join("; ");
+            }
+            SweptPart::BentPlate {
+                width,
+                first_length,
+                second_length,
+                radius,
+                angle,
+            } => {
+                self.kind = Kind::Plate;
+                self.width = width.to_string();
+                self.first = first_length.to_string();
+                self.second = second_length.to_string();
+                self.radius = radius.to_string();
+                self.angle = angle.to_degrees().to_string();
+            }
+        }
+        match element.shape {
+            ElementShape::Member { profile, .. } => self.profile = profile,
+            ElementShape::Plate { thickness, .. } => self.thickness = thickness.value().to_string(),
+        }
+        Ok(())
+    }
     pub fn show(&mut self, ctx: &egui::Context, project: &Project) -> (bool, bool) {
         let mut open = true;
         let mut create = false;
-        egui::Window::new(self.name.clone()).open(&mut open).collapsible(false).show(ctx, |ui| {
+        egui::Window::new("Гнутая деталь").open(&mut open).collapsible(false).show(ctx, |ui| {
+            if let Some(id) = self.editable
+                && ui.button(format!("Загрузить выбранную деталь #{id} для изменения")).clicked() { let _ = self.load(project, id); }
             ui.horizontal(|ui| { ui.label("Наименование"); ui.text_edit_singleline(&mut self.name); });
             ui.horizontal(|ui| { ui.label("Начало локальной системы X, Y, Z, мм"); for v in &mut self.origin { ui.add(egui::TextEdit::singleline(v).desired_width(80.)); } });
             if self.kind != Kind::Plate {
@@ -83,16 +149,17 @@ impl Dialog {
             if self.kind == Kind::Plate || (self.kind == Kind::Arc && !self.three_points) { field(ui, "Угол, градусы", &mut self.angle); }
             if self.kind == Kind::Plate { field(ui, "Ширина, мм", &mut self.width); field(ui, "Толщина, мм", &mut self.thickness); field(ui, "Прямой участок 1, мм", &mut self.first); field(ui, "Прямой участок 2, мм", &mut self.second); }
             ui.label("Траектория задаётся в локальной плоскости XY; вторая координата сечения направлена вдоль Z.");
-            create = ui.button("Создать").clicked();
+            create = ui.button(if self.target.is_some() { "Применить изменения" } else { "Создать" }).clicked();
+            if self.target.is_some() && ui.button("Создать как новую деталь").clicked() { self.target = None; create = true; }
         });
         (open, create)
     }
     pub fn command(&self, project: &Project) -> Result<Command, String> {
         let num = |s: &str| crate::tools::number(s);
-        let id = ObjectId(project.next_id);
+        let id = self.target.unwrap_or(ObjectId(project.next_id));
         let frame = Frame {
             origin: crate::tools::point(&self.origin)?,
-            ..Default::default()
+            axes: self.axes,
         };
         let swept = match self.kind {
             Kind::Arc => {
@@ -155,8 +222,31 @@ impl Dialog {
             name: self.name.clone(),
             material: self.material,
             shape,
-            properties: Default::default(),
+            properties: self
+                .target
+                .and_then(|id| project.elements.get(&id))
+                .map(|e| e.properties.clone())
+                .unwrap_or_default(),
         };
+        if let (
+            Some(old),
+            ElementShape::Member {
+                member_kind,
+                position,
+                ..
+            },
+        ) = (
+            self.target.and_then(|id| project.elements.get(&id)),
+            &mut element.shape,
+        ) && let ElementShape::Member {
+            member_kind: old_kind,
+            position: old_position,
+            ..
+        } = old.shape
+        {
+            *member_kind = old_kind;
+            *position = old_position;
+        }
         let mut candidate = project.clone();
         candidate.elements.insert(id, element.clone());
         candidate.swept_parts.insert(id, swept.clone());
@@ -166,7 +256,11 @@ impl Dialog {
         if let ElementShape::Member { length, .. } = &mut element.shape {
             *length = LengthMm::new(len).map_err(|e| e.to_string())?;
         }
-        Ok(Command::CreateSwept { element, swept })
+        Ok(if self.target.is_some() {
+            Command::ReplaceSwept { element, swept }
+        } else {
+            Command::CreateSwept { element, swept }
+        })
     }
 }
 fn field(ui: &mut egui::Ui, label: &str, value: &mut String) {
@@ -232,5 +326,48 @@ mod tests {
                 .unwrap();
             assert!(doc.project().element_body(ObjectId(8)).is_ok());
         }
+    }
+}
+
+#[cfg(test)]
+mod edit_tests {
+    use super::*;
+    #[test]
+    fn bend_editor_keeps_properties_and_rotated_frame_and_updates_mass() {
+        let mut doc = open_bim_commands::Document::new(Project::default()).unwrap();
+        let dialog = Dialog::new(Kind::Plate, ObjectId(7), ObjectId(1));
+        doc.transact("Создать", &[dialog.command(doc.project()).unwrap()])
+            .unwrap();
+        let id = ObjectId(8);
+        let mut element = doc.project().elements[&id].clone();
+        *element.shape.frame_mut() = Frame {
+            origin: open_bim_model::Point3([10., 20., 30.]),
+            axes: [[0., 1., 0.], [-1., 0., 0.], [0., 0., 1.]],
+        };
+        element.properties.insert(
+            "Примечание".into(),
+            open_bim_model::PropertyValue::Text("Сохранить".into()),
+        );
+        doc.transact(
+            "Свойства",
+            &[Command::ReplaceElement {
+                element: element.clone(),
+            }],
+        )
+        .unwrap();
+        let before = doc.project().element_mass_kg(id).unwrap();
+        let mut edit = Dialog::new(Kind::Plate, ObjectId(7), ObjectId(1));
+        edit.load(doc.project(), id).unwrap();
+        edit.radius = "100".into();
+        doc.transact("Гибка", &[edit.command(doc.project()).unwrap()])
+            .unwrap();
+        assert_eq!(
+            doc.project().elements[&id].shape.frame(),
+            element.shape.frame()
+        );
+        assert_eq!(doc.project().elements[&id].properties, element.properties);
+        assert!(doc.project().element_mass_kg(id).unwrap() > before);
+        doc.undo().unwrap();
+        assert!((doc.project().element_mass_kg(id).unwrap() - before).abs() < 1e-9);
     }
 }

@@ -67,6 +67,7 @@ impl DrawingEditor {
             source,
             section_host: None,
             appearance: Default::default(),
+            unfolded: false,
         });
         d.validate().map_err(|e| e.to_string())?;
         self.selected_view = Some(id);
@@ -107,6 +108,7 @@ impl DrawingEditor {
             source: cut.source,
             section_host: Some(cut.host),
             appearance: Default::default(),
+            unfolded: false,
         });
         d.validate().map_err(|e| e.to_string())?;
         let n = d.views.iter().filter(|v| v.section.is_some()).count();
@@ -142,8 +144,8 @@ impl DrawingEditor {
             view.name = name.into();
         }
         if let Some(direction) = edit.direction {
-            if view.node.is_some() {
-                return Err("Направление узла задаёт его основной вид".into());
+            if view.node.is_some() || view.unfolded {
+                return Err("Направление узла или развёртки задано построением".into());
             }
             view.direction = direction;
         }

@@ -500,7 +500,7 @@ impl DrawingEditor {
                 ui.end_row();
                 ui.label("Направление");
                 let mut direction = view.direction;
-                ui.add_enabled_ui(view.node.is_none(), |ui| {
+                ui.add_enabled_ui(view.node.is_none() && !view.unfolded, |ui| {
                     egui::ComboBox::from_id_salt("view direction")
                         .selected_text(direction_label(direction))
                         .show_ui(ui, |ui| {

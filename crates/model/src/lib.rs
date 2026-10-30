@@ -11,6 +11,7 @@ mod detailing;
 mod document_info;
 mod drawing;
 mod drawing_objects;
+mod fabrication;
 pub mod family;
 pub mod formula;
 mod frame;

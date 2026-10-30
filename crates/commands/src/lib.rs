@@ -54,6 +54,10 @@ pub enum Command {
         element: Element,
         swept: open_bim_model::SweptPart,
     },
+    ReplaceSwept {
+        element: Element,
+        swept: open_bim_model::SweptPart,
+    },
     CreateAxis {
         axis: GridAxis,
     },
@@ -397,7 +401,10 @@ fn guard_locked_and_phase(before: &Project, staged: &mut Project) -> Result<(), 
                     old.name
                 )));
             }
-            Some(new) if locked(new) && new != old => {
+            Some(new)
+                if locked(new)
+                    && (new != old || before.swept_parts.get(id) != staged.swept_parts.get(id)) =>
+            {
                 return Err(CommandError::InvalidTransaction(format!(
                     "Деталь «{}» заблокирована: снимите блокировку, чтобы изменить её",
                     old.name
@@ -619,6 +626,16 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
                     })?,
                 );
             project.elements.insert(element.id, element.clone());
+        }
+        Command::ReplaceSwept { element, swept } => {
+            if !project.swept_parts.contains_key(&element.id)
+                || !project.elements.contains_key(&element.id)
+            {
+                return Err(ModelError::MissingReference(element.id).into());
+            }
+            project.elements.insert(element.id, element.clone());
+            project.swept_parts.insert(element.id, swept.clone());
+            project.element_body(element.id)?;
         }
         Command::CreateSwept { element, swept } => {
             if project.contains_id(element.id) || element.id.0 == 0 {

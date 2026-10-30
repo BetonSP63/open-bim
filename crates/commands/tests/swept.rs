@@ -122,3 +122,57 @@ fn incompatible_changes_and_invalid_creation_roll_back() {
     );
     assert_eq!(doc.project(), &before);
 }
+
+#[test]
+fn bend_edit_has_history_and_cannot_bypass_a_part_lock() {
+    let mut doc = Document::new(Project::default()).unwrap();
+    doc.transact(
+        "Создать",
+        &[Command::CreateSwept {
+            element: part(),
+            swept: sweep(),
+        }],
+    )
+    .unwrap();
+    let changed = SweptPart::CurvedBeam {
+        center: [0., 0.],
+        radius: 2000.,
+        start_angle: 0.,
+        sweep_angle: 0.5,
+    };
+    doc.transact(
+        "Изменить",
+        &[Command::ReplaceSwept {
+            element: part(),
+            swept: changed.clone(),
+        }],
+    )
+    .unwrap();
+    assert_eq!(doc.project().swept_parts[&ObjectId(8)], changed);
+    doc.undo().unwrap();
+    assert_eq!(doc.project().swept_parts[&ObjectId(8)], sweep());
+    doc.redo().unwrap();
+    let mut locked = part();
+    locked.properties.insert(
+        open_bim_model::management::LOCK_PROPERTY.into(),
+        open_bim_model::PropertyValue::Boolean(true),
+    );
+    doc.transact(
+        "Блокировать",
+        &[Command::ReplaceElement {
+            element: locked.clone(),
+        }],
+    )
+    .unwrap();
+    assert!(
+        doc.transact(
+            "Изменить",
+            &[Command::ReplaceSwept {
+                element: locked,
+                swept: sweep()
+            }]
+        )
+        .is_err()
+    );
+    assert_eq!(doc.project().swept_parts[&ObjectId(8)], changed);
+}
