@@ -19,6 +19,7 @@ pub enum Action {
     Save,
     Open,
     ExportIfc,
+    ExportIfc43,
     ExportNc,
     ImportIfc,
     New,
@@ -577,8 +578,17 @@ impl ToolsUi {
                     action = Some(Action::ExportIfc);
                 }
                 if ui
+                    .button("Экспорт IFC4.3")
+                    .on_hover_text("Файл с тем же именем и окончанием -IFC4X3.ifc")
+                    .clicked()
+                {
+                    action = Some(Action::ExportIfc43);
+                }
+                if ui
                     .button("Импорт IFC")
-                    .on_hover_text("Выбрать файл IFC2x3 или IFC4; объекты добавляются в модель")
+                    .on_hover_text(
+                        "Выбрать файл IFC2x3, IFC4 или IFC4.3; объекты добавляются в модель",
+                    )
                     .clicked()
                 {
                     action = Some(Action::ImportIfc);

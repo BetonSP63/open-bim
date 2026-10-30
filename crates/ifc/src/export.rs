@@ -1,8 +1,8 @@
-//! IFC4 export of the declared subset (see docs/ifc-support.md).
+//! IFC4 and IFC4.3 export of the declared subset (see docs/ifc-support.md).
 use crate::step::{encode, guid, real, valid_guid};
 use crate::{
     ENTITIES, GOST_PSET_NAME, GUID_PROPERTY, IFC_ENTITY_PROPERTY, IFC_OBJECT_TYPE_PROPERTY,
-    IFC_PREDEFINED_PROPERTY, KSI_PROPERTY, PSET_NAME,
+    IFC_PREDEFINED_PROPERTY, KSI_PROPERTY, PSET_NAME, Schema, ifc4x3_only,
 };
 use open_bim_model::management::STOREY_PROPERTY;
 use open_bim_model::{
@@ -15,6 +15,7 @@ use std::fmt::Write;
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize)]
 pub struct ExportReport {
+    pub schema: Schema,
     pub beams: usize,
     pub columns: usize,
     pub plates: usize,
@@ -22,6 +23,10 @@ pub struct ExportReport {
     /// Parts exported as a tessellated rather than analytic IFC body.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tessellated: Vec<ObjectId>,
+    /// Parts whose IFC4.3 class or predefined type an IFC4 file cannot hold:
+    /// written as USERDEFINED (IfcBuildingElementProxy for IfcBearing).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub downgraded: Vec<ObjectId>,
     /// Model data outside the IFC subset, by kind, with object IDs.
     pub skipped: BTreeMap<String, Vec<ObjectId>>,
 }
@@ -194,7 +199,6 @@ fn local(frame: &Frame, origin: open_bim_model::Point3) -> [f64; 3] {
     std::array::from_fn(|i| frame.origin.0[i] - origin.0[i])
 }
 
-/// IFC4 STEP text and a report of model data that was not exported.
 /// Largest dimension of a part (length or section), for opening sizes.
 fn part_extent(project: &Project, element: &open_bim_model::Element) -> f64 {
     match &element.shape {
@@ -224,13 +228,24 @@ fn spatial_name(name: &str, default: &str) -> String {
     }
 }
 
+/// IFC4 STEP text and a report of model data that was not exported.
 pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
+    export_schema(project, Schema::Ifc4)
+}
+
+/// STEP text in the given schema and a report of model data that was not
+/// exported. IFC4 and IFC4.3 differ in the subset only by the optional Name
+/// of IfcDerivedUnit and TagList of IfcCartesianPointList3D.
+pub fn export_schema(project: &Project, schema: Schema) -> Result<(String, ExportReport), String> {
     project.validate().map_err(|e| e.to_string())?;
     let mut w = Writer {
         out: String::new(),
         next: 1,
     };
-    let mut report = ExportReport::default();
+    let mut report = ExportReport {
+        schema,
+        ..ExportReport::default()
+    };
     let hierarchy = &project.management.hierarchy;
     let origin = w.placement([0.; 3], [0., 0., 1.], [1., 0., 0.]);
     let context = w.add(format!(
@@ -247,8 +262,13 @@ pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
     let metre = w.add("IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.)".into());
     let kg_e = w.add(format!("IFCDERIVEDUNITELEMENT(#{kg},1)"));
     let m_e = w.add(format!("IFCDERIVEDUNITELEMENT(#{metre},-3)"));
+    // IFC4.3 entities with one more optional attribute than in IFC4.
+    let more = match schema {
+        Schema::Ifc4 => "",
+        Schema::Ifc4x3 => ",$",
+    };
     let density = w.add(format!(
-        "IFCDERIVEDUNIT((#{kg_e},#{m_e}),.MASSDENSITYUNIT.,$)"
+        "IFCDERIVEDUNIT((#{kg_e},#{m_e}),.MASSDENSITYUNIT.,${more})"
     ));
     let units = w.add(format!(
         "IFCUNITASSIGNMENT((#{mm},#{area},#{volume},#{angle},#{kg},#{density}))"
@@ -334,7 +354,7 @@ pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
                 .map(|t| format!("({},{},{})", t[0] + 1, t[1] + 1, t[2] + 1))
                 .collect::<Vec<_>>()
                 .join(",");
-            let vertices = w.add(format!("IFCCARTESIANPOINTLIST3D(({coordinates}))"));
+            let vertices = w.add(format!("IFCCARTESIANPOINTLIST3D(({coordinates}){more})"));
             let solid = w.add(format!(
                 "IFCTRIANGULATEDFACESET(#{vertices},$,.T.,({indices}),$)"
             ));
@@ -408,7 +428,11 @@ pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
                 ("IfcPlate", "SHEET")
             }
         };
-        let (entity, predefined, object_type) = ifc_class(element, default_entity, default_type);
+        let (entity, predefined, object_type, downgraded) =
+            ifc_class(element, default_entity, default_type, schema);
+        if downgraded {
+            report.downgraded.push(element.id);
+        }
         // IfcPile carries one more attribute, its construction type.
         let tail = if entity == "IfcPile" { ",$" } else { "" };
         let product = w.add(format!(
@@ -727,14 +751,19 @@ pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
     }
     let mut text = String::new();
     text.push_str("ISO-10303-21;\nHEADER;\n");
-    text.push_str("FILE_DESCRIPTION(('ViewDefinition [DesignTransferView]'),'2;1');\n");
+    // IFC4.3 has no design transfer view yet.
+    text.push_str(match schema {
+        Schema::Ifc4 => "FILE_DESCRIPTION(('ViewDefinition [DesignTransferView]'),'2;1');\n",
+        Schema::Ifc4x3 => "FILE_DESCRIPTION(('ViewDefinition [notYetAssigned]'),'2;1');\n",
+    });
     let _ = writeln!(
         text,
         "FILE_NAME({},'1970-01-01T00:00:00',(''),(''),'Open BIM','Open BIM {}','');",
         encode(&format!("{}.ifc", project.name)),
         env!("CARGO_PKG_VERSION")
     );
-    text.push_str("FILE_SCHEMA(('IFC4'));\nENDSEC;\nDATA;\n");
+    let _ = writeln!(text, "FILE_SCHEMA(('{}'));", schema.name());
+    text.push_str("ENDSEC;\nDATA;\n");
     text.push_str(&w.out);
     text.push_str("ENDSEC;\nEND-ISO-10303-21;\n");
     Ok((text, report))
@@ -743,12 +772,15 @@ pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
 /// IFC class, predefined type and ObjectType of a part: the class chosen in
 /// its properties when it is one of [`ENTITIES`], else the one by shape. A
 /// predefined type not allowed for the class falls back to NOTDEFINED;
-/// USERDEFINED takes the user type as ObjectType.
+/// USERDEFINED takes the user type as ObjectType. In IFC4 an IFC4.3-only
+/// type becomes USERDEFINED named by it, an IFC4.3-only class a proxy; the
+/// last value tells whether that happened.
 fn ifc_class(
     element: &open_bim_model::Element,
     default_entity: &'static str,
     default_type: &'static str,
-) -> (&'static str, &'static str, String) {
+    schema: Schema,
+) -> (&'static str, &'static str, String, bool) {
     let text = |key: &str| match element.properties.get(key) {
         Some(PropertyValue::Text(t)) if !t.trim().is_empty() => Some(t.trim().to_string()),
         _ => None,
@@ -777,10 +809,24 @@ fn ifc_class(
         None if chosen.is_none() => default_type,
         None => "NOTDEFINED",
     };
-    let object_type = match text(IFC_OBJECT_TYPE_PROPERTY) {
+    let user_type = text(IFC_OBJECT_TYPE_PROPERTY);
+    if schema == Schema::Ifc4 && (ifc4x3_only(entity) || ifc4x3_only(predefined)) {
+        let named = match predefined {
+            "USERDEFINED" | "NOTDEFINED" => entity.trim_start_matches("Ifc").to_ascii_uppercase(),
+            t => t.to_string(),
+        };
+        let entity = if ifc4x3_only(entity) {
+            "IfcBuildingElementProxy"
+        } else {
+            entity
+        };
+        let object_type = encode(&user_type.unwrap_or(named));
+        return (entity, "USERDEFINED", object_type, true);
+    }
+    let object_type = match user_type {
         Some(t) => encode(&t),
         None if predefined == "USERDEFINED" => encode(&element.name),
         None => "$".into(),
     };
-    (entity, predefined, object_type)
+    (entity, predefined, object_type, false)
 }

@@ -22,7 +22,7 @@ unmodified open-source `acadrust` crate (MPL-2.0); macOS signing and notarizatio
 are postponed.
 
 Still open for 1.0: КЖ by ГОСТ (bar shapes, positions, schedules, drawings, IFC
-rebar, BVBS, pours), full catalogue check, NC cuts and unfoldings, IFC4.3,
+rebar, BVBS, pours), full catalogue check, NC cuts and unfoldings,
 reference models and BCF, DWG, Linux/Windows, collaboration, public API 1.0.
 
 ## 0.1.0 — first steel release (local, macOS ARM64)

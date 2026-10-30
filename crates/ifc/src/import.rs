@@ -1,6 +1,9 @@
 //! IFC import of the declared subset; everything else is listed in the report.
 use crate::step::{Entity, File, Value, parse, valid_guid};
-use crate::{GOST_PSET_NAME, GUID_PROPERTY, IFC_ENTITY_PROPERTY, PSET_NAME, mapping};
+use crate::{
+    GOST_PSET_NAME, GUID_PROPERTY, IFC_ENTITY_PROPERTY, IFC_OBJECT_TYPE_PROPERTY,
+    IFC_PREDEFINED_PROPERTY, PSET_NAME, mapping,
+};
 use open_bim_model::library;
 use open_bim_model::{
     Detail, DetailKind, Element, ElementShape, Frame, LengthMm, Material, MemberKind, ObjectId,
@@ -120,6 +123,18 @@ const KNOWN: &[&str] = &[
     "IFCSITE",
     "IFCBUILDING",
     "IFCBUILDINGSTOREY",
+    // IFC4.3 facilities and their parts hold elements like a building.
+    "IFCFACILITY",
+    "IFCBRIDGE",
+    "IFCROAD",
+    "IFCRAILWAY",
+    "IFCMARINEFACILITY",
+    "IFCFACILITYPART",
+    "IFCFACILITYPARTCOMMON",
+    "IFCBRIDGEPART",
+    "IFCROADPART",
+    "IFCRAILWAYPART",
+    "IFCMARINEPART",
     "IFCRELAGGREGATES",
     "IFCRELCONTAINEDINSPATIALSTRUCTURE",
     "IFCSHAPEREPRESENTATION",
@@ -247,6 +262,14 @@ fn element_word(kind: &str) -> Option<&'static str> {
         "IFCFURNISHINGELEMENT" => "мебель",
         "IFCSPACE" => "помещения",
         "IFCGRID" => "сетки осей",
+        // IFC4.3 infrastructure.
+        "IFCBEARING" => "опорные части",
+        "IFCALIGNMENT" => "трассы",
+        "IFCCAISSONFOUNDATION" => "фундаменты",
+        "IFCCOURSE" | "IFCPAVEMENT" | "IFCKERB" => "дорожная одежда",
+        "IFCEARTHWORKSFILL" | "IFCEARTHWORKSCUT" | "IFCREINFORCEDSOIL" => "земляные работы",
+        "IFCRAIL" | "IFCTRACKELEMENT" => "элементы пути",
+        "IFCGEOGRAPHICELEMENT" => "элементы местности",
         _ => return None,
     })
 }
@@ -892,7 +915,7 @@ fn regular_polygon(r: f64) -> Vec<[f64; 2]> {
         .collect()
 }
 
-/// Parse IFC text (IFC2x3 or IFC4) into a new project; unsupported content
+/// Parse IFC text (IFC2x3, IFC4 or IFC4.3) into a new project; unsupported content
 /// goes to the report. Sections are matched to the ГОСТ catalogue and steel
 /// grades to ГОСТ steels where the file allows it.
 pub fn import(text: &str) -> Result<(Project, ImportReport), String> {
@@ -907,15 +930,19 @@ pub fn import(text: &str) -> Result<(Project, ImportReport), String> {
         .any(|s| s.starts_with("IFC4") || s.starts_with("IFC2X3"))
     {
         return Err(format!(
-            "Схема {:?} не поддерживается; ожидается IFC2x3 или IFC4",
+            "Схема {:?} не поддерживается; ожидается IFC2x3, IFC4 или IFC4.3",
             file.schema
         ));
     }
-    if schema.iter().any(|s| s.starts_with("IFC4X3")) {
-        report.issues.push(
-            "IFC4X3 читается как IFC4: специфичные сущности 4.3 перечислены как неподдерживаемые"
-                .into(),
-        );
+    // Drafts between IFC4 and IFC4.3 (IFC4X1, IFC4X2) are read as IFC4.3.
+    if schema
+        .iter()
+        .any(|s| s.starts_with("IFC4X") && !s.starts_with("IFC4X3"))
+    {
+        report.issues.push(format!(
+            "черновая схема {:?} читается как IFC4.3",
+            file.schema
+        ));
     }
     for e in file.entities.values() {
         if !KNOWN.contains(&e.kind.as_str()) && !silent(&e.kind) {
@@ -1384,12 +1411,50 @@ pub fn import(text: &str) -> Result<(Project, ImportReport), String> {
                         .push(format!("{label}: неверный или повторный GUID «{g}»"));
                 }
             }
-            // A member keeps its class on the next export.
+            // A member keeps its class on the next export, any part its
+            // predefined type other than the default and a user type.
             if kind_name == "IFCMEMBER" {
                 properties.insert(
                     IFC_ENTITY_PROPERTY.into(),
                     PropertyValue::Text("IfcMember".into()),
                 );
+            }
+            if let Some(predefined) = e.args.get(8).and_then(Value::as_enum) {
+                let default = match kind_name {
+                    "IFCBEAM" => "BEAM",
+                    "IFCCOLUMN" => "COLUMN",
+                    "IFCPLATE" => "SHEET",
+                    _ => "NOTDEFINED",
+                };
+                let user_type = e
+                    .args
+                    .get(4)
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|t| !t.is_empty());
+                // An IFC4 file names IFC4.3 types as USERDEFINED ones.
+                let named = user_type.and_then(|t| {
+                    crate::predefined_types(kind_name)?
+                        .iter()
+                        .find(|p| p.eq_ignore_ascii_case(t) && crate::ifc4x3_only(p))
+                });
+                if let (true, Some(t)) = (predefined == "USERDEFINED", named) {
+                    properties.insert(
+                        IFC_PREDEFINED_PROPERTY.into(),
+                        PropertyValue::Text(t.to_string()),
+                    );
+                } else if predefined != default && predefined != "NOTDEFINED" {
+                    properties.insert(
+                        IFC_PREDEFINED_PROPERTY.into(),
+                        PropertyValue::Text(predefined.into()),
+                    );
+                    if let (true, Some(t)) = (predefined == "USERDEFINED", user_type) {
+                        properties.insert(
+                            IFC_OBJECT_TYPE_PROPERTY.into(),
+                            PropertyValue::Text(t.into()),
+                        );
+                    }
+                }
             }
             // Openings are placed in the element's own frame.
             let part_frame = match &shape {

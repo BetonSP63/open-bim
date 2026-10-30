@@ -1,13 +1,13 @@
-//! IFC4 exchange of the declared subset: IfcBeam, IfcColumn, IfcPlate with
-//! swept-solid bodies, parameterised profiles, materials, placements, GUIDs,
-//! property sets and openings. See docs/ifc-support.md.
+//! IFC4 and IFC4.3 exchange of the declared subset: IfcBeam, IfcColumn,
+//! IfcPlate with swept-solid bodies, parameterised profiles, materials,
+//! placements, GUIDs, property sets and openings. See docs/ifc-support.md.
 pub mod export;
 pub mod import;
 pub mod mapping;
 pub mod merge;
 pub mod step;
 
-pub use export::{ExportReport, export};
+pub use export::{ExportReport, export, export_schema};
 pub use import::{ImportReport, import};
 
 /// Element property that carries the IFC GlobalId across round trips.
@@ -26,7 +26,76 @@ pub const IFC_ENTITY_PROPERTY: &str = "ifc_entity";
 pub const IFC_PREDEFINED_PROPERTY: &str = "ifc_predefined_type";
 pub const IFC_OBJECT_TYPE_PROPERTY: &str = "ifc_object_type";
 
-/// IFC4 classes a part may be exported as, with their predefined types.
+/// Schema of an exported file.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize)]
+pub enum Schema {
+    /// IFC4 ADD2 TC1.
+    #[default]
+    Ifc4,
+    /// IFC4.3 ADD2 (ISO 16739-1:2024).
+    Ifc4x3,
+}
+
+impl Schema {
+    /// Name in FILE_SCHEMA.
+    pub fn name(self) -> &'static str {
+        match self {
+            Schema::Ifc4 => "IFC4",
+            Schema::Ifc4x3 => "IFC4X3_ADD2",
+        }
+    }
+    /// Name for messages.
+    pub fn label(self) -> &'static str {
+        match self {
+            Schema::Ifc4 => "IFC4",
+            Schema::Ifc4x3 => "IFC4.3",
+        }
+    }
+}
+
+/// Classes and predefined types that only IFC4.3 has. An IFC4 export writes
+/// such a type as USERDEFINED with the type name as ObjectType, and such a
+/// class as IfcBuildingElementProxy.
+pub const IFC4X3_ONLY: &[&str] = &[
+    "IfcBearing",
+    "CORNICE",
+    "DIAPHRAGM",
+    "EDGEBEAM",
+    "GIRDER_SEGMENT",
+    "HATSTONE",
+    "PIERCAP",
+    "PIERSTEM",
+    "PIERSTEM_SEGMENT",
+    "STANDCOLUMN",
+    "ARCH_SEGMENT",
+    "STAY_CABLE",
+    "STIFFENING_RIB",
+    "STRUCTURALCABLE",
+    "SUSPENDER",
+    "SUSPENSION_CABLE",
+    "TIEBAR",
+    "BASE_PLATE",
+    "COVER_PLATE",
+    "FLANGE_PLATE",
+    "GUSSET_PLATE",
+    "SPLICE_PLATE",
+    "STIFFENER_PLATE",
+    "WEB_PLATE",
+    "FENCE",
+    "APPROACH_SLAB",
+    "PAVING",
+    "SIDEWALK",
+    "TRACKSLAB",
+    "WEARING",
+];
+
+/// Whether a class or predefined type exists only in IFC4.3.
+pub fn ifc4x3_only(name: &str) -> bool {
+    IFC4X3_ONLY.iter().any(|n| n.eq_ignore_ascii_case(name))
+}
+
+/// IFC classes a part may be exported as, with their predefined types (IFC4
+/// and IFC4.3; see [`IFC4X3_ONLY`]).
 pub const ENTITIES: &[(&str, &[&str])] = &[
     (
         "IfcBeam",
@@ -37,13 +106,27 @@ pub const ENTITIES: &[(&str, &[&str])] = &[
             "LINTEL",
             "SPANDREL",
             "T_BEAM",
+            "CORNICE",
+            "DIAPHRAGM",
+            "EDGEBEAM",
+            "GIRDER_SEGMENT",
+            "HATSTONE",
+            "PIERCAP",
             "USERDEFINED",
             "NOTDEFINED",
         ],
     ),
     (
         "IfcColumn",
-        &["COLUMN", "PILASTER", "USERDEFINED", "NOTDEFINED"],
+        &[
+            "COLUMN",
+            "PILASTER",
+            "PIERSTEM",
+            "PIERSTEM_SEGMENT",
+            "STANDCOLUMN",
+            "USERDEFINED",
+            "NOTDEFINED",
+        ],
     ),
     (
         "IfcMember",
@@ -60,13 +143,32 @@ pub const ENTITIES: &[(&str, &[&str])] = &[
             "STRINGER",
             "STRUT",
             "STUD",
+            "ARCH_SEGMENT",
+            "STAY_CABLE",
+            "STIFFENING_RIB",
+            "STRUCTURALCABLE",
+            "SUSPENDER",
+            "SUSPENSION_CABLE",
+            "TIEBAR",
             "USERDEFINED",
             "NOTDEFINED",
         ],
     ),
     (
         "IfcPlate",
-        &["CURTAIN_PANEL", "SHEET", "USERDEFINED", "NOTDEFINED"],
+        &[
+            "CURTAIN_PANEL",
+            "SHEET",
+            "BASE_PLATE",
+            "COVER_PLATE",
+            "FLANGE_PLATE",
+            "GUSSET_PLATE",
+            "SPLICE_PLATE",
+            "STIFFENER_PLATE",
+            "WEB_PLATE",
+            "USERDEFINED",
+            "NOTDEFINED",
+        ],
     ),
     (
         "IfcRailing",
@@ -74,6 +176,7 @@ pub const ENTITIES: &[(&str, &[&str])] = &[
             "HANDRAIL",
             "GUARDRAIL",
             "BALUSTRADE",
+            "FENCE",
             "USERDEFINED",
             "NOTDEFINED",
         ],
@@ -110,6 +213,11 @@ pub const ENTITIES: &[(&str, &[&str])] = &[
             "ROOF",
             "LANDING",
             "BASESLAB",
+            "APPROACH_SLAB",
+            "PAVING",
+            "SIDEWALK",
+            "TRACKSLAB",
+            "WEARING",
             "USERDEFINED",
             "NOTDEFINED",
         ],
@@ -117,6 +225,21 @@ pub const ENTITIES: &[(&str, &[&str])] = &[
     (
         "IfcBuildingElementProxy",
         &["COMPLEX", "ELEMENT", "PARTIAL", "USERDEFINED", "NOTDEFINED"],
+    ),
+    (
+        "IfcBearing",
+        &[
+            "CYLINDRICAL",
+            "DISK",
+            "ELASTOMERIC",
+            "GUIDE",
+            "POT",
+            "ROCKER",
+            "ROLLER",
+            "SPHERICAL",
+            "USERDEFINED",
+            "NOTDEFINED",
+        ],
     ),
 ];
 

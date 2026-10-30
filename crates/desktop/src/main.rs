@@ -320,6 +320,18 @@ impl Desktop {
                     Some(self.bench.editor.export_ifc(&path).unwrap_or_else(|e| e));
                 return;
             }
+            Action::ExportIfc43 => {
+                let path = open_bim_desktop::tools::ifc43_path(std::path::Path::new(
+                    &self.bench.tools.path,
+                ));
+                self.bench.tools.message = Some(
+                    self.bench
+                        .editor
+                        .export_ifc_schema(&path, open_bim_ifc::Schema::Ifc4x3)
+                        .unwrap_or_else(|e| e),
+                );
+                return;
+            }
             Action::ExportNc => {
                 let path = std::path::Path::new(&self.bench.tools.path);
                 self.bench.tools.message =
