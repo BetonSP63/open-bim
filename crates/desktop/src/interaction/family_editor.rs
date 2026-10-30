@@ -5,8 +5,9 @@
 use eframe::egui;
 use open_bim_commands::Command;
 use open_bim_model::{
-    Axis, BodyArray, BodyShape, Family, FamilyBody, FamilyParameter, FamilyType, LocalShape,
-    ParamKind, Placement, Point3, RefPlane, SpecMode,
+    Axis, BodyArray, BodyShape, DetailShape, Family, FamilyBody, FamilyDetail, FamilyParameter,
+    FamilyType, LocalDetail, LocalShape, ParamKind, Placement, Point3, RefPlane, SpecMode,
+    WeldGost, WeldProcess, WeldSides, WeldType,
 };
 use std::collections::BTreeMap;
 
@@ -27,6 +28,7 @@ pub fn blank(name: &str) -> Family {
     Family {
         name: s(name),
         nested: Vec::new(),
+        details: Vec::new(),
         description: String::new(),
         placement: Placement::Point,
         spec: SpecMode::Assembly,
@@ -101,7 +103,7 @@ pub fn check(family: &Family, length: f64) -> Vec<String> {
         };
         let built = family
             .values(name, &BTreeMap::new(), length, &BTreeMap::new())
-            .and_then(|v| family.evaluate(&v));
+            .and_then(|v| family.build(&v));
         if let Err(e) = built {
             out.push(format!("{label}: {e}"));
         }
@@ -135,13 +137,75 @@ impl View {
     }
 }
 
-/// What a view draws, in mm of the view: part edges and the reference
-/// planes seen edge-on (name, axis is the view's right (`true`) or up,
-/// position).
+/// What a view draws, in mm of the view: part edges, lines of the bolts,
+/// welds, cuts and holes, and the reference planes seen edge-on (name, axis
+/// is the view's right (`true`) or up, position).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Sketch {
     pub edges: Vec<[[f64; 2]; 2]>,
+    pub details: Vec<[[f64; 2]; 2]>,
     pub planes: Vec<(String, bool, f64)>,
+}
+
+/// Lines that show a bolt group (each bolt's axis and a cross across it),
+/// a weld (its path), a cut (the prism's edges) or a hole (two rims and
+/// four lines along it).
+fn detail_edges(shape: &LocalDetail) -> Vec<[[f64; 3]; 2]> {
+    let mut out = Vec::new();
+    match shape {
+        LocalDetail::Bolts {
+            frame,
+            steps_x,
+            steps_y,
+            diameter,
+            ..
+        } => {
+            let r = diameter / 2.;
+            let at = |x: f64, y: f64, z: f64| frame.world(Point3([x, y, z])).0;
+            for [x, y] in open_bim_model::bolt_positions(steps_x, steps_y, &[]) {
+                out.push([at(x, y, -3. * r), at(x, y, 3. * r)]);
+                out.push([at(x - r, y, 0.), at(x + r, y, 0.)]);
+                out.push([at(x, y - r, 0.), at(x, y + r, 0.)]);
+            }
+        }
+        LocalDetail::Weld { path, .. } => {
+            for w in path.windows(2) {
+                out.push([w[0].0, w[1].0]);
+            }
+        }
+        LocalDetail::Cut {
+            frame,
+            contour,
+            depth,
+        } => {
+            out = edges_3d(&LocalShape::Plate {
+                contour: contour.clone(),
+                thickness: *depth,
+                frame: *frame,
+            });
+        }
+        LocalDetail::Hole {
+            frame,
+            diameter,
+            depth,
+        } => {
+            let r = diameter / 2.;
+            let at = |a: f64, z: f64| frame.world(Point3([r * a.cos(), r * a.sin(), z])).0;
+            let n = 16;
+            for k in 0..n {
+                let (a, b) = (
+                    std::f64::consts::TAU * k as f64 / n as f64,
+                    std::f64::consts::TAU * (k + 1) as f64 / n as f64,
+                );
+                out.push([at(a, 0.), at(b, 0.)]);
+                out.push([at(a, *depth), at(b, *depth)]);
+                if k % 4 == 0 {
+                    out.push([at(a, 0.), at(a, *depth)]);
+                }
+            }
+        }
+    }
+    out
 }
 
 fn edges_3d(shape: &LocalShape) -> Vec<[[f64; 3]; 2]> {
@@ -169,16 +233,20 @@ fn edges_3d(shape: &LocalShape) -> Vec<[[f64; 3]; 2]> {
 /// The view of `family` of `type_name` (placed with length `length`).
 pub fn sketch(family: &Family, type_name: &str, length: f64, view: View) -> Result<Sketch, String> {
     let values = family.values(type_name, &BTreeMap::new(), length, &BTreeMap::new())?;
-    let parts = family.evaluate(&values)?;
+    let built = family.build(&values)?;
     let (u, v) = view.axes();
     let mut out = Sketch::default();
-    for part in &parts {
-        for [a, b] in edges_3d(&part.shape) {
-            let (p, q) = ([a[u], a[v]], [b[u], b[v]]);
-            if (p[0] - q[0]).abs() + (p[1] - q[1]).abs() > 1e-9 {
-                out.edges.push([p, q]);
-            }
-        }
+    let flat = |[a, b]: [[f64; 3]; 2]| {
+        let (p, q) = ([a[u], a[v]], [b[u], b[v]]);
+        ((p[0] - q[0]).abs() + (p[1] - q[1]).abs() > 1e-9).then_some([p, q])
+    };
+    for part in &built.parts {
+        out.edges
+            .extend(edges_3d(&part.shape).into_iter().filter_map(flat));
+    }
+    for d in &built.details {
+        out.details
+            .extend(detail_edges(&d.shape).into_iter().filter_map(flat));
     }
     let index = |a: Axis| match a {
         Axis::X => 0,
@@ -344,15 +412,17 @@ enum Page {
     Types,
     Planes,
     Bodies,
+    Details,
 }
 
 impl Page {
-    const ALL: [Self; 5] = [
+    const ALL: [Self; 6] = [
         Self::General,
         Self::Parameters,
         Self::Types,
         Self::Planes,
         Self::Bodies,
+        Self::Details,
     ];
     fn label(self) -> &'static str {
         match self {
@@ -361,6 +431,7 @@ impl Page {
             Self::Types => "Типоразмеры",
             Self::Planes => "Плоскости",
             Self::Bodies => "Тела",
+            Self::Details => "Болты, швы, вырезы",
         }
     }
 }
@@ -370,6 +441,7 @@ pub struct FamilyEditor {
     pub family: Family,
     page: Page,
     body: usize,
+    detail: usize,
     /// Type size and `L` the views are drawn for.
     view_type: String,
     view_length: String,
@@ -407,7 +479,7 @@ impl Fit {
     fn new(rect: egui::Rect, s: &Sketch) -> Option<Self> {
         let mut lo = [f64::INFINITY; 2];
         let mut hi = [f64::NEG_INFINITY; 2];
-        for p in s.edges.iter().flatten() {
+        for p in s.edges.iter().chain(&s.details).flatten() {
             for k in 0..2 {
                 lo[k] = lo[k].min(p[k]);
                 hi[k] = hi[k].max(p[k]);
@@ -480,6 +552,7 @@ impl Default for FamilyEditor {
             family: blank("Новое семейство"),
             page: Page::default(),
             body: 0,
+            detail: 0,
             view_type: String::new(),
             view_length: "3000".into(),
             problems: None,
@@ -541,6 +614,7 @@ impl FamilyEditor {
             .unwrap_or_default();
         self.family = family;
         self.body = 0;
+        self.detail = 0;
         self.problems = None;
         self.drag = None;
         self.drag_note = None;
@@ -591,6 +665,7 @@ impl FamilyEditor {
                             Page::Types => self.types(ui),
                             Page::Planes => self.planes(ui),
                             Page::Bodies => self.bodies(ui, library),
+                            Page::Details => self.details(ui),
                         });
                     self.views(&mut cols[1]);
                 });
@@ -1143,6 +1218,371 @@ impl FamilyEditor {
         );
     }
 
+    fn details(&mut self, ui: &mut egui::Ui) {
+        let f = &mut self.family;
+        let first = f.bodies.first().map(|b| b.name.clone()).unwrap_or_default();
+        let xyz = |a: &str, b: &str, c: &str| [a, b, c].map(String::from);
+        ui.horizontal_wrapped(|ui| {
+            for (i, d) in f.details.iter().enumerate() {
+                ui.selectable_value(&mut self.detail, i, &d.name);
+            }
+            let mut add = |name: &str, shape: DetailShape| {
+                f.details.push(FamilyDetail {
+                    name: format!("{name} {}", f.details.len() + 1),
+                    bodies: vec![first.clone()],
+                    visible: String::new(),
+                    array: None,
+                    shape,
+                });
+                self.detail = f.details.len() - 1;
+            };
+            if ui.button("+ болты").clicked() {
+                add(
+                    "Болты",
+                    DetailShape::Bolts {
+                        at: xyz("X0 + 50", "Y0", "Z0 + 50"),
+                        normal: Axis::Y,
+                        columns: "2".into(),
+                        column_step: "100".into(),
+                        rows: "1".into(),
+                        row_step: "100".into(),
+                        diameter: "20".into(),
+                        clearance: String::new(),
+                        standard: "ГОСТ 7798-70".into(),
+                        grade: "5.8".into(),
+                    },
+                );
+            }
+            if ui.button("+ шов").clicked() {
+                add(
+                    "Шов",
+                    DetailShape::Weld {
+                        path: vec![xyz("X0", "Y0", "Z0"), xyz("X0 + 100", "Y0", "Z0")],
+                        weld_type: WeldType::Fillet,
+                        size: "6".into(),
+                        shop: true,
+                        sides: WeldSides::One,
+                        around: false,
+                        process: WeldProcess::Manual,
+                        gost: WeldGost::default(),
+                    },
+                );
+            }
+            if ui.button("+ вырез").clicked() {
+                add(
+                    "Вырез",
+                    DetailShape::Cut {
+                        normal: Axis::Y,
+                        at: "Y0 - 1".into(),
+                        contour: [["0", "0"], ["30", "0"], ["0", "30"]]
+                            .map(|[a, b]| [a.to_string(), b.to_string()])
+                            .to_vec(),
+                        depth: "100".into(),
+                    },
+                );
+            }
+            if ui.button("+ отверстие").clicked() {
+                add(
+                    "Отверстие",
+                    DetailShape::Hole {
+                        at: xyz("X0 + 50", "Y0 - 1", "Z0 + 50"),
+                        normal: Axis::Y,
+                        diameter: "22".into(),
+                        depth: "100".into(),
+                    },
+                );
+            }
+        });
+        if f.details.is_empty() {
+            ui.label(
+                "Болты, швы, вырезы и отверстия привязываются к телам по имени и \
+                 строятся вместе с ними.",
+            );
+            return;
+        }
+        self.detail = self.detail.min(f.details.len() - 1);
+        let i = self.detail;
+        ui.separator();
+        let mut names: Vec<String> = Vec::new();
+        for b in &f.bodies {
+            if !names.contains(&b.name) {
+                names.push(b.name.clone());
+            }
+        }
+        let d = &mut f.details[i];
+        egui::Grid::new("family-detail")
+            .num_columns(2)
+            .show(ui, |ui| {
+                ui.label(d.shape.label());
+                text(ui, &mut d.name, 200.);
+                ui.end_row();
+                ui.label(match d.shape {
+                    DetailShape::Bolts { .. } => "Соединяет тела",
+                    DetailShape::Weld { .. } => "Сваривает тела",
+                    _ => "Режет тела",
+                });
+                ui.vertical(|ui| {
+                    for name in &names {
+                        let mut on = d.bodies.contains(name);
+                        if ui.checkbox(&mut on, name).changed() {
+                            if on {
+                                d.bodies.push(name.clone());
+                            } else {
+                                d.bodies.retain(|b| b != name);
+                            }
+                        }
+                    }
+                });
+                ui.end_row();
+                ui.label("Видимость");
+                ui.add(
+                    egui::TextEdit::singleline(&mut d.visible)
+                        .hint_text("всегда; например «n > 0»")
+                        .desired_width(200.),
+                );
+                ui.end_row();
+                let mut arrayed = d.array.is_some();
+                ui.label("Массив");
+                if ui
+                    .checkbox(&mut arrayed, "")
+                    .on_hover_text(
+                        "Копия k соединяет копию k тела с тем же числом копий, иначе все копии",
+                    )
+                    .changed()
+                {
+                    d.array = arrayed.then(|| BodyArray {
+                        count: "2".into(),
+                        step: ["100", "0", "0"].map(String::from),
+                    });
+                }
+                ui.end_row();
+                if let Some(a) = &mut d.array {
+                    ui.label("Число копий");
+                    text(ui, &mut a.count, 200.);
+                    ui.end_row();
+                    ui.label("Шаг x, y, z");
+                    ui.horizontal(|ui| {
+                        for s in &mut a.step {
+                            text(ui, s, 90.);
+                        }
+                    });
+                    ui.end_row();
+                }
+                let point = |ui: &mut egui::Ui, label: &str, p: &mut [String; 3]| {
+                    ui.label(label);
+                    ui.horizontal(|ui| {
+                        for s in p.iter_mut() {
+                            text(ui, s, 90.);
+                        }
+                    });
+                    ui.end_row();
+                };
+                match &mut d.shape {
+                    DetailShape::Bolts {
+                        at,
+                        normal,
+                        columns,
+                        column_step,
+                        rows,
+                        row_step,
+                        diameter,
+                        clearance,
+                        standard,
+                        grade,
+                    } => {
+                        point(ui, "Первый болт x, y, z", at);
+                        ui.label("Болты вдоль оси");
+                        axis_combo(ui, "detail-normal", normal);
+                        ui.end_row();
+                        let (a, c) = match normal {
+                            Axis::X => ("y", "z"),
+                            Axis::Y => ("x", "z"),
+                            Axis::Z => ("x", "y"),
+                        };
+                        for (label, n, step) in [
+                            (format!("Столбцы по {a}: число, шаг"), columns, column_step),
+                            (format!("Ряды по {c}: число, шаг"), rows, row_step),
+                        ] {
+                            ui.label(label);
+                            ui.horizontal(|ui| {
+                                text(ui, n, 60.);
+                                text(ui, step, 120.);
+                            });
+                            ui.end_row();
+                        }
+                        ui.label("Диаметр болта");
+                        text(ui, diameter, 200.);
+                        ui.end_row();
+                        ui.label("Зазор отверстия");
+                        ui.add(
+                            egui::TextEdit::singleline(clearance)
+                                .hint_text("2 мм, от М27 — 3 мм")
+                                .desired_width(200.),
+                        );
+                        ui.end_row();
+                        ui.label("Стандарт");
+                        text(ui, standard, 200.);
+                        ui.end_row();
+                        ui.label("Класс прочности");
+                        text(ui, grade, 200.);
+                        ui.end_row();
+                    }
+                    DetailShape::Weld {
+                        path,
+                        weld_type,
+                        size,
+                        shop,
+                        sides,
+                        around,
+                        process,
+                        ..
+                    } => {
+                        ui.label("Тип шва");
+                        egui::ComboBox::from_id_salt("detail-weld-type")
+                            .selected_text(weld_type.label())
+                            .show_ui(ui, |ui| {
+                                for t in WeldType::ALL {
+                                    ui.selectable_value(weld_type, t, t.label());
+                                }
+                            });
+                        ui.end_row();
+                        ui.label("Способ сварки");
+                        egui::ComboBox::from_id_salt("detail-weld-process")
+                            .selected_text(format!("{} ({})", process.label(), process.standard()))
+                            .show_ui(ui, |ui| {
+                                for p in WeldProcess::ALL {
+                                    let label = format!("{} ({})", p.label(), p.standard());
+                                    ui.selectable_value(process, p, label);
+                                }
+                            });
+                        ui.end_row();
+                        ui.label("Катет");
+                        text(ui, size, 200.);
+                        ui.end_row();
+                        ui.label("");
+                        ui.horizontal(|ui| {
+                            let mut both = *sides == WeldSides::Both;
+                            if ui.checkbox(&mut both, "двусторонний").changed() {
+                                *sides = if both {
+                                    WeldSides::Both
+                                } else {
+                                    WeldSides::One
+                                };
+                            }
+                            ui.checkbox(around, "по контуру");
+                            let mut site = !*shop;
+                            if ui.checkbox(&mut site, "монтажный").changed() {
+                                *shop = !site;
+                            }
+                        });
+                        ui.end_row();
+                        ui.label("Путь x, y, z");
+                        ui.vertical(|ui| {
+                            let mut k = 0;
+                            while k < path.len() {
+                                let changed = ui
+                                    .horizontal(|ui| {
+                                        ui.label(format!("{}", k + 1));
+                                        for s in path[k].iter_mut() {
+                                            text(ui, s, 80.);
+                                        }
+                                        path.len() > 2 && row_buttons(ui, path, k)
+                                    })
+                                    .inner;
+                                if !changed {
+                                    k += 1;
+                                }
+                            }
+                            if ui.small_button("+ точка").clicked() {
+                                let last = path.last().cloned().unwrap_or_default();
+                                path.push(last);
+                            }
+                        });
+                        ui.end_row();
+                    }
+                    DetailShape::Cut {
+                        normal,
+                        at,
+                        contour,
+                        depth,
+                    } => {
+                        ui.label("Поперёк оси");
+                        axis_combo(ui, "detail-normal", normal);
+                        ui.end_row();
+                        ui.label("Начало на");
+                        text(ui, at, 200.);
+                        ui.end_row();
+                        ui.label("Глубина");
+                        text(ui, depth, 200.);
+                        ui.end_row();
+                        let (a, c) = match normal {
+                            Axis::X => ("y", "z"),
+                            Axis::Y => ("x", "z"),
+                            Axis::Z => ("x", "y"),
+                        };
+                        ui.label(format!("Контур ({a}, {c})"));
+                        ui.vertical(|ui| {
+                            let mut k = 0;
+                            while k < contour.len() {
+                                let changed = ui
+                                    .horizontal(|ui| {
+                                        ui.label(format!("{}", k + 1));
+                                        text(ui, &mut contour[k][0], 110.);
+                                        text(ui, &mut contour[k][1], 110.);
+                                        contour.len() > 3 && row_buttons(ui, contour, k)
+                                    })
+                                    .inner;
+                                if !changed {
+                                    k += 1;
+                                }
+                            }
+                            if ui.small_button("+ точка").clicked() {
+                                let last = contour.last().cloned().unwrap_or_default();
+                                contour.push(last);
+                            }
+                        });
+                        ui.end_row();
+                    }
+                    DetailShape::Hole {
+                        at,
+                        normal,
+                        diameter,
+                        depth,
+                    } => {
+                        point(ui, "Центр x, y, z", at);
+                        ui.label("Вдоль оси");
+                        axis_combo(ui, "detail-normal", normal);
+                        ui.end_row();
+                        ui.label("Диаметр");
+                        text(ui, diameter, 200.);
+                        ui.end_row();
+                        ui.label("Глубина");
+                        text(ui, depth, 200.);
+                        ui.end_row();
+                    }
+                }
+            });
+        let mut remove = false;
+        ui.horizontal(|ui| {
+            if ui.button("Копировать").clicked() {
+                let mut copy = f.details[i].clone();
+                copy.name.push_str(" (копия)");
+                f.details.insert(i + 1, copy);
+                self.detail = i + 1;
+            }
+            remove = ui.button("Удалить").clicked();
+        });
+        if remove {
+            f.details.remove(i);
+            self.detail = i.saturating_sub(1);
+        }
+        ui.label(
+            "Болты сверлят отверстия во всех выбранных телах; вырез и отверстие идут \
+             от начала на глубину в сторону + оси. Стандарт и класс можно задать \
+             параметром вида «Текст».",
+        );
+    }
+
     fn views(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             let f = &self.family;
@@ -1307,6 +1747,10 @@ fn draw(painter: &egui::Painter, fit: &Fit, s: &Sketch, color: egui::Color32, ho
     for [p, q] in &s.edges {
         painter.line_segment([at(*p), at(*q)], egui::Stroke::new(1.2, color));
     }
+    let detail = egui::Stroke::new(1.5, egui::Color32::from_rgb(200, 60, 60));
+    for [p, q] in &s.details {
+        painter.line_segment([at(*p), at(*q)], detail);
+    }
 }
 
 #[cfg(test)]
@@ -1320,6 +1764,21 @@ mod tests {
         for f in sample_families() {
             assert!(check(&f, 3000.).is_empty(), "{}", f.name);
         }
+    }
+
+    #[test]
+    fn views_show_the_welds_and_holes_and_the_check_builds_them() {
+        let seat = sample_families().remove(0);
+        let top = sketch(&seat, "С-2", 0., View::Top).unwrap();
+        // Two weld lines and two holes of 16 rim pieces, 4 lines along.
+        assert!(top.details.len() >= 2 + 2 * 16, "{}", top.details.len());
+        let mut bad = seat.clone();
+        if let DetailShape::Hole { diameter, .. } = &mut bad.details[1].shape {
+            *diameter = "-1".into();
+        }
+        let problems = check(&bad, 0.);
+        assert_eq!(problems.len(), 3, "{problems:?}");
+        assert!(problems[0].contains("Отверстие под балку"), "{problems:?}");
     }
 
     #[test]
