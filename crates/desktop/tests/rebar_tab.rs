@@ -70,7 +70,8 @@ fn bars_in_concrete_parts() {
     assert_eq!(set.kind, RebarKind::Stirrup);
     // 30..5970 at 150 → 40 steps + the end.
     assert_eq!(set.bars.len(), 41);
-    assert!(set.bars.iter().all(|s| s.len() == 5 && s[0] == s[4]));
+    // Closed loop with 135° hooks at the first corner: hook, A, B, C, D, A, hook.
+    assert!(set.bars.iter().all(|s| s.len() == 7 && s[1] == s[5]));
     // A slab gets two two-way meshes.
     b.editor.selected.clear();
     b.execute(Cmd::ConcreteSlab);
@@ -148,13 +149,15 @@ fn bars_by_picks_schedule_and_undo() {
     // Group: 0..1000 at 200 → 6 bars of 2000.
     assert_eq!(sets[1].bars.len(), 6);
     assert_eq!(sets[2].bars[0].len(), 3);
-    // Schedule: Ø16 А500С, 1 + 6 + 1 bars, 1 + 12 + 1.5 m.
+    // Schedule: Ø16 А500С, 1 + 6 + 1 bars, 1 + 12 + 1.5 m less the 90° bend
+    // of the guide bar: mandrel 5·16 = 80, R = 48, 2R − πR/2.
     let rows = rebar::schedule(p);
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].bars, 8);
-    assert!((rows[0].length_m - 14.5).abs() < 1e-9);
-    let mass = std::f64::consts::PI * 0.016 * 0.016 / 4. * 14.5 * 7850.;
-    assert!((rows[0].mass_kg - mass).abs() < 1e-9);
+    let length = 14.5 - (96. - 48. * std::f64::consts::FRAC_PI_2) / 1000.;
+    assert!((rows[0].length_m - length).abs() < 1e-9);
+    // Nominal mass of Ø16: 1.578 kg/m.
+    assert!((rows[0].mass_kg - 1.578 * length).abs() < 1e-9);
     // Undo removes the last set; visibility toggles.
     b.editor.history(false).unwrap();
     assert_eq!(b.editor.document.project().concrete.rebars.len(), 2);

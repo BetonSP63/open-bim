@@ -4,6 +4,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
+use crate::rebar::{Hook, RebarRule};
 use crate::{ModelError, ObjectId, Point3};
 
 /// «Шов бетонирования». A vertical joint is the plane through the line
@@ -154,7 +155,23 @@ pub struct RebarSet {
     pub host: Option<ObjectId>,
     pub diameter: f64,
     pub grade: String,
+    /// Centre lines through the bend corners (tangent intersections), hooks
+    /// included.
     pub bars: Vec<Vec<Point3>>,
+    /// Ends of the bars: start, end.
+    #[serde(default, skip_serializing_if = "no_hooks")]
+    pub hooks: [Hook; 2],
+    /// Mandrel diameter of the bends, mm; the smallest of the class when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bend_diameter: Option<f64>,
+    /// Layout in the host part, kept to build the bars again when the host
+    /// changes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rule: Option<RebarRule>,
+}
+
+fn no_hooks(h: &[Hook; 2]) -> bool {
+    h.iter().all(Hook::is_none)
 }
 
 impl RebarSet {
@@ -169,13 +186,48 @@ impl RebarSet {
             .sum()
     }
 
-    pub fn total_length_mm(&self) -> f64 {
-        self.bars.iter().map(|b| Self::bar_length(b)).sum()
+    /// Mandrel diameter of the bends, mm.
+    pub fn mandrel(&self) -> f64 {
+        self.bend_diameter.unwrap_or_else(|| {
+            crate::rebar::min_bend_diameter(crate::rebar::rebar_class(&self.grade), self.diameter)
+        })
     }
 
+    /// Bend radius of the centre line, mm.
+    pub fn bend_radius(&self) -> f64 {
+        (self.mandrel() + self.diameter) / 2.
+    }
+
+    /// Cut length of a bar: the corner polyline less, at each bend through
+    /// θ, the two tangents R·tan(θ/2) plus the arc R·θ.
+    pub fn developed_length(&self, bar: &[Point3]) -> f64 {
+        let r = self.bend_radius();
+        let dir = |a: &Point3, b: &Point3| {
+            let v: [f64; 3] = std::array::from_fn(|k| b.0[k] - a.0[k]);
+            let l = v.iter().map(|x| x * x).sum::<f64>().sqrt();
+            (l > 1e-9).then(|| v.map(|x| x / l))
+        };
+        let mut length = Self::bar_length(bar);
+        for w in bar.windows(3) {
+            let (Some(u), Some(v)) = (dir(&w[0], &w[1]), dir(&w[1], &w[2])) else {
+                continue;
+            };
+            let cos = (0..3).map(|k| u[k] * v[k]).sum::<f64>().clamp(-1., 1.);
+            let theta = cos.acos().min(179f64.to_radians());
+            if theta > 1e-6 {
+                length -= 2. * r * (theta / 2.).tan() - r * theta;
+            }
+        }
+        length
+    }
+
+    pub fn total_length_mm(&self) -> f64 {
+        self.bars.iter().map(|b| self.developed_length(b)).sum()
+    }
+
+    /// Mass by the nominal mass per metre of the diameter.
     pub fn mass_kg(&self) -> f64 {
-        let area = std::f64::consts::PI * self.diameter * self.diameter / 4.;
-        area * self.total_length_mm() * 1e-9 * REBAR_DENSITY
+        crate::rebar::mass_per_m(self.diameter) * self.total_length_mm() / 1000.
     }
 }
 
@@ -283,6 +335,27 @@ impl Concrete {
             }
             if r.bars.is_empty() {
                 return bad("Арматурный набор без стержней");
+            }
+            if r.hooks
+                .iter()
+                .any(|h| h.length.is_some_and(|l| !(0.0..=10_000.).contains(&l)))
+            {
+                return bad("Прямой участок крюка от 0 до 10 000 мм");
+            }
+            if r.bend_diameter
+                .is_some_and(|d| !(r.diameter..=10_000.).contains(&d))
+            {
+                return bad("Диаметр оправки не меньше диаметра стержня");
+            }
+            if let Some(rule) = &r.rule
+                && (!(0.0..=500.).contains(&rule.cover)
+                    || !(r.diameter..=10_000.).contains(&rule.spacing)
+                    || !(2..=50).contains(&rule.per_face)
+                    || rule
+                        .stock_length
+                        .is_some_and(|s| !(500.0..=100_000.).contains(&s)))
+            {
+                return bad("Правило раскладки арматуры: неверные значения");
             }
             for b in &r.bars {
                 if b.len() < 2

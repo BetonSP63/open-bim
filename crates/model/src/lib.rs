@@ -24,6 +24,7 @@ mod plugin;
 mod position;
 pub mod pours;
 mod project;
+pub mod rebar;
 pub mod sections;
 pub mod shapes;
 mod swept;
@@ -75,6 +76,10 @@ pub use pours::{PourPiece, PourRow, PourZone};
 pub use project::{
     Assembly, Element, ElementShape, MemberKind, ObjectId, Project, PropertyValue, Units,
     example_steel_frame,
+};
+pub use rebar::{
+    Anchorage, BarSurface, Hook, HookKind, REBAR_CLASSES, RebarClass, RebarRule, Stress, anchorage,
+    rebar_class, rebuild_rebars,
 };
 pub use sections::{
     SectionDefinition, SectionPlate, SectionWeld, Sections, WeldedPiece, WeldedSeam,
