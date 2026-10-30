@@ -14,5 +14,6 @@ open-bim-model.workspace = true
 flate2 = "=1.1.10"
 
 [dev-dependencies]
+flate2 = "=1.1.10"
 open-bim-commands.workspace = true
 serde_json.workspace = true
