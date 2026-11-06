@@ -1134,6 +1134,16 @@ pub fn drawing_zones(project: &Project, parts: &[ObjectId]) -> Vec<open_bim_mode
         .collect()
 }
 
+/// The built title block of a sheet (cells, labels, reserved area): the
+/// form follows the drawing kind and the sheet number (ГОСТ Р 21.101-2026,
+/// 5.2), so the change-table row rects differ between forms 3/4 and 6.
+pub fn title_block_for(
+    project: &Project,
+    drawing: &Drawing,
+) -> Result<title_block::TitleBlock, Error> {
+    title_block(project, drawing, &Status::UpToDate)
+}
+
 fn title_block(
     project: &Project,
     drawing: &Drawing,

@@ -1,7 +1,7 @@
 {
   "magic": "open-bim-project",
   "format_version": 1,
-  "payload_sha256": "beecfabe9a0ec3dc465998101ecd9bbe4489e458cc47ba172db2f935dcad5a40",
+  "payload_sha256": "df1b023f90986db8743e64f874b21f5ef987f1b05022b1e34bc77230e225825b",
   "project": {
     "name": "Контрольное здание",
     "units": "millimetres",
@@ -2079,9 +2079,9 @@
                 ],
                 [
                   678.0,
-                  76.5,
+                  74.5,
                   835.0,
-                  196.0
+                  194.0
                 ]
               ]
             }
@@ -2165,9 +2165,9 @@
                 ],
                 [
                   678.0,
-                  76.5,
+                  74.5,
                   835.0,
-                  196.0
+                  194.0
                 ]
               ]
             }

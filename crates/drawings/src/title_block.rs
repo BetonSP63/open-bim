@@ -121,6 +121,8 @@ pub struct TitleBlock {
     /// Filled black rectangles (QR modules).
     pub fills: Vec<[f64; 4]>,
     pub cells: Vec<Cell>,
+    /// The form the block was built with (5.2.2).
+    pub form: Option<Form>,
     /// The inscription rectangle (without graph 27 and the QR code).
     pub block: [f64; 4],
     /// Area the views must keep free: inscription, graph 27 and QR code.
@@ -460,6 +462,7 @@ pub fn build(sheet: &SheetInfo) -> Result<TitleBlock, String> {
     let at = |x: f64, y: f64| [x0 + x, y0 + y];
     let mut tb = TitleBlock {
         block: [x0, y0, x0 + bw, y0 + bh],
+        form: Some(sheet.form),
         ..Default::default()
     };
     let line = |a: [f64; 2], b: [f64; 2], style| Polyline {

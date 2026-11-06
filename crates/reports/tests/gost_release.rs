@@ -168,14 +168,32 @@ fn reissue_records_change_rows_and_contours() {
     );
     assert_eq!(change.sheets.len(), 2);
     // Graphs 14–19 of the reissued sheet: Изм. 1, Кол.уч, «-», № док., date.
+    // The part drawing is a later sheet of the set («Общие данные» is the
+    // first one), so the change table sits in form 6, not under the 40 mm
+    // header of forms 3/4; the row rect comes from the built title block.
     let sheet = generate(p, drawing).unwrap();
     assert_eq!(
         open_bim_drawings::status(p, drawing),
         open_bim_drawings::Status::UpToDate
     );
-    let block = open_bim_drawings::title_block_area(p, drawing).unwrap();
-    let (x0, y0) = (block[0], block[1]);
-    let row = |n: f64| [x0, y0 + 40. + 5. * n, x0 + 65., y0 + 45. + 5. * n];
+    let tb = open_bim_drawings::title_block_for(p, drawing).unwrap();
+    let (x0, y0) = (tb.block[0], tb.block[1]);
+    use open_bim_drawings::title_block::Form;
+    let header = match tb.form {
+        Some(Form::F3 | Form::F4) => 40.,
+        Some(Form::F5) => 30.,
+        _ => 0.,
+    };
+    // Change row n sits right above the header row («Изм.»): header+5n…
+    // header+5(n+1) in block coordinates (forms 3/4: header 40; form 6: 0).
+    let row = |n: f64| {
+        [
+            x0,
+            y0 + header + 5. * n,
+            x0 + 65.,
+            y0 + header + 5. * (n + 1.),
+        ]
+    };
     let first = cell_texts(&sheet, row(1.));
     for t in ["1", &areas.len().to_string(), "-", "15-26", "21.10.26"] {
         assert!(first.iter().any(|x| x == t), "{t} in {first:?}");
@@ -231,7 +249,10 @@ fn reissue_records_change_rows_and_contours() {
     let sheet = generate(p, &p.drawings[&drawing_id]).unwrap();
     assert!(cell_texts(&sheet, row(3.)).iter().any(|t| t == "17-26"));
     let area = open_bim_drawings::title_block_area(p, &p.drawings[&drawing_id]).unwrap();
-    assert!(area[3] >= y0 + 60. - 1e-9, "строка 3 над основной надписью");
+    assert!(
+        area[3] >= y0 + header + 20. - 1e-9,
+        "строка 3 над основной надписью"
+    );
     // Undo removes the change and restores the previous issue.
     doc.undo().unwrap();
     assert_eq!(doc.project().changes.len(), 2);
