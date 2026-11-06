@@ -422,7 +422,8 @@ fn place(
     }
 }
 
-fn mass_text(kg: f64) -> String {
+/// Mass in graph 24: kilograms with a decimal comma, one decimal from 10 kg.
+pub fn mass_text(kg: f64) -> String {
     let s = if kg >= 10. {
         format!("{kg:.1}")
     } else {

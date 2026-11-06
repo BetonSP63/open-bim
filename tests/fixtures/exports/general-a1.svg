@@ -35,242 +35,334 @@
 <polyline class="Frame" points="13,564 20,564 20,529 13,529 13,564" fill="none" stroke="#000" stroke-width="0.7"/>
 <polyline class="Frame" points="8,529 13,529 13,504 8,504 8,529" fill="none" stroke="#000" stroke-width="0.7"/>
 <polyline class="Frame" points="13,529 20,529 20,504 13,504 13,529" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="770,412.5 818,412.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="665,402.5 836,402.5 836,516.5 665,516.5 665,402.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="665,422.5 836,422.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="700,402.5 700,516.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="730,402.5 730,516.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="760,402.5 760,516.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="770,402.5 770,516.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="786,412.5 786,516.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="802,412.5 802,516.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Frame" points="818,402.5 818,516.5" fill="none" stroke="#000" stroke-width="0.7"/>
-<polyline class="Thin" points="665,430.5 836,430.5" fill="none" stroke="#000" stroke-width="0.25"/>
-<polyline class="Thin" points="665,438.5 836,438.5" fill="none" stroke="#000" stroke-width="0.25"/>
-<polyline class="Thin" points="665,446.5 836,446.5" fill="none" stroke="#000" stroke-width="0.25"/>
-<polyline class="Thin" points="665,456.5 836,456.5" fill="none" stroke="#000" stroke-width="0.25"/>
-<polyline class="Thin" points="665,464.5 836,464.5" fill="none" stroke="#000" stroke-width="0.25"/>
-<polyline class="Thin" points="665,472.5 836,472.5" fill="none" stroke="#000" stroke-width="0.25"/>
-<polyline class="Thin" points="665,480.5 836,480.5" fill="none" stroke="#000" stroke-width="0.25"/>
-<polyline class="Thin" points="665,488.5 836,488.5" fill="none" stroke="#000" stroke-width="0.25"/>
-<polyline class="Thin" points="665,498.5 836,498.5" fill="none" stroke="#000" stroke-width="0.25"/>
-<polyline class="Thin" points="665,508.5 836,508.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Frame" points="770,410.5 818,410.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="665,400.5 836,400.5 836,514.5 665,514.5 665,400.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="665,420.5 836,420.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="700,400.5 700,514.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="730,400.5 730,514.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="760,400.5 760,514.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="770,400.5 770,514.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="786,410.5 786,514.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="802,410.5 802,514.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Frame" points="818,400.5 818,514.5" fill="none" stroke="#000" stroke-width="0.7"/>
+<polyline class="Thin" points="665,428.5 836,428.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="665,436.5 836,436.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="665,444.5 836,444.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="665,454.5 836,454.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="665,462.5 836,462.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="665,470.5 836,470.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="665,478.5 836,478.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="665,486.5 836,486.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="665,496.5 836,496.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<polyline class="Thin" points="665,506.5 836,506.5" fill="none" stroke="#000" stroke-width="0.25"/>
+<rect x="821.5" y="519.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="822" y="519.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="822.5" y="519.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="823" y="519.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="823.5" y="519.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="824" y="519.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="824.5" y="519.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="826" y="519.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="827" y="519.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="828.5" y="519.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="830.5" y="519.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="831" y="519.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="831.5" y="519.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="832" y="519.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="832.5" y="519.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="833" y="519.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="833.5" y="519.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="821.5" y="520" width="0.5" height="0.5" fill="#000"/>
+<rect x="824.5" y="520" width="0.5" height="0.5" fill="#000"/>
+<rect x="825.5" y="520" width="0.5" height="0.5" fill="#000"/>
+<rect x="826" y="520" width="0.5" height="0.5" fill="#000"/>
+<rect x="828" y="520" width="0.5" height="0.5" fill="#000"/>
+<rect x="830.5" y="520" width="0.5" height="0.5" fill="#000"/>
+<rect x="833.5" y="520" width="0.5" height="0.5" fill="#000"/>
+<rect x="821.5" y="520.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="822.5" y="520.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="823" y="520.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="823.5" y="520.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="824.5" y="520.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="826" y="520.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="826.5" y="520.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="829" y="520.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="830.5" y="520.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="831.5" y="520.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="832" y="520.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="832.5" y="520.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="833.5" y="520.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="821.5" y="521" width="0.5" height="0.5" fill="#000"/>
+<rect x="822.5" y="521" width="0.5" height="0.5" fill="#000"/>
+<rect x="823" y="521" width="0.5" height="0.5" fill="#000"/>
+<rect x="823.5" y="521" width="0.5" height="0.5" fill="#000"/>
+<rect x="824.5" y="521" width="0.5" height="0.5" fill="#000"/>
+<rect x="827" y="521" width="0.5" height="0.5" fill="#000"/>
+<rect x="827.5" y="521" width="0.5" height="0.5" fill="#000"/>
+<rect x="828" y="521" width="0.5" height="0.5" fill="#000"/>
+<rect x="830.5" y="521" width="0.5" height="0.5" fill="#000"/>
+<rect x="831.5" y="521" width="0.5" height="0.5" fill="#000"/>
+<rect x="832" y="521" width="0.5" height="0.5" fill="#000"/>
+<rect x="832.5" y="521" width="0.5" height="0.5" fill="#000"/>
+<rect x="833.5" y="521" width="0.5" height="0.5" fill="#000"/>
+<rect x="821.5" y="521.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="822.5" y="521.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="823" y="521.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="823.5" y="521.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="824" y="521.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="824.5" y="521.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="825" y="521.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="825.5" y="521.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="826" y="521.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="826.5" y="521.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="828" y="521.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="829" y="521.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="829.5" y="521.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="830.5" y="521.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="831" y="521.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="831.5" y="521.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="832" y="521.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="832.5" y="521.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="833" y="521.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="833.5" y="521.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="823.5" y="522" width="0.5" height="0.5" fill="#000"/>
+<rect x="821.5" y="522" width="0.5" height="0.5" fill="#000"/>
+<rect x="824.5" y="522" width="0.5" height="0.5" fill="#000"/>
+<rect x="826" y="522" width="0.5" height="0.5" fill="#000"/>
 <rect x="826.5" y="522" width="0.5" height="0.5" fill="#000"/>
 <rect x="827.5" y="522" width="0.5" height="0.5" fill="#000"/>
-<rect x="828" y="522" width="0.5" height="0.5" fill="#000"/>
 <rect x="828.5" y="522" width="0.5" height="0.5" fill="#000"/>
 <rect x="829" y="522" width="0.5" height="0.5" fill="#000"/>
 <rect x="829.5" y="522" width="0.5" height="0.5" fill="#000"/>
 <rect x="830.5" y="522" width="0.5" height="0.5" fill="#000"/>
 <rect x="833.5" y="522" width="0.5" height="0.5" fill="#000"/>
+<rect x="821.5" y="522.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="822" y="522.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="822.5" y="522.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="823" y="522.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="823.5" y="522.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="824" y="522.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="824.5" y="522.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="825" y="522.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="825.5" y="522.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="826.5" y="522.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="827.5" y="522.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="828.5" y="522.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="829.5" y="522.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="830.5" y="522.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="831" y="522.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="831.5" y="522.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="832" y="522.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="832.5" y="522.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="833" y="522.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="833.5" y="522.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="823.5" y="523" width="0.5" height="0.5" fill="#000"/>
-<rect x="824.5" y="523" width="0.5" height="0.5" fill="#000"/>
-<rect x="825" y="523" width="0.5" height="0.5" fill="#000"/>
-<rect x="825.5" y="523" width="0.5" height="0.5" fill="#000"/>
-<rect x="826.5" y="523" width="0.5" height="0.5" fill="#000"/>
+<rect x="827.5" y="523" width="0.5" height="0.5" fill="#000"/>
 <rect x="829" y="523" width="0.5" height="0.5" fill="#000"/>
-<rect x="829.5" y="523" width="0.5" height="0.5" fill="#000"/>
-<rect x="830.5" y="523" width="0.5" height="0.5" fill="#000"/>
-<rect x="831.5" y="523" width="0.5" height="0.5" fill="#000"/>
-<rect x="832" y="523" width="0.5" height="0.5" fill="#000"/>
-<rect x="832.5" y="523" width="0.5" height="0.5" fill="#000"/>
-<rect x="833.5" y="523" width="0.5" height="0.5" fill="#000"/>
+<rect x="821.5" y="523.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="822.5" y="523.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="823.5" y="523.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="824.5" y="523.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="825" y="523.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="825.5" y="523.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="826.5" y="523.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="827.5" y="523.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="828" y="523.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="828.5" y="523.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="829.5" y="523.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="830.5" y="523.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="827" y="523.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="831.5" y="523.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="832" y="523.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="832.5" y="523.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="833.5" y="523.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="833" y="523.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="821.5" y="524" width="0.5" height="0.5" fill="#000"/>
+<rect x="822" y="524" width="0.5" height="0.5" fill="#000"/>
 <rect x="823.5" y="524" width="0.5" height="0.5" fill="#000"/>
+<rect x="825" y="524" width="0.5" height="0.5" fill="#000"/>
 <rect x="826.5" y="524" width="0.5" height="0.5" fill="#000"/>
+<rect x="827" y="524" width="0.5" height="0.5" fill="#000"/>
 <rect x="828" y="524" width="0.5" height="0.5" fill="#000"/>
-<rect x="828.5" y="524" width="0.5" height="0.5" fill="#000"/>
-<rect x="829" y="524" width="0.5" height="0.5" fill="#000"/>
+<rect x="830" y="524" width="0.5" height="0.5" fill="#000"/>
 <rect x="830.5" y="524" width="0.5" height="0.5" fill="#000"/>
-<rect x="833.5" y="524" width="0.5" height="0.5" fill="#000"/>
-<rect x="823.5" y="524.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="824" y="524.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="831" y="524" width="0.5" height="0.5" fill="#000"/>
+<rect x="832" y="524" width="0.5" height="0.5" fill="#000"/>
+<rect x="822" y="524.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="823" y="524.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="824.5" y="524.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="825" y="524.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="825.5" y="524.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="826" y="524.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="826.5" y="524.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="827" y="524.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="827.5" y="524.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="828.5" y="524.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="829.5" y="524.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="830.5" y="524.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="831" y="524.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="830" y="524.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="831.5" y="524.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="832" y="524.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="832.5" y="524.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="833" y="524.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="833.5" y="524.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="821.5" y="525" width="0.5" height="0.5" fill="#000"/>
+<rect x="822.5" y="525" width="0.5" height="0.5" fill="#000"/>
+<rect x="823.5" y="525" width="0.5" height="0.5" fill="#000"/>
+<rect x="825" y="525" width="0.5" height="0.5" fill="#000"/>
+<rect x="826" y="525" width="0.5" height="0.5" fill="#000"/>
+<rect x="826.5" y="525" width="0.5" height="0.5" fill="#000"/>
+<rect x="827" y="525" width="0.5" height="0.5" fill="#000"/>
+<rect x="827.5" y="525" width="0.5" height="0.5" fill="#000"/>
 <rect x="828" y="525" width="0.5" height="0.5" fill="#000"/>
+<rect x="828.5" y="525" width="0.5" height="0.5" fill="#000"/>
+<rect x="829" y="525" width="0.5" height="0.5" fill="#000"/>
+<rect x="831.5" y="525" width="0.5" height="0.5" fill="#000"/>
+<rect x="832" y="525" width="0.5" height="0.5" fill="#000"/>
+<rect x="832.5" y="525" width="0.5" height="0.5" fill="#000"/>
+<rect x="833" y="525" width="0.5" height="0.5" fill="#000"/>
+<rect x="833.5" y="525" width="0.5" height="0.5" fill="#000"/>
+<rect x="821.5" y="525.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="822" y="525.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="823" y="525.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="823.5" y="525.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="824" y="525.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="824.5" y="525.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="825.5" y="525.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="825" y="525.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="826" y="525.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="826.5" y="525.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="828" y="525.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="827" y="525.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="828.5" y="525.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="829.5" y="525.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="830.5" y="525.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="831" y="525.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="831.5" y="525.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="832" y="525.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="832.5" y="525.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="833" y="525.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="823.5" y="526" width="0.5" height="0.5" fill="#000"/>
-<rect x="824" y="526" width="0.5" height="0.5" fill="#000"/>
+<rect x="822.5" y="526" width="0.5" height="0.5" fill="#000"/>
+<rect x="823" y="526" width="0.5" height="0.5" fill="#000"/>
 <rect x="826" y="526" width="0.5" height="0.5" fill="#000"/>
-<rect x="827.5" y="526" width="0.5" height="0.5" fill="#000"/>
-<rect x="828" y="526" width="0.5" height="0.5" fill="#000"/>
+<rect x="827" y="526" width="0.5" height="0.5" fill="#000"/>
+<rect x="828.5" y="526" width="0.5" height="0.5" fill="#000"/>
+<rect x="829" y="526" width="0.5" height="0.5" fill="#000"/>
 <rect x="829.5" y="526" width="0.5" height="0.5" fill="#000"/>
-<rect x="830" y="526" width="0.5" height="0.5" fill="#000"/>
+<rect x="830.5" y="526" width="0.5" height="0.5" fill="#000"/>
+<rect x="831" y="526" width="0.5" height="0.5" fill="#000"/>
+<rect x="831.5" y="526" width="0.5" height="0.5" fill="#000"/>
 <rect x="832" y="526" width="0.5" height="0.5" fill="#000"/>
-<rect x="833.5" y="526" width="0.5" height="0.5" fill="#000"/>
-<rect x="823.5" y="526.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="824" y="526.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="821.5" y="526.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="824.5" y="526.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="826.5" y="526.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="827" y="526.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="827.5" y="526.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="829.5" y="526.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="825" y="526.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="825.5" y="526.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="828" y="526.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="830.5" y="526.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="831" y="526.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="831.5" y="526.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="832" y="526.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="832.5" y="526.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="833.5" y="526.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="822" y="527" width="0.5" height="0.5" fill="#000"/>
+<rect x="824" y="527" width="0.5" height="0.5" fill="#000"/>
+<rect x="826" y="527" width="0.5" height="0.5" fill="#000"/>
 <rect x="827" y="527" width="0.5" height="0.5" fill="#000"/>
 <rect x="830" y="527" width="0.5" height="0.5" fill="#000"/>
 <rect x="830.5" y="527" width="0.5" height="0.5" fill="#000"/>
 <rect x="831" y="527" width="0.5" height="0.5" fill="#000"/>
-<rect x="831.5" y="527" width="0.5" height="0.5" fill="#000"/>
 <rect x="832" y="527" width="0.5" height="0.5" fill="#000"/>
 <rect x="833" y="527" width="0.5" height="0.5" fill="#000"/>
-<rect x="823.5" y="527.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="821.5" y="527.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="823" y="527.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="824" y="527.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="824.5" y="527.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="825" y="527.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="825.5" y="527.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="826.5" y="527.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="828" y="527.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="826" y="527.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="827.5" y="527.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="829" y="527.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="829.5" y="527.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="830" y="527.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="830.5" y="527.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="832" y="527.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="831" y="527.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="831.5" y="527.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="833.5" y="527.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="825.5" y="528" width="0.5" height="0.5" fill="#000"/>
+<rect x="826" y="528" width="0.5" height="0.5" fill="#000"/>
+<rect x="826.5" y="528" width="0.5" height="0.5" fill="#000"/>
+<rect x="827" y="528" width="0.5" height="0.5" fill="#000"/>
 <rect x="827.5" y="528" width="0.5" height="0.5" fill="#000"/>
-<rect x="828.5" y="528" width="0.5" height="0.5" fill="#000"/>
-<rect x="829" y="528" width="0.5" height="0.5" fill="#000"/>
-<rect x="830.5" y="528" width="0.5" height="0.5" fill="#000"/>
-<rect x="832" y="528" width="0.5" height="0.5" fill="#000"/>
-<rect x="833.5" y="528" width="0.5" height="0.5" fill="#000"/>
+<rect x="828" y="528" width="0.5" height="0.5" fill="#000"/>
+<rect x="829.5" y="528" width="0.5" height="0.5" fill="#000"/>
+<rect x="831.5" y="528" width="0.5" height="0.5" fill="#000"/>
+<rect x="832.5" y="528" width="0.5" height="0.5" fill="#000"/>
+<rect x="821.5" y="528.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="822" y="528.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="822.5" y="528.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="823" y="528.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="823.5" y="528.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="824" y="528.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="824.5" y="528.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="825" y="528.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="825.5" y="528.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="826" y="528.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="826.5" y="528.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="828" y="528.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="827" y="528.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="827.5" y="528.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="828.5" y="528.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="829" y="528.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="829.5" y="528.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="830.5" y="528.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="831.5" y="528.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="832" y="528.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="832.5" y="528.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="833.5" y="528.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="823.5" y="529" width="0.5" height="0.5" fill="#000"/>
-<rect x="826.5" y="529" width="0.5" height="0.5" fill="#000"/>
+<rect x="833" y="528.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="821.5" y="529" width="0.5" height="0.5" fill="#000"/>
+<rect x="824.5" y="529" width="0.5" height="0.5" fill="#000"/>
+<rect x="826" y="529" width="0.5" height="0.5" fill="#000"/>
+<rect x="827.5" y="529" width="0.5" height="0.5" fill="#000"/>
 <rect x="828" y="529" width="0.5" height="0.5" fill="#000"/>
+<rect x="828.5" y="529" width="0.5" height="0.5" fill="#000"/>
+<rect x="829" y="529" width="0.5" height="0.5" fill="#000"/>
 <rect x="829.5" y="529" width="0.5" height="0.5" fill="#000"/>
-<rect x="830" y="529" width="0.5" height="0.5" fill="#000"/>
-<rect x="831" y="529" width="0.5" height="0.5" fill="#000"/>
-<rect x="832" y="529" width="0.5" height="0.5" fill="#000"/>
+<rect x="831.5" y="529" width="0.5" height="0.5" fill="#000"/>
+<rect x="832.5" y="529" width="0.5" height="0.5" fill="#000"/>
 <rect x="833" y="529" width="0.5" height="0.5" fill="#000"/>
-<rect x="833.5" y="529" width="0.5" height="0.5" fill="#000"/>
+<rect x="821.5" y="529.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="822.5" y="529.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="823" y="529.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="823.5" y="529.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="824.5" y="529.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="825" y="529.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="825.5" y="529.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="826" y="529.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="826.5" y="529.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="827.5" y="529.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="828" y="529.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="827" y="529.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="828.5" y="529.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="829.5" y="529.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="830" y="529.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="830.5" y="529.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="831" y="529.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="831.5" y="529.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="832" y="529.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="833" y="529.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="832.5" y="529.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="833.5" y="529.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="821.5" y="530" width="0.5" height="0.5" fill="#000"/>
+<rect x="822.5" y="530" width="0.5" height="0.5" fill="#000"/>
+<rect x="823" y="530" width="0.5" height="0.5" fill="#000"/>
 <rect x="823.5" y="530" width="0.5" height="0.5" fill="#000"/>
 <rect x="824.5" y="530" width="0.5" height="0.5" fill="#000"/>
-<rect x="825" y="530" width="0.5" height="0.5" fill="#000"/>
-<rect x="825.5" y="530" width="0.5" height="0.5" fill="#000"/>
-<rect x="826.5" y="530" width="0.5" height="0.5" fill="#000"/>
+<rect x="827" y="530" width="0.5" height="0.5" fill="#000"/>
 <rect x="828.5" y="530" width="0.5" height="0.5" fill="#000"/>
-<rect x="829.5" y="530" width="0.5" height="0.5" fill="#000"/>
 <rect x="830" y="530" width="0.5" height="0.5" fill="#000"/>
-<rect x="830.5" y="530" width="0.5" height="0.5" fill="#000"/>
 <rect x="832" y="530" width="0.5" height="0.5" fill="#000"/>
-<rect x="833" y="530" width="0.5" height="0.5" fill="#000"/>
+<rect x="821.5" y="530.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="822.5" y="530.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="823" y="530.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="823.5" y="530.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="824.5" y="530.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="825" y="530.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="825.5" y="530.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="826.5" y="530.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="827.5" y="530.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="828.5" y="530.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="828" y="530.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="829.5" y="530.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="830" y="530.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="831" y="530.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="832.5" y="530.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="833.5" y="530.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="823.5" y="531" width="0.5" height="0.5" fill="#000"/>
+<rect x="821.5" y="531" width="0.5" height="0.5" fill="#000"/>
+<rect x="824.5" y="531" width="0.5" height="0.5" fill="#000"/>
 <rect x="826.5" y="531" width="0.5" height="0.5" fill="#000"/>
-<rect x="828.5" y="531" width="0.5" height="0.5" fill="#000"/>
+<rect x="827" y="531" width="0.5" height="0.5" fill="#000"/>
+<rect x="829.5" y="531" width="0.5" height="0.5" fill="#000"/>
 <rect x="830" y="531" width="0.5" height="0.5" fill="#000"/>
+<rect x="830.5" y="531" width="0.5" height="0.5" fill="#000"/>
+<rect x="831" y="531" width="0.5" height="0.5" fill="#000"/>
+<rect x="831.5" y="531" width="0.5" height="0.5" fill="#000"/>
 <rect x="832" y="531" width="0.5" height="0.5" fill="#000"/>
+<rect x="832.5" y="531" width="0.5" height="0.5" fill="#000"/>
 <rect x="833" y="531" width="0.5" height="0.5" fill="#000"/>
+<rect x="821.5" y="531.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="822" y="531.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="822.5" y="531.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="823" y="531.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="823.5" y="531.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="824" y="531.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="824.5" y="531.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="825" y="531.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="825.5" y="531.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="826" y="531.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="826.5" y="531.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="827.5" y="531.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="828.5" y="531.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="829.5" y="531.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="830" y="531.5" width="0.5" height="0.5" fill="#000"/>
-<rect x="831" y="531.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="832" y="531.5" width="0.5" height="0.5" fill="#000"/>
+<rect x="832.5" y="531.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="833" y="531.5" width="0.5" height="0.5" fill="#000"/>
 <rect x="833.5" y="531.5" width="0.5" height="0.5" fill="#000"/>
 <g class="view" data-view="1">
@@ -529,7 +621,7 @@
 <text x="787" y="562.375" font-size="2.5" text-anchor="start" fill="#000">Стадия</text>
 <text x="802" y="562.375" font-size="2.5" text-anchor="start" fill="#000">Лист</text>
 <text x="817" y="562.375" font-size="2.5" text-anchor="start" fill="#000">Листов</text>
-<text x="776" y="540.75" font-size="5" text-anchor="middle" fill="#000">0000-КМ</text>
+<text x="776" y="540.75" font-size="5" text-anchor="middle" fill="#000">ОБ-КМ-2</text>
 <text x="751" y="580.188" font-size="3.5" text-anchor="middle" fill="#000">Схема расположения элементов ·</text>
 <text x="751" y="585.263" font-size="3.5" text-anchor="middle" fill="#000">Connection GUI fixture</text>
 <text x="793.5" y="570.225" font-size="3.5" text-anchor="middle" fill="#000">Р</text>
@@ -538,81 +630,81 @@
 <text x="11.375" y="576.5" font-size="2.5" text-anchor="middle" fill="#000" transform="rotate(-90 11.375 576.5)">Инв. № подл.</text>
 <text x="11.375" y="546.5" font-size="2.5" text-anchor="middle" fill="#000" transform="rotate(-90 11.375 546.5)">Подп. и дата</text>
 <text x="11.375" y="516.5" font-size="2.5" text-anchor="middle" fill="#000" transform="rotate(-90 11.375 516.5)">Взам. инв. №</text>
-<text x="750.5" y="398.5" font-size="5" text-anchor="middle" fill="#000">Спецификация металлопроката</text>
-<text x="682.5" y="409.75" font-size="3.571" text-anchor="middle" fill="#000">Наименование</text>
-<text x="682.5" y="413.75" font-size="3.571" text-anchor="middle" fill="#000">профиля,</text>
-<text x="682.5" y="417.75" font-size="3.571" text-anchor="middle" fill="#000">ГОСТ, ТУ</text>
-<text x="715" y="409.75" font-size="3.571" text-anchor="middle" fill="#000">Наименование</text>
-<text x="715" y="413.75" font-size="3.571" text-anchor="middle" fill="#000">или марка</text>
-<text x="715" y="417.75" font-size="3.571" text-anchor="middle" fill="#000">металла</text>
-<text x="745" y="409.75" font-size="3.571" text-anchor="middle" fill="#000">Номер или</text>
-<text x="745" y="413.75" font-size="3.571" text-anchor="middle" fill="#000">размеры</text>
-<text x="745" y="417.75" font-size="3.571" text-anchor="middle" fill="#000">профиля, мм</text>
-<text x="765" y="411.75" font-size="3.571" text-anchor="middle" fill="#000">№</text>
-<text x="765" y="415.75" font-size="3.571" text-anchor="middle" fill="#000">п.п.</text>
-<text x="778" y="418.75" font-size="3.571" text-anchor="middle" fill="#000">Колонны</text>
-<text x="794" y="418.75" font-size="3.571" text-anchor="middle" fill="#000">Балки</text>
-<text x="810" y="418.75" font-size="3.571" text-anchor="middle" fill="#000">Прочие</text>
-<text x="827" y="411.75" font-size="3.571" text-anchor="middle" fill="#000">Общая</text>
-<text x="827" y="415.75" font-size="3.571" text-anchor="middle" fill="#000">масса, т</text>
-<text x="794" y="406.75" font-size="3.571" text-anchor="middle" fill="#000">Масса металла по</text>
-<text x="794" y="410.75" font-size="3.571" text-anchor="middle" fill="#000">элементам конструкций, т</text>
-<text x="666" y="427.75" font-size="3.571" text-anchor="start" fill="#000">Двутавры</text>
-<text x="701" y="427.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
-<text x="731" y="427.75" font-size="3.571" text-anchor="start" fill="#000">I 300×150×8×12</text>
-<text x="765" y="427.75" font-size="3.571" text-anchor="middle" fill="#000">1</text>
-<text x="778" y="427.75" font-size="3.571" text-anchor="middle" fill="#000">0,274</text>
-<text x="794" y="427.75" font-size="3.571" text-anchor="middle" fill="#000">0,547</text>
-<text x="827" y="427.75" font-size="3.571" text-anchor="middle" fill="#000">0,821</text>
-<text x="701" y="435.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
-<text x="731" y="435.75" font-size="3.571" text-anchor="start" fill="#000">I600 GUI support</text>
-<text x="765" y="435.75" font-size="3.571" text-anchor="middle" fill="#000">2</text>
-<text x="778" y="435.75" font-size="3.571" text-anchor="middle" fill="#000">1,838</text>
-<text x="827" y="435.75" font-size="3.571" text-anchor="middle" fill="#000">1,838</text>
-<text x="731" y="443.75" font-size="3.571" text-anchor="start" fill="#000">Итого</text>
-<text x="765" y="443.75" font-size="3.571" text-anchor="middle" fill="#000">3</text>
-<text x="778" y="443.75" font-size="3.571" text-anchor="middle" fill="#000">2,112</text>
-<text x="794" y="443.75" font-size="3.571" text-anchor="middle" fill="#000">0,547</text>
-<text x="827" y="443.75" font-size="3.571" text-anchor="middle" fill="#000">2,659</text>
-<text x="666" y="450.75" font-size="3.571" text-anchor="start" fill="#000">Прокат листовой</text>
-<text x="666" y="454.75" font-size="3.571" text-anchor="start" fill="#000">ГОСТ 19903-2015</text>
-<text x="701" y="452.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
-<text x="731" y="452.75" font-size="3.571" text-anchor="start" fill="#000">—20</text>
-<text x="765" y="452.75" font-size="3.571" text-anchor="middle" fill="#000">4</text>
-<text x="810" y="452.75" font-size="3.571" text-anchor="middle" fill="#000">0,040</text>
-<text x="827" y="452.75" font-size="3.571" text-anchor="middle" fill="#000">0,040</text>
-<text x="701" y="461.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
-<text x="731" y="461.75" font-size="3.571" text-anchor="start" fill="#000">—25</text>
-<text x="765" y="461.75" font-size="3.571" text-anchor="middle" fill="#000">5</text>
-<text x="810" y="461.75" font-size="3.571" text-anchor="middle" fill="#000">0,049</text>
-<text x="827" y="461.75" font-size="3.571" text-anchor="middle" fill="#000">0,049</text>
-<text x="731" y="469.75" font-size="3.571" text-anchor="start" fill="#000">Итого</text>
-<text x="765" y="469.75" font-size="3.571" text-anchor="middle" fill="#000">6</text>
-<text x="810" y="469.75" font-size="3.571" text-anchor="middle" fill="#000">0,089</text>
-<text x="827" y="469.75" font-size="3.571" text-anchor="middle" fill="#000">0,089</text>
-<text x="666" y="477.75" font-size="3.571" text-anchor="start" fill="#000">Уголки</text>
-<text x="701" y="477.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
-<text x="731" y="477.75" font-size="3.571" text-anchor="start" fill="#000">L 100×100×20</text>
-<text x="765" y="477.75" font-size="3.571" text-anchor="middle" fill="#000">7</text>
-<text x="794" y="477.75" font-size="3.571" text-anchor="middle" fill="#000">0,010</text>
-<text x="827" y="477.75" font-size="3.571" text-anchor="middle" fill="#000">0,010</text>
-<text x="731" y="485.75" font-size="3.571" text-anchor="start" fill="#000">Итого</text>
-<text x="765" y="485.75" font-size="3.571" text-anchor="middle" fill="#000">8</text>
-<text x="794" y="485.75" font-size="3.571" text-anchor="middle" fill="#000">0,010</text>
-<text x="827" y="485.75" font-size="3.571" text-anchor="middle" fill="#000">0,010</text>
-<text x="666" y="492.75" font-size="3.571" text-anchor="start" fill="#000">Всего масса</text>
-<text x="666" y="496.75" font-size="3.571" text-anchor="start" fill="#000">металла</text>
-<text x="765" y="494.75" font-size="3.571" text-anchor="middle" fill="#000">9</text>
-<text x="778" y="494.75" font-size="3.571" text-anchor="middle" fill="#000">2,112</text>
-<text x="794" y="494.75" font-size="3.571" text-anchor="middle" fill="#000">0,557</text>
-<text x="810" y="494.75" font-size="3.571" text-anchor="middle" fill="#000">0,089</text>
-<text x="827" y="494.75" font-size="3.571" text-anchor="middle" fill="#000">2,758</text>
-<text x="666" y="502.75" font-size="3.571" text-anchor="start" fill="#000">В том числе по</text>
-<text x="666" y="506.75" font-size="3.571" text-anchor="start" fill="#000">маркам:</text>
-<text x="701" y="513.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
-<text x="765" y="513.75" font-size="3.571" text-anchor="middle" fill="#000">10</text>
-<text x="778" y="513.75" font-size="3.571" text-anchor="middle" fill="#000">2,112</text>
-<text x="794" y="513.75" font-size="3.571" text-anchor="middle" fill="#000">0,557</text>
-<text x="810" y="513.75" font-size="3.571" text-anchor="middle" fill="#000">0,089</text>
-<text x="827" y="513.75" font-size="3.571" text-anchor="middle" fill="#000">2,758</text>
+<text x="750.5" y="396.5" font-size="5" text-anchor="middle" fill="#000">Спецификация металлопроката</text>
+<text x="682.5" y="407.75" font-size="3.571" text-anchor="middle" fill="#000">Наименование</text>
+<text x="682.5" y="411.75" font-size="3.571" text-anchor="middle" fill="#000">профиля,</text>
+<text x="682.5" y="415.75" font-size="3.571" text-anchor="middle" fill="#000">ГОСТ, ТУ</text>
+<text x="715" y="407.75" font-size="3.571" text-anchor="middle" fill="#000">Наименование</text>
+<text x="715" y="411.75" font-size="3.571" text-anchor="middle" fill="#000">или марка</text>
+<text x="715" y="415.75" font-size="3.571" text-anchor="middle" fill="#000">металла</text>
+<text x="745" y="407.75" font-size="3.571" text-anchor="middle" fill="#000">Номер или</text>
+<text x="745" y="411.75" font-size="3.571" text-anchor="middle" fill="#000">размеры</text>
+<text x="745" y="415.75" font-size="3.571" text-anchor="middle" fill="#000">профиля, мм</text>
+<text x="765" y="409.75" font-size="3.571" text-anchor="middle" fill="#000">№</text>
+<text x="765" y="413.75" font-size="3.571" text-anchor="middle" fill="#000">п.п.</text>
+<text x="778" y="416.75" font-size="3.571" text-anchor="middle" fill="#000">Колонны</text>
+<text x="794" y="416.75" font-size="3.571" text-anchor="middle" fill="#000">Балки</text>
+<text x="810" y="416.75" font-size="3.571" text-anchor="middle" fill="#000">Прочие</text>
+<text x="827" y="409.75" font-size="3.571" text-anchor="middle" fill="#000">Общая</text>
+<text x="827" y="413.75" font-size="3.571" text-anchor="middle" fill="#000">масса, т</text>
+<text x="794" y="404.75" font-size="3.571" text-anchor="middle" fill="#000">Масса металла по</text>
+<text x="794" y="408.75" font-size="3.571" text-anchor="middle" fill="#000">элементам конструкций, т</text>
+<text x="666" y="425.75" font-size="3.571" text-anchor="start" fill="#000">Двутавры</text>
+<text x="701" y="425.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
+<text x="731" y="425.75" font-size="3.571" text-anchor="start" fill="#000">I 300×150×8×12</text>
+<text x="765" y="425.75" font-size="3.571" text-anchor="middle" fill="#000">1</text>
+<text x="778" y="425.75" font-size="3.571" text-anchor="middle" fill="#000">0,274</text>
+<text x="794" y="425.75" font-size="3.571" text-anchor="middle" fill="#000">0,547</text>
+<text x="827" y="425.75" font-size="3.571" text-anchor="middle" fill="#000">0,821</text>
+<text x="701" y="433.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
+<text x="731" y="433.75" font-size="3.571" text-anchor="start" fill="#000">I600 GUI support</text>
+<text x="765" y="433.75" font-size="3.571" text-anchor="middle" fill="#000">2</text>
+<text x="778" y="433.75" font-size="3.571" text-anchor="middle" fill="#000">1,838</text>
+<text x="827" y="433.75" font-size="3.571" text-anchor="middle" fill="#000">1,838</text>
+<text x="731" y="441.75" font-size="3.571" text-anchor="start" fill="#000">Итого</text>
+<text x="765" y="441.75" font-size="3.571" text-anchor="middle" fill="#000">3</text>
+<text x="778" y="441.75" font-size="3.571" text-anchor="middle" fill="#000">2,112</text>
+<text x="794" y="441.75" font-size="3.571" text-anchor="middle" fill="#000">0,547</text>
+<text x="827" y="441.75" font-size="3.571" text-anchor="middle" fill="#000">2,659</text>
+<text x="666" y="448.75" font-size="3.571" text-anchor="start" fill="#000">Прокат листовой</text>
+<text x="666" y="452.75" font-size="3.571" text-anchor="start" fill="#000">ГОСТ 19903-2015</text>
+<text x="701" y="450.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
+<text x="731" y="450.75" font-size="3.571" text-anchor="start" fill="#000">—20</text>
+<text x="765" y="450.75" font-size="3.571" text-anchor="middle" fill="#000">4</text>
+<text x="810" y="450.75" font-size="3.571" text-anchor="middle" fill="#000">0,040</text>
+<text x="827" y="450.75" font-size="3.571" text-anchor="middle" fill="#000">0,040</text>
+<text x="701" y="459.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
+<text x="731" y="459.75" font-size="3.571" text-anchor="start" fill="#000">—25</text>
+<text x="765" y="459.75" font-size="3.571" text-anchor="middle" fill="#000">5</text>
+<text x="810" y="459.75" font-size="3.571" text-anchor="middle" fill="#000">0,049</text>
+<text x="827" y="459.75" font-size="3.571" text-anchor="middle" fill="#000">0,049</text>
+<text x="731" y="467.75" font-size="3.571" text-anchor="start" fill="#000">Итого</text>
+<text x="765" y="467.75" font-size="3.571" text-anchor="middle" fill="#000">6</text>
+<text x="810" y="467.75" font-size="3.571" text-anchor="middle" fill="#000">0,089</text>
+<text x="827" y="467.75" font-size="3.571" text-anchor="middle" fill="#000">0,089</text>
+<text x="666" y="475.75" font-size="3.571" text-anchor="start" fill="#000">Уголки</text>
+<text x="701" y="475.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
+<text x="731" y="475.75" font-size="3.571" text-anchor="start" fill="#000">L 100×100×20</text>
+<text x="765" y="475.75" font-size="3.571" text-anchor="middle" fill="#000">7</text>
+<text x="794" y="475.75" font-size="3.571" text-anchor="middle" fill="#000">0,010</text>
+<text x="827" y="475.75" font-size="3.571" text-anchor="middle" fill="#000">0,010</text>
+<text x="731" y="483.75" font-size="3.571" text-anchor="start" fill="#000">Итого</text>
+<text x="765" y="483.75" font-size="3.571" text-anchor="middle" fill="#000">8</text>
+<text x="794" y="483.75" font-size="3.571" text-anchor="middle" fill="#000">0,010</text>
+<text x="827" y="483.75" font-size="3.571" text-anchor="middle" fill="#000">0,010</text>
+<text x="666" y="490.75" font-size="3.571" text-anchor="start" fill="#000">Всего масса</text>
+<text x="666" y="494.75" font-size="3.571" text-anchor="start" fill="#000">металла</text>
+<text x="765" y="492.75" font-size="3.571" text-anchor="middle" fill="#000">9</text>
+<text x="778" y="492.75" font-size="3.571" text-anchor="middle" fill="#000">2,112</text>
+<text x="794" y="492.75" font-size="3.571" text-anchor="middle" fill="#000">0,557</text>
+<text x="810" y="492.75" font-size="3.571" text-anchor="middle" fill="#000">0,089</text>
+<text x="827" y="492.75" font-size="3.571" text-anchor="middle" fill="#000">2,758</text>
+<text x="666" y="500.75" font-size="3.571" text-anchor="start" fill="#000">В том числе по</text>
+<text x="666" y="504.75" font-size="3.571" text-anchor="start" fill="#000">маркам:</text>
+<text x="701" y="511.75" font-size="3.571" text-anchor="start" fill="#000">S235</text>
+<text x="765" y="511.75" font-size="3.571" text-anchor="middle" fill="#000">10</text>
+<text x="778" y="511.75" font-size="3.571" text-anchor="middle" fill="#000">2,112</text>
+<text x="794" y="511.75" font-size="3.571" text-anchor="middle" fill="#000">0,557</text>
+<text x="810" y="511.75" font-size="3.571" text-anchor="middle" fill="#000">0,089</text>
+<text x="827" y="511.75" font-size="3.571" text-anchor="middle" fill="#000">2,758</text>
 </svg>

@@ -1139,19 +1139,64 @@ fn title_block(
     drawing: &Drawing,
     status: &Status,
 ) -> Result<title_block::TitleBlock, Error> {
-    let (designation, sheet_no, sheets) = sheet_number(project, drawing);
+    let (set_designation, sheet_no, sheets) = sheet_number(project, drawing);
+    // Графа 1 — обозначение документа: the drawing's own number («ОБ-КМД-Б1»);
+    // the set designation (ГОСТ Р 21.101-2026, 4.3) is the fallback. It also
+    // feeds the QR code реквизиты (5.2.9).
+    let designation = if drawing.number.trim().is_empty() {
+        set_designation
+    } else {
+        drawing.number.clone()
+    };
+    // ГОСТ Р 21.101-2026, 5.2.2–5.2.3: sheets of the main working set use
+    // form 3; drawings of building products (parts, assemblies) use form 4
+    // on the first sheet; «Общие данные» is a text document issued without a
+    // title page (form 3, later sheets form 6). Graphs 23 (material, part
+    // drawings only), 24 (mass) and 25 (scale) are filled on form 4.
+    let (class, material, mass_kg) = match &drawing.kind {
+        DrawingKind::Part { part } => {
+            let material = project
+                .elements
+                .get(part)
+                .and_then(|e| project.materials.get(&e.material))
+                .map(|m| m.name.clone());
+            (
+                title_block::DocumentClass::ProductDrawing,
+                material,
+                project.element_mass_kg(*part).ok(),
+            )
+        }
+        DrawingKind::Assembly { assembly } => {
+            let mass_kg = project.assemblies.get(assembly).map(|a| {
+                a.members
+                    .iter()
+                    .chain(std::iter::once(&a.main_part))
+                    .copied()
+                    .collect::<std::collections::BTreeSet<_>>()
+                    .iter()
+                    .filter_map(|id| project.element_mass_kg(*id).ok())
+                    .sum()
+            });
+            // Графа 23 заполняется только на чертежах деталей.
+            (title_block::DocumentClass::ProductDrawing, None, mass_kg)
+        }
+        DrawingKind::GeneralData { .. } => {
+            (title_block::DocumentClass::TextWithoutTitle, None, None)
+        }
+        _ => (title_block::DocumentClass::WorkingSet, None, None),
+    };
     let mut tb = title_block::build(&title_block::SheetInfo {
         info: &project.document,
         size: drawing.sheet_mm(),
-        form: title_block::form_for(title_block::DocumentClass::WorkingSet, sheet_no),
+        form: title_block::form_for(class, sheet_no),
         designation,
         title: drawing.title.clone(),
         sheet_no,
         sheets,
         format: drawing.format_label(),
-        material: None,
-        mass_kg: None,
-        scale: None,
+        material,
+        mass_kg,
+        scale: Some(drawing.scale),
         version: set_version(project, set_mark(&drawing.kind)),
         changes: drawing_changes(project, drawing.id)
             .into_iter()

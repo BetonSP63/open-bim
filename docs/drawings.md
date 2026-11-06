@@ -18,9 +18,13 @@ revisions. Create/replace/delete and undo/redo go through ordinary transactions.
 * Status: fingerprints (SHA-256 of element, details, profile, material) →
   `UpToDate`, `Outdated{changed}`, `LostReferences{missing}`. `issue()` refuses
   anything but `UpToDate`; `updated()` refreshes fingerprints.
-* SVG: deterministic, paper millimetres, UTF-8 Cyrillic text, title block based on
-  ГОСТ 2.104 form 1 (simplified: designation, title, material, mass, scale, sheet,
-  status).
+* SVG: deterministic, paper millimetres, UTF-8 Cyrillic text, title blocks
+  of ГОСТ Р 21.101-2026 (appendix Е, forms 3–6): the main working set uses
+  form 3, drawings of building products (part, assembly) use form 4 on the
+  first sheet and form 6 on later ones with graphs 23 (material, part
+  drawings), 24 (mass) and 25 (scale) filled, «Общие данные» follow the
+  text-document rule (5.2.3); binding-field graphs 20–22, «Согласовано»
+  (10–13) and the QR code above the inscription (5.2.9).
 
 Reference sheets: `tests/fixtures/drawings/*.svg`, checked byte-for-byte by
 `crates/drawings/tests/engine.rs` (re-bless with `OPEN_BIM_BLESS=1`) and read

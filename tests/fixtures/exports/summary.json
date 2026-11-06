@@ -1,12 +1,12 @@
 {
   "assembly-a3": {
     "entities": {
-      "OB_FRAME": 31,
+      "OB_FRAME": 32,
       "OB_HATCH": 0,
       "OB_HIDDEN": 7,
       "OB_LOST": 0,
       "OB_SECTION": 0,
-      "OB_TEXT": 45,
+      "OB_TEXT": 48,
       "OB_THIN": 23,
       "OB_VISIBLE": 10
     },
@@ -17,12 +17,12 @@
   },
   "beam-a3": {
     "entities": {
-      "OB_FRAME": 24,
+      "OB_FRAME": 25,
       "OB_HATCH": 0,
       "OB_HIDDEN": 4,
       "OB_LOST": 0,
       "OB_SECTION": 0,
-      "OB_TEXT": 28,
+      "OB_TEXT": 32,
       "OB_THIN": 31,
       "OB_VISIBLE": 8
     },
@@ -49,12 +49,12 @@
   },
   "plate-a3": {
     "entities": {
-      "OB_FRAME": 24,
+      "OB_FRAME": 25,
       "OB_HATCH": 0,
       "OB_HIDDEN": 0,
       "OB_LOST": 0,
       "OB_SECTION": 0,
-      "OB_TEXT": 28,
+      "OB_TEXT": 32,
       "OB_THIN": 39,
       "OB_VISIBLE": 4
     },

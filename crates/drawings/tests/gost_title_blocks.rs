@@ -57,6 +57,15 @@ fn cell(tb: &title_block::TitleBlock, graph: u8) -> [f64; 4] {
     tb.cells.iter().find(|c| c.graph == graph).unwrap().rect
 }
 
+/// Text in a graph cell; empty when the form has no such graph (e.g. 8 on
+/// form 6) or the cell has no text.
+fn text_in_graph(tb: &title_block::TitleBlock, graph: u8) -> String {
+    let Some(r) = tb.cells.iter().find(|c| c.graph == graph).map(|c| c.rect) else {
+        return String::new();
+    };
+    text_in(tb, r)
+}
+
 fn text_in(tb: &title_block::TitleBlock, r: [f64; 4]) -> String {
     tb.labels
         .iter()
@@ -159,47 +168,74 @@ fn three_sheet_set_counts_sheets_and_fills_graphs() {
         assert_eq!((designation.as_str(), no, of), ("2345-КМД", i + 1, 3));
         let s = generate(&f.project, d).unwrap();
         let texts: Vec<&str> = s.labels.iter().map(|l| l.text.as_str()).collect();
-        assert!(texts.contains(&"Листов"));
-        assert!(texts.contains(&"2345-КМД"));
-        assert!(texts.contains(&"Р"), "graph 6: stage Р");
+        // Graph 1 is the drawing's own number (графа 1, обозначение документа).
+        assert!(texts.contains(&d.number.as_str()), "graph 1: {}", d.number);
+        // First sheet of a product drawing: form 4 with the product graphs
+        // (ГОСТ Р 21.101-2026, 5.2.2). «Лист»/«Листов» are written in the
+        // caption cells («Лист 1», «Листов 3»).
+        // Later sheets: form 6 — designation, «Лист N», format.
+        let element = &f.project.elements[&f.beam];
+        let material = f.project.materials[&element.material].name.clone();
+        let mass = title_block::mass_text(f.project.element_mass_kg(f.beam).unwrap());
+        let scale = title_block::scale_text(d.scale);
+        if i == 0 {
+            assert!(texts.contains(&"Листов 3"), "{texts:?}");
+            assert!(texts.contains(&"Стадия") && texts.contains(&"Масса"));
+            assert!(texts.contains(&"Масштаб"));
+            assert!(texts.contains(&"Р"), "graph 6: stage Р");
+            assert!(texts.contains(&material.as_str()), "graph 23: {material}");
+            assert!(texts.contains(&mass.as_str()), "graph 24: {mass}");
+            assert!(texts.contains(&scale.as_str()), "graph 25: {scale}");
+            assert!(texts.contains(&"19.10.26") && texts.contains(&"Иванов"));
+            assert!(texts.contains(&"ГИП") && texts.contains(&"Сидоров"));
+        } else {
+            assert!(!texts.contains(&"Листов"), "form 6: {texts:?}");
+            assert!(!texts.contains(&"Масса"), "form 6: {texts:?}");
+        }
         assert!(texts.contains(&"Формат A3"), "graph 26");
-        assert!(texts.contains(&"19.10.26") && texts.contains(&"Иванов"));
-        assert!(texts.contains(&"ГИП") && texts.contains(&"Сидоров"));
         // Graph 7 on every sheet, graph 8 («3») only on the first.
-        let label_at = |g: u8| {
+        let label_at = |g: u8, form: Form| {
             let tb = title_block::build(&SheetInfo {
                 info: &f.project.document,
                 size: s.size,
-                form: Form::F3,
-                designation: designation.clone(),
+                form,
+                designation: d.number.clone(),
                 title: d.title.clone(),
                 sheet_no: no,
                 sheets: of,
                 format: "A3".into(),
-                material: None,
-                mass_kg: None,
-                scale: None,
+                material: Some(material.clone()),
+                mass_kg: Some(f.project.element_mass_kg(f.beam).unwrap()),
+                scale: Some(d.scale),
                 version: 1,
                 changes: Vec::new(),
             })
             .unwrap();
-            text_in(&tb, cell(&tb, g))
+            text_in_graph(&tb, g)
         };
-        assert_eq!(label_at(7), (i + 1).to_string());
+        let form = if i == 0 { Form::F4 } else { Form::F6 };
         assert_eq!(
-            label_at(8),
+            label_at(7, form),
             if i == 0 {
-                "3".to_string()
+                format!("Лист {}", i + 1)
             } else {
-                String::new()
+                (i + 1).to_string()
             }
         );
+        if i == 0 {
+            assert_eq!(label_at(8, form), "Листов 3".to_string());
+            assert_eq!(label_at(23, form), material);
+            assert_eq!(label_at(24, form), mass);
+            assert_eq!(label_at(25, form), scale);
+        } else {
+            assert_eq!(label_at(8, form), "");
+        }
     }
     // One-sheet document: graph 7 stays empty.
     let i1 = info();
     let one = title_block::build(&sheet(&i1, [420., 297.], Form::F3, 1, 1)).unwrap();
-    assert_eq!(text_in(&one, cell(&one, 7)), "");
-    assert_eq!(text_in(&one, cell(&one, 8)), "1");
+    assert_eq!(text_in_graph(&one, 7), "");
+    assert_eq!(text_in_graph(&one, 8), "1");
 }
 
 #[test]
