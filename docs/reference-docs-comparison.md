@@ -69,9 +69,11 @@ everything still ⚠/❌ is listed in `docs/interaction.md` → «not implemente
 
 ## Drawings, management, sharing (DRA, MGE, SHA)
 Reference drawings come from the model with Document manager, Master drawing catalog,
-layouts and templates, and AutoDrawings. Open BIM has GA, part and assembly
-drawings, revisions, and PDF/DXF export, with no Document manager, catalog or
-templates. The reference package also has multi-user mode, model sharing, cloud sharing, many
+layouts and templates, and AutoDrawings. Open BIM has GA, part and assembly drawings
+with ГОСТ Р 21.101-2026 title blocks (forms 3–6: product drawings use form 4 with
+material, mass and scale, later sheets form 6), revisions, a Document manager, a
+drawing wizard with cloning, a drawing-prototype catalog, and PDF/DXF/SVG export.
+The reference package also has multi-user mode, model sharing, cloud sharing, many
 formats and environments/firm folders. Open BIM has IFC4 import/export, PDF/DXF/CSV
 and a single user.
 
