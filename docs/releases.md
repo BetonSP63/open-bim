@@ -1,5 +1,16 @@
 # Releases
 
+## 0.2.0 — current development version (`main`)
+
+The version of the tree on `main`. Not yet a packaged GitHub Release.
+It reflects the functionality already on `main` after 0.1.0 (families,
+IFC4.3, concrete and rebar foundations, ГОСТ welds, the object API and
+plugins, Linux and Windows CI, and the rest of the 1.0 list below).
+Packaging reads `workspace.package.version`, so a local archive is named
+`dist/Open-BIM-0.2.0-macos-arm64.zip` or
+`dist/Open-BIM-0.2.0-windows-x86_64.zip`. 1.0 remains the next major
+milestone (КЖ drawings and the remaining rows of `docs/parity.csv`).
+
 ## 1.0 — in progress (plan of 2026-10-30)
 
 Target: steel (КМ/КМД) and reinforced concrete (КЖ) design with ГОСТ documentation,
