@@ -208,6 +208,10 @@ fn beam_by_two_snapped_grid_picks_is_exact_and_each_beam_is_one_undo_step() {
 fn column_uses_bottom_and_top_and_plate_contour_equals_picks() {
     let mut b = bench();
     b.execute(Cmd::ToolColumn);
+    // «Абс. отметка»: the numbers are global Z. The tool's own default
+    // is the first storey, where the same fields are offsets.
+    b.editor.draft.bottom_level = None;
+    b.editor.draft.top_level = None;
     b.editor.draft.bottom = "0".into();
     b.editor.draft.top = "4800".into();
     assert!(pick(&mut b, DVec3::new(6000., 12000., 0.)));

@@ -75,7 +75,44 @@ impl Workbench {
             )
     }
 
+    /// A command is collecting input: points, parts, or a creation dialog.
+    /// Part picks (a bolt's main part) are a command even though the cursor
+    /// is not yet choosing a point.
+    pub fn in_command(&self) -> bool {
+        self.swept_dialog.is_some()
+            || self.engine.active()
+            || self.workplane_picks.is_some()
+            || self.trim.prompt().is_some()
+            || self.detail.prompt().is_some()
+            || self.components.prompt().is_some()
+            || self.management.prompt().is_some()
+            || self.edit_pick.prompt().is_some()
+            || self.special.prompt().is_some()
+            || self.view_tools.centre_pick
+            || self.paste_pick
+            || self.clip_pick
+            || self.angle_picks.is_some()
+            || self.measure.is_some()
+    }
+
+    /// What the status bar says. A running command keeps its own step and
+    /// the way back to selection; otherwise the line follows the frame.
     pub fn prompt(&self) -> String {
+        let step = self.step_prompt();
+        if self.in_command() {
+            crate::interaction::workflow::with_escape(&step)
+        } else {
+            crate::interaction::workflow::idle(
+                self.editor.document.project(),
+                self.editor.selected.len(),
+            )
+        }
+    }
+
+    fn step_prompt(&self) -> String {
+        if self.swept_dialog.is_some() {
+            return "Гнутая деталь: размеры в окне, затем «Создать»".into();
+        }
         if self.workplane_picks.is_some() {
             self.workplane_prompt()
         } else if let Some(p) = self.trim.prompt() {
@@ -577,14 +614,18 @@ impl Workbench {
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     let white = |t: String| egui::RichText::new(t).color(theme::STATUS_TEXT);
+                    let prompt = self.prompt();
                     let text =
                         if let Some(error) = self.engine.error.clone().filter(|_| self.picking()) {
-                            // A refused pick says why; the next step follows on hover.
-                            format!("⚠ {error}")
-                        } else if self.picking() {
-                            self.prompt()
+                            // A refused pick says why; the step stays on the same line.
+                            format!("⚠ {error}  ·  {prompt}")
+                        } else if self.in_command() {
+                            prompt.clone()
                         } else {
-                            self.tools.message.clone().unwrap_or_else(|| self.prompt())
+                            crate::interaction::workflow::join_feedback(
+                                self.tools.message.as_deref().unwrap_or(""),
+                                &prompt,
+                            )
                         };
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         // Graphics and model size only on hover, as the reference
@@ -1729,15 +1770,7 @@ impl Workbench {
     /// same sections as the pane of a selected part.
     fn draft_pane(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
         let kind = self.editor.draft.kind;
-        let help = match kind.base() {
-            crate::tools::ToolKind::Column => {
-                "Щёлкните точку низа колонны — колонна создаётся сразу; команда продолжается до Esc"
-            }
-            crate::tools::ToolKind::Plate => {
-                "Укажите углы контура; Enter или средняя кнопка замыкает контур"
-            }
-            _ => "Укажите начальную и конечную точки; команда продолжается до Esc",
-        };
+        let help = crate::interaction::workflow::create_help(kind);
         if pane_title(ui, &object_title(kind.label()), Some(help)) {
             self.side_panel = None;
         }
@@ -1750,16 +1783,18 @@ impl Workbench {
     /// a create command; the tool's default properties follow.
     fn object_type(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
         let tools = [
+            (Cmd::GridDialog, "Сетка"),
+            (Cmd::ToolAxis, "Ось"),
+            (Cmd::ToolColumn, "Колонна"),
             (Cmd::ToolBeam, "Балка"),
             (Cmd::ToolTwin, "Сдвоенный профиль"),
-            (Cmd::ToolColumn, "Колонна"),
             (Cmd::ToolPlate, "Контурная пластина"),
+            (Cmd::ToolGusset, "Косынка"),
+            (Cmd::ToolStiffener, "Ребро жёсткости"),
             (Cmd::ToolBolt, "Болт"),
             (Cmd::ToolWeld, "Сварной шов"),
             (Cmd::ToolWeldPolygon, "Шов по ломаной"),
             (Cmd::ToolWeldOnPart, "Шов на детали"),
-            (Cmd::ToolGusset, "Косынка"),
-            (Cmd::ToolStiffener, "Ребро жёсткости"),
             (Cmd::ConcreteColumn, "Колонна ЖБ"),
             (Cmd::ConcreteBeam, "Балка ЖБ"),
             (Cmd::ConcretePanel, "Панель"),
@@ -1767,8 +1802,6 @@ impl Workbench {
             (Cmd::ConcreteFooting, "Фундамент"),
             (Cmd::ConcreteStripFooting, "Ленточный фундамент"),
             (Cmd::ConcreteRaft, "Фундаментная плита"),
-            (Cmd::ToolAxis, "Ось"),
-            (Cmd::GridDialog, "Сетка"),
         ];
         let current = self
             .engine
@@ -1784,6 +1817,17 @@ impl Workbench {
         if pane_title(ui, &title, Some(help)) {
             self.side_panel = None;
         }
+        let guide = crate::interaction::workflow::stage(self.editor.document.project()).guide();
+        ui.label(egui::RichText::new(guide.heading).strong());
+        ui.small(guide.detail);
+        let go = ui
+            .button(guide.action)
+            .on_hover_text("Та же команда, что на ленте «МЕТАЛЛ», по порядку каркаса")
+            .clicked();
+        if go {
+            self.run(next_cmd(guide.next), requests);
+        }
+        ui.separator();
         egui::ComboBox::new("object type", "Тип объекта")
             .selected_text(current)
             .show_ui(ui, |ui| {
@@ -1900,6 +1944,7 @@ impl Workbench {
         if pane_header(ui, &object_title(&kind), c.parts.len()) {
             self.side_panel = None;
         }
+        ui.small(crate::interaction::workflow::selection_note(c.parts.len()));
         // Search narrows the sections to those holding a matching property;
         // «Показать меньше свойств» keeps the main ones only.
         let search = ui
@@ -2493,6 +2538,18 @@ fn pane_header(ui: &mut egui::Ui, kind: &str, count: usize) -> bool {
 
 /// Header band of the property pane: gear, bold title, and at the right
 /// edge help (hover) and × that closes the pane. True when × was pressed.
+fn next_cmd(next: crate::interaction::workflow::Next) -> Cmd {
+    use crate::interaction::workflow::Next;
+    match next {
+        Next::Grid => Cmd::GridDialog,
+        Next::Column => Cmd::ToolColumn,
+        Next::Beam => Cmd::ToolBeam,
+        Next::Plate => Cmd::ToolPlate,
+        Next::Connections => Cmd::ComponentCatalog,
+        Next::Drawings => Cmd::ModeDrawings,
+    }
+}
+
 fn pane_title(ui: &mut egui::Ui, title: &str, help: Option<&str>) -> bool {
     let mut closed = false;
     egui::Frame::new()

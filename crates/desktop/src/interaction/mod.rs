@@ -32,6 +32,7 @@ pub mod special;
 pub mod surfaces;
 pub mod tools;
 pub mod trim;
+pub mod workflow;
 pub mod workplane;
 
 use crate::tools::ToolKind;

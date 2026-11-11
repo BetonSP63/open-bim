@@ -63,6 +63,8 @@ fn beam_needs_two_picks_creates_once_and_rearms() {
 fn column_is_one_pick_with_bottom_and_top_from_properties() {
     let mut b = bench();
     b.execute(Cmd::ToolColumn);
+    b.editor.draft.bottom_level = None;
+    b.editor.draft.top_level = None;
     b.editor.draft.bottom = "-300".into();
     b.editor.draft.top = "3900".into();
     assert_eq!(b.engine.prompt(), "Укажите положение колонны");

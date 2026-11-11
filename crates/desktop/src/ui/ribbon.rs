@@ -115,26 +115,45 @@ pub const UNAVAILABLE: &str = "Будет в следующем выпуске";
 /// release: shown disabled with a tooltip so the layout stays complete.
 pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
     match tab {
+        // Modeling path, left to right. Same order as
+        // `interaction::workflow::STEEL_GROUP_ORDER`. Grid and axes stay on
+        // «ПРАВКА» as well: that tab is where construction tools live.
         RibbonTab::Steel => vec![
             (
-                "Детали",
+                "Оси и уровни",
+                vec![
+                    item(Cmd::GridDialog, Icon::Grid, "Сетка"),
+                    small(Cmd::ToolAxis, Icon::Grid, "Ось"),
+                ],
+            ),
+            (
+                "Колонны и балки",
                 vec![
                     item(Cmd::ToolColumn, Icon::Column, "Колонна"),
                     item(Cmd::ToolBeam, Icon::Beam, "Балка"),
                     small(Cmd::ToolCurvedBeam, Icon::Beam, "Гнутая балка"),
                     small(Cmd::ToolPolyBeam, Icon::Beam, "Полибалка"),
-                    small(Cmd::ToolBentPlate, Icon::Plate, "Гнутый лист"),
+                    small(Cmd::ToolTwin, Icon::Beam, "Сдвоенный профиль"),
+                ],
+            ),
+            (
+                "Пластины",
+                vec![
                     item(Cmd::ToolPlate, Icon::Plate, "Пластина"),
                     small(Cmd::ToolGusset, Icon::Plate, "Косынка"),
                     small(Cmd::ToolStiffener, Icon::Plate, "Ребро"),
-                    small(Cmd::ToolTwin, Icon::Beam, "Сдвоенный профиль"),
+                    small(Cmd::ToolBentPlate, Icon::Plate, "Гнутый лист"),
                     small(Cmd::Item, Icon::Plate, "Элемент"),
                     small(Cmd::Families, Icon::Component, "Семейства"),
                 ],
             ),
             (
-                "Крепёж",
+                "Узлы",
                 vec![
+                    item(Cmd::ComponentCatalog, Icon::Catalog, "Компоненты"),
+                    small(Cmd::PanelConnections, Icon::Component, "Узлы"),
+                    small(Cmd::AutoConnections, Icon::Component, "Автосоединения"),
+                    small(Cmd::FitToProfile, Icon::Component, "Узлы по профилю"),
                     item(Cmd::ToolBolt, Icon::Bolt, "Болт"),
                     item(Cmd::ToolWeld, Icon::Weld, "Сварной шов"),
                     small(
@@ -155,15 +174,6 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     small(Cmd::AssemblySetMain, Icon::Assembly, "Главная деталь"),
                     small(Cmd::AssemblyExplode, Icon::Assembly, "Разбить сборку"),
                     small(Cmd::AutoAssemblies, Icon::Assembly, "Сборки по швам"),
-                ],
-            ),
-            (
-                "Компоненты",
-                vec![
-                    item(Cmd::ComponentCatalog, Icon::Catalog, "Компоненты"),
-                    small(Cmd::PanelConnections, Icon::Component, "Узлы"),
-                    small(Cmd::AutoConnections, Icon::Component, "Автосоединения"),
-                    small(Cmd::FitToProfile, Icon::Component, "Узлы по профилю"),
                 ],
             ),
         ],
