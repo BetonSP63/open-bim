@@ -82,6 +82,8 @@ pub(crate) struct Patch {
     parametric: Option<Delta<open_bim_model::Parametric>>,
     concrete: Option<Delta<open_bim_model::Concrete>>,
     shapes: Option<Delta<open_bim_model::Shapes>>,
+    level_ends: Option<Delta<open_bim_model::LevelEnds>>,
+    member_types: Option<Delta<open_bim_model::MemberTypes>>,
     before_meta: (u64, u64, String),
     after_meta: (u64, u64, String),
     pub touched: BTreeSet<ObjectId>,
@@ -141,6 +143,14 @@ impl Patch {
             before: Some(before.shapes.clone()),
             after: Some(after.shapes.clone()),
         });
+        let level_ends = (before.level_ends != after.level_ends).then(|| Delta {
+            before: Some(before.level_ends.clone()),
+            after: Some(after.level_ends.clone()),
+        });
+        let member_types = (before.member_types != after.member_types).then(|| Delta {
+            before: Some(before.member_types.clone()),
+            after: Some(after.member_types.clone()),
+        });
         let numbering = (before.numbering != after.numbering).then(|| Delta {
             before: Some(before.numbering.clone()),
             after: Some(after.numbering.clone()),
@@ -189,6 +199,8 @@ impl Patch {
             parametric,
             concrete,
             shapes,
+            level_ends,
+            member_types,
             before_meta: (before.revision, before.next_id, before.name.clone()),
             after_meta: (after.revision, after.next_id, after.name.clone()),
             touched,
@@ -274,6 +286,18 @@ impl Patch {
             let side = if forward { &delta.after } else { &delta.before };
             if let Some(s) = side {
                 project.shapes = s.clone();
+            }
+        }
+        if let Some(delta) = &self.level_ends {
+            let side = if forward { &delta.after } else { &delta.before };
+            if let Some(ends) = side {
+                project.level_ends = ends.clone();
+            }
+        }
+        if let Some(delta) = &self.member_types {
+            let side = if forward { &delta.after } else { &delta.before };
+            if let Some(types) = side {
+                project.member_types = types.clone();
             }
         }
         let metadata = if forward {

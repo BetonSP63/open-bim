@@ -371,6 +371,12 @@ pub struct Workbench {
     recovering: bool,
     /// Grouping of the model tree («Органайзер»).
     pub organizer: crate::organizer::Organizer,
+    /// Quiet status hint after a ribbon click that has a shortcut.
+    pub shortcut_hint: Option<String>,
+    /// «Проверка модели»: a list, never a dialog on commit.
+    pub check_open: bool,
+    /// Ghost segments of the connection suggestion under the pointer.
+    pub suggest_preview: Vec<(open_bim_renderer::DVec3, open_bim_renderer::DVec3)>,
 }
 
 impl Workbench {
@@ -494,6 +500,9 @@ impl Workbench {
             cursor: None,
             recovering: false,
             organizer: Default::default(),
+            shortcut_hint: None,
+            check_open: false,
+            suggest_preview: Vec::new(),
         };
         let project = bench.editor.document.project().clone();
         bench.tools.autosave.mark_saved(&project);
@@ -895,6 +904,10 @@ impl Workbench {
             Cmd::ModeReports => self.mode = Mode::Reports,
             Cmd::Palette => self.palette.toggle(),
             Cmd::Help => self.help = !self.help,
+            Cmd::ModelCheck => {
+                self.check_open = !self.check_open;
+                self.message("Проверка модели: список не блокирует сохранение");
+            }
             Cmd::Fit => return Some(Request::Fit),
             Cmd::ViewIso => return Some(Request::View(NamedView::Isometric)),
             Cmd::ViewFront => return Some(Request::View(NamedView::Front)),
@@ -3496,6 +3509,22 @@ impl Workbench {
             requests.push(r);
         }
         palette::help(&ctx, &mut self.help);
+        if let Some(click) =
+            crate::check::window(&ctx, &mut self.check_open, self.editor.document.project())
+        {
+            match click {
+                crate::check::Click::Select(id) => {
+                    self.editor.selected = BTreeSet::from([id]);
+                    requests.push(Request::FitSelected);
+                }
+                crate::check::Click::Fix(commands) => {
+                    requests.push(Request::Action(Action::Commit(
+                        "Исправить".into(),
+                        commands,
+                    )));
+                }
+            }
+        }
         self.numeric_input(&ctx, &mut requests);
         if let Some(r) = self.poll_job() {
             requests.push(r);

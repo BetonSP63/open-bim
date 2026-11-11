@@ -10,7 +10,9 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-pub const FORMAT_VERSION: u32 = 1;
+/// 2 — column ends bound to levels and member types. Version 1 files still
+/// load: the new fields default to empty.
+pub const FORMAT_VERSION: u32 = 2;
 pub const MAX_PROJECT_BYTES: u64 = 256 * 1024 * 1024;
 pub const MAX_JOURNAL_BYTES: u64 = 1024 * 1024 * 1024;
 pub const PROJECT_MAGIC: &str = "open-bim-project";
@@ -118,7 +120,7 @@ pub fn decode(bytes: &[u8]) -> Result<Project, PersistenceError> {
             }
             legacy.project
         }
-        FORMAT_VERSION => {
+        1 | FORMAT_VERSION => {
             let envelope: Envelope = serde_json::from_slice(bytes)
                 .map_err(|e| PersistenceError::InvalidFormat(e.to_string()))?;
             let canonical = envelope.project.to_json()?;
@@ -129,6 +131,8 @@ pub fn decode(bytes: &[u8]) -> Result<Project, PersistenceError> {
         }
         version => return Err(PersistenceError::UnsupportedVersion(version)),
     };
+    let mut project = project;
+    open_bim_model::level_ends::adopt_legacy(&mut project);
     project.validate()?;
     Ok(project)
 }

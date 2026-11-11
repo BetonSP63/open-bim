@@ -287,7 +287,6 @@ pub fn update_commands(project: &Project, spec: &GridSpec) -> Result<Vec<Command
     // follow its new elevation.
     let mut levels_old: Vec<&Level> = project.levels.values().collect();
     levels_old.sort_by(|a, b| a.elevation_mm.total_cmp(&b.elevation_mm));
-    let mut elevations = std::collections::BTreeMap::new();
     for (i, (z, name)) in zs.iter().zip(lz).enumerate() {
         match levels_old.get(i) {
             Some(old) => {
@@ -297,7 +296,6 @@ pub fn update_commands(project: &Project, spec: &GridSpec) -> Result<Vec<Command
                     elevation_mm: *z,
                 };
                 if &level != *old {
-                    elevations.insert(old.id, *z);
                     commands.push(Command::ReplaceLevel { level });
                 }
             }
@@ -319,8 +317,6 @@ pub fn update_commands(project: &Project, spec: &GridSpec) -> Result<Vec<Command
             policy: DeletePolicy::Cascade,
         });
     }
-    elevations.retain(|id, z| project.levels.get(id).is_some_and(|l| l.elevation_mm != *z));
-    commands.extend(crate::tools::column_levels::follow(project, &elevations)?);
     Ok(commands)
 }
 

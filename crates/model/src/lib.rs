@@ -15,8 +15,10 @@ mod fabrication;
 pub mod family;
 pub mod formula;
 mod frame;
+pub mod level_ends;
 pub mod library;
 pub mod management;
+pub mod member_type;
 mod model_views;
 pub mod numbering_rules;
 pub mod parametric;
@@ -67,7 +69,9 @@ pub use family::{
     sample_families,
 };
 pub use frame::{Frame, GridAxis, GridSettings, Level};
+pub use level_ends::{LevelBinding, LevelEnd, LevelEnds, MemberEnd};
 pub use management::{Hierarchy, ListEntry, Management, Storey, Task};
+pub use member_type::{MemberType, MemberTypes, TypeField, TypeUse};
 pub use open_bim_geometry::{GeometryError, LengthMm, Point3};
 pub use parametric::{Binding, ParamField, Parametric};
 pub use plugin::{MAX_PLUGIN_INPUTS, PluginInput, PluginInstance, PluginValue};

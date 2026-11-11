@@ -18,7 +18,7 @@ are listed in `docs/reference-docs-comparison.md`.
 | Esc interrupts the command | Esc drops the picks; the model is unchanged | escape_leaves_model_unchanged_enter_finishes_polygon_and_repeats |
 | Enter in idle repeats the last command | same | escape_leaves_model_unchanged_enter_finishes_polygon_and_repeats |
 | A command runs until Esc or another command | beam, column, plate and weld commands re-arm after each object | beam_by_two_snapped_grid_picks_is_exact_and_each_beam_is_one_undo_step |
-| Status bar prompt | a Russian prompt for each pick step | every_tool_has_russian_prompts_per_step |
+| Status bar prompt | a Russian prompt for each pick step. After a ribbon click the bar adds «Быстрее: …» when the command has a shortcut; the button tooltip and ⌘P already show the same key | every_tool_has_russian_prompts_per_step |
 | Shift + click on a ribbon tool opens its properties | same (part properties; bolt/weld → «Болты, отверстия и швы») | `crates/desktop/src/ui/ribbon.rs`; every_ribbon_button_runs_its_registry_command_by_mouse |
 | Numeric location input; the default mode is **relative** | typing a digit, `@ $ ! -` opens «Ввод координат». `x,y,z` is relative to the last pick, or from the work plane origin when there is none. `@` = relative, `$` = absolute in the work plane, `!` = global, `d<a<b` = polar, a single value `d` = distance along the pointer direction | numeric_location_forms_and_errors |
 | Work plane | picks lie on the work plane (default XY, elevation field, plane by 3 points) | tilted_work_plane_projects_rays_exactly |
@@ -36,7 +36,7 @@ are listed in `docs/reference-docs-comparison.md`.
 | Snap priority: highest class wins, then the nearest point | reference points and grid intersections share the highest class | nearer_grid_intersection_beats_a_reference_point_a_few_pixels_away |
 | Part position: On plane, Rotation, At depth with offsets, end offsets Dx; handles on the reference line; changing the profile keeps the line | «Положение» in the create dialog and the property pane: «В плоскости» (Посередине/Слева/Справа), «Поворот» (Спереди/Сверху/Сзади/Снизу + угол), «По глубине» (Посередине/Спереди/Сзади), offsets in mm, Dx at both ends. «Слева» and «Спереди» are +x and +y of the member's local axes (for a beam: left looking from start to end, and up). The default keeps the old placement (centred) | crates/model/src/position.rs tests; crates/desktop/tests/part_position.rs |
 | Property files: «Сохранить как» / «Загрузить» in the beam, column, plate and bolt dialogs; «standard» loaded when the command starts; load into the property pane and «Modify» | «Файл свойств» row at the top of the create dialog, the bolt dialog and the property pane of beams/columns. Files are JSON in `attributes/` next to the project file (`<имя>.beam.json`, `.column.json`, `.plate.json`, `.bolt.json`). Profiles, materials and levels are stored by name; a name missing in the project keeps the current value and is reported | crates/desktop/tests/property_files.rs |
-| Column bottom and top from a level with an offset | «Низ»/«Верх»: level (or «Абс. отметка») plus offset in mm. The column remembers its levels and follows when a level mark changes in the grid dialog or the level properties (one undo); a column moved off its level stays put. Grid dialog keeps level IDs from the bottom up | crates/desktop/tests/property_files.rs |
+| Column bottom and top from a level with an offset | «Низ»/«Верх»: level (or «Абс. отметка») plus offset in mm, in the create dialog and in the property pane after creation. `ReplaceLevel` moves bound ends and their nodes in that same undo step. Dragging a handle keeps the binding and writes a new offset. Grid dialog keeps level IDs from the bottom up | crates/commands/tests/level_ends.rs; crates/desktop/tests/property_files.rs |
 
 ## Selection and editing (MOD 1.6–1.8)
 
@@ -60,7 +60,7 @@ are listed in `docs/reference-docs-comparison.md`.
 
 | Reference workflow | Open BIM | Evidence |
 |---|---|---|
-| Property pane: common properties of the selection, «Varies», «Modify» applies the edited fields | «— разные —»; «Изменить» = one transaction for all selected; «Получить» rereads | mixed_profiles_show_varies_and_modify_is_one_undoable_transaction |
+| Property pane: common properties of the selection, «Varies», «Modify» applies the edited fields | «— разные —»; «Изменить» = one transaction for all selected; «Получить» rereads. One selected part shows up to two temporary dimensions to the nearest grid axes (also while placing); clicking the number and Enter moves the part with `Transform`. Dimensions are not stored. A type in the header, «Выбрать все этого типа» and «Создать подобный» | mixed_profiles_show_varies_and_modify_is_one_undoable_transaction |
 | Nothing selected: object type list starts a create command | «Тип объекта» list (beam, column, plate, bolt, weld, axis, grid) | `tests/ui/modeling-workflow/12-reopened.png` |
 | Double click opens properties; contextual toolbar next to the pointer (Ctrl+K) | same; the contextual toolbar changes profile and material immediately | `tests/ui/property-views/01-…` |
 | Class colours | classes 1–14 with an approximate industry-standard palette | `tests/ui/property-views/01-…` |
@@ -69,7 +69,7 @@ are listed in `docs/reference-docs-comparison.md`.
 | Measure (F); Home zooms to the original view | F = measure with ΔX/ΔY/ΔZ; Home = fit | measure_two_points_reports_distance_and_components |
 | Navigation axes clickable | click X/Y/Z on the gizmo → right / front / top view | gizmo_matches_the_camera_matrix_in_named_views (axis tips) |
 | Main snap switches «Reference» and «Geometry»; grid at every level | both switches; grid nodes snap at every level | geometry_switch_and_grid_nodes_at_every_level |
-| Snap switches «Centres», «Parallel», «Line extensions», «Lines» | «Центр» (bolt and circle centres, on by default); «Параллельно» and «Продолжение линии» use the line the pointer last passed over (the last four are kept), grid and construction lines extend without that; the extension meets other lines at exact intersections; «Линия» = any point on a grid, axis or construction line. Dashed guide line for extension and parallel | centres_of_bolts_and_circles, line_extension_after_passing_over_the_beam_axis, parallel_to_the_line_passed_over, lines_snap_anywhere_on_grid_lines |
+| Snap switches «Centres», «Parallel», «Line extensions», «Lines» | «Центр» (bolt centres, hole centres and slot-end arcs, curved-member arc centres, construction circles; on by default); «Параллельно» and «Продолжение линии» use the line the pointer last passed over (the last four are kept), grid and construction lines extend without that; the extension meets other lines at exact intersections; «Линия» = any point on a grid, axis or construction line. Dashed guide line for extension and parallel. A point the cursor rests on becomes hot (at most three); axis lines through those points are snap candidates of the existing extension class. The rubber band is coloured by the work-plane axis it follows | centres_of_bolts_and_circles, line_extension_after_passing_over_the_beam_axis, parallel_to_the_line_passed_over, lines_snap_anywhere_on_grid_lines |
 | Right-click snap override for the next pick | context menu «Переопределение привязки» while picking; the status bar shows «Только: …» until the pick; «Любая точка» = free | right_click_override_takes_only_one_kind |
 | Shift locks the direction; X, Y, Z lock coordinates | hold Shift: points move along the direction from the previous pick (dashed guide); X/Y/Z lock that work plane coordinate at the point under the pointer, the same key releases; Russian layout works (Ч, Н, Я); locks end with the command; shown in the status bar | shift_and_coordinate_locks |
 | Numeric input R / A / G | «R x,y,z» relative, «A x,y,z» absolute in the work plane, «G x,y,z» global; also К/Ф/П on the Russian layout; grid nodes («К/2», «Ф2») still win | numeric_modes_r_a_g_on_both_layouts |
@@ -90,11 +90,10 @@ These come from the 2026 reference manuals and are not in Open BIM yet. None of 
 is claimed. See `docs/reference-docs-comparison.md` for each row's status.
 
 - **Snapping:**
-  - snap depth Plane/Auto/3D and the plane type list;
-  - centres of holes and arcs on part geometry (bolts and construction circles are done).
+  - snap depth Plane/Auto/3D and the plane type list.
 - **Navigation:** view rotation point (V), rotate continuously (Shift+T), fly (Shift+F), Ctrl+R mouse rotate, F8.
 - **Rendering:** wireframe/shaded/grayscale/rendered modes (Ctrl+1…4, Shift+1…4), «show only selected» rendering modes.
-- **Columns:** binding to levels.
+- **Columns:** binding the plan position to grid axes (the ends already follow levels).
 - **Grids:** radial grids, picking the grid origin, editing a single grid line, grid lines drawn at every level as objects. Today they are drawn and snapped but stored once.
 - **Bolts:** «by face» and «by parts and face»; slotted, oversized, tapped and blind holes; Auto bolt (circle and list shapes are done).
 - **Welds:** weld preparation (polygon welds and welds on a part are done).
@@ -105,7 +104,7 @@ is claimed. See `docs/reference-docs-comparison.md` for each row's status.
   - clipboard copy/paste between models;
   - Smart select;
   - swap handles.
-- **Property pane:** UDA dialogs, copying properties from another object; levels of a column cannot be changed after creation (only by recreating it).
+- **Property pane:** UDA dialogs, copying properties from another object. Column levels are edited in place («Низ»/«Верх»). A member type in the header is optional; overridden fields are marked «своё».
 - **Other reference features:**
   - Applications & components catalog;
   - custom components;

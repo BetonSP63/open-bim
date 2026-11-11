@@ -1,6 +1,6 @@
 {
   "magic": "open-bim-project",
-  "format_version": 1,
+  "format_version": 2,
   "payload_sha256": "f7c7f4aea8cb2cf5bf5beb6b07e0dba0d6b7d15dfd64bb88007958d41ccda17e",
   "project": {
     "name": "Контрольное здание",

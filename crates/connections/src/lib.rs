@@ -21,6 +21,7 @@ pub use gusset::{GussetGeometry, MAX_GUSSET_REACH, gusset_geometry, rebuild_guss
 pub mod by_profile;
 mod clip_angle;
 mod custom;
+pub mod suggest;
 pub use custom::{
     CustomGeometry, builtins as custom_builtins, custom_geometry, rebuild_custom, section_sizes,
 };

@@ -48,6 +48,35 @@ pub(super) fn tooltip(cmd: Cmd) -> String {
     }
 }
 
+fn joint_preview(
+    project: &open_bim_model::Project,
+    idea: &open_bim_connections::suggest::Suggestion,
+) -> Vec<(open_bim_renderer::DVec3, open_bim_renderer::DVec3)> {
+    use open_bim_model::ElementShape;
+    use open_bim_renderer::DVec3;
+    let line = |id| {
+        let element = project.elements.get(&id)?;
+        let ElementShape::Member { length, frame, .. } = &element.shape else {
+            return None;
+        };
+        Some((
+            DVec3::from_array(frame.origin.0),
+            DVec3::from_array(
+                frame
+                    .world(open_bim_model::Point3([0., 0., length.value()]))
+                    .0,
+            ),
+        ))
+    };
+    let (Some((a, b)), Some((c, d))) = (line(idea.primary), line(idea.secondary)) else {
+        return Vec::new();
+    };
+    let end = if idea.at_end { d } else { c };
+    let dir = b - a;
+    let t = ((end - a).dot(dir) / dir.dot(dir).max(1e-9)).clamp(0., 1.);
+    vec![(end, a + dir * t)]
+}
+
 impl Workbench {
     pub(super) fn run(&mut self, cmd: Cmd, requests: &mut Vec<Request>) {
         if let Some(r) = self.execute(cmd) {
@@ -649,6 +678,9 @@ impl Workbench {
                             } else {
                                 format!("Автосохранено {minutes} мин назад")
                             }));
+                        }
+                        if let Some(hint) = &self.shortcut_hint {
+                            ui.label(egui::RichText::new(hint).color(theme::STATUS_TEXT).weak());
                         }
                         if let Some(kind) = self.last_snap.filter(|_| self.picking()) {
                             ui.label(white(kind.label().to_string()));
@@ -1618,23 +1650,14 @@ impl Workbench {
                         } else if edited == level {
                             self.tools.message = Some("Нет изменений".into());
                         } else {
-                            // Columns bound to the level follow its new mark.
-                            let elevations = std::collections::BTreeMap::from([(edited.id, z)]);
-                            match crate::tools::column_levels::follow(project, &elevations) {
-                                Ok(columns) => {
-                                    let mut commands =
-                                        vec![open_bim_commands::Command::ReplaceLevel {
-                                            level: edited.clone(),
-                                        }];
-                                    commands.extend(columns);
-                                    requests.push(Request::Action(Action::Commit(
-                                        format!("Изменить уровень {}", edited.name),
-                                        commands,
-                                    )));
-                                    self.level_buffer = None;
-                                }
-                                Err(e) => self.tools.message = Some(e),
-                            }
+                            // ReplaceLevel moves the bound column ends in the same step.
+                            requests.push(Request::Action(Action::Commit(
+                                format!("Изменить уровень {}", edited.name),
+                                vec![open_bim_commands::Command::ReplaceLevel {
+                                    level: edited.clone(),
+                                }],
+                            )));
+                            self.level_buffer = None;
                         }
                     }
                     None => self.tools.message = Some(format!("Отметка «{mark}»: число в метрах")),
@@ -1871,9 +1894,6 @@ impl Workbench {
         kind: crate::tools::property_files::FileKind,
         parts: &[open_bim_model::ObjectId],
     ) {
-        use crate::tools::column_levels::{
-            BOTTOM_LEVEL, BOTTOM_OFFSET, TOP_LEVEL, TOP_OFFSET, bound,
-        };
         use crate::tools::property_files::{self as files, FileRequest};
         let dir = files::folder(&self.tools.path);
         if let Some(request) = self.tools.files.row(ui, &dir, kind) {
@@ -1909,28 +1929,243 @@ impl Workbench {
                 },
             });
         }
+        ui.separator();
+    }
+
+    fn apply_type_action(
+        &mut self,
+        action: super::property_pane::TypeAction,
+        c: &super::property_pane::Common,
+        requests: &mut Vec<Request>,
+    ) {
+        use super::property_pane::TypeAction;
+        use open_bim_commands::Command;
+        use open_bim_model::{
+            ElementShape, MemberType, PropertyValue, member_type::NUMBERING_PREFIX,
+        };
         let project = self.editor.document.project();
-        if let [id] = parts
-            && let Some(e) = project.elements.get(id)
-        {
-            use open_bim_model::numbering_rules::level_mark;
-            for (caption, level, offset) in [
-                ("Низ", BOTTOM_LEVEL, BOTTOM_OFFSET),
-                ("Верх", TOP_LEVEL, TOP_OFFSET),
-            ] {
-                if let Some((level, offset)) = bound(&e.properties, level, offset)
-                    && let Some(level) = project.levels.get(&level)
-                {
-                    ui.small(format!(
-                        "{caption}: уровень {} ({}), смещение {} мм",
-                        level.name,
-                        level_mark(level.elevation_mm),
-                        super::property_pane::number_text(offset)
-                    ));
+        match action {
+            TypeAction::Assign(type_id) => {
+                let commands: Vec<_> = c
+                    .parts
+                    .iter()
+                    .map(|part| Command::SetMemberUse {
+                        part: *part,
+                        type_id,
+                        overrides: Default::default(),
+                        apply: type_id.is_some(),
+                    })
+                    .collect();
+                requests.push(Request::Action(Action::Commit(
+                    "Типоразмер".into(),
+                    commands,
+                )));
+            }
+            TypeAction::Create => {
+                let Some(part) = c.parts.first().copied() else {
+                    return;
+                };
+                let Some(element) = project.elements.get(&part) else {
+                    return;
+                };
+                let ElementShape::Member {
+                    member_kind,
+                    profile,
+                    position,
+                    ..
+                } = &element.shape
+                else {
+                    return;
+                };
+                let profile_name = project
+                    .profiles
+                    .get(profile)
+                    .map(|p| p.name.clone())
+                    .unwrap_or_else(|| "Тип".into());
+                let mut name = profile_name.clone();
+                let mut n = 2;
+                while project.member_types.types.values().any(|t| t.name == name) {
+                    name = format!("{profile_name} {n}");
+                    n += 1;
                 }
+                let class = match element.properties.get("class") {
+                    Some(PropertyValue::Text(t)) => t.clone(),
+                    _ => String::new(),
+                };
+                let prefix = match element.properties.get(NUMBERING_PREFIX) {
+                    Some(PropertyValue::Text(t)) => t.clone(),
+                    _ => String::new(),
+                };
+                let id = open_bim_model::ObjectId(project.next_id);
+                let member_type = MemberType {
+                    id,
+                    name,
+                    kind: *member_kind,
+                    profile: *profile,
+                    material: element.material,
+                    class,
+                    prefix,
+                    position: *position,
+                };
+                requests.push(Request::Action(Action::Commit(
+                    format!("Типоразмер {}", member_type.name),
+                    vec![
+                        Command::DefineMemberType { member_type },
+                        Command::SetMemberUse {
+                            part,
+                            type_id: Some(id),
+                            overrides: Default::default(),
+                            apply: false,
+                        },
+                    ],
+                )));
+            }
+            TypeAction::SelectAll => {
+                let Some(super::property_pane::Shared::Same(Some(id))) =
+                    c.member_type.as_ref().map(|t| &t.type_id)
+                else {
+                    return;
+                };
+                let id = *id;
+                self.editor.selected = project
+                    .member_types
+                    .uses
+                    .iter()
+                    .filter(|u| u.type_id == id)
+                    .map(|u| u.part)
+                    .collect();
+            }
+            TypeAction::Similar => self.create_similar(),
+        }
+        self.pane.source.clear();
+    }
+
+    /// Arm the same tool as the selected part, with its type and overrides.
+    fn create_similar(&mut self) {
+        use open_bim_model::{
+            ElementShape, MemberKind, PropertyValue, member_type::NUMBERING_PREFIX,
+        };
+        let Some(id) = self.editor.selected.iter().next().copied() else {
+            return;
+        };
+        let project = self.editor.document.project().clone();
+        let Some(element) = project.elements.get(&id).cloned() else {
+            return;
+        };
+        let ElementShape::Member {
+            member_kind,
+            profile,
+            position,
+            ..
+        } = &element.shape
+        else {
+            self.tools.message = Some("Создать подобный — для балки или колонны".into());
+            return;
+        };
+        let cmd = if *member_kind == MemberKind::Column {
+            Cmd::ToolColumn
+        } else {
+            Cmd::ToolBeam
+        };
+        self.execute(cmd);
+        self.editor.draft.profile = *profile;
+        self.editor.draft.material = element.material;
+        self.editor.draft.position = *position;
+        self.editor.draft.name = element.name.clone();
+        self.editor.draft.class = match element.properties.get("class") {
+            Some(PropertyValue::Text(t)) => t.clone(),
+            _ => String::new(),
+        };
+        self.editor.draft.numbering_prefix = match element.properties.get(NUMBERING_PREFIX) {
+            Some(PropertyValue::Text(t)) => t.clone(),
+            _ => String::new(),
+        };
+        if let Some(usage) = project.member_types.use_of(id) {
+            self.editor.draft.member_type = Some(usage.type_id);
+            self.editor.draft.type_overrides = usage.overrides.clone();
+        } else {
+            self.editor.draft.member_type = None;
+            self.editor.draft.type_overrides.clear();
+        }
+        if *member_kind == MemberKind::Column {
+            let end = |which| {
+                project
+                    .level_ends
+                    .get(id, which)
+                    .map(|b| (b.level, super::property_pane::number_text(b.offset_mm)))
+            };
+            if let Some((level, offset)) = end(open_bim_model::MemberEnd::Bottom) {
+                self.editor.draft.bottom_level = Some(level);
+                self.editor.draft.bottom = offset;
+            }
+            if let Some((level, offset)) = end(open_bim_model::MemberEnd::Top) {
+                self.editor.draft.top_level = Some(level);
+                self.editor.draft.top = offset;
             }
         }
+        self.tools.message = Some(format!("Создать подобный: {}", element.name));
+    }
+
+    /// Up to three recipes for the selected pair. A click inserts one.
+    fn pair_suggestions(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
+        let ids: Vec<_> = self.editor.selected.iter().copied().collect();
+        if ids.len() != 2 {
+            self.suggest_preview.clear();
+            return;
+        }
+        let project = self.editor.document.project();
+        let ideas = open_bim_connections::suggest::suggest(project, ids[0], ids[1]);
+        if ideas.is_empty() {
+            self.suggest_preview.clear();
+            return;
+        }
         ui.separator();
+        ui.label(egui::RichText::new("Узлы для пары").strong());
+        let mut chosen = None;
+        let mut hovered = None;
+        for (i, idea) in ideas.iter().enumerate() {
+            let response = ui.button(&idea.name);
+            if response.hovered() {
+                hovered = Some(i);
+            }
+            if response.clicked() {
+                chosen = Some(i);
+            }
+        }
+        if let Some(i) = hovered.or(chosen) {
+            self.suggest_preview = joint_preview(project, &ideas[i]);
+        }
+        let Some(i) = chosen else {
+            return;
+        };
+        let idea = &ideas[i];
+        let catalog = super::components::catalog();
+        let Some(component) = catalog.iter().find(|c| c.name == idea.name) else {
+            self.tools.message = Some(format!("В каталоге нет «{}»", idea.name));
+            return;
+        };
+        match super::components::connection(
+            project,
+            component,
+            &self.tools.connection.template,
+            idea.primary,
+            Some(idea.secondary),
+        ) {
+            Ok(mut commands) => {
+                if let open_bim_commands::Command::CreateConnection { connection } =
+                    commands.first_mut().unwrap()
+                    && let Some(fitted) =
+                        open_bim_connections::by_profile::fit_to_profile(project, connection)
+                {
+                    connection.template = fitted;
+                }
+                requests.push(Request::Action(Action::Commit(
+                    format!("Узел: {}", idea.name),
+                    commands,
+                )));
+            }
+            Err(e) => self.tools.message = Some(e),
+        }
     }
 
     /// Common properties of the selected parts; «Изменить» applies the edits.
@@ -1944,6 +2179,14 @@ impl Workbench {
         if pane_header(ui, &object_title(&kind), c.parts.len()) {
             self.side_panel = None;
         }
+        if let Some(shared) = &c.member_type {
+            let project = self.editor.document.project();
+            if let Some(action) = super::property_pane::type_header(ui, project, shared) {
+                self.apply_type_action(action, &c, requests);
+                return;
+            }
+        }
+        self.pair_suggestions(ui, requests);
         ui.small(crate::interaction::workflow::selection_note(c.parts.len()));
         // Search narrows the sections to those holding a matching property;
         // «Показать меньше свойств» keeps the main ones only.
@@ -1971,6 +2214,10 @@ impl Workbench {
         if let Some(file_kind) = file_kind {
             self.selection_files(ui, file_kind, &c.parts);
         }
+        if c.levels.is_some() {
+            let project = self.editor.document.project();
+            super::property_pane::column_level_grid(ui, project, &mut self.pane);
+        }
         let project = self.editor.document.project();
         let mut apply_length = false;
         let general = [
@@ -1996,7 +2243,13 @@ impl Workbench {
                         .labelled_by(l.id);
                         ui.end_row();
                         if let Some(profile) = &c.profile {
-                            ui.label("Профиль");
+                            ui.label(format!(
+                                "Профиль{}",
+                                super::property_pane::type_mark(
+                                    c.member_type.as_ref(),
+                                    open_bim_model::TypeField::Profile
+                                )
+                            ));
                             let shown = super::catalog_picker::profile_name(
                                 project,
                                 self.pane.pending_profile.as_ref(),
@@ -2028,7 +2281,13 @@ impl Workbench {
                             }
                             ui.end_row();
                         }
-                        ui.label("Материал");
+                        ui.label(format!(
+                            "Материал{}",
+                            super::property_pane::type_mark(
+                                c.member_type.as_ref(),
+                                open_bim_model::TypeField::Material
+                            )
+                        ));
                         let shown = super::catalog_picker::material_name(
                             project,
                             self.pane.pending_material.as_ref(),
@@ -2064,7 +2323,13 @@ impl Workbench {
                                 )
                             });
                         ui.end_row();
-                        let l = ui.label("Класс");
+                        let l = ui.label(format!(
+                            "Класс{}",
+                            super::property_pane::type_mark(
+                                c.member_type.as_ref(),
+                                open_bim_model::TypeField::Class
+                            )
+                        ));
                         ui.horizontal(|ui| {
                             ui.add(
                                 egui::TextEdit::singleline(&mut self.pane.class)
@@ -2289,13 +2554,28 @@ impl Workbench {
                     .changes(&c)
                     .and_then(|changes| modify(project, &c.parts, &changes));
                 let fields = self.pane.fields.commands(project, &c.fields, &c.parts);
+                let levels = c.levels.as_ref().map(|shown| {
+                    super::property_pane::level_commands(
+                        project,
+                        &c.parts,
+                        shown,
+                        self.pane.bottom_level,
+                        &self.pane.bottom_offset,
+                        self.pane.top_level,
+                        &self.pane.top_offset,
+                    )
+                });
                 // Fields kept as properties go in the same transaction.
-                let all = match (main, fields) {
-                    (Err(e), _) if e != "Нет изменений" => Err(e),
-                    (_, Err(e)) => Err(e),
-                    (main, Ok(fields)) => {
+                let all = match (main, fields, levels) {
+                    (Err(e), _, _) if e != "Нет изменений" => Err(e),
+                    (_, Err(e), _) => Err(e),
+                    (_, _, Some(Err(e))) => Err(e),
+                    (main, Ok(fields), levels) => {
                         let mut all = main.unwrap_or_default();
                         all.extend(fields);
+                        if let Some(Ok(levels)) = levels {
+                            all.extend(levels);
+                        }
                         if all.is_empty() {
                             Err("Нет изменений".to_string())
                         } else {

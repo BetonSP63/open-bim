@@ -169,6 +169,26 @@ pub enum Command {
         change: Box<open_bim_model::Change>,
         drawings: Vec<open_bim_model::Drawing>,
     },
+    /// Bind one column end to a level, or clear it (`None`). The end moves
+    /// to elevation + offset in the same transaction (`settle_level_ends`).
+    SetLevelEnd {
+        part: ObjectId,
+        end: open_bim_model::MemberEnd,
+        binding: Option<open_bim_model::LevelBinding>,
+    },
+    /// Store a member type and rewrite every instance, leaving overridden
+    /// fields alone. One undo step.
+    DefineMemberType {
+        member_type: open_bim_model::MemberType,
+    },
+    /// Point a part at a type (`None` clears it). `apply` writes the type's
+    /// fields except `overrides`.
+    SetMemberUse {
+        part: ObjectId,
+        type_id: Option<ObjectId>,
+        overrides: BTreeSet<open_bim_model::TypeField>,
+        apply: bool,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -218,7 +238,8 @@ pub struct Document {
 }
 
 impl Document {
-    pub fn new(project: Project) -> Result<Self, CommandError> {
+    pub fn new(mut project: Project) -> Result<Self, CommandError> {
+        open_bim_model::level_ends::adopt_legacy(&mut project);
         project.validate()?;
         Ok(Self {
             project,
@@ -325,6 +346,7 @@ impl Document {
         for command in commands {
             apply_command(&mut staged, command)?;
         }
+        open_bim_model::level_ends::settle(&self.project, &mut staged)?;
         open_bim_connections::reject_generated_geometry_edits(&staged, &self.project)?;
         open_bim_connections::rebuild_base_plates(&mut staged, &self.project)?;
         open_bim_connections::rebuild_end_plates(&mut staged, &self.project)?;
@@ -897,6 +919,102 @@ fn apply_command(project: &mut Project, command: &Command) -> Result<(), Command
             change.validate(|id| project.drawings.get(&id).map(|d| d.sheet_mm()))?;
             project.changes.push(change.as_ref().clone());
         }
+        Command::SetLevelEnd { part, end, binding } => {
+            let element = project
+                .elements
+                .get(part)
+                .ok_or(ModelError::MissingReference(*part))?;
+            if !open_bim_model::level_ends::is_column(element) {
+                return Err(CommandError::InvalidTransaction(
+                    "К уровню привязывается конец колонны".into(),
+                ));
+            }
+            if let Some(binding) = binding {
+                if !project.levels.contains_key(&binding.level) {
+                    return Err(ModelError::MissingReference(binding.level).into());
+                }
+                if !binding.offset_mm.is_finite() || binding.offset_mm.abs() > 1e8 {
+                    return Err(ModelError::InvalidValue(
+                        "Смещение от уровня вне диапазона".into(),
+                    )
+                    .into());
+                }
+            }
+            project.level_ends.set(*part, *end, *binding);
+        }
+        Command::DefineMemberType { member_type } => {
+            if member_type.id.0 == 0 {
+                return Err(CommandError::InvalidTransaction(
+                    "Недопустимый ID типоразмера".into(),
+                ));
+            }
+            let new_id = !project.member_types.types.contains_key(&member_type.id);
+            if new_id && project.contains_id(member_type.id) {
+                return Err(ModelError::DuplicateId(member_type.id).into());
+            }
+            project.next_id =
+                project.next_id.max(
+                    member_type.id.0.checked_add(1).ok_or_else(|| {
+                        CommandError::InvalidTransaction("Недопустимый ID".into())
+                    })?,
+                );
+            project
+                .member_types
+                .types
+                .insert(member_type.id, member_type.clone());
+            // Instances are updated after the whole transaction settles, so
+            // a type edited together with an override still sees the new type.
+            // Apply now; a later SetMemberUse in the same step can override.
+            open_bim_model::member_type::apply_to_instances(project, member_type.id)?;
+        }
+        Command::SetMemberUse {
+            part,
+            type_id,
+            overrides,
+            apply,
+        } => {
+            let element = project
+                .elements
+                .get(part)
+                .ok_or(ModelError::MissingReference(*part))?
+                .clone();
+            match type_id {
+                None => project.member_types.clear_part(*part),
+                Some(type_id) => {
+                    let ty = project
+                        .member_types
+                        .types
+                        .get(type_id)
+                        .ok_or(ModelError::MissingReference(*type_id))?
+                        .clone();
+                    let kind = match &element.shape {
+                        open_bim_model::ElementShape::Member { member_kind, .. } => *member_kind,
+                        open_bim_model::ElementShape::Plate { .. } => {
+                            return Err(CommandError::InvalidTransaction(
+                                "Типоразмер задаётся балке или колонне".into(),
+                            ));
+                        }
+                    };
+                    if kind != ty.kind {
+                        return Err(CommandError::InvalidTransaction(format!(
+                            "«{}»: типоразмер «{}» другого вида",
+                            element.name, ty.name
+                        )));
+                    }
+                    if *apply {
+                        let updated = open_bim_model::member_type::apply_type(
+                            project, &element, &ty, overrides,
+                        )?;
+                        project.elements.insert(*part, updated);
+                    }
+                    project.member_types.set_use(Some(open_bim_model::TypeUse {
+                        part: *part,
+                        type_id: *type_id,
+                        overrides: overrides.clone(),
+                    }));
+                }
+            }
+        }
     }
     Ok(())
 }
@@ -980,6 +1098,16 @@ fn delete(project: &mut Project, id: ObjectId, policy: DeletePolicy) -> Result<(
             break;
         }
     }
+    let held = project
+        .level_ends
+        .ends
+        .iter()
+        .any(|end| removed.contains(&end.level) && !removed.contains(&end.part));
+    if held {
+        return Err(CommandError::InvalidTransaction(
+            "Уровень держат колонны. Снимите привязку низа или верха, затем удалите уровень".into(),
+        ));
+    }
     let linked = removed.len() > 1
         || project
             .assemblies
@@ -1003,7 +1131,15 @@ fn delete(project: &mut Project, id: ObjectId, policy: DeletePolicy) -> Result<(
         project.dimensions.remove(id);
         project.plugins.remove(id);
         project.family_instances.remove(id);
+        project.member_types.types.remove(id);
     }
+    project
+        .level_ends
+        .ends
+        .retain(|end| !removed.contains(&end.part) && !removed.contains(&end.level));
+    project.member_types.uses.retain(|usage| {
+        !removed.contains(&usage.part) && project.member_types.types.contains_key(&usage.type_id)
+    });
     for assembly in project.assemblies.values_mut() {
         assembly.members.retain(|id| !removed.contains(id));
         assembly.children.retain(|id| !removed.contains(id));

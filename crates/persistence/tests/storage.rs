@@ -60,7 +60,7 @@ fn versioned_unicode_project_round_trip_preserves_identity_and_geometry() {
     assert_eq!(load(&path).unwrap(), project);
     let bytes = std::fs::read(&path).unwrap();
     let envelope: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(envelope["format_version"], 1);
+    assert_eq!(envelope["format_version"], 2);
     assert_eq!(envelope["payload_sha256"].as_str().unwrap().len(), 64);
 }
 

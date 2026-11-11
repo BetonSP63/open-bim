@@ -299,16 +299,15 @@ pub fn from_element(project: &Project, element: &open_bim_model::Element) -> Opt
     Some(match member_kind {
         open_bim_model::MemberKind::Beam => Values::Beam(values),
         open_bim_model::MemberKind::Column => {
-            use super::column_levels::*;
-            let end = |level: &str, offset: &str| {
-                let (id, offset) = bound(&element.properties, level, offset)?;
+            let end = |which: open_bim_model::MemberEnd| {
+                let binding = project.level_ends.get(element.id, which)?;
                 Some(LevelValue {
-                    level: Some(project.levels.get(&id)?.name.clone()),
-                    value: offset,
+                    level: Some(project.levels.get(&binding.level)?.name.clone()),
+                    value: binding.offset_mm,
                 })
             };
-            values.bottom = end(BOTTOM_LEVEL, BOTTOM_OFFSET);
-            values.top = end(TOP_LEVEL, TOP_OFFSET);
+            values.bottom = end(open_bim_model::MemberEnd::Bottom);
+            values.top = end(open_bim_model::MemberEnd::Top);
             Values::Column(values)
         }
     })

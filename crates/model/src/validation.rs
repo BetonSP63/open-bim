@@ -369,6 +369,9 @@ impl Project {
                 }
             }
         }
+        for (key, ty) in &self.member_types.types {
+            register(*key, ty.id)?;
+        }
         if ids.len() > 1_000_000
             || self.next_id == 0
             // Only the counter's own ID range must be free above it.
@@ -405,6 +408,8 @@ impl Project {
                 }
             }
         }
+        self.level_ends.validate(self)?;
+        self.member_types.validate(self)?;
         Ok(())
     }
 }

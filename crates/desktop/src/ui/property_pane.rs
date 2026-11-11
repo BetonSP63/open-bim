@@ -84,6 +84,33 @@ pub struct Common {
     pub position: Option<PositionShared>,
     /// Series, deformation and IFC fields by key.
     pub fields: std::collections::BTreeMap<&'static str, Shared<String>>,
+    /// Columns only: bottom and top bound to a level.
+    pub levels: Option<EndsShared>,
+    /// Beams or columns of one kind: the member type, if the selection agrees.
+    pub member_type: Option<TypeShared>,
+}
+
+/// Level and offset of a column end, shared across the selection.
+#[derive(Clone, Debug, PartialEq)]
+pub struct EndShared {
+    pub level: Shared<Option<ObjectId>>,
+    pub offset: Shared<String>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct EndsShared {
+    pub bottom: EndShared,
+    pub top: EndShared,
+}
+
+/// What the header shows for the member type.
+#[derive(Clone, Debug, PartialEq)]
+pub struct TypeShared {
+    pub kind: open_bim_model::MemberKind,
+    pub type_id: Shared<Option<ObjectId>>,
+    pub overrides: BTreeSet<open_bim_model::TypeField>,
+    /// True when every part overrides the same set (the marks are meaningful).
+    pub overrides_agree: bool,
 }
 
 /// Position fields of the selected members, each shared or «— разные —».
@@ -183,6 +210,93 @@ pub fn common(project: &Project, selected: &BTreeSet<ObjectId>) -> Option<Common
             ElementShape::Member { length, .. } => format!("L = {:.0} мм", length.value()),
             ElementShape::Plate { thickness, .. } => format!("t = {:.0} мм", thickness.value()),
         }))?,
+        levels: column_levels(project, &parts),
+        member_type: type_shared(project, &parts),
+    })
+}
+
+fn end_shared(
+    project: &Project,
+    parts: &[&open_bim_model::Element],
+    end: open_bim_model::MemberEnd,
+) -> Option<EndShared> {
+    let level = Shared::of(
+        parts
+            .iter()
+            .map(|e| project.level_ends.get(e.id, end).map(|b| b.level)),
+    )?;
+    let offset = Shared::of(parts.iter().map(|e| {
+        match project.level_ends.get(e.id, end) {
+            Some(b) => number_text(b.offset_mm),
+            None => open_bim_model::level_ends::end_z(project, &e.shape, end)
+                .map(number_text)
+                .unwrap_or_else(|| "0".into()),
+        }
+    }))?;
+    Some(EndShared { level, offset })
+}
+
+fn column_levels(project: &Project, parts: &[&open_bim_model::Element]) -> Option<EndsShared> {
+    if parts.is_empty()
+        || parts.iter().any(|e| {
+            !matches!(
+                e.shape,
+                ElementShape::Member {
+                    member_kind: open_bim_model::MemberKind::Column,
+                    ..
+                }
+            )
+        })
+    {
+        return None;
+    }
+    Some(EndsShared {
+        bottom: end_shared(project, parts, open_bim_model::MemberEnd::Bottom)?,
+        top: end_shared(project, parts, open_bim_model::MemberEnd::Top)?,
+    })
+}
+
+fn type_shared(project: &Project, parts: &[&open_bim_model::Element]) -> Option<TypeShared> {
+    let kinds: Vec<_> = parts
+        .iter()
+        .filter_map(|e| match &e.shape {
+            ElementShape::Member { member_kind, .. } => Some(*member_kind),
+            ElementShape::Plate { .. } => None,
+        })
+        .collect();
+    if kinds.len() != parts.len() {
+        return None;
+    }
+    let kind = *kinds.first()?;
+    if kinds.iter().any(|k| *k != kind) {
+        return None;
+    }
+    let type_id = Shared::of(
+        parts
+            .iter()
+            .map(|e| project.member_types.use_of(e.id).map(|u| u.type_id)),
+    )?;
+    let sets: Vec<_> = parts
+        .iter()
+        .map(|e| {
+            project
+                .member_types
+                .use_of(e.id)
+                .map(|u| u.overrides.clone())
+                .unwrap_or_default()
+        })
+        .collect();
+    let overrides_agree = sets.windows(2).all(|w| w[0] == w[1]);
+    let overrides = if overrides_agree {
+        sets.first().cloned().unwrap_or_default()
+    } else {
+        BTreeSet::new()
+    };
+    Some(TypeShared {
+        kind,
+        type_id,
+        overrides,
+        overrides_agree,
     })
 }
 
@@ -320,6 +434,19 @@ pub fn modify(
         {
             e.shape = resize(&e.shape, length, mode)?;
         }
+        if let Some(usage) = project.member_types.use_of(*id).cloned()
+            && let Some(ty) = project.member_types.types.get(&usage.type_id).cloned()
+        {
+            let overrides = open_bim_model::member_type::differing(project, &e, &ty);
+            if overrides != usage.overrides {
+                commands.push(Command::SetMemberUse {
+                    part: *id,
+                    type_id: Some(ty.id),
+                    overrides,
+                    apply: false,
+                });
+            }
+        }
         if &e != project.elements.get(id).unwrap() {
             commands.push(Command::ReplaceElement { element: e });
         }
@@ -365,6 +492,19 @@ pub struct PropertyPane {
     /// Catalogue picks not yet in the project.
     pub pending_profile: Option<open_bim_model::Profile>,
     pub pending_material: Option<open_bim_model::Material>,
+    pub bottom_level: LevelChoice,
+    pub bottom_offset: String,
+    pub top_level: LevelChoice,
+    pub top_offset: String,
+}
+
+/// Level picked for a column end. `Varies` is the untouched «— разные —».
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum LevelChoice {
+    #[default]
+    Absolute,
+    Level(ObjectId),
+    Varies,
 }
 
 /// Edit buffer of the position fields; `None` = «— разные —».
@@ -458,6 +598,12 @@ impl PropertyPane {
             None => self.position = PositionBuffer::default(),
         }
         self.fields.fill(&c.fields);
+        if let Some(levels) = &c.levels {
+            self.bottom_level = LevelChoice::from_shared(&levels.bottom.level);
+            self.bottom_offset = shown(&levels.bottom.offset);
+            self.top_level = LevelChoice::from_shared(&levels.top.level);
+            self.top_offset = shown(&levels.top.offset);
+        }
     }
 
     /// Fields edited relative to what the selection shows.
@@ -528,11 +674,292 @@ impl PropertyPane {
             self.position
                 .fill(&position_shared(std::slice::from_ref(p)).expect("one position"));
         }
-        if v.bottom.is_some() || v.top.is_some() {
-            warnings.push("низ и верх применяются только при создании колонны".into());
-        }
+        let apply_end = |choice: &mut LevelChoice,
+                         offset: &mut String,
+                         value: &Option<crate::tools::property_files::LevelValue>,
+                         warnings: &mut Vec<String>| {
+            let Some(value) = value else {
+                return;
+            };
+            match &value.level {
+                None => {
+                    *choice = LevelChoice::Absolute;
+                    *offset = number_text(value.value);
+                }
+                Some(name) => match project.levels.values().find(|l| &l.name == name) {
+                    Some(level) => {
+                        *choice = LevelChoice::Level(level.id);
+                        *offset = number_text(value.value);
+                    }
+                    None => warnings.push(format!("нет уровня «{name}»")),
+                },
+            }
+        };
+        apply_end(
+            &mut self.bottom_level,
+            &mut self.bottom_offset,
+            &v.bottom,
+            &mut warnings,
+        );
+        apply_end(
+            &mut self.top_level,
+            &mut self.top_offset,
+            &v.top,
+            &mut warnings,
+        );
         warnings
     }
+}
+
+impl LevelChoice {
+    fn from_shared(level: &Shared<Option<ObjectId>>) -> Self {
+        match level {
+            Shared::Varies => Self::Varies,
+            Shared::Same(Some(id)) => Self::Level(*id),
+            Shared::Same(None) => Self::Absolute,
+        }
+    }
+
+    fn label(self, project: &Project) -> String {
+        use open_bim_model::numbering_rules::level_mark;
+        match self {
+            Self::Varies => VARIES.into(),
+            Self::Absolute => "Абс. отметка".into(),
+            Self::Level(id) => match project.levels.get(&id) {
+                Some(l) if l.name == level_mark(l.elevation_mm) => l.name.clone(),
+                Some(l) => format!("{} ({})", l.name, level_mark(l.elevation_mm)),
+                None => "Абс. отметка".into(),
+            },
+        }
+    }
+}
+
+/// Commands for edited column ends. A level moves the end to elevation +
+/// offset; «Абс. отметка» clears the binding and sets that Z.
+pub fn level_commands(
+    project: &Project,
+    parts: &[ObjectId],
+    shown: &EndsShared,
+    bottom_level: LevelChoice,
+    bottom_offset: &str,
+    top_level: LevelChoice,
+    top_offset: &str,
+) -> Result<Vec<Command>, String> {
+    let parse = |text: &str, label: &str| -> Result<f64, String> {
+        crate::tools::number(&text.replace(',', ".")).map_err(|_| format!("{label}: введите число"))
+    };
+    let mut commands = Vec::new();
+    for id in parts {
+        let element = project.elements.get(id).ok_or("Объект удалён")?;
+        let mut bottom_z = None;
+        let mut top_z = None;
+        let mut sets = Vec::new();
+        for (end, choice, text, was_level, was_offset, label) in [
+            (
+                open_bim_model::MemberEnd::Bottom,
+                bottom_level,
+                bottom_offset,
+                &shown.bottom.level,
+                &shown.bottom.offset,
+                "Низ",
+            ),
+            (
+                open_bim_model::MemberEnd::Top,
+                top_level,
+                top_offset,
+                &shown.top.level,
+                &shown.top.offset,
+                "Верх",
+            ),
+        ] {
+            let same_level = LevelChoice::from_shared(was_level) == choice;
+            let was = was_offset.value().map(String::as_str).unwrap_or(VARIES);
+            let same_offset = text == was || text == VARIES;
+            if same_level && same_offset || matches!(choice, LevelChoice::Varies) && same_offset {
+                continue;
+            }
+            if text == VARIES {
+                return Err(format!("{label}: введите смещение"));
+            }
+            let value = parse(text, label)?;
+            match choice {
+                LevelChoice::Varies => {}
+                LevelChoice::Absolute => {
+                    sets.push(Command::SetLevelEnd {
+                        part: *id,
+                        end,
+                        binding: None,
+                    });
+                    match end {
+                        open_bim_model::MemberEnd::Bottom => bottom_z = Some(value),
+                        open_bim_model::MemberEnd::Top => top_z = Some(value),
+                    }
+                }
+                LevelChoice::Level(level) => {
+                    if !project.levels.contains_key(&level) {
+                        return Err(format!("{label}: нет такого уровня"));
+                    }
+                    sets.push(Command::SetLevelEnd {
+                        part: *id,
+                        end,
+                        binding: Some(open_bim_model::LevelBinding {
+                            level,
+                            offset_mm: value,
+                        }),
+                    });
+                }
+            }
+        }
+        if bottom_z.is_some() || top_z.is_some() {
+            let element =
+                open_bim_model::level_ends::with_end_zs(project, element, bottom_z, top_z)
+                    .map_err(|e| e.to_string())?;
+            commands.push(Command::ReplaceElement { element });
+        }
+        commands.extend(sets);
+    }
+    Ok(commands)
+}
+
+/// Mark next to a field that a type drives. Empty when the selection has
+/// no shared type or the overrides disagree.
+pub fn type_mark(shared: Option<&TypeShared>, field: open_bim_model::TypeField) -> &'static str {
+    match shared {
+        Some(t) if t.overrides_agree && matches!(t.type_id, Shared::Same(Some(_))) => {
+            if t.overrides.contains(&field) {
+                " · своё"
+            } else {
+                " · из типа"
+            }
+        }
+        _ => "",
+    }
+}
+
+/// What the type header asked for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TypeAction {
+    /// Assign this type, or clear it.
+    Assign(Option<ObjectId>),
+    /// Make a type from the first selected part and assign it.
+    Create,
+    SelectAll,
+    Similar,
+}
+
+/// Header row: type combo, «Выбрать все этого типа», «Создать подобный».
+pub fn type_header(
+    ui: &mut egui::Ui,
+    project: &Project,
+    shared: &TypeShared,
+) -> Option<TypeAction> {
+    let mut action = None;
+    ui.horizontal(|ui| {
+        let current = match &shared.type_id {
+            Shared::Same(Some(id)) => project
+                .member_types
+                .types
+                .get(id)
+                .map(|t| t.name.clone())
+                .unwrap_or_else(|| "Без типа".into()),
+            Shared::Same(None) => "Без типа".into(),
+            Shared::Varies => VARIES.into(),
+        };
+        let l = ui.label("Типоразмер");
+        egui::ComboBox::new("member type", "")
+            .selected_text(current)
+            .show_ui(ui, |ui| {
+                if ui.selectable_label(false, "Без типа").clicked() {
+                    action = Some(TypeAction::Assign(None));
+                }
+                let mut types: Vec<_> = project
+                    .member_types
+                    .types
+                    .values()
+                    .filter(|t| t.kind == shared.kind)
+                    .collect();
+                types.sort_by(|a, b| a.name.cmp(&b.name));
+                for ty in types {
+                    if ui.selectable_label(false, &ty.name).clicked() {
+                        action = Some(TypeAction::Assign(Some(ty.id)));
+                    }
+                }
+            })
+            .response
+            .labelled_by(l.id);
+        if ui.button("Создать тип").clicked() {
+            action = Some(TypeAction::Create);
+        }
+    });
+    ui.horizontal(|ui| {
+        let same = matches!(shared.type_id, Shared::Same(Some(_)));
+        if ui
+            .add_enabled(same, egui::Button::new("Выбрать все этого типа"))
+            .clicked()
+        {
+            action = Some(TypeAction::SelectAll);
+        }
+        if ui.button("Создать подобный").clicked() {
+            action = Some(TypeAction::Similar);
+        }
+    });
+    action
+}
+
+/// «Низ» / «Верх»: level and offset, edited until «Изменить».
+pub fn column_level_grid(ui: &mut egui::Ui, project: &Project, pane: &mut PropertyPane) {
+    let mut levels: Vec<&open_bim_model::Level> = project.levels.values().collect();
+    levels.sort_by(|a, b| a.elevation_mm.total_cmp(&b.elevation_mm));
+    egui::Grid::new("selection levels")
+        .num_columns(3)
+        .show(ui, |ui| {
+            for (label, choice, offset) in [
+                ("Низ", &mut pane.bottom_level, &mut pane.bottom_offset),
+                ("Верх", &mut pane.top_level, &mut pane.top_offset),
+            ] {
+                let l = ui.label(format!("{label}: уровень"));
+                let selected = choice.label(project);
+                egui::ComboBox::new(("pane level", label), "")
+                    .selected_text(selected)
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(choice, LevelChoice::Absolute, "Абс. отметка");
+                        for level in &levels {
+                            ui.selectable_value(
+                                choice,
+                                LevelChoice::Level(level.id),
+                                choice_name(project, level.id),
+                            );
+                        }
+                    })
+                    .response
+                    .labelled_by(l.id);
+                let unit = if matches!(choice, LevelChoice::Level(_)) {
+                    "смещение, мм"
+                } else {
+                    "Z, мм"
+                };
+                ui.add(
+                    egui::TextEdit::singleline(offset)
+                        .id(egui::Id::new(("pane level offset", label)))
+                        .desired_width(70.)
+                        .hint_text(unit),
+                )
+                .on_hover_text(unit)
+                .labelled_by(l.id)
+                .widget_info(|| {
+                    egui::WidgetInfo::labeled(
+                        egui::WidgetType::TextEdit,
+                        true,
+                        format!("{label}, {unit}"),
+                    )
+                });
+                ui.end_row();
+            }
+        });
+}
+
+fn choice_name(project: &Project, id: ObjectId) -> String {
+    LevelChoice::Level(id).label(project)
 }
 
 /// «Положение» fields: three lists with an offset each, and Dx at

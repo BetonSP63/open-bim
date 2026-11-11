@@ -257,6 +257,9 @@ pub struct Snapper {
     /// Lines the pointer recently passed over, newest first (kept
     /// for «Параллельно» and «Продолжение линии»).
     pub acquired: Vec<(DVec3, DVec3, Option<ObjectId>)>,
+    /// Points the cursor lingered on. At most three; the oldest drops.
+    pub hot: Vec<DVec3>,
+    linger: Option<(DVec3, std::time::Instant)>,
 }
 
 fn feature_edges(mesh: &open_bim_renderer::DisplayMesh) -> Vec<(DVec3, DVec3)> {
@@ -337,18 +340,62 @@ pub fn member_line(project: &Project, shape: &ElementShape) -> Option<(DVec3, DV
     })
 }
 
-/// Bolt centres («Привязка к центрам»); bolt frames are world coordinates.
+/// Bolt centres, hole centres and the round ends of a slot. Hole frames are
+/// in the part's local coordinates. Curved-member arc centres are included
+/// so a centre snap can land on the arc the part was bent about.
 fn detail_centres(project: &Project) -> Vec<(ObjectId, DVec3)> {
-    use open_bim_model::DetailKind;
+    use open_bim_model::{DetailKind, SweptPart};
     let mut out = Vec::new();
     for detail in project.details.values() {
         let at = |frame: &open_bim_model::Frame, x: f64, y: f64| {
             DVec3::from_array(frame.world(Point3([x, y, 0.])).0)
         };
-        if let DetailKind::BoltGroup { frame, .. } = &detail.kind {
-            for [x, y] in detail.kind.bolt_positions() {
-                out.push((detail.id, at(frame, x, y)));
+        match &detail.kind {
+            DetailKind::BoltGroup { frame, .. } => {
+                for [x, y] in detail.kind.bolt_positions() {
+                    out.push((detail.id, at(frame, x, y)));
+                }
             }
+            DetailKind::Hole {
+                part, frame, slot, ..
+            } => {
+                let Some(parent) = project.elements.get(part).map(|e| e.shape.frame()) else {
+                    continue;
+                };
+                let world =
+                    |local: open_bim_model::Point3| DVec3::from_array(parent.world(local).0);
+                out.push((detail.id, world(frame.origin)));
+                if *slot > 0.5 {
+                    let x = frame.axes[0];
+                    let half = *slot / 2.0;
+                    for sign in [-1.0, 1.0] {
+                        let o = frame.origin.0;
+                        out.push((
+                            detail.id,
+                            world(open_bim_model::Point3([
+                                o[0] + x[0] * half * sign,
+                                o[1] + x[1] * half * sign,
+                                o[2] + x[2] * half * sign,
+                            ])),
+                        ));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    for (id, swept) in &project.swept_parts {
+        if let SweptPart::CurvedBeam { center, .. } = swept
+            && let Some(frame) = project.elements.get(id).map(|e| e.shape.frame())
+        {
+            out.push((
+                *id,
+                DVec3::from_array(
+                    frame
+                        .world(open_bim_model::Point3([center[0], center[1], 0.]))
+                        .0,
+                ),
+            ));
         }
     }
     out
@@ -453,6 +500,28 @@ fn intersection(a: (DVec3, DVec3), b: (DVec3, DVec3), eps: f64) -> Option<DVec3>
     (p.distance(q) <= eps).then_some((p + q) * 0.5)
 }
 
+/// Closest point of a work-plane axis line to a view ray, and the gap.
+fn ray_line_gap(ray: Ray, origin: DVec3, dir: DVec3) -> Option<(DVec3, f64)> {
+    let dir = dir.try_normalize()?;
+    let rd = ray.direction.try_normalize()?;
+    let w0 = ray.origin - origin;
+    let b = rd.dot(dir);
+    let denom = 1.0 - b * b;
+    if denom < 1e-8 {
+        return None;
+    }
+    let d = rd.dot(w0);
+    let e = dir.dot(w0);
+    let t = (b * e - d) / denom;
+    if t < 0.0 {
+        return None;
+    }
+    let s = (e - b * d) / denom;
+    let on_ray = ray.origin + rd * t;
+    let on_line = origin + dir * s;
+    Some((on_line, on_ray.distance(on_line)))
+}
+
 /// The plane free picks land on: the work plane, or with «Плоскость вида»
 /// the screen plane through the work plane origin.
 pub fn snap_plane(view: &View, workplane: &Workplane, view_plane: bool) -> Workplane {
@@ -478,6 +547,28 @@ pub fn ortho(previous: DVec3, point: DVec3, workplane: &Workplane) -> DVec3 {
 }
 
 impl Snapper {
+    /// A point the cursor stays on becomes hot after a short pause.
+    /// At most three are kept.
+    pub fn note_linger(&mut self, point: Option<DVec3>, now: std::time::Instant) {
+        const SAME_MM: f64 = 2.0;
+        const LINGER: std::time::Duration = std::time::Duration::from_millis(450);
+        match (point, self.linger) {
+            (Some(p), Some((q, t))) if p.distance(q) < SAME_MM => {
+                if now.saturating_duration_since(t) >= LINGER {
+                    if !self.hot.iter().any(|h| h.distance(p) < 1.0) {
+                        if self.hot.len() == 3 {
+                            self.hot.remove(0);
+                        }
+                        self.hot.push(p);
+                    }
+                    self.linger = None;
+                }
+            }
+            (Some(p), _) => self.linger = Some((p, now)),
+            (None, _) => self.linger = None,
+        }
+    }
+
     /// The best snap under the cursor.
     #[allow(clippy::too_many_arguments)]
     pub fn snap(
@@ -754,6 +845,21 @@ impl Snapper {
                 }
                 let point = from + d * t;
                 offer(SnapKind::Parallel, point, *id, true, Some((from, point)));
+            }
+        }
+        // Tracking lines through hot points, along the work plane axes.
+        // They use the existing extension class, so snap priority is unchanged.
+        if switches.reference {
+            for hot in self.hot.clone() {
+                for dir in [workplane.axes[0], workplane.axes[1]] {
+                    let Some((point, gap)) = ray_line_gap(ray, hot, dir) else {
+                        continue;
+                    };
+                    let mm = view.mm_per_pixel(point.distance(ray.origin)).max(1e-6);
+                    if gap <= tolerance * mm {
+                        offer(SnapKind::Extension, point, None, true, Some((hot, point)));
+                    }
+                }
             }
         }
         // Ranking: priority class, then reference before solid geometry, then pixels.

@@ -122,6 +122,13 @@ pub struct Draft {
     pub pedestal_top: String,
     /// The placed concrete part is precast: it becomes a precast cast unit.
     pub precast: bool,
+    /// Type assigned to the next part («Создать подобный»). `apply` is false:
+    /// the draft already holds the instance values, including overrides.
+    pub member_type: Option<ObjectId>,
+    pub type_overrides: std::collections::BTreeSet<open_bim_model::TypeField>,
+    /// Copied by «Создать подобный» onto the new part.
+    pub class: String,
+    pub numbering_prefix: String,
 }
 impl Default for Draft {
     fn default() -> Self {
@@ -149,6 +156,10 @@ impl Default for Draft {
             pedestal: String::new(),
             pedestal_top: "0".into(),
             precast: false,
+            member_type: None,
+            type_overrides: Default::default(),
+            class: String::new(),
+            numbering_prefix: String::new(),
         }
     }
 }
