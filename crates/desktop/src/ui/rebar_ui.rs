@@ -14,6 +14,10 @@ pub struct RebarUi {
     /// Bars drawn over the model («Видимость»).
     pub show: bool,
     pub open: bool,
+    /// Shape type being edited. Recorded into the model by «Записать тип».
+    pub shape_draft: Option<open_bim_model::concrete::BarShapeType>,
+    /// Slab type being edited.
+    pub slab_draft: Option<open_bim_model::concrete::SlabRebarType>,
 }
 
 /// Generator of a bar set in a host part.
@@ -133,13 +137,16 @@ impl Workbench {
             return;
         }
         let mut open = true;
-        let project = self.editor.document.project();
-        let s = &mut self.rebar.settings;
-        egui::Window::new("Армирование")
+        {
+            let selected: Vec<ObjectId> = self.editor.selected.iter().copied().collect();
+            let project = self.editor.document.project();
+            let rebar = &mut self.rebar;
+            egui::Window::new("Армирование")
             .id(egui::Id::new("rebar"))
             .open(&mut open)
-            .default_width(480.)
+            .default_width(520.)
             .show(ctx, |ui| {
+                let s = &mut rebar.settings;
                 ui.strong("Свойства следующих стержней");
                 egui::Grid::new("rebar settings")
                     .num_columns(2)
@@ -325,7 +332,349 @@ impl Workbench {
                         ui.strong(format!("{total:.1}"));
                         ui.end_row();
                     });
+                let _ = s;
+                kj_panel(ui, rebar, project, &selected, requests);
             });
+        }
         self.rebar.open = open;
+    }
+}
+
+/// «КЖ»: shape types, the slab type and the model check. Kept in this window
+/// so it does not touch the property pane.
+fn kj_panel(
+    ui: &mut egui::Ui,
+    rebar: &mut RebarUi,
+    project: &open_bim_model::Project,
+    selected: &[ObjectId],
+    requests: &mut Vec<Request>,
+) {
+    use open_bim_model::concrete::{
+        BarAlign, BarShapeType, MeshLayer, ShapeSegment, SlabRebarType,
+    };
+    use open_bim_model::rebar::{self as shapes, HookKind};
+    ui.separator();
+    egui::CollapsingHeader::new("Типы форм")
+        .id_salt("kj shapes")
+        .default_open(true)
+        .show(ui, |ui| {
+            ui.label(
+                "Осевая линия, параметры A, B, C…, крюки и диаметр оправки. \
+                 Стержни и наборы ссылаются на тип и перестраиваются вместе с ним.",
+            );
+            if ui.button("Новый тип").clicked() {
+                rebar.shape_draft = Some(BarShapeType {
+                    id: format!("form-{}", project.concrete.shape_types.len() + 1),
+                    name: "Своя форма".into(),
+                    code: "С".into(),
+                    segments: vec![ShapeSegment {
+                        letter: "A".into(),
+                        length: 1000.,
+                        bend_deg: 0.,
+                    }],
+                    hooks: [open_bim_model::Hook::default(); 2],
+                    mandrel: None,
+                });
+            }
+            let mut rows: Vec<(String, String)> = shapes::builtin_shapes()
+                .into_iter()
+                .map(|s| (s.id.clone(), format!("{} ({})", s.name, s.code)))
+                .collect();
+            for s in &project.concrete.shape_types {
+                if let Some(row) = rows.iter_mut().find(|n| n.0 == s.id) {
+                    row.1 = format!("{} — изменён", s.name);
+                } else {
+                    rows.push((s.id.clone(), s.name.clone()));
+                }
+            }
+            let mut edit = None;
+            for (id, label) in &rows {
+                ui.horizontal(|ui| {
+                    ui.label(label);
+                    if ui.small_button("Изменить").clicked() {
+                        edit = Some(id.clone());
+                    }
+                });
+            }
+            if let Some(id) = edit {
+                rebar.shape_draft = shapes::resolve_shape(project, &id);
+            }
+            let Some(draft) = &mut rebar.shape_draft else {
+                return;
+            };
+            ui.separator();
+            ui.label("Редактор типа формы");
+            ui.horizontal(|ui| {
+                ui.label("Имя");
+                ui.text_edit_singleline(&mut draft.name);
+            });
+            ui.horizontal(|ui| {
+                ui.label("Обозначение");
+                ui.text_edit_singleline(&mut draft.code);
+            });
+            let mut mandrel = draft.mandrel.unwrap_or(0.);
+            ui.horizontal(|ui| {
+                ui.label("Диаметр оправки, мм");
+                ui.add(egui::DragValue::new(&mut mandrel).range(0.0..=10_000.));
+                ui.label("0 — наименьший по СП 63");
+            });
+            draft.mandrel = (mandrel >= 1.).then_some(mandrel);
+            for (i, label) in ["Крюк начала", "Крюк конца"].into_iter().enumerate()
+            {
+                ui.horizontal(|ui| {
+                    ui.label(label);
+                    egui::ComboBox::from_id_salt(label)
+                        .selected_text(draft.hooks[i].kind.label())
+                        .show_ui(ui, |ui| {
+                            for k in HookKind::ALL {
+                                ui.selectable_value(&mut draft.hooks[i].kind, k, k.label());
+                            }
+                        });
+                });
+            }
+            let mut remove = None;
+            for (i, seg) in draft.segments.iter_mut().enumerate() {
+                ui.horizontal(|ui| {
+                    ui.label("Участок");
+                    ui.add(egui::TextEdit::singleline(&mut seg.letter).desired_width(28.));
+                    ui.label("длина, мм");
+                    ui.add(egui::DragValue::new(&mut seg.length).range(1.0..=100_000.));
+                    ui.label("загиб, °");
+                    ui.add(egui::DragValue::new(&mut seg.bend_deg).range(-180.0..=180.));
+                    if ui.small_button("×").clicked() {
+                        remove = Some(i);
+                    }
+                });
+            }
+            if let Some(i) = remove
+                && draft.segments.len() > 1
+            {
+                draft.segments.remove(i);
+            }
+            if ui.button("Добавить участок").clicked() {
+                let n = draft.segments.len();
+                let letter = (b'A' + (n as u8)).min(b'Z') as char;
+                draft.segments.push(ShapeSegment {
+                    letter: letter.to_string(),
+                    length: 200.,
+                    bend_deg: 0.,
+                });
+                if n > 0 {
+                    draft.segments[n - 1].bend_deg = 90.;
+                }
+            }
+            ui.horizontal(|ui| {
+                if ui.button("Записать тип").clicked()
+                    && let Ok(commands) = rb::save_shape(project, draft.clone())
+                {
+                    requests.push(Request::Action(Action::Commit(
+                        "Тип формы".into(),
+                        commands,
+                    )));
+                }
+                if ui.button("Стержень в центр плиты").clicked()
+                    && let Ok(commands) = rb::place_shape(project, selected, draft.clone())
+                {
+                    requests.push(Request::Action(Action::Commit(
+                        "Стержень по типу формы".into(),
+                        commands,
+                    )));
+                }
+            });
+        });
+
+    egui::CollapsingHeader::new("Раскладка в плите")
+        .id_salt("kj slab")
+        .default_open(true)
+        .show(ui, |ui| {
+            ui.label(
+                "Тип плиты задаёт верхнюю и нижнюю сетки. Защитный слой хранится на плите. \
+                 П-стержни и лягушки ставятся, когда есть обе сетки.",
+            );
+            if rebar.slab_draft.is_none() && ui.button("Новый тип плиты").clicked() {
+                let mut ty = SlabRebarType::new(
+                    format!("slab-{}", project.concrete.slab_types.len() + 1),
+                    "Перекрытие, сетки",
+                );
+                ty.bottom = Some(MeshLayer::new(12., 200., 0.));
+                ty.top = Some(MeshLayer::new(12., 200., 0.));
+                rebar.slab_draft = Some(ty);
+            }
+            let mut edit = None;
+            for ty in &project.concrete.slab_types {
+                ui.horizontal(|ui| {
+                    ui.label(format!(
+                        "{}{}",
+                        ty.name,
+                        if ty.default_for_new {
+                            " — для новых плит"
+                        } else {
+                            ""
+                        }
+                    ));
+                    if ui.small_button("Изменить").clicked() {
+                        edit = Some(ty.clone());
+                    }
+                });
+            }
+            if let Some(ty) = edit {
+                rebar.slab_draft = Some(ty);
+            }
+            if let Some(draft) = &mut rebar.slab_draft {
+                ui.horizontal(|ui| {
+                    ui.label("Имя");
+                    ui.text_edit_singleline(&mut draft.name);
+                });
+                ui.checkbox(
+                    &mut draft.default_for_new,
+                    "Для новых плит и фундаментных плит",
+                );
+                ui.checkbox(&mut draft.cut_openings, "Резать стержни в проёмах");
+                ui.horizontal(|ui| {
+                    ui.label("Привязка шага");
+                    egui::ComboBox::from_id_salt("kj align")
+                        .selected_text(if draft.align == BarAlign::Edge {
+                            "От края"
+                        } else {
+                            "От оси"
+                        })
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut draft.align, BarAlign::Edge, "От края");
+                            ui.selectable_value(&mut draft.align, BarAlign::Axis, "От оси");
+                        });
+                });
+                for (title, layer) in [
+                    ("Нижняя сетка", &mut draft.bottom),
+                    ("Верхняя сетка", &mut draft.top),
+                ] {
+                    let mut on = layer.is_some();
+                    ui.checkbox(&mut on, title);
+                    if on && layer.is_none() {
+                        *layer = Some(MeshLayer::new(12., 200., 0.));
+                    }
+                    if !on {
+                        *layer = None;
+                    }
+                    if let Some(layer) = layer {
+                        ui.horizontal(|ui| {
+                            ui.label("Ø");
+                            ui.add(egui::DragValue::new(&mut layer.diameter).range(4.0..=40.));
+                            ui.label("шаг");
+                            ui.add(
+                                egui::DragValue::new(&mut layer.spacing)
+                                    .range(layer.diameter..=10_000.),
+                            );
+                            ui.label("направление °");
+                            ui.add(
+                                egui::DragValue::new(&mut layer.direction_deg).range(-180.0..=180.),
+                            );
+                        });
+                        let mut cross = layer.cross_spacing.unwrap_or(0.);
+                        ui.horizontal(|ui| {
+                            ui.label("Шаг поперёк, 0 — одно направление");
+                            ui.add(egui::DragValue::new(&mut cross).range(0.0..=10_000.));
+                        });
+                        layer.cross_spacing = (cross >= layer.diameter).then_some(cross);
+                    }
+                }
+                ui.checkbox(&mut draft.edge_bars, "П-образные по контуру и проёмам");
+                ui.horizontal(|ui| {
+                    ui.label("Ø П");
+                    ui.add(egui::DragValue::new(&mut draft.edge_diameter).range(4.0..=40.));
+                    ui.label("шаг");
+                    ui.add(
+                        egui::DragValue::new(&mut draft.edge_spacing)
+                            .range(draft.edge_diameter..=10_000.),
+                    );
+                });
+                ui.checkbox(&mut draft.frogs, "Лягушки между сетками");
+                ui.horizontal(|ui| {
+                    ui.label("Ø лягушки");
+                    ui.add(egui::DragValue::new(&mut draft.frog_diameter).range(4.0..=40.));
+                    ui.label("шаг в плане");
+                    ui.add(
+                        egui::DragValue::new(&mut draft.frog_spacing)
+                            .range(draft.frog_diameter..=10_000.),
+                    );
+                });
+                if ui.button("Записать тип плиты").clicked()
+                    && let Ok(commands) = rb::save_slab_type(project, draft.clone())
+                {
+                    requests.push(Request::Action(Action::Commit(
+                        "Тип плиты".into(),
+                        commands,
+                    )));
+                }
+            }
+            if ui.button("Разложить в выбранных плитах").clicked() {
+                let id = rebar
+                    .slab_draft
+                    .as_ref()
+                    .map(|t| t.id.clone())
+                    .or_else(|| {
+                        project
+                            .concrete
+                            .slab_types
+                            .iter()
+                            .find(|t| t.default_for_new)
+                            .map(|t| t.id.clone())
+                    })
+                    .or_else(|| project.concrete.slab_types.first().map(|t| t.id.clone()));
+                if let Some(id) = id
+                    && let Ok(commands) = rb::reinforce(project, selected, &id)
+                {
+                    requests.push(Request::Action(Action::Commit(
+                        "Раскладка".into(),
+                        commands,
+                    )));
+                }
+            }
+            if let Some(zone) = project
+                .concrete
+                .zones
+                .iter()
+                .find(|z| selected.contains(&z.host))
+            {
+                ui.label(format!("Марка зоны: {}", zone.mark));
+                let mut off = zone.edge_off.clone();
+                let n = project
+                    .elements
+                    .get(&zone.host)
+                    .and_then(|e| match &e.shape {
+                        open_bim_model::ElementShape::Plate { contour, .. } => Some(contour.len()),
+                        _ => None,
+                    })
+                    .unwrap_or(0);
+                let mut changed = false;
+                for i in 0..n {
+                    let mut on = !off.contains(&(i as u32));
+                    if ui
+                        .checkbox(&mut on, format!("Обрамление кромки {}", i + 1))
+                        .changed()
+                    {
+                        changed = true;
+                        if on {
+                            off.retain(|e| *e != i as u32);
+                        } else {
+                            off.push(i as u32);
+                        }
+                    }
+                }
+                if changed && let Ok(commands) = rb::frame_edges(project, zone.number, off) {
+                    requests.push(Request::Action(Action::Commit(
+                        "Обрамление кромки".into(),
+                        commands,
+                    )));
+                }
+            }
+        });
+
+    let notes = shapes::model_checks(project);
+    if !notes.is_empty() {
+        ui.separator();
+        ui.strong("Проверка армирования");
+        for note in notes {
+            ui.label(note);
+        }
     }
 }
