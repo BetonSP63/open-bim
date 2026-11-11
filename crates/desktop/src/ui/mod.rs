@@ -970,8 +970,16 @@ impl Workbench {
                     self.editor.draft.twin = crate::tools::twin::Twin::Single;
                 }
                 self.engine.start(kind);
-                self.message(self.engine.prompt());
+                // The running tool owns the property pane: profile, material,
+                // levels. Selection properties come back when the tool ends.
+                self.side_panel = Some(chrome::SidePanel::Properties);
+                // Before a property file: a file that names heights replaces this.
+                let storey =
+                    crate::interaction::workflow::column_storey(self.editor.document.project());
+                crate::interaction::workflow::apply_column_storey(&mut self.editor.draft, storey);
+                self.message(self.prompt());
                 if first {
+                    // Keeps the step text and appends «standard», if that file exists.
                     self.load_standard(crate::tools::property_files::FileKind::of_tool(kind));
                 }
             }
@@ -987,7 +995,7 @@ impl Workbench {
                 self.message(format!(
                     "Сдвоенный профиль ({}): {}",
                     self.editor.draft.twin.label().to_lowercase(),
-                    self.engine.prompt()
+                    self.prompt()
                 ));
                 return r;
             }
@@ -1290,6 +1298,8 @@ impl Workbench {
                     self.cancel_job();
                 } else if self.palette.open {
                     self.palette.open = false;
+                } else if self.swept_dialog.take().is_some() {
+                    self.message("Создание гнутой детали отменено");
                 } else if self.workplane_picks.is_some() {
                     self.workplane_picks = None;
                     self.message("Задание рабочей плоскости прервано");

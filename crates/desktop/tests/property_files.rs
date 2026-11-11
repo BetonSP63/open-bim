@@ -241,10 +241,25 @@ fn column_by_levels_gets_its_ends_from_level_plus_offset() {
 #[test]
 fn absolute_column_has_no_level_binding() {
     let (mut b, _) = bench("absolute");
-    let id = create(&mut b, Cmd::ToolColumn, &[DVec3::new(0., 0., 0.)]);
+    b.execute(Cmd::ToolColumn);
+    b.editor.draft.bottom_level = None;
+    b.editor.draft.top_level = None;
+    b.editor.draft.bottom = "0".into();
+    b.editor.draft.top = "3600".into();
+    let r = b.pick(DVec3::new(0., 0., 0.));
+    match r {
+        Some(Request::Action(Action::Commit(label, commands))) => {
+            b.editor.commit(&label, &commands).unwrap();
+        }
+        _ => panic!("no column: {}", b.tools.message.as_deref().unwrap_or("")),
+    }
     let project = b.editor.document.project();
+    let id = *project.elements.keys().last().unwrap();
     assert_eq!(line(project, id).1.0[2], 3600.);
-    assert!(project.elements[&id].properties.is_empty());
+    assert!(
+        project.elements[&id].properties.is_empty(),
+        "абсолютная отметка не пишет привязку к уровню"
+    );
 }
 
 #[test]
