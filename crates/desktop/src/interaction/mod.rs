@@ -345,13 +345,7 @@ pub fn commands(
                 draft.twin,
                 &draft.twin_gap,
             )?;
-            let properties = if kind == ToolKind::Column {
-                let (b, t) = draft.column_ends()?;
-                crate::tools::column_levels::binding(b, t)
-            } else {
-                Default::default()
-            };
-            Ok(shapes
+            let commands: Vec<Command> = shapes
                 .into_iter()
                 .zip(id.0..)
                 .map(|(shape, id)| Command::Create {
@@ -360,10 +354,11 @@ pub fn commands(
                         name: draft.name.clone(),
                         material: draft.material,
                         shape,
-                        properties: properties.clone(),
+                        properties: Default::default(),
                     },
                 })
-                .collect())
+                .collect();
+            Ok(bind_new_member(commands, kind, draft)?)
         }
         _ => {
             // Rectangle modes turn their picks into the four corners.
@@ -439,4 +434,76 @@ pub fn commands(
             }])
         }
     }
+}
+
+/// Level bindings (columns) and the member type carried by «Создать подобный».
+fn bind_new_member(
+    commands: Vec<Command>,
+    kind: ToolKind,
+    draft: &crate::tools::Draft,
+) -> Result<Vec<Command>, String> {
+    let mut commands = commands;
+    if kind == ToolKind::Column {
+        let (bottom, top) = draft.column_ends()?;
+        let ids: Vec<_> = commands
+            .iter()
+            .filter_map(|c| match c {
+                Command::Create { element } => Some(element.id),
+                _ => None,
+            })
+            .collect();
+        for (height, end) in [
+            (bottom, open_bim_model::MemberEnd::Bottom),
+            (top, open_bim_model::MemberEnd::Top),
+        ] {
+            let Some(level) = height.level else {
+                continue;
+            };
+            for part in &ids {
+                commands.push(Command::SetLevelEnd {
+                    part: *part,
+                    end,
+                    binding: Some(open_bim_model::LevelBinding {
+                        level,
+                        offset_mm: height.value,
+                    }),
+                });
+            }
+        }
+    }
+    for command in &mut commands {
+        let Command::Create { element } = command else {
+            continue;
+        };
+        if !draft.class.is_empty() {
+            element.properties.insert(
+                "class".into(),
+                open_bim_model::PropertyValue::Text(draft.class.clone()),
+            );
+        }
+        if !draft.numbering_prefix.is_empty() {
+            element.properties.insert(
+                open_bim_model::member_type::NUMBERING_PREFIX.into(),
+                open_bim_model::PropertyValue::Text(draft.numbering_prefix.clone()),
+            );
+        }
+    }
+    if let Some(type_id) = draft.member_type {
+        let ids: Vec<_> = commands
+            .iter()
+            .filter_map(|c| match c {
+                Command::Create { element } => Some(element.id),
+                _ => None,
+            })
+            .collect();
+        for part in ids {
+            commands.push(Command::SetMemberUse {
+                part,
+                type_id: Some(type_id),
+                overrides: draft.type_overrides.clone(),
+                apply: false,
+            });
+        }
+    }
+    Ok(commands)
 }

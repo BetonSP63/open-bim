@@ -310,6 +310,103 @@ pub struct Input<'a> {
     /// next point is accepted (red when it would cross the contour).
     pub plate_preview: Option<(Vec<DVec3>, bool)>,
     pub light: bool,
+    /// One selected part, or the point being placed: temporary dimensions
+    /// to the nearest grid axes. Not stored in the model.
+    pub axis_point: Option<DVec3>,
+    /// Tracking lines through points the cursor lingered on (at most three).
+    pub hot: &'a [DVec3],
+    /// Ghost of a suggested connection, world segments.
+    pub preview: &'a [(DVec3, DVec3)],
+}
+
+/// A temporary dimension from a point to one grid axis of the work plane.
+#[derive(Clone, Debug, PartialEq)]
+pub struct AxisDim {
+    pub axis: ObjectId,
+    pub name: String,
+    /// 0 = distance along the work plane X, 1 = along Y.
+    pub along: u8,
+    /// Signed distance, millimetres.
+    pub distance_mm: f64,
+    pub from: DVec3,
+    pub to: DVec3,
+}
+
+/// Up to two dimensions: the nearest grid axis parallel to each work plane
+/// axis. Nothing is stored.
+pub fn nearest_axis_dimensions(
+    project: &Project,
+    origin: DVec3,
+    axes: [DVec3; 3],
+    point: DVec3,
+) -> Vec<AxisDim> {
+    let z = axes[2];
+    let on = point - z * (point - origin).dot(z);
+    let coord = |p: DVec3, i: usize| (p - origin).dot(axes[i]);
+    let mut best: [Option<(f64, u64, AxisDim)>; 2] = [None, None];
+    for axis in project.axes.values() {
+        let (a, b) = (v(axis.start), v(axis.end));
+        let dir = b - a;
+        let in_plane = dir - z * dir.dot(z);
+        let Some(dir) = in_plane.try_normalize() else {
+            continue;
+        };
+        let parallel = [dir.dot(axes[0]).abs(), dir.dot(axes[1]).abs()];
+        // The line is parallel to one work-plane axis; the dimension runs
+        // along the other one.
+        let along = if parallel[1] >= 0.98 && parallel[1] >= parallel[0] {
+            0u8
+        } else if parallel[0] >= 0.98 {
+            1u8
+        } else {
+            continue;
+        };
+        let line_const = coord(a, along as usize);
+        let point_const = coord(on, along as usize);
+        let distance = point_const - line_const;
+        let foot = on - axes[along as usize] * distance;
+        let dim = AxisDim {
+            axis: axis.id,
+            name: axis.name.clone(),
+            along,
+            distance_mm: distance,
+            from: on,
+            to: foot,
+        };
+        let key = (distance.abs(), axis.id.0);
+        let replace = match &best[along as usize] {
+            None => true,
+            Some((dist, id, _)) => key < (*dist, *id),
+        };
+        if replace {
+            best[along as usize] = Some((distance.abs(), axis.id.0, dim));
+        }
+    }
+    best.into_iter().flatten().map(|(_, _, dim)| dim).collect()
+}
+
+/// Move that puts `point` at `new_distance` along the dimension.
+pub fn axis_translation(dim: &AxisDim, new_distance: f64, axes: [DVec3; 3]) -> DVec3 {
+    axes[dim.along as usize] * (new_distance - dim.distance_mm)
+}
+
+fn axis_color(dir: DVec3, axes: [DVec3; 3]) -> Rgba {
+    let Some(n) = dir.try_normalize() else {
+        return RUBBER;
+    };
+    let dots = [
+        n.dot(axes[0]).abs(),
+        n.dot(axes[1]).abs(),
+        n.dot(axes[2]).abs(),
+    ];
+    let (mut i, mut best) = (0usize, 0.0f64);
+    for (k, d) in dots.iter().enumerate() {
+        if *d > best {
+            best = *d;
+            i = k;
+        }
+    }
+    if best >= 0.92 { AXIS_COLORS[i] } else { RUBBER }
 }
 
 fn line(a: [f64; 2], b: [f64; 2], color: Rgba, width: f32, dash: Option<[f32; 2]>) -> Mark {
@@ -787,21 +884,24 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
             }
         }
     }
-    // Rubber band with live length, then the snap symbol on top.
+    // Rubber band with live length, coloured by the work plane axis it
+    // follows, then the snap symbol on top.
     let picked: Vec<[f64; 2]> = input.picks.iter().filter_map(|w| p.screen(*w)).collect();
-    for w in picked.windows(2) {
-        marks.push(line(w[0], w[1], RUBBER, 2., None));
+    for (i, w) in picked.windows(2).enumerate() {
+        let color = axis_color(input.picks[i + 1] - input.picks[i], input.workplane.1);
+        marks.push(line(w[0], w[1], color, 2., None));
     }
     if let Some((world, g)) = input.cursor
         && let Some(c) = p.screen(world)
     {
         if let (Some(last), Some(&last_world)) = (picked.last(), input.picks.last()) {
-            marks.push(line(*last, c, RUBBER, 1.5, Some([7., 4.])));
+            let color = axis_color(world - last_world, input.workplane.1);
+            marks.push(line(*last, c, color, 1.5, Some([7., 4.])));
             let mid = [(last[0] + c[0]) / 2., (last[1] + c[1]) / 2.];
             marks.push(text(
                 add(mid, [0., -1.], 10.),
                 format!("{:.0} мм", last_world.distance(world)),
-                RUBBER,
+                color,
                 [0, 1],
                 13.,
             ));
@@ -818,6 +918,42 @@ pub fn build(p: &Projector, input: &Input) -> Vec<Mark> {
                 [-1, -1],
                 12.,
             ));
+        }
+    }
+    if let Some(point) = input.axis_point {
+        for dim in
+            nearest_axis_dimensions(input.project, input.workplane.0, input.workplane.1, point)
+        {
+            let Some(a) = p.screen(dim.from) else {
+                continue;
+            };
+            let Some(b) = p.screen(dim.to) else { continue };
+            let color = AXIS_COLORS[dim.along as usize];
+            marks.push(line(a, b, color, 1.25, Some([4., 3.])));
+            let mid = [(a[0] + b[0]) / 2., (a[1] + b[1]) / 2.];
+            marks.push(text(
+                mid,
+                format!("{:.0}", dim.distance_mm),
+                color,
+                [0, 1],
+                13.,
+            ));
+        }
+    }
+    for hot in input.hot {
+        for (i, dir) in [input.workplane.1[0], input.workplane.1[1]]
+            .into_iter()
+            .enumerate()
+        {
+            let (a, b) = (*hot - dir * 20_000., *hot + dir * 20_000.);
+            if let (Some(sa), Some(sb)) = (p.screen(a), p.screen(b)) {
+                marks.push(line(sa, sb, AXIS_COLORS[i], 1., Some([2., 6.])));
+            }
+        }
+    }
+    for (a, b) in input.preview {
+        if let (Some(sa), Some(sb)) = (p.screen(*a), p.screen(*b)) {
+            marks.push(line(sa, sb, [30, 110, 230, 200], 1.5, Some([6., 3.])));
         }
     }
     marks
@@ -998,6 +1134,9 @@ mod tests {
             picked_handles: Vec::new(),
             plate_preview: None,
             light: true,
+            axis_point: None,
+            hot: &[],
+            preview: &[],
         };
         let marks = build(&p, &input);
         assert!(
@@ -1037,5 +1176,23 @@ mod tests {
             .map(|g| format!("{:?}", glyph([0., 0.], *g)))
             .collect();
         assert_eq!(shapes.len(), kinds.len());
+    }
+
+    #[test]
+    fn one_part_shows_a_dimension_to_the_nearest_axis() {
+        let project = open_bim_model::example_steel_frame().unwrap();
+        let dims = nearest_axis_dimensions(
+            &project,
+            DVec3::ZERO,
+            [DVec3::X, DVec3::Y, DVec3::Z],
+            DVec3::new(1000., 500., 0.),
+        );
+        assert_eq!(dims.len(), 1, "в примере только оси вдоль Y");
+        assert_eq!(dims[0].along, 0);
+        assert!((dims[0].distance_mm - 1000.).abs() < 1e-6);
+        let color = axis_color(DVec3::X, [DVec3::X, DVec3::Y, DVec3::Z]);
+        assert_eq!(color, AXIS_COLORS[0]);
+        let diagonal = axis_color(DVec3::new(1., 1., 0.), [DVec3::X, DVec3::Y, DVec3::Z]);
+        assert_eq!(diagonal, RUBBER);
     }
 }

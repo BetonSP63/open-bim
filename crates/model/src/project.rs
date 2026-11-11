@@ -216,6 +216,14 @@ pub struct Project {
         deserialize_with = "unique_map"
     )]
     pub family_instances: BTreeMap<ObjectId, crate::FamilyInstance>,
+    /// Column ends bound to levels (elevation + offset). Absent in files
+    /// written before format version 2.
+    #[serde(default, skip_serializing_if = "crate::LevelEnds::is_default")]
+    pub level_ends: crate::LevelEnds,
+    /// Member types and which parts use them. Optional: a part with no
+    /// entry is just itself.
+    #[serde(default, skip_serializing_if = "crate::MemberTypes::is_default")]
+    pub member_types: crate::MemberTypes,
 }
 
 impl Default for Project {
@@ -253,6 +261,8 @@ impl Default for Project {
             sections: Default::default(),
             families: BTreeMap::new(),
             family_instances: BTreeMap::new(),
+            level_ends: crate::LevelEnds::default(),
+            member_types: crate::MemberTypes::default(),
         }
     }
 }
@@ -285,6 +295,7 @@ impl Project {
             || self.dimensions.contains_key(&id)
             || self.plugins.contains_key(&id)
             || self.family_instances.contains_key(&id)
+            || self.member_types.types.contains_key(&id)
     }
 
     pub fn element_volume_mm3(&self, id: ObjectId) -> Result<f64, ModelError> {
@@ -377,8 +388,9 @@ impl Project {
     }
 
     pub fn from_json(json: &str) -> Result<Self, ModelError> {
-        let project: Self = serde_json::from_str(json)
+        let mut project: Self = serde_json::from_str(json)
             .map_err(|error| ModelError::Serialization(error.to_string()))?;
+        crate::level_ends::adopt_legacy(&mut project);
         project.validate()?;
         Ok(project)
     }

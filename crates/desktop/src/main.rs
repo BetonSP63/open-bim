@@ -171,6 +171,14 @@ impl Options {
         );
     }
 }
+#[derive(Clone)]
+struct AxisEdit {
+    along: u8,
+    text: String,
+    at: [f64; 2],
+    point: DVec3,
+}
+
 struct Desktop {
     bench: Workbench,
     capture_dir: Option<PathBuf>,
@@ -205,6 +213,8 @@ struct Desktop {
     /// Requests raised inside the central panel, handled next frame.
     pending: Vec<Request>,
     load_ms: f64,
+    /// Temporary dimension being typed.
+    axis_edit: Option<AxisEdit>,
 }
 impl Desktop {
     fn new(
@@ -327,8 +337,139 @@ impl Desktop {
             }),
             load_ms,
             pending: Vec::new(),
+            axis_edit: None,
         })
     }
+    fn axis_anchor(&self) -> Option<DVec3> {
+        if self.bench.picking() {
+            return self.bench.cursor;
+        }
+        let mut ids = self.bench.editor.selected.iter().copied();
+        let id = ids.next()?;
+        if ids.next().is_some() {
+            return None;
+        }
+        let project = self.bench.editor.document.project();
+        let element = project.elements.get(&id)?;
+        match &element.shape {
+            open_bim_model::ElementShape::Member { .. } => project
+                .member_reference_line(&element.shape)
+                .map(|(a, _, _)| DVec3::from_array(a.0)),
+            open_bim_model::ElementShape::Plate { frame, .. } => {
+                Some(DVec3::from_array(frame.origin.0))
+            }
+        }
+    }
+
+    fn dimension_at(
+        &self,
+        projector: &overlay::Projector,
+        screen: [f64; 2],
+    ) -> Option<overlay::AxisDim> {
+        let point = self.axis_anchor()?;
+        let dims = overlay::nearest_axis_dimensions(
+            self.bench.editor.document.project(),
+            self.bench.engine.workplane.origin,
+            self.bench.engine.workplane.axes,
+            point,
+        );
+        dims.into_iter().find(|dim| {
+            let Some(a) = projector.screen(dim.from) else {
+                return false;
+            };
+            let Some(b) = projector.screen(dim.to) else {
+                return false;
+            };
+            let mid = [(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0];
+            (mid[0] - screen[0]).hypot(mid[1] - screen[1]) < 16.0
+        })
+    }
+
+    fn axis_editor(&mut self, ctx: &egui::Context) {
+        let Some(edit) = self.axis_edit.as_mut() else {
+            return;
+        };
+        let mut close = false;
+        let mut apply = false;
+        egui::Area::new(egui::Id::new("axis dimension"))
+            .fixed_pos(egui::pos2(edit.at[0] as f32, edit.at[1] as f32))
+            .order(egui::Order::Foreground)
+            .show(ctx, |ui| {
+                let response = ui.add(
+                    egui::TextEdit::singleline(&mut edit.text)
+                        .desired_width(72.)
+                        .hint_text("мм"),
+                );
+                if !response.has_focus() {
+                    response.request_focus();
+                }
+                if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                    apply = true;
+                }
+                if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                    close = true;
+                }
+            });
+        if close {
+            self.axis_edit = None;
+            return;
+        }
+        if !apply {
+            return;
+        }
+        let Some(edit) = self.axis_edit.clone() else {
+            return;
+        };
+        let Some(point) = self.axis_anchor() else {
+            self.axis_edit = None;
+            return;
+        };
+        let work = self.bench.engine.workplane;
+        let Some(dim) = overlay::nearest_axis_dimensions(
+            self.bench.editor.document.project(),
+            work.origin,
+            work.axes,
+            point,
+        )
+        .into_iter()
+        .find(|d| d.along == edit.along) else {
+            self.axis_edit = None;
+            return;
+        };
+        let Ok(value) = open_bim_desktop::tools::number(&edit.text.replace(',', ".")) else {
+            self.bench.tools.message = Some("Размер: введите число".into());
+            return;
+        };
+        let delta = overlay::axis_translation(&dim, value, work.axes);
+        self.axis_edit = None;
+        if self.bench.picking() {
+            if let Some(r) = self.bench.pick(edit.point + delta) {
+                self.pending.push(r);
+            }
+        } else if let Some(id) = self.axis_part() {
+            self.pending.push(Request::Action(Action::Commit(
+                "Размер до оси".into(),
+                vec![open_bim_commands::Command::Transform {
+                    ids: vec![id],
+                    rotation: open_bim_model::Frame {
+                        origin: open_bim_model::Point3(delta.to_array()),
+                        ..open_bim_model::Frame::default()
+                    },
+                    pivot: open_bim_model::Point3([0.0; 3]),
+                }],
+            )));
+        }
+    }
+
+    fn axis_part(&self) -> Option<open_bim_model::ObjectId> {
+        if self.bench.picking() {
+            return None;
+        }
+        let mut ids = self.bench.editor.selected.iter().copied();
+        let id = ids.next()?;
+        ids.next().is_none().then_some(id)
+    }
+
     fn action(&mut self, action: Action) {
         let fit = self.scene.instances.is_empty()
             || matches!(action, Action::New | Action::Example | Action::Open);
@@ -1025,7 +1166,11 @@ impl eframe::App for Desktop {
                 .filter(|_| hit.is_none())
                 .map(|p| (p, open_bim_renderer::overlay::Glyph::Reference));
             self.bench.cursor = hit.map(|h| h.point);
+            let linger = hit.as_ref().map(|h| h.point);
             self.bench.last_snap = hit.map(|h| h.kind);
+            self.bench
+                .snapper
+                .note_linger(linger, std::time::Instant::now());
             // Right button: context menu.
             let mut menu_cmd = None;
             let picking = self.bench.picking();
@@ -1103,7 +1248,24 @@ impl eframe::App for Desktop {
                 selection::Click::Replace
             };
             if response.clicked() {
-                if self.bench.picks_objects() {
+                if let Some(screen) = response.interact_pointer_pos()
+                    && let Some(dim) =
+                        self.dimension_at(&projector, [screen.x as f64, screen.y as f64])
+                {
+                    self.axis_edit = Some(AxisEdit {
+                        along: dim.along,
+                        text: format!("{:.0}", dim.distance_mm),
+                        at: [
+                            (projector.screen(dim.from).unwrap_or([0.; 2])[0]
+                                + projector.screen(dim.to).unwrap_or([0.; 2])[0])
+                                / 2.0,
+                            (projector.screen(dim.from).unwrap_or([0.; 2])[1]
+                                + projector.screen(dim.to).unwrap_or([0.; 2])[1])
+                                / 2.0,
+                        ],
+                        point: dim.from,
+                    });
+                } else if self.bench.picks_objects() {
                     let id = hover.and_then(|ray| self.scene.pick(ray, &self.view));
                     if let Some(r) = self.bench.pick_object(id) {
                         self.pending.push(r);
@@ -1440,6 +1602,9 @@ impl eframe::App for Desktop {
                     direct: self.bench.direct_modification,
                     picked_handles: self.bench.editor.selected_handles(),
                     light,
+                    axis_point: self.axis_anchor(),
+                    hot: &self.bench.snapper.hot,
+                    preview: &self.bench.suggest_preview,
                 },
             );
             open_bim_desktop::viewport::paint(ui.painter(), &marks);
@@ -1705,6 +1870,7 @@ impl eframe::App for Desktop {
                 "Вид 1 — 3d"
             };
         });
+        self.axis_editor(ui.ctx());
     }
 }
 /// Named view for a click on the axis gizmo labels (bottom-right corner):

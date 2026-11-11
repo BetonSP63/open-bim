@@ -142,6 +142,7 @@ pub enum Cmd {
     PanelDetailing,
     PanelConnections,
     PanelClash,
+    ModelCheck,
     PanelModelTree,
     DeleteSelected,
     ToggleProjection,
@@ -1042,6 +1043,13 @@ pub const ALL: &[Spec] = &[
         keywords: "коллизии отчёт позиции",
     },
     Spec {
+        cmd: Cmd::ModelCheck,
+        label: "Проверка модели",
+        category: "Панели",
+        shortcut: None,
+        keywords: "свободный конец дубль болт лист уровень",
+    },
+    Spec {
         cmd: Cmd::PanelModelTree,
         label: "Панель: дерево модели",
         category: "Панели",
@@ -1791,6 +1799,12 @@ pub fn shortcut_text(cmd: Cmd) -> String {
         other => other.name().to_string(),
     };
     text + &key
+}
+
+/// Quiet status line after a ribbon click: «Быстрее: Alt+B».
+pub fn faster_hint(cmd: Cmd) -> Option<String> {
+    let shortcut = shortcut_text(cmd);
+    (!shortcut.is_empty()).then(|| format!("Быстрее: {shortcut}"))
 }
 
 /// Button caption with the shortcut, e.g. «Сохранить проект · ⌘S».

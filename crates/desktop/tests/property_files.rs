@@ -2,7 +2,6 @@
 //! start of a command) and columns by levels that follow a level's new mark.
 use open_bim_desktop::interaction::grid_edit::{spec_from_project, update_commands};
 use open_bim_desktop::interaction::tools::default_project;
-use open_bim_desktop::tools::column_levels::{BOTTOM_LEVEL, TOP_LEVEL};
 use open_bim_desktop::tools::property_files::{
     self as files, FileKind, LevelValue, MemberValues, Values,
 };
@@ -229,8 +228,18 @@ fn column_by_levels_gets_its_ends_from_level_plus_offset() {
     let project = b.editor.document.project();
     let (s, e) = line(project, id);
     assert_eq!((s.0[2], e.0[2]), (-150., 3300.));
-    assert!(project.elements[&id].properties.contains_key(BOTTOM_LEVEL));
-    assert!(project.elements[&id].properties.contains_key(TOP_LEVEL));
+    assert!(
+        project
+            .level_ends
+            .get(id, open_bim_model::MemberEnd::Bottom)
+            .is_some()
+    );
+    assert!(
+        project
+            .level_ends
+            .get(id, open_bim_model::MemberEnd::Top)
+            .is_some()
+    );
     // A saved file of this column keeps its levels.
     match files::from_element(project, &project.elements[&id]).unwrap() {
         Values::Column(v) => assert_eq!(v.bottom.unwrap().value, -150.),
@@ -333,10 +342,11 @@ fn bound_columns_follow_a_level_changed_in_the_grid_dialog() {
     );
     assert_eq!(line(after, follows).1.0[2], 3900.);
     assert_eq!(line(after, follows).0.0[2], 0.);
+    // The hand move kept the binding and wrote a new offset (5000 − 3600).
     assert_eq!(
         line(after, moved).1.0[2],
-        5000.,
-        "moved off the level: stays"
+        5600.,
+        "смещение 1400 от новой отметки 4200"
     );
     // One undo restores both the level and the column.
     b.editor.history(false).unwrap();
@@ -349,21 +359,32 @@ fn bound_columns_follow_a_level_changed_in_its_properties() {
     let (follows, _) = bound_columns(&mut b);
     let project = b.editor.document.project().clone();
     let upper = level(&project, 3600.);
-    let elevations = std::collections::BTreeMap::from([(upper, 3000.)]);
-    let mut commands = vec![open_bim_commands::Command::ReplaceLevel {
+    let commands = vec![open_bim_commands::Command::ReplaceLevel {
         level: open_bim_model::Level {
             elevation_mm: 3000.,
             ..project.levels[&upper].clone()
         },
     }];
-    commands.extend(open_bim_desktop::tools::column_levels::follow(&project, &elevations).unwrap());
-    assert_eq!(commands.len(), 2, "one column follows");
+    assert_eq!(
+        commands.len(),
+        1,
+        "ReplaceLevel сам двигает привязанные концы"
+    );
     b.editor.commit("Изменить уровень", &commands).unwrap();
     assert_eq!(line(b.editor.document.project(), follows).1.0[2], 2700.);
-    // Lowering it under the column bottom is refused.
+    // Lowering it under the column bottom is refused; the model stays.
     let project = b.editor.document.project().clone();
-    let too_low = std::collections::BTreeMap::from([(upper, 200.)]);
-    assert!(open_bim_desktop::tools::column_levels::follow(&project, &too_low).is_err());
+    let err = b.editor.commit(
+        "Слишком низко",
+        &[open_bim_commands::Command::ReplaceLevel {
+            level: open_bim_model::Level {
+                elevation_mm: 200.,
+                ..project.levels[&upper].clone()
+            },
+        }],
+    );
+    assert!(err.is_err(), "{err:?}");
+    assert_eq!(line(b.editor.document.project(), follows).1.0[2], 2700.);
 }
 
 #[test]

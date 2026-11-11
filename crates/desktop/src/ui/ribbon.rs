@@ -448,6 +448,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     small(Cmd::BuildingHierarchy, Icon::Grid, "Иерархия здания"),
                     small(Cmd::Phases, Icon::Assembly, "Стадии"),
                     small(Cmd::PanelClash, Icon::Clash, "Проверка на коллизии"),
+                    small(Cmd::ModelCheck, Icon::Clash, "Проверка модели"),
                 ],
             ),
             (
@@ -810,6 +811,7 @@ impl Workbench {
         if response.clicked()
             && let Some(cmd) = it.cmd
         {
+            self.shortcut_hint = commands::faster_hint(cmd);
             self.run(cmd, requests);
             // Shift+click a tool opens its properties.
             if ui.input(|i| i.modifiers.shift) {

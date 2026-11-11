@@ -328,6 +328,7 @@ pub fn export_schema(project: &Project, schema: Schema) -> Result<(String, Expor
     let z = w.direction([0., 0., 1.]);
     let identity = w.placement([0.; 3], [0., 0., 1.], [1., 0., 0.]);
     let mut products = Vec::new();
+    let mut typed: Vec<(ObjectId, u64)> = Vec::new();
     let mut by_material: BTreeMap<ObjectId, Vec<u64>> = BTreeMap::new();
     let mut profiles: BTreeMap<ObjectId, u64> = BTreeMap::new();
     let mut ksi: BTreeMap<String, Vec<u64>> = BTreeMap::new();
@@ -444,6 +445,7 @@ pub fn export_schema(project: &Project, schema: Schema) -> Result<(String, Expor
             _ => None,
         };
         products.push((on.unwrap_or(storey), product));
+        typed.push((element.id, product));
         by_material
             .entry(element.material)
             .or_default()
@@ -755,6 +757,32 @@ pub fn export_schema(project: &Project, schema: Schema) -> Result<(String, Expor
                 refs(items)
             ));
         }
+    }
+    for ty in project.member_types.types.values() {
+        let (entity, predefined) = match ty.kind {
+            MemberKind::Column => ("IFCCOLUMNTYPE", "COLUMN"),
+            MemberKind::Beam => ("IFCBEAMTYPE", "BEAM"),
+        };
+        let instances: Vec<u64> = project
+            .member_types
+            .uses
+            .iter()
+            .filter(|u| u.type_id == ty.id)
+            .filter_map(|u| typed.iter().find(|(id, _)| *id == u.part).map(|(_, p)| *p))
+            .collect();
+        if instances.is_empty() {
+            continue;
+        }
+        let type_id = w.add(format!(
+            "{entity}('{}',$,{},$,$,$,$,$,.{predefined}.)",
+            derived_guid("member-type", ty.id.0),
+            encode(&ty.name)
+        ));
+        w.add(format!(
+            "IFCRELDEFINESBYTYPE('{}',$,$,$,({}),#{type_id})",
+            derived_guid("defines-type", ty.id.0),
+            refs(&instances)
+        ));
     }
     let mut text = String::new();
     text.push_str("ISO-10303-21;\nHEADER;\n");
