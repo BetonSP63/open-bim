@@ -3,8 +3,9 @@
 //! placed by picks (one bar, a group, a bar along guide points), a 3D
 //! overlay and the bar schedule.
 use open_bim_commands::Command;
+use open_bim_model::concrete::{BarShapeType, REBAR_COVER, ShapePlace, SlabRebarType};
 use open_bim_model::rebar::{self as model, Hook, HookKind, RebarRule, Stress};
-use open_bim_model::{ObjectId, Point3, Project, RebarKind, RebarSet};
+use open_bim_model::{ElementShape, ObjectId, Point3, Project, PropertyValue, RebarKind, RebarSet};
 use open_bim_renderer::DVec3;
 use open_bim_renderer::overlay::{Mark, Projector};
 
@@ -91,22 +92,18 @@ impl RebarSettings {
         } else {
             self.hook
         };
-        RebarSet {
-            number: 0,
-            kind,
-            host,
-            diameter: self.diameter,
-            grade: self.grade.clone(),
-            bars,
-            hooks: [Hook::new(hook); 2],
-            bend_diameter: self.bend_diameter,
-            rule: host.map(|_| RebarRule {
-                cover: self.cover,
-                spacing: self.spacing,
-                per_face: self.per_face,
-                stock_length: self.stock_length,
-            }),
-        }
+        let mut set = RebarSet::basic(kind, self.diameter, self.grade.clone());
+        set.host = host;
+        set.bars = bars;
+        set.hooks = [Hook::new(hook); 2];
+        set.bend_diameter = self.bend_diameter;
+        set.rule = host.map(|_| RebarRule {
+            cover: self.cover,
+            spacing: self.spacing,
+            per_face: self.per_face,
+            stock_length: self.stock_length,
+        });
+        set
     }
 
     /// Smallest mandrel diameter of the current class and diameter, mm.
@@ -223,6 +220,183 @@ pub fn add(project: &Project, mut set: RebarSet) -> Result<Vec<Command>, String>
     Ok(vec![Command::SetConcrete { concrete }])
 }
 
+fn commit_concrete(concrete: open_bim_model::Concrete) -> Result<Vec<Command>, String> {
+    concrete.validate().map_err(|e| e.to_string())?;
+    Ok(vec![Command::SetConcrete { concrete }])
+}
+
+/// Record a shape type. A built-in id replaces that form for this project.
+pub fn save_shape(project: &Project, mut shape: BarShapeType) -> Result<Vec<Command>, String> {
+    shape.id = shape.id.trim().to_string();
+    shape.name = shape.name.trim().to_string();
+    for seg in &mut shape.segments {
+        seg.letter = seg.letter.trim().to_ascii_uppercase();
+    }
+    let mut concrete = project.concrete.clone();
+    if let Some(found) = concrete.shape_types.iter_mut().find(|s| s.id == shape.id) {
+        *found = shape;
+    } else {
+        concrete.shape_types.push(shape);
+    }
+    commit_concrete(concrete)
+}
+
+/// Record a slab type. Only one type is the default for new slabs.
+pub fn save_slab_type(project: &Project, ty: SlabRebarType) -> Result<Vec<Command>, String> {
+    let mut concrete = project.concrete.clone();
+    if ty.default_for_new {
+        for other in &mut concrete.slab_types {
+            other.default_for_new = false;
+        }
+    }
+    if let Some(found) = concrete.slab_types.iter_mut().find(|s| s.id == ty.id) {
+        *found = ty;
+    } else {
+        concrete.slab_types.push(ty);
+    }
+    commit_concrete(concrete)
+}
+
+fn plate_host(project: &Project, selected: &[ObjectId]) -> Result<ObjectId, String> {
+    selected
+        .iter()
+        .copied()
+        .find(|id| {
+            project.elements.get(id).is_some_and(|e| {
+                matches!(e.shape, ElementShape::Plate { .. })
+                    && super::concrete::part_type(e).is_some_and(|t| t == "slab" || t == "raft")
+            })
+        })
+        .ok_or_else(|| "Выберите перекрытие или фундаментную плиту".into())
+}
+
+/// Lay the slab type into every selected slab. The cover is written on the
+/// host when it does not have one yet.
+pub fn reinforce(
+    project: &Project,
+    selected: &[ObjectId],
+    type_id: &str,
+) -> Result<Vec<Command>, String> {
+    let hosts: Vec<ObjectId> = selected
+        .iter()
+        .copied()
+        .filter(|id| {
+            project.elements.get(id).is_some_and(|e| {
+                matches!(e.shape, ElementShape::Plate { .. })
+                    && super::concrete::part_type(e).is_some_and(|t| t == "slab" || t == "raft")
+            })
+        })
+        .collect();
+    if hosts.is_empty() {
+        return Err("Выберите плиту".into());
+    }
+    let mut working = project.clone();
+    let mut commands = Vec::new();
+    for host in hosts {
+        let cover = model::host_cover(&working, host);
+        let has = matches!(
+            working.elements[&host].properties.get(REBAR_COVER),
+            Some(PropertyValue::Number(_))
+        );
+        if !has {
+            working
+                .elements
+                .get_mut(&host)
+                .unwrap()
+                .properties
+                .insert(REBAR_COVER.into(), PropertyValue::Number(cover));
+            commands.push(Command::ChangeProperty {
+                id: host,
+                key: REBAR_COVER.into(),
+                value: Some(PropertyValue::Number(cover)),
+            });
+        }
+        working.concrete = model::install_slab(&working, host, type_id)?;
+    }
+    commands.push(Command::SetConcrete {
+        concrete: working.concrete,
+    });
+    Ok(commands)
+}
+
+/// Turn the U-bars of one outer edge on or off. `edge_off` lists the edges
+/// that stay without framing.
+pub fn frame_edges(
+    project: &Project,
+    zone: u32,
+    edge_off: Vec<u32>,
+) -> Result<Vec<Command>, String> {
+    let opening_off = project
+        .concrete
+        .zones
+        .iter()
+        .find(|z| z.number == zone)
+        .map(|z| z.opening_off.clone())
+        .unwrap_or_default();
+    commit_concrete(model::set_zone_framing(
+        project,
+        zone,
+        edge_off,
+        opening_off,
+    )?)
+}
+
+/// Record `shape` and place one bar of it at the centre of the selected
+/// slab, standing in a vertical plane. The bar follows the slab and the type.
+pub fn place_shape(
+    project: &Project,
+    selected: &[ObjectId],
+    shape: BarShapeType,
+) -> Result<Vec<Command>, String> {
+    let host = plate_host(project, selected)?;
+    let mut working = project.clone();
+    if let Some(found) = working
+        .concrete
+        .shape_types
+        .iter_mut()
+        .find(|s| s.id == shape.id)
+    {
+        *found = shape.clone();
+    } else {
+        working.concrete.shape_types.push(shape.clone());
+    }
+    let shape_id = shape.id;
+    let ElementShape::Plate {
+        contour, thickness, ..
+    } = &working.elements[&host].shape
+    else {
+        return Err("Выберите плиту".into());
+    };
+    let n = contour.len() as f64;
+    let c = [
+        contour.iter().map(|p| p[0]).sum::<f64>() / n,
+        contour.iter().map(|p| p[1]).sum::<f64>() / n,
+    ];
+    let mut set = RebarSet::basic(RebarKind::Shape, 12., "А500С");
+    set.host = Some(host);
+    set.shape_id = Some(shape_id);
+    set.place = Some(ShapePlace {
+        origin: Point3([c[0], c[1], thickness.value() / 2.]),
+        x: [1., 0., 0.],
+        y: [0., 0., 1.],
+        local_to_host: true,
+    });
+    set.bars = vec![vec![Point3([0.; 3]), Point3([1., 0., 0.])]];
+    working.concrete.rebars.push(set);
+    // The rebuild after the command instantiates the shape. The placeholder
+    // bar only has to pass validation.
+    let number = working
+        .concrete
+        .rebars
+        .iter()
+        .map(|r| r.number)
+        .max()
+        .unwrap_or(0)
+        + 1;
+    working.concrete.rebars.last_mut().unwrap().number = number;
+    commit_concrete(working.concrete)
+}
+
 pub fn remove(project: &Project, number: u32) -> Result<Vec<Command>, String> {
     let mut concrete = project.concrete.clone();
     let before = concrete.rebars.len();
@@ -280,6 +454,20 @@ const BAR: [u8; 4] = [200, 60, 40, 255];
 /// Bars drawn over the model.
 pub fn marks(project: &Project, p: &Projector) -> Vec<Mark> {
     let mut out = Vec::new();
+    for z in &project.concrete.zones {
+        if z.mark.is_empty() {
+            continue;
+        }
+        if let Some(at) = p.screen(DVec3::from_array(z.mark_at.0)) {
+            out.push(Mark::Text {
+                at,
+                text: z.mark.clone(),
+                color: [20, 40, 80, 255],
+                align: [0, 0],
+                size: 14.,
+            });
+        }
+    }
     for r in &project.concrete.rebars {
         let width = (r.diameter / 8.).clamp(1., 3.) as f32;
         for bar in &r.bars {

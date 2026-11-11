@@ -1,8 +1,15 @@
 //! Reinforcing bars: classes of reinforcing steel (ГОСТ 34028-2016,
 //! design resistances of СП 63.13330.2018 tables 6.13–6.14), nominal
 //! masses, bend diameters and hooks, anchorage and lap lengths
-//! (СП 63.13330.2018, 10.3.24–10.3.31), and the generators that place a
-//! bar set in its host part and build it again when the host changes.
+//! (СП 63.13330.2018, 10.3.24–10.3.31), bar shape types, area reinforcement
+//! of slabs, and the generators that place a bar set in its host part and
+//! build it again when the host changes.
+mod area;
+mod shape;
+
+pub use area::{host_cover, install_slab, model_checks, set_zone_framing};
+pub use shape::{builtin_shapes, instantiate, resolve_shape, shape_known};
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -638,8 +645,9 @@ pub fn hook_picked(bar: &[Point3], hooks: [Hook; 2], d: f64, r: f64) -> Vec<Poin
     start.into_iter().map(Point3).collect()
 }
 
-/// Whether the host of a set differs between the two states.
-fn host_changed(project: &Project, previous: &Project, host: ObjectId) -> bool {
+/// Whether the host of a set differs between the two states, including the
+/// cuts and openings that belong to it.
+pub(super) fn host_changed(project: &Project, previous: &Project, host: ObjectId) -> bool {
     let (Some(a), Some(b)) = (project.elements.get(&host), previous.elements.get(&host)) else {
         return true;
     };
@@ -647,21 +655,69 @@ fn host_changed(project: &Project, previous: &Project, host: ObjectId) -> bool {
         ElementShape::Member { profile, .. } => p.profiles.get(profile).cloned(),
         _ => None,
     };
+    let cuts = |p: &Project| -> Vec<_> {
+        p.details
+            .iter()
+            .filter(|(_, d)| d.kind.part() == Some(host))
+            .map(|(id, d)| (*id, d.clone()))
+            .collect()
+    };
     a != b
         || profile(project, a) != profile(previous, b)
         || project.materials.get(&a.material) != previous.materials.get(&b.material)
+        || cuts(project) != cuts(previous)
 }
 
 /// Build again the bars of every set laid out by a rule whose host part,
-/// its section or concrete, or whose own rule changed since `previous`;
-/// drop the sets of deleted parts.
+/// its section, openings or concrete, or whose own rule changed since
+/// `previous`; shape instances follow their type; area zones are laid out
+/// again. Sets of a deleted part are dropped.
 pub fn rebuild_rebars(project: &mut Project, previous: &Project) -> Result<(), ModelError> {
-    if project.concrete.rebars.is_empty() {
+    if project.concrete.rebars.is_empty()
+        && project.concrete.zones.is_empty()
+        && project.concrete.shape_types == previous.concrete.shape_types
+    {
         return Ok(());
     }
     let mut sets = std::mem::take(&mut project.concrete.rebars);
     sets.retain(|s| s.host.is_none_or(|h| project.elements.contains_key(&h)));
+    let mut zones = std::mem::take(&mut project.concrete.zones);
+    area::rebuild_area(project, previous, &mut zones, &mut sets)?;
     for set in &mut sets {
+        if set.zone.is_some() {
+            continue;
+        }
+        if set.kind == crate::RebarKind::Shape {
+            let before = previous
+                .concrete
+                .rebars
+                .iter()
+                .find(|s| s.number == set.number);
+            let id = set.shape_id.clone();
+            let changed = before.is_none_or(|b| {
+                b.shape_id != set.shape_id
+                    || b.shape_params != set.shape_params
+                    || b.place != set.place
+                    || b.diameter != set.diameter
+                    || b.grade != set.grade
+                    || b.host != set.host
+            }) || id.is_some_and(|id| {
+                shape::resolve_shape(project, &id) != shape::resolve_shape(previous, &id)
+            }) || set.host.is_some_and(|h| host_changed(project, previous, h));
+            if !changed {
+                continue;
+            }
+            match shape::rebuild_instance(project, set) {
+                Ok(next) => *set = next,
+                Err(e) => {
+                    return Err(ModelError::InvalidValue(format!(
+                        "Арматура №{}: {e}",
+                        set.number
+                    )));
+                }
+            }
+            continue;
+        }
         let (Some(host), Some(_)) = (set.host, set.rule.as_ref()) else {
             continue;
         };
@@ -691,5 +747,6 @@ pub fn rebuild_rebars(project: &mut Project, previous: &Project) -> Result<(), M
         }
     }
     project.concrete.rebars = sets;
+    project.concrete.zones = zones;
     Ok(())
 }

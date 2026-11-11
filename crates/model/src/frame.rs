@@ -58,6 +58,14 @@ impl Frame {
         }))
     }
 
+    /// Inverse of `world` for an orthonormal frame.
+    pub fn local(&self, world: Point3) -> Point3 {
+        let d: [f64; 3] = std::array::from_fn(|i| world.0[i] - self.origin.0[i]);
+        Point3(std::array::from_fn(|i| {
+            (0..3).map(|k| d[k] * self.axes[i][k]).sum()
+        }))
+    }
+
     pub fn along(start: Point3, end: Point3) -> Result<(Self, crate::LengthMm), ModelError> {
         crate::validation::valid_point(start)?;
         crate::validation::valid_point(end)?;

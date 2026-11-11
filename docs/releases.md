@@ -32,8 +32,10 @@ server comes in 1.1); DXF is the primary CAD exchange and DWG goes through the
 unmodified open-source `acadrust` crate (MPL-2.0); macOS signing and notarization
 are postponed.
 
-Still open for 1.0: КЖ by ГОСТ (bar shapes, positions, schedules, drawings, IFC
-rebar, BVBS, pours), full catalogue check, NC cuts and unfoldings,
+Started on the КЖ critical path (not a 1.0 close-out): bar shape types and
+automatic slab meshes, U-bars and frogs (`docs/rebar.md`). Still open for 1.0:
+КЖ by ГОСТ (positions, schedules, drawings, IFC rebar, BVBS, pours), full
+catalogue check, NC cuts and unfoldings,
 reference models and BCF, DWG, Linux/Windows, collaboration, public API 1.0.
 
 ## 0.1.0 — first steel release (local, macOS ARM64)

@@ -2,7 +2,7 @@
 //! units («Бетонирование»), reinforcing bar sets («Армирование») and the
 //! formwork panels and props («Опалубка»).
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::rebar::{Hook, RebarRule};
 use crate::{ModelError, ObjectId, Point3};
@@ -126,6 +126,12 @@ pub enum RebarKind {
     Group,
     /// «Один стержень».
     Single,
+    /// «П-образные»: U-bars along a slab edge or an opening.
+    Edge,
+    /// «Лягушки»: support bars between the meshes, as a line array.
+    Frog,
+    /// «По типу формы»: a bar instantiated from a shape type.
+    Shape,
 }
 
 impl RebarKind {
@@ -137,8 +143,222 @@ impl RebarKind {
             Self::Guide => "По направляющим",
             Self::Group => "Группа стержней",
             Self::Single => "Один стержень",
+            Self::Edge => "П-образные",
+            Self::Frog => "Лягушки",
+            Self::Shape => "По типу формы",
         }
     }
+}
+
+/// Property of a concrete part: concrete cover to the bar surface, mm.
+/// Area reinforcement reads the cover from the host, not from the slab type.
+pub const REBAR_COVER: &str = "rebar_cover";
+
+/// Role of a set inside an area-reinforcement zone. Kept so a rebuild can
+/// reuse the position number.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ZoneRole {
+    BottomMain,
+    BottomCross,
+    TopMain,
+    TopCross,
+    Edge,
+    Opening,
+    Frog,
+}
+
+/// Where the first bar of a mesh is measured from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BarAlign {
+    /// First bar at the cover from the edge; the last interval is the
+    /// remainder step («доборный шаг») when the span is not a whole number
+    /// of spacings.
+    Edge,
+    /// Bars measured both ways from the axis of the zone (the middle of the
+    /// span); remainder steps fall toward the edges.
+    Axis,
+}
+
+/// One straight portion of a bar shape, between bend tangents.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ShapeSegment {
+    /// Schedule letter: «A», «B», «C»… The same letter on several segments
+    /// is one parameter (both risers of a frog).
+    pub letter: String,
+    /// Length between the bend tangents, mm.
+    pub length: f64,
+    /// Turn at the end of the segment, degrees, positive to the left in the
+    /// shape plane. 0 — the bar ends.
+    pub bend_deg: f64,
+}
+
+/// A bar shape type («тип формы»): centreline, segment parameters, hooks and
+/// mandrel. Sets store the id and follow the type. Built-in forms live in
+/// `rebar::builtin_shapes`; a project entry with the same id replaces one.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BarShapeType {
+    pub id: String,
+    pub name: String,
+    /// Short mark kept for a future detail schedule and BVBS. Not a GOST number.
+    pub code: String,
+    pub segments: Vec<ShapeSegment>,
+    pub hooks: [Hook; 2],
+    /// Mandrel diameter, mm. None — the minimum of СП 63 for the bar.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mandrel: Option<f64>,
+}
+
+/// Where a shape instance sits. With `local_to_host` the vectors are in the
+/// host part's frame and the bar follows that part.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ShapePlace {
+    pub origin: Point3,
+    pub x: [f64; 3],
+    pub y: [f64; 3],
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub local_to_host: bool,
+}
+
+/// Frogs of one set, generated along lines rather than one by one.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FrogArray {
+    /// Start and end of each line in the host plane, mm.
+    pub lines: Vec<([f64; 2], [f64; 2])>,
+    pub spacing: f64,
+}
+
+/// One mesh of a slab type: bars of one diameter, a spacing and a direction,
+/// plus the perpendicular bars when `cross_spacing` is set.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MeshLayer {
+    pub diameter: f64,
+    pub grade: String,
+    /// Spacing of the primary bars, mm.
+    pub spacing: f64,
+    /// Direction of the primary bars, degrees from the host X axis.
+    pub direction_deg: f64,
+    /// Perpendicular bars. None — the mesh has one direction.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cross_spacing: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cross_diameter: Option<f64>,
+}
+
+impl MeshLayer {
+    pub fn new(diameter: f64, spacing: f64, direction_deg: f64) -> Self {
+        Self {
+            diameter,
+            grade: "А500С".into(),
+            spacing,
+            direction_deg,
+            cross_spacing: Some(spacing),
+            cross_diameter: None,
+        }
+    }
+
+    pub fn cross_diameter(&self) -> f64 {
+        self.cross_diameter.unwrap_or(self.diameter)
+    }
+}
+
+/// Reinforcement stored on a slab type and applied to slabs of that type.
+/// The cover is not here: it lives on the concrete host (`REBAR_COVER`).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SlabRebarType {
+    pub id: String,
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bottom: Option<MeshLayer>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub top: Option<MeshLayer>,
+    /// Cut mesh bars at openings. When false the bars run through.
+    pub cut_openings: bool,
+    pub align: BarAlign,
+    pub edge_shape: String,
+    pub edge_diameter: f64,
+    pub edge_grade: String,
+    pub edge_spacing: f64,
+    pub frog_shape: String,
+    pub frog_diameter: f64,
+    pub frog_grade: String,
+    pub frog_spacing: f64,
+    /// Place frogs when both meshes exist.
+    pub frogs: bool,
+    /// Place U-bars when both meshes exist.
+    pub edge_bars: bool,
+    /// Applied to a slab or a raft as it is created.
+    pub default_for_new: bool,
+}
+
+impl SlabRebarType {
+    pub fn new(id: impl Into<String>, name: impl Into<String>) -> Self {
+        Self {
+            id: id.into(),
+            name: name.into(),
+            bottom: None,
+            top: None,
+            cut_openings: false,
+            align: BarAlign::Edge,
+            edge_shape: "gost.u".into(),
+            edge_diameter: 8.,
+            edge_grade: "А500С".into(),
+            edge_spacing: 200.,
+            frog_shape: "gost.frog".into(),
+            frog_diameter: 8.,
+            frog_grade: "А500С".into(),
+            frog_spacing: 600.,
+            frogs: true,
+            edge_bars: true,
+            default_for_new: false,
+        }
+    }
+}
+
+/// A stretch the layout refused to reinforce, kept for the model check.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RebarCheck {
+    pub message: String,
+    /// Opening index among the through openings of the host; none — the
+    /// outer contour, or a note that is not tied to a side.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opening: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub edge: Option<u32>,
+    /// Distances along the edge, mm.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub to: Option<f64>,
+}
+
+/// Area reinforcement of one slab. The mark sits at the zone centre and
+/// lists the bar positions.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RebarZone {
+    pub number: u32,
+    pub host: ObjectId,
+    pub type_id: String,
+    /// Outer edges with U-bars turned off, by contour index.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub edge_off: Vec<u32>,
+    /// Opening index and edge index with U-bars turned off.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub opening_off: Vec<[u32; 2]>,
+    /// «1, 2, 4».
+    pub mark: String,
+    pub mark_at: Point3,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub checks: Vec<RebarCheck>,
 }
 
 /// Steel density of reinforcing bars, kg/m³.
@@ -168,10 +388,54 @@ pub struct RebarSet {
     /// changes.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rule: Option<RebarRule>,
+    /// Shape type. Segment lengths in `shape_params` override the type;
+    /// everything else follows the type and is rebuilt when it changes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shape_id: Option<String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub shape_params: BTreeMap<String, f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub place: Option<ShapePlace>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub zone: Option<u32>,
+    /// Position shown on the zone mark. Stable across a rebuild.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<ZoneRole>,
+    /// Remainder steps of a mesh, mm.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub remainders: Vec<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub array: Option<FrogArray>,
 }
 
 fn no_hooks(h: &[Hook; 2]) -> bool {
     h.iter().all(Hook::is_none)
+}
+
+impl RebarSet {
+    pub fn basic(kind: RebarKind, diameter: f64, grade: impl Into<String>) -> Self {
+        Self {
+            number: 0,
+            kind,
+            host: None,
+            diameter,
+            grade: grade.into(),
+            bars: Vec::new(),
+            hooks: [Hook::default(); 2],
+            bend_diameter: None,
+            rule: None,
+            shape_id: None,
+            shape_params: BTreeMap::new(),
+            place: None,
+            zone: None,
+            position: None,
+            role: None,
+            remainders: Vec::new(),
+            array: None,
+        }
+    }
 }
 
 impl RebarSet {
@@ -288,6 +552,18 @@ pub struct Concrete {
     pub units: Vec<PourUnit>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub rebars: Vec<RebarSet>,
+    /// User bar shapes. An entry whose id matches a built-in form replaces it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub shape_types: Vec<BarShapeType>,
+    /// Slab types that carry the default meshes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub slab_types: Vec<SlabRebarType>,
+    /// Area-reinforcement zones.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub zones: Vec<RebarZone>,
+    /// Cover of a new slab when the host has no `REBAR_COVER` yet, mm.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_cover: Option<f64>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub forms: Vec<FormPanel>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -392,9 +668,217 @@ impl Concrete {
         if bars > 1_000_000 {
             return bad("Слишком много стержней");
         }
+        self.validate_shapes()?;
+        self.validate_slab_types()?;
+        self.validate_zones()?;
+        let mut positions = BTreeSet::new();
+        for r in &self.rebars {
+            if let Some(n) = r.position
+                && (n == 0 || !positions.insert(n))
+            {
+                return bad("Номер позиции арматуры повторяется");
+            }
+            if r.shape_params
+                .values()
+                .any(|v| !(1.0..=100_000.).contains(v))
+            {
+                return bad("Длина участка формы от 1 до 100 000 мм");
+            }
+            if r.remainders.iter().any(|v| !(0.0..=100_000.).contains(v)) {
+                return bad("Доборный шаг задан неверно");
+            }
+            if let Some(place) = &r.place {
+                let unit = |a: [f64; 3]| {
+                    let l = a.iter().map(|x| x * x).sum::<f64>().sqrt();
+                    (l - 1.).abs() < 1e-3 && a.iter().all(|x| x.is_finite())
+                };
+                if !finite(&place.origin.0) || !unit(place.x) || !unit(place.y) {
+                    return bad("Положение формы задано неверно");
+                }
+            }
+            if let Some(array) = &r.array {
+                if array.lines.is_empty() || !(r.diameter..=100_000.).contains(&array.spacing) {
+                    return bad("Линейный массив лягушек задан неверно");
+                }
+                for (a, b) in &array.lines {
+                    if !finite(a) || !finite(b) || (a[0] - b[0]).hypot(a[1] - b[1]) < 1. {
+                        return bad("Линия массива лягушек слишком короткая");
+                    }
+                }
+            }
+        }
         if self.breaks.len() > 10_000 || self.units.len() > 100_000 {
             return bad("Слишком много швов или единиц бетонирования");
         }
+        let zone_numbers: BTreeSet<u32> = self.zones.iter().map(|z| z.number).collect();
+        for r in &self.rebars {
+            if let Some(z) = r.zone
+                && !zone_numbers.contains(&z)
+            {
+                return bad("Набор ссылается на отсутствующую зону армирования");
+            }
+            if let Some(id) = &r.shape_id
+                && !crate::rebar::shape_known(self, id)
+            {
+                return bad("Набор ссылается на неизвестный тип формы");
+            }
+        }
         Ok(())
     }
+
+    fn validate_shapes(&self) -> Result<(), ModelError> {
+        let bad = |m: &str| Err(ModelError::InvalidValue(m.into()));
+        let mut ids = BTreeSet::new();
+        if self.shape_types.len() > 10_000 {
+            return bad("Слишком много типов форм");
+        }
+        for s in &self.shape_types {
+            if s.id.is_empty() || s.id.len() > 64 || !ids.insert(s.id.clone()) {
+                return bad("Идентификатор типа формы пустой или повторяется");
+            }
+            if s.name.trim().is_empty() || s.name.len() > 128 || s.code.len() > 32 {
+                return bad("Имя типа формы не задано");
+            }
+            check_shape(s)?;
+        }
+        Ok(())
+    }
+
+    fn validate_slab_types(&self) -> Result<(), ModelError> {
+        let bad = |m: &str| Err(ModelError::InvalidValue(m.into()));
+        let mut ids = BTreeSet::new();
+        let mut defaults = 0;
+        if self.slab_types.len() > 10_000 {
+            return bad("Слишком много типов плит");
+        }
+        for t in &self.slab_types {
+            if t.id.is_empty() || t.id.len() > 64 || !ids.insert(t.id.clone()) {
+                return bad("Идентификатор типа плиты пустой или повторяется");
+            }
+            if t.name.trim().is_empty() || t.name.len() > 128 {
+                return bad("Имя типа плиты не задано");
+            }
+            if t.default_for_new {
+                defaults += 1;
+            }
+            for layer in t.bottom.iter().chain(&t.top) {
+                check_layer(layer)?;
+            }
+            for (d, g, step) in [
+                (t.edge_diameter, &t.edge_grade, t.edge_spacing),
+                (t.frog_diameter, &t.frog_grade, t.frog_spacing),
+            ] {
+                if !(3.0..=60.).contains(&d) || !(d..=100_000.).contains(&step) {
+                    return bad("Диаметр или шаг обрамления задан неверно");
+                }
+                if g.trim().is_empty() || g.len() > 32 {
+                    return bad("Класс арматуры обрамления не задан");
+                }
+            }
+            if !crate::rebar::shape_known(self, &t.edge_shape)
+                || !crate::rebar::shape_known(self, &t.frog_shape)
+            {
+                return bad("Тип плиты ссылается на неизвестный тип формы");
+            }
+        }
+        if defaults > 1 {
+            return bad("Тип плиты по умолчанию может быть только один");
+        }
+        if self
+            .default_cover
+            .is_some_and(|c| !(0.0..=500.).contains(&c))
+        {
+            return bad("Защитный слой новых плит от 0 до 500 мм");
+        }
+        Ok(())
+    }
+
+    fn validate_zones(&self) -> Result<(), ModelError> {
+        let bad = |m: &str| Err(ModelError::InvalidValue(m.into()));
+        let mut numbers = BTreeSet::new();
+        if self.zones.len() > 100_000 {
+            return bad("Слишком много зон армирования");
+        }
+        for z in &self.zones {
+            if !numbers.insert(z.number) {
+                return bad("Номер зоны армирования повторяется");
+            }
+            if self.slab_types.iter().all(|t| t.id != z.type_id) {
+                return bad("Зона ссылается на неизвестный тип плиты");
+            }
+            if !z.mark_at.0.iter().all(|v| v.is_finite() && v.abs() <= 1e9) {
+                return bad("Марка зоны: неверные координаты");
+            }
+            if z.mark.len() > 512 {
+                return bad("Марка зоны слишком длинная");
+            }
+            for c in &z.checks {
+                if c.message.is_empty() || c.message.len() > 512 {
+                    return bad("Замечание проверки армирования пустое");
+                }
+                if c.from.is_some_and(|v| !(0.0..=1e9).contains(&v))
+                    || c.to.is_some_and(|v| !(0.0..=1e9).contains(&v))
+                {
+                    return bad("Участок без П-стержней задан неверно");
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+fn check_shape(s: &BarShapeType) -> Result<(), ModelError> {
+    let bad = |m: &str| Err(ModelError::InvalidValue(m.into()));
+    if s.segments.is_empty() || s.segments.len() > 26 {
+        return bad("У типа формы от 1 до 26 участков");
+    }
+    for seg in &s.segments {
+        if seg.letter.len() != 1 || !seg.letter.chars().all(|c| c.is_ascii_uppercase()) {
+            return bad("Параметр участка — буква A…Z");
+        }
+        if !(1.0..=100_000.).contains(&seg.length) {
+            return bad("Длина участка формы от 1 до 100 000 мм");
+        }
+        if !(-180.0..=180.0).contains(&seg.bend_deg) {
+            return bad("Угол загиба от −180 до 180°");
+        }
+    }
+    if s.mandrel.is_some_and(|d| !(1.0..=10_000.).contains(&d)) {
+        return bad("Диаметр оправки типа формы от 1 до 10 000 мм");
+    }
+    if s.hooks
+        .iter()
+        .any(|h| h.length.is_some_and(|l| !(0.0..=10_000.).contains(&l)))
+    {
+        return bad("Прямой участок крюка от 0 до 10 000 мм");
+    }
+    Ok(())
+}
+
+fn check_layer(layer: &MeshLayer) -> Result<(), ModelError> {
+    let bad = |m: &str| Err(ModelError::InvalidValue(m.into()));
+    if !(3.0..=60.).contains(&layer.diameter) {
+        return bad("Диаметр сетки от 3 до 60 мм");
+    }
+    if layer.grade.trim().is_empty() || layer.grade.len() > 32 {
+        return bad("Класс арматуры сетки не задан");
+    }
+    if !(layer.diameter..=100_000.).contains(&layer.spacing) {
+        return bad("Шаг сетки не меньше диаметра и не больше 100 000 мм");
+    }
+    if !layer.direction_deg.is_finite() || !(-360.0..=360.0).contains(&layer.direction_deg) {
+        return bad("Направление стержней задано неверно");
+    }
+    if let Some(step) = layer.cross_spacing
+        && !(layer.cross_diameter()..=100_000.).contains(&step)
+    {
+        return bad("Шаг поперечных стержней задан неверно");
+    }
+    if layer
+        .cross_diameter
+        .is_some_and(|d| !(3.0..=60.).contains(&d))
+    {
+        return bad("Диаметр поперечных стержней от 3 до 60 мм");
+    }
+    Ok(())
 }
