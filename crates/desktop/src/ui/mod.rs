@@ -996,9 +996,7 @@ impl Workbench {
                     _ => ToolKind::Plate,
                 });
                 self.mode = mode;
-                self.detail.cancel();
-                // A still armed fitting or rebar command would take the picks.
-                self.trim.cancel();
+                self.cancel_point_input();
                 let first = self.editor.begin(kind);
                 if cmd == Cmd::ToolBeam {
                     // «Сдвоенный профиль» is its own command.
@@ -1035,8 +1033,7 @@ impl Workbench {
                 return r;
             }
             Cmd::ToolBolt | Cmd::ToolWeld | Cmd::ToolWeldPolygon | Cmd::ToolWeldOnPart => {
-                self.engine.cancel();
-                self.editor.cancel();
+                self.cancel_point_input();
                 self.mode = Mode::Model;
                 use crate::interaction::tools::DetailTool;
                 let tool = match cmd {
@@ -1085,8 +1082,7 @@ impl Workbench {
             | Cmd::ToolStiffener
             | Cmd::AssemblyAdd => {
                 use crate::interaction::trim::{TrimPicker, TrimTool};
-                self.engine.cancel();
-                self.detail.cancel();
+                self.cancel_point_input();
                 self.mode = Mode::Model;
                 self.side_panel = Some(chrome::SidePanel::Properties);
                 self.trim = TrimPicker::start(match cmd {
@@ -1593,20 +1589,13 @@ impl Workbench {
                 });
             }
             Cmd::Measure => {
-                self.engine.cancel();
-                self.editor.cancel();
-                self.detail.cancel();
-                self.edit_pick.cancel();
+                self.cancel_point_input();
                 self.measure = Some(Vec::new());
                 self.mode = Mode::Model;
                 self.message(self.prompt());
             }
             Cmd::MeasureAngle => {
-                self.engine.cancel();
-                self.editor.cancel();
-                self.detail.cancel();
-                self.edit_pick.cancel();
-                self.measure = None;
+                self.cancel_point_input();
                 self.angle_picks = Some(Vec::new());
                 self.mode = Mode::Model;
                 self.message(self.prompt());
@@ -1628,11 +1617,7 @@ impl Workbench {
                 });
             }
             Cmd::ClipPlanePick => {
-                self.engine.cancel();
-                self.editor.cancel();
-                self.detail.cancel();
-                self.measure = None;
-                self.angle_picks = None;
+                self.cancel_point_input();
                 self.clip_pick = true;
                 self.mode = Mode::Model;
                 self.message(self.prompt());
@@ -1744,7 +1729,7 @@ impl Workbench {
             }
             Cmd::WorkPlaneThreePoints => {
                 self.mode = Mode::Model;
-                self.engine.cancel();
+                self.cancel_point_input();
                 self.workplane_picks = Some(Vec::new());
                 self.message(self.workplane_prompt());
             }
@@ -1964,6 +1949,7 @@ impl Workbench {
             Cmd::PreviousView => return Some(Request::PreviousView),
             Cmd::RotationCentre => {
                 self.mode = Mode::Model;
+                self.cancel_point_input();
                 self.view_tools.centre_pick = true;
                 self.message(self.prompt());
             }
@@ -2178,6 +2164,32 @@ impl Workbench {
             Cmd::CancelJob => self.cancel_job(),
         }
         None
+    }
+
+    /// A newly started point command owns the next pick exclusively.
+    /// Discard transient input, preserving the model, selection and tool presets.
+    fn cancel_point_input(&mut self) {
+        self.engine.cancel();
+        self.engine.reference = None;
+        self.engine.error = None;
+        self.editor.cancel();
+        self.trim.cancel();
+        self.detail.cancel();
+        self.edit_pick.cancel();
+        self.special.cancel_pick();
+        self.components.cancel();
+        self.management.cancel();
+        self.workplane_picks = None;
+        self.measure = None;
+        self.measured = None;
+        self.angle_picks = None;
+        self.measured_angle = None;
+        self.clip_pick = false;
+        self.paste_pick = false;
+        self.view_tools.centre_pick = false;
+        self.kb_cursor = None;
+        self.snap_override = None;
+        self.locks = Default::default();
     }
 
     pub fn workplane_prompt(&self) -> String {
