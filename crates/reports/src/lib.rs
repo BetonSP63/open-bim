@@ -4,6 +4,7 @@
 pub mod csv;
 pub mod gost_release;
 pub mod gost_tables;
+pub mod rebar;
 pub mod release;
 
 use open_bim_commands::Command;

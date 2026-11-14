@@ -298,32 +298,37 @@ impl Workbench {
                     )));
                 }
                 ui.separator();
-                ui.strong("Ведомость расхода стали");
-                let rows = rb::schedule(project);
-                egui::Grid::new("rebar schedule")
-                    .num_columns(5)
-                    .striped(true)
+                ui.strong("Ведомость стержней по позициям");
+                let (schedule, _) = open_bim_reports::rebar::schedule(project);
+                egui::ScrollArea::vertical()
+                    .id_salt("rebar schedule scroll")
+                    .max_height(240.)
                     .show(ui, |ui| {
-                        for h in ["Класс", "Ø, мм", "Стержней", "Длина, м", "Масса, кг"]
-                        {
-                            ui.strong(h);
-                        }
-                        ui.end_row();
-                        for r in &rows {
-                            ui.label(&r.grade);
-                            ui.label(open_bim_reports::fmt(r.diameter));
-                            ui.label(r.bars.to_string());
-                            ui.label(format!("{:.2}", r.length_m));
-                            ui.label(format!("{:.1}", r.mass_kg));
-                            ui.end_row();
-                        }
-                        let total: f64 = rows.iter().map(|r| r.mass_kg).sum();
-                        ui.strong("Итого");
-                        ui.label("");
-                        ui.label("");
-                        ui.label("");
-                        ui.strong(format!("{total:.1}"));
-                        ui.end_row();
+                        egui::Grid::new("rebar schedule")
+                            .num_columns(7)
+                            .striped(true)
+                            .show(ui, |ui| {
+                                for h in ["Поз.", "Класс", "Ø, мм", "Участки, мм", "Кол-во", "Длина, мм", "Масса, кг"] {
+                                    ui.strong(h);
+                                }
+                                ui.end_row();
+                                for r in &schedule.rows {
+                                    ui.label(r.position.to_string());
+                                    ui.label(&r.grade);
+                                    ui.label(open_bim_reports::fmt(r.diameter));
+                                    ui.label(&r.shape);
+                                    ui.label(r.quantity.to_string());
+                                    ui.label(open_bim_reports::fmt(r.length_mm));
+                                    ui.label(format!("{:.2}", r.total_mass_kg));
+                                    ui.end_row();
+                                }
+                                ui.strong("Итого");
+                                for _ in 0..5 {
+                                    ui.label("");
+                                }
+                                ui.strong(format!("{:.2}", schedule.total_mass_kg));
+                                ui.end_row();
+                            });
                     });
             });
         self.rebar.open = open;

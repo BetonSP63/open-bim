@@ -33,6 +33,53 @@ fn length(value: f64) -> String {
     fmt(value).replace('.', ",")
 }
 
+/// Bar schedule grouped by position, with cut lengths and nominal masses.
+pub fn rebar(schedule: &crate::rebar::RebarSchedule) -> String {
+    let total = vec![
+        "Итого".into(),
+        String::new(),
+        String::new(),
+        String::new(),
+        schedule
+            .rows
+            .iter()
+            .map(|r| r.quantity)
+            .sum::<usize>()
+            .to_string(),
+        String::new(),
+        String::new(),
+        number(schedule.total_mass_kg),
+    ];
+    table(
+        &[
+            "Позиция",
+            "Класс",
+            "Диаметр, мм",
+            "Участки, мм",
+            "Кол-во",
+            "Длина заготовки, мм",
+            "Масса ед., кг",
+            "Масса общ., кг",
+        ],
+        schedule
+            .rows
+            .iter()
+            .map(|r| {
+                vec![
+                    r.position.to_string(),
+                    r.grade.clone(),
+                    length(r.diameter),
+                    r.shape.replace(" / ", "; "),
+                    r.quantity.to_string(),
+                    length(r.length_mm),
+                    number(r.unit_mass_kg),
+                    number(r.total_mass_kg),
+                ]
+            })
+            .chain(std::iter::once(total)),
+    )
+}
+
 pub fn parts(r: &Reports) -> String {
     let total = vec![
         "Итого".into(),

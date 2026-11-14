@@ -115,7 +115,7 @@ is claimed. See `docs/reference-docs-comparison.md` for each row's status.
   - Master drawing catalog;
   - multi-user mode;
   - cloud model sharing.
-- **Not part of this release:** concrete and rebar (their ribbon tabs are visible but disabled).
+- **Concrete and rebar:** concrete parts, bar sets and hooks, host-following layouts, automatic bar positions and a CSV schedule are implemented; КЖ drawings, IFC rebar and BVBS remain in the 1.0 plan.
 
 Shortcut deviations (macOS):
 - ⌘ replaces Ctrl for the application commands: ⌘S, ⌘Z, ⌘N, ⌘O, ⌘P palette.
