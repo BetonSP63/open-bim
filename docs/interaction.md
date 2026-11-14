@@ -97,6 +97,21 @@ to save it. Automated capture/benchmark/script exit commands remain unchanged.
 
 ## Properties and views (GEF 5, MOD 1.1)
 
+The model property pane is bounded to 40% of the available width (at most
+480 logical points), leaving space for the 3D view. Mixed profile values are
+shown in the existing profile button; they do not add a third grid column.
+Long profile/material names are truncated inside their controls. The profile
+and material tooltips include their complete names. Vertical scrolling reaches
+the remaining properties and «Изменить». Regression coverage:
+`crates/desktop/tests/property_layout.rs` (repeated frames, selection changes,
+1024/1280/1920-wide windows, long names and scrolling).
+
+Manual macOS check: open `tests/fixtures/steel_release/source.obim`, select all
+parts with Ctrl+A and leave the selection active. The property pane must stop
+growing, with captions and fields visible and space left for the model. Select
+one part, clear selection, resize the window and repeat. Scroll down to
+«Изменить»; editing shared properties must still be one undoable transaction.
+
 | Reference workflow | Open BIM | Evidence |
 |---|---|---|
 | Property pane: common properties of the selection, «Varies», «Modify» applies the edited fields | «— разные —»; «Изменить» = one transaction for all selected; «Получить» rereads. One selected part shows up to two temporary dimensions to the nearest grid axes (also while placing); clicking the number and Enter moves the part with `Transform`. Dimensions are not stored. A type in the header, «Выбрать все этого типа» and «Создать подобный» | mixed_profiles_show_varies_and_modify_is_one_undoable_transaction |
