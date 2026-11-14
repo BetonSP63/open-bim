@@ -55,6 +55,7 @@ to save it. Automated capture/benchmark/script exit commands remain unchanged.
 | Right button opens the context menu (Interrupt…) | context menu: Прервать, Завершить/повторить, Свойства, Переместить, Копировать, Удалить, Скрыть, Показать только выбранные, Показать все, Вписать выбранные, Чертёж детали | `tests/ui/navigation/08-context-menu.png`, context_menu_commands_all_act |
 | Middle click / Enter finishes a polygon or a part selection | same | escape_leaves_model_unchanged_enter_finishes_polygon_and_repeats |
 | Esc interrupts the command | Esc drops the picks; the model is unchanged | escape_leaves_model_unchanged_enter_finishes_polygon_and_repeats |
+| Escape in an open popup closes the popup first | The material list closes without cancelling the group selection. A subsequent Escape, with no popup open, cancels selection as usual | `crates/desktop/tests/modeling_roundtrip.rs`: escape_closes_material_popup_before_cancelling_group_selection |
 | Enter in idle repeats the last command | same | escape_leaves_model_unchanged_enter_finishes_polygon_and_repeats |
 | A command runs until Esc or another command | beam, column, plate and weld commands re-arm after each object | beam_by_two_snapped_grid_picks_is_exact_and_each_beam_is_one_undo_step |
 | Status bar prompt | a Russian prompt for each pick step. After a ribbon click the bar adds «Быстрее: …» when the command has a shortcut; the button tooltip and ⌘P already show the same key | every_tool_has_russian_prompts_per_step |
@@ -63,6 +64,22 @@ to save it. Automated capture/benchmark/script exit commands remain unchanged.
 | Work plane | picks lie on the work plane (default XY, elevation field, plane by 3 points) | tilted_work_plane_projects_rays_exactly |
 
 ## Creating objects (MOD 2.1–2.2)
+
+The combined modeling regression in `crates/desktop/tests/modeling_roundtrip.rs`
+creates a level-bound column and beam using screen-space grid/reference snaps,
+edits both in one transaction and copies the group to the next grid line.
+It verifies undo/redo against complete project snapshots, saves to a Unicode
+path, checks the previous-file backup and reopens through the guarded file
+lifecycle. IDs, properties, level bindings and geometry must all survive;
+the loaded model must be renderable and have a fresh undo history. Geometric
+coordinate assertions use a 1e-6 mm tolerance for projection roundoff; file
+round trips and undo/redo compare complete projects exactly.
+
+Manual workflow: create a column and beam, select both, open the material
+list and press Escape. The list must close with both parts still selected;
+Ctrl+C must then start copying without requiring reselection. Copy to the next
+grid line, undo, redo, save, create a new project and reopen the saved file.
+The four parts and their edited properties must remain intact.
 
 | Reference workflow | Open BIM | Evidence |
 |---|---|---|
