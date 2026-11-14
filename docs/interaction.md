@@ -24,10 +24,25 @@ last saved. Point the project path inside a regular file (not a directory),
 choose save on exit and verify that the error stays visible and the app stays
 open. Escape returns to editing. Closing an unchanged project exits directly.
 
-This iteration covers native window close requests. Protecting replacement by
-«Новый проект», «Контрольный каркас» or opening another file is a separate task;
-it is not covered by the close guard. Automated capture/benchmark/script exit
-commands remain unchanged.
+«Новый проект», «Контрольный каркас» and opening another file also ask before
+replacing unsaved work. «Сохранить и продолжить» saves the outgoing document to
+its accepted path, even if the file field contains the destination being opened.
+Cancel preserves the document and undo history. A failed save blocks replacement;
+a failed or cancelled load preserves the current document and save destination.
+The destination of an opened file (including an autosave recovery) is accepted
+only after successful loading. Timer autosave uses the accepted path too.
+
+New projects and generated examples receive a free filename next to the current
+project, avoiding existing files and recovery snapshots. They are unsaved until
+explicitly saved, and their initial state can be autosaved even without edits.
+Evidence: `crates/desktop/tests/project_change.rs`.
+
+Manual replacement check: modify a disposable project A, enter the path of B,
+then open. Cancel must keep A and its save path. Repeat, save and continue: A
+must contain its edits, while B must be unchanged on disk. Opening a corrupt
+file or cancelling a delayed open must retain A's model and save destination.
+New/example must use a separate path; closing the generated project must ask
+to save it. Automated capture/benchmark/script exit commands remain unchanged.
 
 ## Mouse and keyboard
 

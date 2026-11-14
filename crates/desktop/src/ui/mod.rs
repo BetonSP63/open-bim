@@ -21,6 +21,7 @@ mod node_views;
 pub mod palette;
 pub mod plugins;
 pub mod profile_dialog;
+pub mod project_change;
 pub mod property_fields;
 pub mod property_pane;
 pub mod rebar_ui;
@@ -185,6 +186,9 @@ pub const TREATMENTS: [&str; 6] = [
 
 pub struct Workbench {
     close: close::CloseState,
+    change: project_change::ChangeState,
+    /// Accepted document destination, independent of the editable file field.
+    project_path: PathBuf,
     pub mode: Mode,
     pub editor: Editor,
     pub tools: ToolsUi,
@@ -385,6 +389,8 @@ impl Workbench {
     pub fn new(editor: Editor) -> Self {
         let mut bench = Self {
             close: Default::default(),
+            change: Default::default(),
+            project_path: PathBuf::from(ToolsUi::default().path),
             mode: Mode::Model,
             editor,
             tools: ToolsUi::default(),
@@ -550,12 +556,17 @@ impl Workbench {
 
     /// Open a project; a newer autosave snapshot of it is offered first.
     pub fn start_open(&mut self, path: PathBuf) {
+        self.change_project(project_change::ProjectChange::Open(path));
+    }
+
+    /// The current document has already passed the unsaved-changes guard.
+    fn open_project(&mut self, path: PathBuf) {
         if let Some(offer) = self.tools.autosave.recovery(&path) {
             self.tools.autosave.offer = Some(offer);
             return;
         }
         self.recovering = false;
-        self.spawn_open(path);
+        self.spawn_open(path.clone(), path);
     }
 
     /// Restore the offered snapshot; the project path stays the same, so
@@ -564,9 +575,8 @@ impl Workbench {
         let Some(offer) = self.tools.autosave.offer.take() else {
             return;
         };
-        self.tools.path = offer.project.to_string_lossy().into_owned();
         self.recovering = true;
-        self.spawn_open(offer.snapshot);
+        self.spawn_open(offer.snapshot, offer.project);
     }
 
     /// Open the project file and keep the snapshot on disk.
@@ -582,7 +592,7 @@ impl Workbench {
                 offer.snapshot.display()
             ));
         } else {
-            self.start_open(offer.project);
+            self.open_project(offer.project);
         }
     }
 
@@ -593,6 +603,7 @@ impl Workbench {
             .tools
             .autosave
             .save(&path, self.editor.document.project())?;
+        self.project_path = path;
         self.editor.record("Сохранить");
         Ok(message)
     }
@@ -602,7 +613,7 @@ impl Workbench {
         if self.busy() || self.tools.autosave.offer.is_some() {
             return;
         }
-        let path = PathBuf::from(&self.tools.path);
+        let path = self.project_path.clone();
         match self
             .tools
             .autosave
@@ -617,7 +628,7 @@ impl Workbench {
     }
 
     /// Start loading a project on a worker thread (scene meshes included).
-    fn spawn_open(&mut self, path: PathBuf) {
+    fn spawn_open(&mut self, path: PathBuf, destination: PathBuf) {
         let delay = self.load_delay_ms;
         let target = path.clone();
         let job = Job::spawn(
@@ -640,7 +651,7 @@ impl Workbench {
                 Ok((project, Arc::new(scene)))
             },
         );
-        self.job = Some(ActiveJob::Open(Box::new(job), path));
+        self.job = Some(ActiveJob::Open(Box::new(job), destination));
     }
 
     pub fn start_check(&mut self) {
@@ -678,6 +689,10 @@ impl Workbench {
 
     pub fn cancel_job(&mut self) {
         if let Some(job) = self.job.take() {
+            if matches!(job, ActiveJob::Open(..)) {
+                self.recovering = false;
+                self.tools.path = self.project_path.to_string_lossy().into_owned();
+            }
             job.cancel();
             let label = job.job_label().0.to_string();
             self.editor.record(&format!("Отмена: {label}"));
@@ -706,9 +721,12 @@ impl Workbench {
                         .editor
                         .adopt(project, &format!("Открыть {}", path.display()))
                     {
+                        self.recovering = false;
+                        self.tools.path = self.project_path.to_string_lossy().into_owned();
                         self.message(format!("Ошибка файла: {e}"));
                         return None;
                     }
+                    self.set_project_path(path.clone());
                     self.drawings = DrawingEditor::new();
                     self.reports.reports = None;
                     self.reload_model_views();
@@ -717,7 +735,7 @@ impl Workbench {
                         self.tools.autosave.mark_recovered(&project);
                         self.message(format!(
                             "Восстановлено из {}. Сохраните проект (⌘S), чтобы записать его в {}",
-                            path.display(),
+                            crate::autosave::autosave_path(&path).display(),
                             self.tools.path
                         ));
                     } else {
@@ -728,6 +746,7 @@ impl Workbench {
                 }
                 Err(e) => {
                     self.recovering = false;
+                    self.tools.path = self.project_path.to_string_lossy().into_owned();
                     self.editor
                         .record(&format!("Ошибка файла {}: {e}", path.display()));
                     self.message(format!("Ошибка файла: {e}. Текущая модель не изменена."));
