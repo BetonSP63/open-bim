@@ -1,5 +1,22 @@
 # Releases
 
+## Local modelling preview — 2026-11-14
+
+Build a separate macOS ARM64 test archive with
+`scripts/package-preview-macos.sh [output-dir]`. Commit tracked changes first.
+The package contains `Open BIM Preview.app` with bundle identifier
+`org.openbim.preview`, the exact source revision in Info.plist and BUILD.txt,
+and an adjacent SHA-256 checksum. It is unsigned and not notarized.
+The script does not install the app. On default launch it copies the steel
+example into a new system temporary directory and opens that copy; copy the
+project to a permanent folder before keeping work. Explicit command-line
+arguments are passed through unchanged. Test with copies of real projects.
+
+Changes since installed 0.2.0: unsaved-change guards for close and project
+replacement, bounded property pane, popup Escape priority, precise workplane
+elevations and stable camera rotation from plan views. This is a local test
+package, not a published release.
+
 ## 0.2.0 — current development version (`main`)
 
 The version of the tree on `main`. Not yet a packaged GitHub Release.
