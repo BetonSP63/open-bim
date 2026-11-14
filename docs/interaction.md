@@ -46,6 +46,51 @@ to save it. Automated capture/benchmark/script exit commands remain unchanged.
 
 ## Mouse and keyboard
 
+### Visible command guidance (2026-11-15)
+
+An active modelling command shows a wrapping step prompt below the ribbon,
+using the same `Workbench::prompt()` as the status bar. Point commands also
+explain mouse/numeric input and show a refused-pick error without hiding the
+next step. The visible cancel button takes its caption/shortcut from the
+command registry and dispatches `CancelTool`; it retains the keyboard's layered
+numeric-input cancellation. No separate command state is stored by this panel.
+Evidence: `crates/desktop/tests/command_guidance.rs` exercises a real button
+click and checks that model and nonempty selection survive, and verifies
+measurement-to-workplane prompt transitions. This is automated headless UI
+coverage; the native-window check is recorded under Numeric preview below.
+
+### Numeric preview (2026-11-15)
+
+The coordinate window shows a world-coordinate preview and, after a previous
+pick, the distance from that point. `Workbench::numeric_point` resolves grid
+nodes and numeric modes for both preview and submission, without accepting a
+pick during preview. Invalid input disables the visible confirmation button;
+the text and earlier picks remain available for correction. Enter remains
+supported. Detailed syntax is in an expandable section; units and Escape's
+effect are visible without opening it.
+
+Automated evidence: `numeric_preview` checks all coordinate modes on a rotated
+plane, cursor distance, grid-node priority, error correction and an actual
+confirmation-button click. Existing numeric, keyboard and modelling tests
+remain applicable.
+
+Native macOS ARM64 check, 2026-11-15: the development binary in an isolated
+`Open BIM UX Check.app` opened a copy of the 16-part steel fixture. The active
+beam step and cancel button were visible under the ribbon. The first numeric
+input `1` displayed a missing-previous-point error and disabled confirmation.
+Replacing it with `!9000,0,0` showed the world point; clicking confirmation
+advanced to the beam endpoint. `R 6000,0,0` showed world X=15000, Y=0, Z=0
+and distance 6000.000 mm. Enter created a beam; Escape and Select All showed
+17 parts. Closing without saving left the fixture copy byte-for-byte unchanged.
+This completes the initial native-window check for command guidance too;
+small-window and multi-display visual checks remain separate follow-up work.
+
+While picking, command guidance also shows the workplane origin in millimetres,
+horizontal/tilted orientation (tilted normal is approximate display only), and
+the current snap kind or «не найдена». Command changes clear stale snap feedback.
+`command_guidance::point_context_tracks_plane_and_clears_snap_when_command_changes`
+checks that this display is read-only and follows the actual workplane.
+
 | Reference workflow | Open BIM | Evidence |
 |---|---|---|
 | Wheel zooms about the pointer; Page Up/Down zoom; Home zooms to the original view | wheel zooms about the cursor (`Camera::zoom_at`); PgUp/PgDn; Home fits the model and the grid (F is now measure) | wheel_zoom_keeps_the_point_under_the_cursor; `tests/ui/navigation/05-pageup-zoom.png`, `07-home-fit.png` |

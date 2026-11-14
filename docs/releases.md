@@ -1,5 +1,19 @@
 # Releases
 
+## 0.2.2 — macOS ARM64
+
+Usability update for the existing modelling workflow:
+
+- A wrapping active-command prompt and a visible cancel button below the ribbon.
+- Numeric point preview in world coordinates, distance from the previous point,
+  mouse confirmation and inline syntax errors; preview and submission share one resolver.
+- Visible workplane origin/orientation and current snap feedback while picking.
+- Updated navigation and numeric-input documentation.
+
+Project format and launcher behaviour remain compatible with 0.2.1. The scope
+is macOS ARM64; this does not complete the 1.0 roadmap. The package is unsigned
+and not notarized. Validation and exact source revision accompany the release.
+
 ## 0.2.1 — macOS ARM64
 
 Reliability release for the existing modelling workflow: guards for unsaved

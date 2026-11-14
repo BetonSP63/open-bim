@@ -465,6 +465,7 @@ impl Workbench {
         }
         self.title_row(ui, requests);
         self.ribbon(ui, requests);
+        self.command_guidance(ui, requests);
         self.status_bar(ui);
         self.selection_toolbar(ui, requests);
         self.snap_toolbar(ui, requests);
@@ -635,6 +636,59 @@ impl Workbench {
                     }
                 });
         });
+    }
+
+    /// Keep the next step readable even when the status bar is crowded.
+    /// Both this panel and the keyboard use the command registry and dispatcher.
+    fn command_guidance(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
+        if self.mode != Mode::Model || !self.in_command() {
+            return;
+        }
+        egui::Panel::top("command guidance").show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                ui.strong("Активная команда");
+                if ui
+                    .button(super::commands::caption(Cmd::CancelTool))
+                    .clicked()
+                {
+                    self.run(Cmd::CancelTool, requests);
+                }
+            });
+            // Cancellation can end the command in this frame.
+            if !self.in_command() {
+                return;
+            }
+            ui.label(self.prompt());
+            if self.picking() {
+                ui.label(
+                    "Точка: щёлкните в модели или начните вводить координаты. Размеры — в мм.",
+                );
+                ui.label(self.point_context());
+                if let Some(error) = &self.engine.error {
+                    ui.colored_label(ui.visuals().error_fg_color, error);
+                }
+            }
+        });
+    }
+
+    /// Read-only feedback: never changes the plane, picks or snap settings.
+    pub fn point_context(&self) -> String {
+        let plane = self.engine.workplane;
+        let origin = plane.origin;
+        let normal = plane.axes[2];
+        let orientation = if plane.is_horizontal() {
+            "горизонтальная".to_string()
+        } else {
+            format!(
+                "наклонная, нормаль ≈ ({:.3}; {:.3}; {:.3})",
+                normal.x, normal.y, normal.z
+            )
+        };
+        let snap = self.last_snap.map_or("не найдена", |kind| kind.label());
+        format!(
+            "Рабочая плоскость: {orientation} · начало ({}, {}, {}) мм · Привязка: {snap}",
+            origin.x, origin.y, origin.z
+        )
     }
 
     fn status_bar(&mut self, ui: &mut egui::Ui) {

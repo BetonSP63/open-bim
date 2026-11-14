@@ -2162,6 +2162,7 @@ impl Workbench {
     /// Discard transient input, preserving the model, selection and tool presets.
     fn cancel_point_input(&mut self) {
         self.engine.cancel();
+        self.last_snap = None;
         self.swept_dialog = None;
         self.special_open = None;
         self.engine.reference = None;
@@ -3271,12 +3272,9 @@ impl Workbench {
         }
     }
 
-    /// Typed coordinates for the next pick.
-    pub fn pick_numeric(&mut self, text: &str) -> Option<Request> {
-        // A typed point replaces the keyboard cursor as the reference.
-        self.kb_cursor = None;
-        // A grid node («Б/2», «Б/2/+3,600») is an exact pick of that intersection.
-        // «К1000,0» is the R mode on the Russian layout, not a grid node.
+    /// Resolve a numeric location without changing the model or the current picks.
+    /// Preview and submission deliberately use the same grid/mode precedence.
+    pub fn numeric_point(&self, text: &str) -> Result<open_bim_renderer::DVec3, String> {
         if let Some(node) = crate::interaction::grid_edit::grid_node(
             self.editor.document.project(),
             text,
@@ -3284,46 +3282,28 @@ impl Workbench {
         )
         .filter(|n| n.is_ok() || crate::interaction::numeric::mode_prefix(text).is_none())
         {
-            return match node {
-                Ok(point) => {
-                    self.engine.numeric = None;
-                    self.engine.error = None;
-                    self.pick(point)
-                }
-                Err(e) => {
-                    self.engine.error = Some(e.clone());
-                    self.message(e);
-                    None
-                }
-            };
+            return node;
         }
-        // Point commands outside the modelling engine take typed points too.
-        if self.trim.tool.is_some()
-            || self.detail.picks_points()
-            || (!self.engine.active() && self.picking())
-        {
-            let previous = self.previous_pick();
-            let direction = previous.zip(self.cursor).map(|(p, c)| c - p);
-            return match crate::interaction::numeric::parse(
-                text,
-                &self.engine.workplane,
-                previous,
-                direction,
-            ) {
-                Ok(point) => {
-                    self.engine.numeric = None;
-                    self.engine.error = None;
-                    self.pick(point)
-                }
-                Err(e) => {
-                    self.engine.error = Some(e.clone());
-                    self.message(e);
-                    None
-                }
-            };
+        let previous = self.previous_pick();
+        let direction = previous.zip(self.cursor).map(|(p, c)| c - p);
+        crate::interaction::numeric::parse(text, &self.engine.workplane, previous, direction)
+    }
+
+    /// Typed coordinates for the next pick. Invalid input retains the draft.
+    pub fn pick_numeric(&mut self, text: &str) -> Option<Request> {
+        self.kb_cursor = None;
+        match self.numeric_point(text) {
+            Ok(point) => {
+                self.engine.numeric = None;
+                self.engine.error = None;
+                self.pick(point)
+            }
+            Err(e) => {
+                self.engine.error = Some(e.clone());
+                self.message(e);
+                None
+            }
         }
-        let outcome = self.engine.pick_numeric(text, self.cursor);
-        self.outcome(outcome)
     }
 
     fn outcome(&mut self, outcome: crate::interaction::Outcome) -> Option<Request> {
@@ -3477,8 +3457,8 @@ impl Workbench {
             .resizable(false)
             .anchor(egui::Align2::CENTER_BOTTOM, egui::vec2(0., -80.))
             .show(ctx, |ui| {
-                let label =
-                    ui.label("x,y,z или R x,y,z — от предыдущей точки · $x,y,z или A x,y,z — от начала плоскости · !x,y,z или G x,y,z — глобально · d<угол — полярно · d — по курсору · Б/2 или Б/2/+3,600 — узел сетки");
+                ui.label(self.prompt());
+                let label = ui.label("Координаты или расстояние, мм");
                 let edit = ui
                     .add(
                         egui::TextEdit::singleline(&mut text)
@@ -3486,6 +3466,9 @@ impl Workbench {
                             .desired_width(320.),
                     )
                     .labelled_by(label.id);
+                if edit.changed() {
+                    self.engine.error = None;
+                }
                 // A new window is laid out invisibly on its first frames and
                 // may drop the focus request: hold the focus on the box for a
                 // few frames after it opens so the next typed keys land in it.
@@ -3501,9 +3484,31 @@ impl Workbench {
                 if edit.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                     submit = true;
                 }
-                if let Some(e) = &self.engine.error {
-                    ui.colored_label(ui.visuals().error_fg_color, e);
+                let preview = self.numeric_point(&text);
+                match &preview {
+                    Ok(point) => {
+                        ui.label(format!("Мировая точка, мм: X {} · Y {} · Z {}", point.x, point.y, point.z));
+                        if let Some(previous) = self.previous_pick() {
+                            ui.label(format!("От предыдущей точки: {:.3} мм", point.distance(previous)));
+                        }
+                    }
+                    Err(error) => { ui.colored_label(ui.visuals().error_fg_color, error); }
                 }
+                if preview.is_ok() && let Some(error) = &self.engine.error {
+                    ui.colored_label(ui.visuals().error_fg_color, error);
+                }
+                if ui.add_enabled(preview.is_ok(), egui::Button::new("Указать точку · Enter")).clicked() {
+                    submit = true;
+                }
+                ui.label("Без префикса: от предыдущей точки; до первой точки — от начала рабочей плоскости.");
+                ui.collapsing("Форматы и системы координат", |ui| {
+                    ui.label("!x,y,z или G x,y,z — мировые координаты");
+                    ui.label("$x,y,z или A x,y,z — координаты рабочей плоскости");
+                    ui.label("@x,y,z — от предыдущей точки; R x,y,z — также от предыдущей, до первой — от начала плоскости");
+                    ui.label("d<угол — полярно в рабочей плоскости; d — расстояние в направлении курсора");
+                    ui.label("Б/2 или Б/2/+3,600 — узел сетки; координаты разделяются запятой, дробная часть — точкой");
+                });
+                ui.label("Esc — закрыть ввод, сохранив команду и указанные точки");
             });
         if self.engine.numeric.is_some() {
             self.engine.numeric = Some(text.clone());
