@@ -1335,11 +1335,11 @@ impl Workbench {
                     self.palette.open = false;
                 } else if self.swept_dialog.take().is_some() {
                     self.message("Создание гнутой детали отменено");
+                } else if self.engine.numeric.is_some() {
+                    self.engine.numeric = None;
                 } else if self.workplane_picks.is_some() {
                     self.workplane_picks = None;
                     self.message("Задание рабочей плоскости прервано");
-                } else if self.engine.numeric.is_some() {
-                    self.engine.numeric = None;
                 } else if self.measure.take().is_some() {
                     self.measured = None;
                     self.message("Измерение завершено");
@@ -3288,14 +3288,18 @@ impl Workbench {
                 }
             };
         }
-        // Fitting/cutting/construction and bolt commands take typed points too.
-        if self.trim.tool.is_some() || self.detail.picks_points() {
-            let previous = self
-                .trim
-                .points
-                .last()
-                .or(self.detail.points.last())
-                .copied();
+        // Point commands outside the modelling engine take typed points too.
+        if self.workplane_picks.is_some() || self.trim.tool.is_some() || self.detail.picks_points()
+        {
+            let previous = match &self.workplane_picks {
+                Some(points) => points.last().copied(),
+                None => self
+                    .trim
+                    .points
+                    .last()
+                    .or(self.detail.points.last())
+                    .copied(),
+            };
             let direction = previous.zip(self.cursor).map(|(p, c)| c - p);
             return match crate::interaction::numeric::parse(
                 text,
@@ -3424,7 +3428,7 @@ impl Workbench {
             self.trim.need(),
             Some(crate::interaction::trim::Need::Point | crate::interaction::trim::Need::Polygon)
         ) || self.detail.picks_points();
-        if !self.engine.active() && !trim_points {
+        if !self.engine.active() && !trim_points && self.workplane_picks.is_none() {
             self.engine.numeric = None;
             return;
         }
