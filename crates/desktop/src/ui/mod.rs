@@ -6,6 +6,7 @@ pub mod auto_connections;
 pub mod batch;
 pub mod catalog_picker;
 pub mod chrome;
+pub mod close;
 pub mod commands;
 pub mod component_editor;
 pub mod components;
@@ -183,6 +184,7 @@ pub const TREATMENTS: [&str; 6] = [
 ];
 
 pub struct Workbench {
+    close: close::CloseState,
     pub mode: Mode,
     pub editor: Editor,
     pub tools: ToolsUi,
@@ -382,6 +384,7 @@ pub struct Workbench {
 impl Workbench {
     pub fn new(editor: Editor) -> Self {
         let mut bench = Self {
+            close: Default::default(),
             mode: Mode::Model,
             editor,
             tools: ToolsUi::default(),

@@ -864,6 +864,34 @@ impl eframe::App for Desktop {
     }
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
+        self.bench.native_close_request(&ctx);
+        if self.bench.close_pending() {
+            // Keep a model backdrop without polling jobs, accepting edits or
+            // processing global shortcuts while the exit decision is pending.
+            egui::CentralPanel::default().show(ui, |ui| {
+                let rect = ui.max_rect();
+                open_bim_desktop::viewport::gradient(
+                    ui.painter(),
+                    rect,
+                    if self.bench.light_theme {
+                        overlay::GRADIENT_LIGHT
+                    } else {
+                        overlay::GRADIENT_DARK
+                    },
+                );
+                ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+                    rect,
+                    ViewportCallback {
+                        scene: self.scene.clone(),
+                        camera: self.camera.clone(),
+                        state: self.view.clone(),
+                        size: [rect.width(), rect.height()],
+                    },
+                ));
+            });
+            self.bench.close_dialog(&ctx);
+            return;
+        }
         self.screenshot(&ctx);
         self.benchmark(&ctx);
         if let Some(view) = self.bench.views.get_mut(self.bench.active_view) {

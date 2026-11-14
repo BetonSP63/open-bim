@@ -5,6 +5,30 @@ flyer) and the annotated screenshot of its main window. Open BIM follows the
 standard detailing workflow. It does not copy third-party artwork and does not claim parity. Differences
 are listed in `docs/reference-docs-comparison.md`.
 
+## Saving and closing
+
+A native window close request prompts before discarding unsaved model changes:
+«Сохранить и выйти», «Не сохранять», «Отмена». Escape and clicking outside the
+dialog cancel the exit. A failed save keeps the dialog, model and undo history
+available; the error is shown in the dialog. A recovered autosave is unsaved
+until explicitly saved. Undo back to the saved state needs no prompt; redo of
+an edit does. The guard applies even when timer autosave is switched off.
+An explicit «Не сохранять» does not remove an existing recovery snapshot.
+
+Evidence: `crates/desktop/tests/unsaved_close.rs`.
+
+Manual macOS check (use a disposable project): edit a part, close the window,
+then cancel; the part and undo history must remain. Repeat and save: reopening
+must show the edit. Repeat with «Не сохранять»: the project file must stay as
+last saved. Point the project path inside a regular file (not a directory),
+choose save on exit and verify that the error stays visible and the app stays
+open. Escape returns to editing. Closing an unchanged project exits directly.
+
+This iteration covers native window close requests. Protecting replacement by
+«Новый проект», «Контрольный каркас» or opening another file is a separate task;
+it is not covered by the close guard. Automated capture/benchmark/script exit
+commands remain unchanged.
+
 ## Mouse and keyboard
 
 | Reference workflow | Open BIM | Evidence |
