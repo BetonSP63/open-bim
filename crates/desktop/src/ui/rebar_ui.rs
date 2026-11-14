@@ -133,6 +133,7 @@ impl Workbench {
             return;
         }
         let mut open = true;
+        let mut message = None;
         let project = self.editor.document.project();
         let s = &mut self.rebar.settings;
         egui::Window::new("Армирование")
@@ -298,7 +299,20 @@ impl Workbench {
                     )));
                 }
                 ui.separator();
-                ui.strong("Ведомость стержней по позициям");
+                ui.horizontal(|ui| {
+                    ui.strong("Ведомость стержней по позициям");
+                    if ui.button("Сохранить CSV…").clicked()
+                        && let Some(path) = rfd::FileDialog::new()
+                            .add_filter("CSV", &["csv"])
+                            .set_file_name("ведомость-арматуры.csv")
+                            .save_file()
+                    {
+                        message = Some(match rb::save_schedule(project, &path) {
+                            Ok(()) => format!("Ведомость: {}", path.display()),
+                            Err(e) => e,
+                        });
+                    }
+                });
                 let (schedule, _) = open_bim_reports::rebar::schedule(project);
                 egui::ScrollArea::vertical()
                     .id_salt("rebar schedule scroll")
@@ -332,5 +346,8 @@ impl Workbench {
                     });
             });
         self.rebar.open = open;
+        if let Some(message) = message {
+            self.message(message);
+        }
     }
 }

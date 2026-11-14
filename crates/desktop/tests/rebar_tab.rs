@@ -4,7 +4,7 @@ use open_bim_desktop::interaction::rebar::{self, RebarSettings};
 use open_bim_desktop::tools::{Editor, ui::Action};
 use open_bim_desktop::ui::commands::Cmd;
 use open_bim_desktop::ui::{Request, Workbench};
-use open_bim_model::{ObjectId, RebarKind};
+use open_bim_model::{ObjectId, Project, RebarKind};
 use open_bim_renderer::DVec3;
 
 fn bench() -> Workbench {
@@ -170,4 +170,18 @@ fn bars_by_picks_schedule_and_undo() {
     let json = serde_json::to_string(b.editor.document.project()).unwrap();
     let back: open_bim_model::Project = serde_json::from_str(&json).unwrap();
     assert_eq!(back.concrete, b.editor.document.project().concrete);
+}
+
+#[test]
+fn position_schedule_is_saved_as_csv() {
+    let project = Project::default();
+    let path = std::env::temp_dir().join(format!(
+        "open-bim-rebar-schedule-{}.csv",
+        std::process::id()
+    ));
+    rebar::save_schedule(&project, &path).unwrap();
+    let text = std::fs::read_to_string(&path).unwrap();
+    std::fs::remove_file(path).unwrap();
+    assert!(text.starts_with("\u{feff}Позиция;Класс;Диаметр, мм"));
+    assert!(text.ends_with("Итого;;;;0;;;0,000\r\n"));
 }

@@ -275,6 +275,12 @@ pub fn schedule(project: &Project) -> Vec<ScheduleRow> {
     rows
 }
 
+/// Saves the position-based bar schedule as CSV.
+pub fn save_schedule(project: &Project, path: &std::path::Path) -> Result<(), String> {
+    let (schedule, _) = open_bim_reports::rebar::schedule(project);
+    std::fs::write(path, open_bim_reports::csv::rebar(&schedule)).map_err(|e| e.to_string())
+}
+
 const BAR: [u8; 4] = [200, 60, 40, 255];
 
 /// Bars drawn over the model.
