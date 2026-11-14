@@ -1749,8 +1749,7 @@ impl Workbench {
                 self.message(self.workplane_prompt());
             }
             Cmd::WorkPlaneReset => {
-                self.engine.workplane = crate::interaction::Workplane::default();
-                self.tools.workplane = "0".into();
+                self.set_workplane(crate::interaction::Workplane::default());
                 self.message("Рабочая плоскость: глобальная XY");
             }
             Cmd::ToggleOrtho => {
@@ -2345,7 +2344,7 @@ impl Workbench {
                 self.workplane_picks = None;
                 match crate::interaction::Workplane::from_points(a, b, c) {
                     Ok(wp) => {
-                        self.engine.workplane = wp;
+                        self.set_workplane(wp);
                         self.message("Рабочая плоскость задана по трём точкам");
                     }
                     Err(e) => self.message(e),
@@ -2613,6 +2612,28 @@ impl Workbench {
             .unwrap_or_default()
     }
 
+    /// Keep the plane, its editable height and the active view in agreement.
+    /// f64's display format round-trips without rounding construction levels.
+    pub fn set_workplane(&mut self, plane: crate::interaction::Workplane) {
+        self.engine.workplane = plane;
+        self.tools.workplane = plane.origin.z.to_string();
+        if let Some(view) = self.views.get_mut(self.active_view) {
+            view.workplane = plane;
+        }
+    }
+
+    /// Apply a valid height edit only to a horizontal plane; preserve its axes.
+    pub fn sync_workplane_elevation(&mut self) {
+        if self.engine.workplane.is_horizontal()
+            && let Ok(z) = crate::tools::number(&self.tools.workplane)
+        {
+            self.engine.workplane.origin.z = z;
+            if let Some(view) = self.views.get_mut(self.active_view) {
+                view.workplane = self.engine.workplane;
+            }
+        }
+    }
+
     /// Activate a model view: remember the work plane of the current one,
     /// switch camera, view depth and work plane (each view keeps its own).
     pub fn apply_view(&mut self, index: usize) -> Option<Request> {
@@ -2624,10 +2645,7 @@ impl Workbench {
             current.hidden = self.hidden.clone();
         }
         self.active_view = index;
-        self.engine.workplane = view.workplane;
-        if view.workplane.axes[2] == open_bim_renderer::DVec3::Z {
-            self.tools.workplane = format!("{:.0}", view.workplane.origin.z);
-        }
+        self.set_workplane(view.workplane);
         self.clip = view.clip;
         self.hidden = view.hidden.clone();
         self.display.mode = view.render;

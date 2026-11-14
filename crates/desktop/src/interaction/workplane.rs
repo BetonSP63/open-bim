@@ -18,6 +18,12 @@ impl Default for Workplane {
 }
 
 impl Workplane {
+    /// Both point orders can define a horizontal plane (normal +Z or -Z).
+    pub fn is_horizontal(&self) -> bool {
+        let normal = self.axes[2];
+        normal.x == 0.0 && normal.y == 0.0 && (normal.z.abs() - 1.0).abs() < 1e-12
+    }
+
     /// Plane through `a` with x towards `b` and `c` on the positive-y side.
     pub fn from_points(a: DVec3, b: DVec3, c: DVec3) -> Result<Self, String> {
         let x = (b - a)

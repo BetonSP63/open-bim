@@ -3,7 +3,7 @@
 use eframe::egui;
 use egui_wgpu::wgpu;
 use open_bim_desktop::interaction::selection;
-use open_bim_desktop::tools::{Editor, number, ui::Action};
+use open_bim_desktop::tools::{Editor, ui::Action};
 use open_bim_desktop::ui::{Request, Workbench, project_change::ProjectChange};
 use open_bim_model::{ObjectId, example_steel_frame};
 /// Work area box margin around the model bounds, mm.
@@ -1099,6 +1099,7 @@ impl eframe::App for Desktop {
             if fit_home {
                 self.fit();
             }
+            self.bench.sync_workplane_elevation();
             let projector = overlay::Projector {
                 camera: &self.camera,
                 origin: self.scene.origin,
@@ -1125,12 +1126,6 @@ impl eframe::App for Desktop {
                 self.bench.picking() || self.handle_drag.is_some() || self.object_drag.is_some();
             let candidates = match (snapping, response.hover_pos()) {
                 (true, Some(pos)) => {
-                    // The elevation field moves a horizontal work plane.
-                    if let Ok(z) = number(&self.bench.tools.workplane)
-                        && self.bench.engine.workplane.axes[2] == DVec3::Z
-                    {
-                        self.bench.engine.workplane.origin.z = z;
-                    }
                     let px = pos - rect.min;
                     let view = open_bim_desktop::interaction::snap::View {
                         camera: &self.camera,

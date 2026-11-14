@@ -1021,8 +1021,16 @@ impl Workbench {
                 );
                 ui.separator();
                 let z = ui.label("Высота плоскости, мм");
-                ui.add(egui::TextEdit::singleline(&mut self.tools.workplane).desired_width(60.))
-                    .labelled_by(z.id);
+                let height = ui
+                    .add_enabled(
+                        self.engine.workplane.is_horizontal(),
+                        egui::TextEdit::singleline(&mut self.tools.workplane).desired_width(60.),
+                    )
+                    .labelled_by(z.id)
+                    .on_disabled_hover_text("Наклонную плоскость задайте по трём точкам");
+                if height.changed() {
+                    self.sync_workplane_elevation();
+                }
             });
         });
     }
