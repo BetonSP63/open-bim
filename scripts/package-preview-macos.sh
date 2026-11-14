@@ -25,7 +25,7 @@ plist="$app/Contents/Info.plist"
 plutil -replace CFBundleIdentifier -string org.openbim.preview "$plist"
 plutil -replace CFBundleName -string 'Open BIM Preview' "$plist"
 plutil -replace CFBundleDisplayName -string 'Open BIM Preview' "$plist"
-plutil -insert OpenBIMSourceRevision -string "$revision" "$plist"
+plutil -replace OpenBIMSourceRevision -string "$revision" "$plist"
 version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")
 cat > "$app/Contents/Resources/BUILD.txt" <<INFO
 Open BIM $version — local preview for macOS ARM64
