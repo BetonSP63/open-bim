@@ -1,3 +1,5 @@
+mod headless;
+use headless::HeadlessFrame;
 use open_bim_desktop::interaction::Workplane;
 use open_bim_desktop::tools::{Editor, number, ui::Action};
 use open_bim_desktop::ui::{Request, Workbench, commands::Cmd, views::ModelView};
@@ -132,7 +134,7 @@ fn height_control_is_readonly_for_tilted_planes_but_editable_for_either_horizont
         open_bim_desktop::ui::theme::apply(&ctx);
         let mut b = bench();
         b.set_workplane(plane);
-        let output = ctx.run_ui(
+        let output = ctx.run_headless(
             egui::RawInput {
                 screen_rect: Some(egui::Rect::from_min_size(
                     egui::Pos2::ZERO,

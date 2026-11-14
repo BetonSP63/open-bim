@@ -1,4 +1,6 @@
+mod headless;
 use eframe::egui;
+use headless::HeadlessFrame;
 use open_bim_commands::Command;
 use open_bim_desktop::autosave::autosave_path;
 use open_bim_desktop::tools::Editor;
@@ -294,7 +296,7 @@ fn escape_cancels_replacement_and_native_close_cannot_bypass_the_prompt() {
         .unwrap()
         .events
         .push(egui::ViewportEvent::Close);
-    let output = ctx.run_ui(input, |ui| {
+    let output = ctx.run_headless(input, |ui| {
         b.native_close_request(ui.ctx());
         b.project_change_dialog(ui.ctx());
     });
@@ -305,10 +307,10 @@ fn escape_cancels_replacement_and_native_close_cannot_bypass_the_prompt() {
             .any(|c| matches!(c, egui::ViewportCommand::CancelClose))
     );
     assert!(!b.close_pending());
-    let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+    let _ = ctx.run_headless(egui::RawInput::default(), |ui| {
         b.project_change_dialog(ui.ctx());
     });
-    let _ = ctx.run_ui(
+    let _ = ctx.run_headless(
         egui::RawInput {
             events: vec![egui::Event::Key {
                 key: egui::Key::Escape,

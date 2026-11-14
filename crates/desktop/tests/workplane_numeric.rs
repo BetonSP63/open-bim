@@ -1,4 +1,6 @@
+mod headless;
 use eframe::egui;
+use headless::HeadlessFrame;
 use open_bim_desktop::interaction::Workplane;
 use open_bim_desktop::tools::Editor;
 use open_bim_desktop::ui::{Workbench, commands::Cmd, theme};
@@ -11,7 +13,7 @@ fn bench() -> Workbench {
 }
 
 fn frame(ctx: &egui::Context, b: &mut Workbench, events: Vec<egui::Event>) {
-    let _ = ctx.run_ui(
+    let _ = ctx.run_headless(
         egui::RawInput {
             screen_rect: Some(egui::Rect::from_min_size(
                 egui::Pos2::ZERO,

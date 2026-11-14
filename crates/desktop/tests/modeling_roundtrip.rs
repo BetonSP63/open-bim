@@ -1,6 +1,8 @@
 //! Daily modeling workflow through the same picks, property commands and file
 //! lifecycle as the desktop application, with real screen-space snapping.
+mod headless;
 use eframe::egui;
+use headless::HeadlessFrame;
 use open_bim_desktop::interaction::{
     Workplane,
     snap::{Snapper, Switches, View},
@@ -216,7 +218,7 @@ fn column_beam_group_edit_snapped_copy_undo_redo_save_and_reopen() {
 }
 
 fn ui_frame(ctx: &egui::Context, b: &mut Workbench, events: Vec<egui::Event>) -> egui::FullOutput {
-    ctx.run_ui(
+    ctx.run_headless(
         egui::RawInput {
             screen_rect: Some(egui::Rect::from_min_size(
                 egui::Pos2::ZERO,

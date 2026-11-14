@@ -1,5 +1,7 @@
 //! The property pane must leave a usable viewport across frames and selections.
+mod headless;
 use eframe::egui;
+use headless::HeadlessFrame;
 use open_bim_desktop::tools::Editor;
 use open_bim_desktop::ui::{Workbench, theme};
 
@@ -23,7 +25,7 @@ fn frame_output(
     events: Vec<egui::Event>,
 ) -> (egui::Rect, egui::FullOutput) {
     let mut viewport = egui::Rect::NOTHING;
-    let output = ctx.run_ui(
+    let output = ctx.run_headless(
         egui::RawInput {
             screen_rect: Some(egui::Rect::from_min_size(
                 egui::Pos2::ZERO,

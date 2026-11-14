@@ -1,5 +1,7 @@
 //! Closing is explicit about unsaved work, including recovered snapshots.
+mod headless;
 use eframe::egui;
+use headless::HeadlessFrame;
 use open_bim_commands::Command;
 use open_bim_desktop::autosave::{autosave_path, backup_path};
 use open_bim_desktop::tools::Editor;
@@ -167,7 +169,7 @@ fn native_close_is_cancelled_and_escape_dismisses_the_dialog() {
         .unwrap()
         .events
         .push(egui::ViewportEvent::Close);
-    let output = ctx.run_ui(input, |ui| {
+    let output = ctx.run_headless(input, |ui| {
         b.native_close_request(ui.ctx());
         b.close_dialog(ui.ctx());
     });
@@ -185,8 +187,8 @@ fn native_close_is_cancelled_and_escape_dismisses_the_dialog() {
             "{label}"
         );
     }
-    let _ = ctx.run_ui(egui::RawInput::default(), |ui| b.close_dialog(ui.ctx()));
-    let output = ctx.run_ui(
+    let _ = ctx.run_headless(egui::RawInput::default(), |ui| b.close_dialog(ui.ctx()));
+    let output = ctx.run_headless(
         egui::RawInput {
             events: vec![egui::Event::Key {
                 key: egui::Key::Escape,
