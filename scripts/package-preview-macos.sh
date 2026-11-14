@@ -49,11 +49,12 @@ exec "$here/open-bim-desktop" "$@"
 LAUNCH
 chmod +x "$app/Contents/MacOS/Open BIM"
 plutil -lint "$plist"
-archive="$out/Open-BIM-$version-preview-$short-macos-arm64.zip"
+archive_name="Open-BIM-$version-preview-$short-macos-arm64.zip"
+archive="$out/$archive_name"
 if [ -e "$archive" ]; then
   echo "Archive already exists: $archive" >&2
   exit 1
 fi
 ditto -c -k --keepParent "$app" "$archive"
-shasum -a 256 "$archive" > "$archive.sha256"
+(cd "$out" && shasum -a 256 "$archive_name" > "$archive_name.sha256")
 echo "Preview: $archive"
