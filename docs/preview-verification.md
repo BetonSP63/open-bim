@@ -5,7 +5,7 @@ introduced in `c11942e`. No installation or publication is performed.
 
 ## Automated regression
 
-- `CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk cargo test --workspace --release --locked --no-fail-fast`: **685 passed, 0 failed, 2 ignored**. Optimization stays enabled; LTO is disabled only for this full test run.
+- `CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk cargo test --workspace --release --locked --no-fail-fast`: **685 passed, 0 failed, 2 ignored**. Optimization stays enabled; LTO is disabled only for this full test run. The ignored tests are the 100k snapping benchmark and the autosave subprocess helper (the parent recovery test passed).
 - `SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk cargo clippy --workspace --release --all-targets --locked -- -D warnings`: passed.
 - `cargo fmt --all --check`, `git diff --check` and `sh -n scripts/package-preview-macos.sh`: passed.
 - Preview launcher checked with an isolated stub: each default launch copies the example to a new directory, paths with spaces and Cyrillic characters work, explicit arguments are preserved.
@@ -24,3 +24,14 @@ Native checks of the earlier development build are recorded in `interaction.md`.
 Numeric input is not opened for the three-point workplane command. Both the
 input-opening condition and `pick_numeric` routing need a consistent extension
 with a UI regression. Mouse point input remains available. See `backlog.md`.
+
+## Packaged application check
+
+Archive: `Open-BIM-0.2.0-preview-64ecb5a-macos-arm64.zip`.
+Source revision: `64ecb5aa5f43c9fc715c2acb7b551f69944cd6ec`.
+ZIP integrity and SHA-256 verification passed. The extracted executable is ARM64.
+The extracted app launched as `Open BIM Preview` and opened an isolated temporary
+copy. Native checks: select all 16 objects; open the material popup; Escape closes
+it while retaining selection; Ctrl+C starts copying; Escape cancels copying
+while retaining selection. Both temporary example copies remain byte-identical
+to the source fixture after closing. No installed application was replaced.
