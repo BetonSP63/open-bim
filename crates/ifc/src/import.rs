@@ -7,7 +7,7 @@ use crate::{
 use open_bim_model::library;
 use open_bim_model::{
     Detail, DetailKind, Element, ElementShape, Frame, LengthMm, Material, MemberKind, ObjectId,
-    Point3, Profile, ProfileShape, Project, PropertyValue,
+    Point3, Profile, ProfileShape, Project, PropertyValue, RebarKind, RebarSet,
 };
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
@@ -39,12 +39,13 @@ impl ImportReport {
     pub fn summary(&self) -> String {
         let n = |k: &str| self.imported.get(k).copied().unwrap_or(0);
         let mut out = format!(
-            "Импортировано: балок {}, колонн {}, пластин {}, сборок {}, проёмов {}.",
+            "Импортировано: балок {}, колонн {}, пластин {}, сборок {}, проёмов {}, стержней {}.",
             n("IFCBEAM") + n("IFCMEMBER"),
             n("IFCCOLUMN"),
             n("IFCPLATE"),
             n("IFCELEMENTASSEMBLY"),
             n("IFCOPENINGELEMENT"),
+            n("IFCREINFORCINGBAR"),
         );
         let list = |items: Vec<String>| {
             let more = items.len().saturating_sub(6);
@@ -149,6 +150,8 @@ const KNOWN: &[&str] = &[
     "IFCCIRCLEPROFILEDEF",
     "IFCARBITRARYCLOSEDPROFILEDEF",
     "IFCPOLYLINE",
+    "IFCSWEPTDISKSOLID",
+    "IFCREINFORCINGBAR",
     "IFCMATERIAL",
     "IFCMATERIALPROPERTIES",
     "IFCRELASSOCIATESMATERIAL",
@@ -1577,6 +1580,18 @@ pub fn import(text: &str) -> Result<(Project, ImportReport), String> {
         }
     }
     prune_invalid(&mut project, &mut report);
+    reinforcing_bars(
+        &file,
+        &reader,
+        &element_of,
+        &mut psets,
+        &mut project,
+        &mut report,
+    );
+    project.concrete.rebars.retain(|set| {
+        set.host
+            .is_none_or(|host| project.elements.contains_key(&host))
+    });
     assemblies(
         &file,
         &parts_of,
@@ -1702,4 +1717,142 @@ fn assemblies(
         }
     }
     Ok(())
+}
+
+/// Reinforcing bars with a swept-disk polyline body. Open BIM's set property
+/// groups bars; foreign files without it get one set per bar.
+fn reinforcing_bars(
+    file: &File,
+    reader: &Reader,
+    element_of: &BTreeMap<u64, ObjectId>,
+    psets: &mut BTreeMap<u64, Vec<(String, PropertyValue)>>,
+    project: &mut Project,
+    report: &mut ImportReport,
+) {
+    let mut host_of = BTreeMap::new();
+    for relation in file
+        .entities
+        .values()
+        .filter(|e| e.kind == "IFCRELAGGREGATES")
+    {
+        let (Some(host), Some(parts)) = (
+            relation.args.get(4).and_then(Value::as_ref),
+            relation.args.get(5).and_then(Value::as_list),
+        ) else {
+            continue;
+        };
+        if let Some(host) = element_of.get(&host).copied() {
+            for bar in parts.iter().filter_map(Value::as_ref) {
+                host_of.insert(bar, host);
+            }
+        }
+    }
+    let mut next_number = 1u32;
+    let mut sets: BTreeMap<u32, RebarSet> = BTreeMap::new();
+    for (id, entity) in &file.entities {
+        if entity.kind != "IFCREINFORCINGBAR" {
+            continue;
+        }
+        let label = format!("IFCREINFORCINGBAR #{id}");
+        let result = (|| -> Result<(), String> {
+            let placement = reader.local_placement(reader.reference(entity, 5)?, 0)?;
+            let shape = reader.reference(entity, 6)?;
+            let representations = shape
+                .args
+                .get(2)
+                .and_then(Value::as_list)
+                .ok_or("нет представления")?;
+            let mut solid = None;
+            for representation in representations.iter().filter_map(Value::as_ref) {
+                let representation = reader.get(representation)?;
+                for item in representation
+                    .args
+                    .get(3)
+                    .and_then(Value::as_list)
+                    .unwrap_or(&[])
+                {
+                    if let Some(reference) = item.as_ref() {
+                        let item = reader.get(reference)?;
+                        if item.kind == "IFCSWEPTDISKSOLID" {
+                            solid = Some(item);
+                        }
+                    }
+                }
+            }
+            let solid = solid.ok_or("нужен IfcSweptDiskSolid")?;
+            let curve = reader.reference(solid, 0)?;
+            if curve.kind != "IFCPOLYLINE" {
+                return Err("осевая линия должна быть IfcPolyline".into());
+            }
+            let points = curve
+                .args
+                .first()
+                .and_then(Value::as_list)
+                .ok_or("нет точек")?;
+            if points.len() < 2 || points.len() > 100_000 {
+                return Err("неверное число точек осевой линии".into());
+            }
+            let mut bar = Vec::with_capacity(points.len());
+            for point in points {
+                let point = reader.get(point.as_ref().ok_or("точка не ссылка")?)?;
+                bar.push(Point3(placement.apply(reader.coordinates(point, true)?)));
+            }
+            let diameter = match entity.args.get(8).and_then(Value::as_f64) {
+                Some(value) => reader.length(&Value::Real(value))?,
+                None => 2. * reader.length(reader.arg(solid, 1))?,
+            };
+            let grade = entity
+                .args
+                .get(13)
+                .and_then(Value::as_str)
+                .filter(|grade| !grade.trim().is_empty())
+                .unwrap_or("А500С")
+                .to_string();
+            let properties = psets.remove(id).unwrap_or_default();
+            let stored_number = properties.iter().find_map(|(name, value)| {
+                if !name.ends_with("Арматурный набор") {
+                    return None;
+                }
+                match value {
+                    PropertyValue::Text(value) => value.parse::<u32>().ok(),
+                    PropertyValue::Number(value) if *value >= 1. => Some(*value as u32),
+                    _ => None,
+                }
+            });
+            let host = host_of.get(id).copied();
+            let mut number = stored_number.unwrap_or(next_number);
+            if sets.get(&number).is_some_and(|set| {
+                set.diameter != diameter || set.grade != grade || set.host != host
+            }) {
+                number = next_number;
+            }
+            next_number = next_number.max(number.saturating_add(1));
+            let set = sets.entry(number).or_insert_with(|| RebarSet {
+                number,
+                kind: RebarKind::Guide,
+                host,
+                diameter,
+                grade,
+                bars: Vec::new(),
+                hooks: [open_bim_model::Hook::default(); 2],
+                bend_diameter: None,
+                rule: None,
+            });
+            set.bars.push(bar);
+            Ok(())
+        })();
+        match result {
+            Ok(()) => {
+                *report
+                    .imported
+                    .entry("IFCREINFORCINGBAR".into())
+                    .or_default() += 1
+            }
+            Err(error) => {
+                report.skipped += 1;
+                report.issues.push(format!("{label}: пропущен — {error}"));
+            }
+        }
+    }
+    project.concrete.rebars.extend(sets.into_values());
 }

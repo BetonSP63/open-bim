@@ -83,3 +83,40 @@ fn multiple_physical_bars_keep_separate_deterministic_guids() {
     assert_eq!(bars.len(), 2);
     assert_ne!(bars[0].args[0], bars[1].args[0]);
 }
+
+#[test]
+fn exported_bars_round_trip_into_the_original_set_and_host() {
+    for schema in [Schema::Ifc4, Schema::Ifc4x3] {
+        let original = model();
+        let (text, _) = export_schema(&original, schema).unwrap();
+        let (imported, report) = open_bim_ifc::import(&text).unwrap();
+        assert_eq!(report.imported["IFCREINFORCINGBAR"], 1);
+        assert!(
+            report.unsupported_entities.is_empty(),
+            "{:?}",
+            report.unsupported_entities
+        );
+        assert!(report.issues.is_empty(), "{:?}", report.issues);
+        assert!(report.summary().contains("стержней 1"));
+        assert_eq!(imported.concrete.rebars.len(), 1);
+        let before = &original.concrete.rebars[0];
+        let after = &imported.concrete.rebars[0];
+        assert_eq!(after.number, before.number);
+        assert_eq!(after.diameter, before.diameter);
+        assert_eq!(after.grade, before.grade);
+        assert!(
+            after
+                .host
+                .is_some_and(|host| imported.elements.contains_key(&host))
+        );
+        assert_eq!(after.bars.len(), before.bars.len());
+        for (a, b) in before.bars[0].iter().zip(&after.bars[0]) {
+            for k in 0..3 {
+                assert!((a.0[k] - b.0[k]).abs() < 1e-8);
+            }
+        }
+        let (again, export_report) = export_schema(&imported, schema).unwrap();
+        assert_eq!(export_report.rebars, 1);
+        assert!(again.contains("IFCREINFORCINGBAR"));
+    }
+}
