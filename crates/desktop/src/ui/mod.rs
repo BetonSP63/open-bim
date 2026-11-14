@@ -3426,7 +3426,7 @@ impl Workbench {
     }
 
     /// Typing a digit, «@» or «-» during a pick opens the coordinate box.
-    fn numeric_input(&mut self, ctx: &egui::Context, requests: &mut Vec<Request>) {
+    fn open_numeric_input(&mut self, ctx: &egui::Context) {
         if !self.picking() {
             self.engine.numeric = None;
             return;
@@ -3464,6 +3464,9 @@ impl Workbench {
                 ctx.data_mut(|d| d.insert_temp(egui::Id::new("numeric opened"), pass));
             }
         }
+    }
+
+    fn numeric_input(&mut self, ctx: &egui::Context, requests: &mut Vec<Request>) {
         let Some(mut text) = self.engine.numeric.clone() else {
             return;
         };
@@ -3520,6 +3523,9 @@ impl Workbench {
         self.engine.plate_mode = self.editor.draft.plate_mode;
         self.keytips_input(&ctx, &mut requests);
         self.lock_keys(&ctx);
+        // Text for an existing point command takes focus before global
+        // shortcuts. A key starting a new command cannot become its first point.
+        self.open_numeric_input(&ctx);
         // Drawing editor: arrows move the selection 1 mm (Shift: 10 mm).
         if self.mode == Mode::Drawings && !ctx.egui_wants_keyboard_input() {
             let mut by = [0., 0.];

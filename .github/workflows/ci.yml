@@ -4,6 +4,10 @@ jobs:
   verify:
     name: macOS ARM64
     runs-on: macos-15
+    env:
+      # Keep debug assertions while reducing symbol storage and linker work.
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_INCREMENTAL: 0
     steps:
       - uses: actions/checkout@v4
       - name: Require ARM64 runner

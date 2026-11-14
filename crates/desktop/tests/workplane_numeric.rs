@@ -141,3 +141,28 @@ fn numeric_input_is_available_for_measurement_copy_and_paste() {
         Some((DVec3::new(100., 200., 300.), DVec3::new(400., 600., 300.)))
     );
 }
+
+#[test]
+fn point_input_precedes_view_shortcuts_but_does_not_reuse_the_start_command_text() {
+    let ctx = egui::Context::default();
+    theme::apply(&ctx);
+    let mut b = bench();
+    frame(&ctx, &mut b, vec![]);
+    let mut events = key(egui::Key::F);
+    // The physical F key on the Russian layout also emits a Cyrillic letter.
+    events.push(egui::Event::Text("а".into()));
+    frame(&ctx, &mut b, events);
+    assert!(b.measure.is_some());
+    assert!(
+        b.engine.numeric.is_none(),
+        "command-start text is not a point"
+    );
+
+    b.execute(Cmd::ToolBeam);
+    let mut events = key(egui::Key::Num3);
+    events.push(egui::Event::Text("3".into()));
+    // frame() also requires no camera request: Num3 belongs to the point,
+    // rather than the global Top-view shortcut.
+    frame(&ctx, &mut b, events);
+    assert_eq!(b.engine.numeric.as_deref(), Some("3"));
+}
