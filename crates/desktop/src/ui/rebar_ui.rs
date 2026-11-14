@@ -105,8 +105,7 @@ impl Workbench {
                 )));
             }
         }
-        self.engine.cancel();
-        self.detail.cancel();
+        self.cancel_point_input();
         self.mode = Mode::Model;
         self.trim = TrimPicker::start(tool);
         self.message(self.prompt());

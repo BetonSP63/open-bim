@@ -950,8 +950,7 @@ impl Workbench {
             }
             Cmd::ToolCurvedBeam | Cmd::ToolPolyBeam | Cmd::ToolBentPlate => {
                 self.mode = Mode::Model;
-                self.engine.cancel();
-                self.editor.cancel();
+                self.cancel_point_input();
                 let kind = match cmd {
                     Cmd::ToolCurvedBeam => swept::Kind::Arc,
                     Cmd::ToolPolyBeam => swept::Kind::Poly,
@@ -1190,8 +1189,7 @@ impl Workbench {
                         return None;
                     }
                 }
-                self.engine.cancel();
-                self.detail.cancel();
+                self.cancel_point_input();
                 self.mode = Mode::Model;
                 self.trim = TrimPicker::start(if cmd == Cmd::Item {
                     TrimTool::PlaceItem
@@ -1233,8 +1231,7 @@ impl Workbench {
             }
             Cmd::PourBreak | Cmd::PourBreakHorizontal => {
                 use crate::interaction::trim::{TrimPicker, TrimTool};
-                self.engine.cancel();
-                self.detail.cancel();
+                self.cancel_point_input();
                 self.mode = Mode::Model;
                 self.trim = TrimPicker::start(if cmd == Cmd::PourBreak {
                     TrimTool::PourBreak
@@ -1425,9 +1422,7 @@ impl Workbench {
                     self.message("Сначала выберите объекты");
                     return None;
                 }
-                self.engine.cancel();
-                self.editor.cancel();
-                self.detail.cancel();
+                self.cancel_point_input();
                 self.edit_pick = crate::interaction::selection::EditPicker {
                     op: Some(match cmd {
                         Cmd::MoveByPicks => EditOp::Move,
@@ -1442,10 +1437,7 @@ impl Workbench {
             }
             Cmd::CopySpecial | Cmd::MoveSpecial => {
                 let copy = cmd == Cmd::CopySpecial;
-                self.engine.cancel();
-                self.editor.cancel();
-                self.detail.cancel();
-                self.edit_pick.cancel();
+                self.cancel_point_input();
                 self.special_open = Some(copy);
                 self.mode = Mode::Model;
                 self.message(if copy {
@@ -1813,6 +1805,7 @@ impl Workbench {
             }
             Cmd::Paste => {
                 if self.clipboard.is_some() {
+                    self.cancel_point_input();
                     self.mode = Mode::Model;
                     self.paste_pick = true;
                     self.message(self.prompt());
@@ -1915,8 +1908,7 @@ impl Workbench {
             }
             Cmd::AnalysisNode | Cmd::RigidLink | Cmd::MergeNodes | Cmd::CopyAnalysis => {
                 use crate::interaction::trim::{TrimPicker, TrimTool};
-                self.engine.cancel();
-                self.detail.cancel();
+                self.cancel_point_input();
                 self.mode = Mode::Model;
                 self.analysis.show = true;
                 self.trim = TrimPicker::start(match cmd {
@@ -2170,6 +2162,8 @@ impl Workbench {
     /// Discard transient input, preserving the model, selection and tool presets.
     fn cancel_point_input(&mut self) {
         self.engine.cancel();
+        self.swept_dialog = None;
+        self.special_open = None;
         self.engine.reference = None;
         self.engine.error = None;
         self.editor.cancel();
@@ -2893,6 +2887,9 @@ impl Workbench {
             });
         });
         if let Some(target) = pick {
+            let window = self.special_open;
+            self.cancel_point_input();
+            self.special_open = window;
             self.special.start_pick(target);
             self.message(self.prompt());
         }
@@ -3301,17 +3298,11 @@ impl Workbench {
             };
         }
         // Point commands outside the modelling engine take typed points too.
-        if self.workplane_picks.is_some() || self.trim.tool.is_some() || self.detail.picks_points()
+        if self.trim.tool.is_some()
+            || self.detail.picks_points()
+            || (!self.engine.active() && self.picking())
         {
-            let previous = match &self.workplane_picks {
-                Some(points) => points.last().copied(),
-                None => self
-                    .trim
-                    .points
-                    .last()
-                    .or(self.detail.points.last())
-                    .copied(),
-            };
+            let previous = self.previous_pick();
             let direction = previous.zip(self.cursor).map(|(p, c)| c - p);
             return match crate::interaction::numeric::parse(
                 text,
@@ -3436,11 +3427,7 @@ impl Workbench {
 
     /// Typing a digit, «@» or «-» during a pick opens the coordinate box.
     fn numeric_input(&mut self, ctx: &egui::Context, requests: &mut Vec<Request>) {
-        let trim_points = matches!(
-            self.trim.need(),
-            Some(crate::interaction::trim::Need::Point | crate::interaction::trim::Need::Polygon)
-        ) || self.detail.picks_points();
-        if !self.engine.active() && !trim_points && self.workplane_picks.is_none() {
+        if !self.picking() {
             self.engine.numeric = None;
             return;
         }
@@ -3666,7 +3653,11 @@ impl Workbench {
                     self.sync_selection();
                     self.message(format!("Выбрано деталей: {n}"));
                 }
-                management::Outcome::PickSequence => {}
+                management::Outcome::PickSequence => {
+                    let sequence = self.management.picking.take();
+                    self.cancel_point_input();
+                    self.management.picking = sequence;
+                }
             }
             if let Some(p) = self.management.prompt() {
                 self.message(p);
@@ -3712,8 +3703,7 @@ impl Workbench {
             }
             Some(crate::interaction::families::FamiliesAction::Place { two_points }) => {
                 use crate::interaction::trim::{TrimPicker, TrimTool};
-                self.engine.cancel();
-                self.detail.cancel();
+                self.cancel_point_input();
                 self.mode = Mode::Model;
                 self.trim = TrimPicker::start(if two_points {
                     TrimTool::PlaceFamilyLine

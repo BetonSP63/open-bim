@@ -175,8 +175,7 @@ impl Workbench {
 
     /// Start placing loads of the window's kind.
     pub fn start_load(&mut self) {
-        self.engine.cancel();
-        self.detail.cancel();
+        self.cancel_point_input();
         self.trim = TrimPicker::start(self.analysis.form.tool());
         self.message(self.prompt());
     }

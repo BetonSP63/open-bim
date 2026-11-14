@@ -108,3 +108,34 @@ fn coordinate_window_submits_each_point_and_escape_only_closes_the_input_first()
     frame(&ctx, &mut b, key(egui::Key::Escape));
     assert!(b.workplane_picks.is_none());
 }
+
+#[test]
+fn numeric_input_is_available_for_measurement_copy_and_paste() {
+    for command in [
+        Cmd::Measure,
+        Cmd::MeasureAngle,
+        Cmd::CopyByPicks,
+        Cmd::Paste,
+    ] {
+        let ctx = egui::Context::default();
+        theme::apply(&ctx);
+        let project = open_bim_model::example_steel_frame().unwrap();
+        let id = *project.elements.keys().next().unwrap();
+        let mut b = Workbench::new(Editor::new(project).unwrap());
+        b.editor.selected.insert(id);
+        b.execute(Cmd::CopyToClipboard);
+        frame(&ctx, &mut b, vec![]);
+        b.execute(command);
+        frame(&ctx, &mut b, vec![egui::Event::Text("!0,0,0".into())]);
+        assert_eq!(b.engine.numeric.as_deref(), Some("!0,0,0"), "{command:?}");
+    }
+
+    let mut b = bench();
+    b.execute(Cmd::Measure);
+    b.pick_numeric("!100,200,300");
+    b.pick_numeric("R 300,400,0");
+    assert_eq!(
+        b.measured,
+        Some((DVec3::new(100., 200., 300.), DVec3::new(400., 600., 300.)))
+    );
+}

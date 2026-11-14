@@ -113,3 +113,58 @@ fn switching_commands_keeps_selection_tool_properties_and_workplane() {
     assert_eq!(b.engine.workplane, plane);
     assert_eq!(*b.editor.document.project(), before);
 }
+
+#[test]
+fn copy_and_paste_replace_an_interrupted_measurement() {
+    for command in [Cmd::CopyByPicks, Cmd::Paste] {
+        let project = open_bim_model::example_steel_frame().unwrap();
+        let id = *project.elements.keys().next().unwrap();
+        let mut b = Workbench::new(Editor::new(project).unwrap());
+        b.editor.selected.insert(id);
+        b.execute(Cmd::CopyToClipboard);
+        b.execute(Cmd::Measure);
+        b.pick(DVec3::ZERO);
+        b.execute(command);
+        assert!(b.measure.is_none(), "{command:?} still has a measurement");
+        let result = b.pick(DVec3::X * 1000.);
+        if command == Cmd::Paste {
+            assert!(matches!(
+                result,
+                Some(Request::Action(Action::Commit(_, _)))
+            ));
+        } else {
+            assert!(result.is_none());
+            assert!(matches!(
+                b.pick(DVec3::X * 2000.),
+                Some(Request::Action(Action::Edit(_)))
+            ));
+        }
+    }
+}
+
+#[test]
+fn remaining_point_command_entries_replace_measurement() {
+    for command in [
+        Cmd::AddedMaterial,
+        Cmd::PourBreak,
+        Cmd::AnalysisNode,
+        Cmd::RebarSingle,
+        Cmd::FormworkPanels,
+        Cmd::ToolCurvedBeam,
+    ] {
+        let mut b = bench();
+        b.execute(Cmd::Measure);
+        b.pick(DVec3::ZERO);
+        b.execute(command);
+        assert!(b.measure.is_none(), "{command:?} still has a measurement");
+    }
+    let mut b = bench();
+    b.execute(Cmd::Measure);
+    b.start_load();
+    assert!(b.measure.is_none());
+
+    b.execute(Cmd::Measure);
+    b.arm_component(open_bim_desktop::ui::components::catalog().remove(0));
+    assert!(b.measure.is_none());
+    assert!(b.components.armed.is_some());
+}
