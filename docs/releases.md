@@ -1,5 +1,21 @@
 # Releases
 
+## 0.2.1 — macOS ARM64
+
+Reliability release for the existing modelling workflow: guards for unsaved
+changes, bounded property pane, popup Escape priority, precise workplanes,
+stable plan rotation, exclusive ownership of picks after command changes,
+and numeric coordinates for measurement, editing and paste.
+
+The macOS launcher opens the existing `~/Open BIM проект.obim`; on first
+launch it creates a complete independent copy of the example without replacing
+a concurrently created file. Explicit arguments are preserved. Packaging refuses
+to overwrite an existing bundle/archive and records source revision, tracked
+source changes, build time and SHA-256. The app is unsigned and not notarized.
+
+This release targets macOS ARM64. It does not close the 1.0 roadmap or claim
+complete reinforced-concrete documentation or other platform releases.
+
 ## Local modelling preview — 2026-11-14
 
 Build a separate macOS ARM64 test archive with
@@ -17,7 +33,7 @@ replacement, bounded property pane, popup Escape priority, precise workplane
 elevations and stable camera rotation from plan views. This is a local test
 package, not a published release.
 
-## 0.2.0 — current development version (`main`)
+## 0.2.0 — development baseline and preview
 
 The version of the tree on `main`. Not yet a packaged GitHub Release.
 It reflects the functionality already on `main` after 0.1.0 (families,
