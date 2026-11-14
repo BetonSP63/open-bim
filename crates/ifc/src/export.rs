@@ -20,6 +20,8 @@ pub struct ExportReport {
     pub columns: usize,
     pub plates: usize,
     pub openings: usize,
+    /// Individual reinforcing bars exported as IfcReinforcingBar.
+    pub rebars: usize,
     /// Parts exported as a tessellated rather than analytic IFC body.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tessellated: Vec<ObjectId>,
@@ -328,6 +330,7 @@ pub fn export_schema(project: &Project, schema: Schema) -> Result<(String, Expor
     let z = w.direction([0., 0., 1.]);
     let identity = w.placement([0.; 3], [0., 0., 1.], [1., 0., 0.]);
     let mut products = Vec::new();
+    let mut element_products = BTreeMap::new();
     let mut by_material: BTreeMap<ObjectId, Vec<u64>> = BTreeMap::new();
     let mut profiles: BTreeMap<ObjectId, u64> = BTreeMap::new();
     let mut ksi: BTreeMap<String, Vec<u64>> = BTreeMap::new();
@@ -443,7 +446,9 @@ pub fn export_schema(project: &Project, schema: Schema) -> Result<(String, Expor
             Some(PropertyValue::Number(n)) => storey_of.get(&(*n as u32)).copied(),
             _ => None,
         };
-        products.push((on.unwrap_or(storey), product));
+        let container = on.unwrap_or(storey);
+        products.push((container, product));
+        element_products.insert(element.id, (container, product));
         by_material
             .entry(element.material)
             .or_default()
@@ -668,6 +673,80 @@ pub fn export_schema(project: &Project, schema: Schema) -> Result<(String, Expor
             report.openings += 1;
         }
     }
+    let (_, rebar_positions) = open_bim_reports::rebar::schedule(project);
+    let mut rebar_materials: BTreeMap<String, Vec<u64>> = BTreeMap::new();
+    for set in &project.concrete.rebars {
+        for (bar_index, bar) in set.bars.iter().enumerate() {
+            let key = u64::from(set.number) << 32 | bar_index as u64;
+            let points: Vec<u64> = bar
+                .iter()
+                .map(|p| w.point(std::array::from_fn(|k| p.0[k] - project.origin.0[k])))
+                .collect();
+            let directrix = w.add(format!("IFCPOLYLINE(({}))", refs(&points)));
+            let solid = w.add(format!(
+                "IFCSWEPTDISKSOLID(#{directrix},{},$,$,$)",
+                real(set.diameter / 2.)
+            ));
+            let rep = w.add(format!(
+                "IFCSHAPEREPRESENTATION(#{body},'Body','SweptSolid',(#{solid}))"
+            ));
+            let shape = w.add(format!("IFCPRODUCTDEFINITIONSHAPE($,$,(#{rep}))"));
+            let lp = w.add(format!("IFCLOCALPLACEMENT(#{storey_lp},#{identity})"));
+            let surface =
+                match open_bim_model::rebar::rebar_class(&set.grade).map(|class| class.surface) {
+                    Some(open_bim_model::rebar::BarSurface::Smooth) => "PLAIN",
+                    _ => "RIBBED",
+                };
+            let product = w.add(format!(
+                "IFCREINFORCINGBAR('{}',$,{},$,$,#{lp},#{shape},'{}',{},{},{},.NOTDEFINED.,.{}.,{})",
+                derived_guid("rebar", key),
+                encode(&format!("Арматура {}.{}", set.number, bar_index + 1)),
+                key,
+                real(set.diameter),
+                real(open_bim_model::rebar::bar_area(set.diameter)),
+                real(set.developed_length(bar)),
+                surface,
+                encode(&set.grade),
+            ));
+            report.rebars += 1;
+            rebar_materials
+                .entry(set.grade.clone())
+                .or_default()
+                .push(product);
+            if let Some((_, host)) = set.host.and_then(|id| element_products.get(&id).copied()) {
+                w.add(format!(
+                    "IFCRELAGGREGATES('{}',$,$,$,#{host},(#{product}))",
+                    derived_guid("rebar-host", key)
+                ));
+            } else {
+                products.push((storey, product));
+            }
+            let position = rebar_positions
+                .iter()
+                .find(|p| p.set == set.number && p.bar == bar_index)
+                .map_or(0, |p| p.position);
+            let mut properties = Vec::new();
+            for (name, value) in [
+                ("Позиция", position.to_string()),
+                ("Арматурный набор", set.number.to_string()),
+            ] {
+                properties.push(w.add(format!(
+                    "IFCPROPERTYSINGLEVALUE({},$,IFCLABEL({}),$)",
+                    encode(name),
+                    encode(&value)
+                )));
+            }
+            let pset = w.add(format!(
+                "IFCPROPERTYSET('{}',$,'Pset_OpenBIM_Rebar',$,({}))",
+                derived_guid("rebar-pset", key),
+                refs(&properties)
+            ));
+            w.add(format!(
+                "IFCRELDEFINESBYPROPERTIES('{}',$,$,$,(#{product}),#{pset})",
+                derived_guid("rebar-defines", key)
+            ));
+        }
+    }
     for detail in project.details.values() {
         let kind = match detail.kind {
             DetailKind::BoltGroup { .. } => "bolt_group",
@@ -735,6 +814,14 @@ pub fn export_schema(project: &Project, schema: Schema) -> Result<(String, Expor
         w.add(format!(
             "IFCRELASSOCIATESMATERIAL('{}',$,$,$,({}),#{mat})",
             derived_guid("material", material.0),
+            refs(&items)
+        ));
+    }
+    for (index, (grade, items)) in rebar_materials.into_iter().enumerate() {
+        let mat = w.add(format!("IFCMATERIAL({},$,$)", encode(&grade)));
+        w.add(format!(
+            "IFCRELASSOCIATESMATERIAL('{}',$,$,$,({}),#{mat})",
+            derived_guid("rebar-material", index as u64),
             refs(&items)
         ));
     }

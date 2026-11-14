@@ -115,7 +115,7 @@ is claimed. See `docs/reference-docs-comparison.md` for each row's status.
   - Master drawing catalog;
   - multi-user mode;
   - cloud model sharing.
-- **Concrete and rebar:** concrete parts, bar sets and hooks, host-following layouts, automatic bar positions, CSV schedules and BVBS BF2D export are implemented; КЖ drawings, IFC rebar and BVBS BF3D remain in the 1.0 plan.
+- **Concrete and rebar:** concrete parts, bar sets and hooks, host-following layouts, automatic bar positions, CSV schedules, BVBS BF2D and IFC4/IFC4.3 `IfcReinforcingBar` export are implemented; КЖ drawings, IFC rebar import and BVBS BF3D remain in the 1.0 plan.
 
 Shortcut deviations (macOS):
 - ⌘ replaces Ctrl for the application commands: ⌘S, ⌘Z, ⌘N, ⌘O, ⌘P palette.
