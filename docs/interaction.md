@@ -5,6 +5,45 @@ flyer) and the annotated screenshot of its main window. Open BIM follows the
 standard detailing workflow. It does not copy third-party artwork and does not claim parity. Differences
 are listed in `docs/reference-docs-comparison.md`.
 
+## Saving and closing
+
+A native window close request prompts before discarding unsaved model changes:
+«Сохранить и выйти», «Не сохранять», «Отмена». Escape and clicking outside the
+dialog cancel the exit. A failed save keeps the dialog, model and undo history
+available; the error is shown in the dialog. A recovered autosave is unsaved
+until explicitly saved. Undo back to the saved state needs no prompt; redo of
+an edit does. The guard applies even when timer autosave is switched off.
+An explicit «Не сохранять» does not remove an existing recovery snapshot.
+
+Evidence: `crates/desktop/tests/unsaved_close.rs`.
+
+Manual macOS check (use a disposable project): edit a part, close the window,
+then cancel; the part and undo history must remain. Repeat and save: reopening
+must show the edit. Repeat with «Не сохранять»: the project file must stay as
+last saved. Point the project path inside a regular file (not a directory),
+choose save on exit and verify that the error stays visible and the app stays
+open. Escape returns to editing. Closing an unchanged project exits directly.
+
+«Новый проект», «Контрольный каркас» and opening another file also ask before
+replacing unsaved work. «Сохранить и продолжить» saves the outgoing document to
+its accepted path, even if the file field contains the destination being opened.
+Cancel preserves the document and undo history. A failed save blocks replacement;
+a failed or cancelled load preserves the current document and save destination.
+The destination of an opened file (including an autosave recovery) is accepted
+only after successful loading. Timer autosave uses the accepted path too.
+
+New projects and generated examples receive a free filename next to the current
+project, avoiding existing files and recovery snapshots. They are unsaved until
+explicitly saved, and their initial state can be autosaved even without edits.
+Evidence: `crates/desktop/tests/project_change.rs`.
+
+Manual replacement check: modify a disposable project A, enter the path of B,
+then open. Cancel must keep A and its save path. Repeat, save and continue: A
+must contain its edits, while B must be unchanged on disk. Opening a corrupt
+file or cancelling a delayed open must retain A's model and save destination.
+New/example must use a separate path; closing the generated project must ask
+to save it. Automated capture/benchmark/script exit commands remain unchanged.
+
 ## Mouse and keyboard
 
 | Reference workflow | Open BIM | Evidence |
@@ -16,6 +55,7 @@ are listed in `docs/reference-docs-comparison.md`.
 | Right button opens the context menu (Interrupt…) | context menu: Прервать, Завершить/повторить, Свойства, Переместить, Копировать, Удалить, Скрыть, Показать только выбранные, Показать все, Вписать выбранные, Чертёж детали | `tests/ui/navigation/08-context-menu.png`, context_menu_commands_all_act |
 | Middle click / Enter finishes a polygon or a part selection | same | escape_leaves_model_unchanged_enter_finishes_polygon_and_repeats |
 | Esc interrupts the command | Esc drops the picks; the model is unchanged | escape_leaves_model_unchanged_enter_finishes_polygon_and_repeats |
+| Escape in an open popup closes the popup first | The material list closes without cancelling the group selection. A subsequent Escape, with no popup open, cancels selection as usual | `crates/desktop/tests/modeling_roundtrip.rs`: escape_closes_material_popup_before_cancelling_group_selection |
 | Enter in idle repeats the last command | same | escape_leaves_model_unchanged_enter_finishes_polygon_and_repeats |
 | A command runs until Esc or another command | beam, column, plate and weld commands re-arm after each object | beam_by_two_snapped_grid_picks_is_exact_and_each_beam_is_one_undo_step |
 | Status bar prompt | a Russian prompt for each pick step. After a ribbon click the bar adds «Быстрее: …» when the command has a shortcut; the button tooltip and ⌘P already show the same key | every_tool_has_russian_prompts_per_step |
@@ -24,6 +64,28 @@ are listed in `docs/reference-docs-comparison.md`.
 | Work plane | picks lie on the work plane (default XY, elevation field, plane by 3 points) | tilted_work_plane_projects_rays_exactly |
 
 ## Creating objects (MOD 2.1–2.2)
+
+The combined modeling regression in `crates/desktop/tests/modeling_roundtrip.rs`
+creates a level-bound column and beam using screen-space grid/reference snaps,
+edits both in one transaction and copies the group to the next grid line.
+It verifies undo/redo against complete project snapshots, saves to a Unicode
+path, checks the previous-file backup and reopens through the guarded file
+lifecycle. IDs, properties, level bindings and geometry must all survive;
+the loaded model must be renderable and have a fresh undo history. Geometric
+coordinate assertions use a 1e-6 mm tolerance for projection roundoff; file
+round trips and undo/redo compare complete projects exactly.
+
+Manual workflow: create a column and beam, select both, open the material
+list and press Escape. The list must close with both parts still selected;
+Ctrl+C must then start copying without requiring reselection. Copy to the next
+grid line, undo, redo, save, create a new project and reopen the saved file.
+The four parts and their edited properties must remain intact.
+
+Native macOS ARM64 check, 2026-11-14, code commit `aeb8f40`: in a disposable
+copy of the steel fixture, Escape closed the material list with all 16 parts
+still selected. Ctrl+C immediately started point-based copying; Escape cancelled
+that command while keeping the group, and the next Escape cleared selection.
+The fixture file remained byte-for-byte unchanged.
 
 | Reference workflow | Open BIM | Evidence |
 |---|---|---|
@@ -57,6 +119,21 @@ are listed in `docs/reference-docs-comparison.md`.
 | Tab / Shift+Tab cycle snap points; Ctrl+pick sets a temporary reference point (black cross); snap tooltip; turquoise line of the snapped object | same | tab_cycles_snap_candidates_and_ctrl_pick_sets_a_reference |
 
 ## Properties and views (GEF 5, MOD 1.1)
+
+The model property pane is bounded to 40% of the available width (at most
+480 logical points), leaving space for the 3D view. Mixed profile values are
+shown in the existing profile button; they do not add a third grid column.
+Long profile/material names are truncated inside their controls. The profile
+and material tooltips include their complete names. Vertical scrolling reaches
+the remaining properties and «Изменить». Regression coverage:
+`crates/desktop/tests/property_layout.rs` (repeated frames, selection changes,
+1024/1280/1920-wide windows, long names and scrolling).
+
+Manual macOS check: open `tests/fixtures/steel_release/source.obim`, select all
+parts with Ctrl+A and leave the selection active. The property pane must stop
+growing, with captions and fields visible and space left for the model. Select
+one part, clear selection, resize the window and repeat. Scroll down to
+«Изменить»; editing shared properties must still be one undoable transaction.
 
 | Reference workflow | Open BIM | Evidence |
 |---|---|---|
@@ -143,3 +220,88 @@ revision, so they never go stale (`crates/desktop/src/organizer.rs`).
 - «Фильтр выбора» получил поле «Группа объектов»: выбираются только детали группы (вместе с полями имени, профиля, материала и класса).
 
 Группы и строки живут в сеансе программы и пока не сохраняются в файл проекта.
+
+
+## Точность рабочих плоскостей и навигации (2026-11-14)
+
+Дробная отметка рабочей плоскости сохраняется в поле высоты без округления
+при переключении вида и восстановлении сохранённых видов. Плоскость по трём
+точкам сразу обновляет это поле. Горизонтальная плоскость допускает изменение
+высоты при обоих направлениях нормали; наклонная показывает высоту начала
+координат в недоступном поле с подсказкой. Некорректный ввод не двигает плоскость.
+
+Начало вращения из вида сверху сохраняет ориентацию экранных осей.
+Вращение вокруг точки сохраняет её положение на экране также при больших
+мировых координатах. Нулевое перемещение не меняет камеру.
+Автотесты проверяют масштабирование к курсору во всех четырёх именованных
+видах, охват углов выбранной детали и числовое построение балки в наклонной
+плоскости, включая её начало и локальные оси.
+
+Ручная проверка macOS: задать дробную высоту, переключить виды и вернуться;
+задать горизонтальную плоскость тремя точками и проверить поле; для наклонной
+проверить недоступность поля; выйти вращением из вида сверху и проверить
+отсутствие поворота изображения на 90°. Для проверки использовать копию проекта.
+
+Проверено 2026-11-14: 42 теста прошли (desktop: `workplane_precision`,
+`view_tools`, `property_pane`, `node_views`, `snapping`, `create_by_picks`;
+renderer: `navigation_precision`, `viewport`); один нагрузочный тест штатно
+пропущен. `cargo fmt --all --check`, `git diff --check` и Clippy обоих пакетов
+с `--all-targets -- -D warnings` прошли. В отдельной Development-сборке macOS
+проверены ввод `3600.123456789`, сохранение значения при смене ориентации
+камеры и выход из вида сверху через Ctrl+Up без поворота изображения на 90°.
+Тестовый `.obim` после закрытия побайтно совпадает с исходной фикстурой.
+Переключение сохранённых видов и недоступность поля наклонной плоскости
+проверены автотестами; ручная проверка этих двух сценариев ещё не выполнена.
+Установленная `/Applications/Open BIM.app` этой итерацией не заменялась.
+
+
+## Числовое задание рабочей плоскости (2026-11-14)
+
+При вводе точки числа и обозначения узлов сетки получают приоритет перед
+одноклавишными командами вида. Клавиша, запускающая команду (например, F для
+измерения), не становится первым символом координаты. Это также проверено
+для русской раскладки.
+
+В команде «Рабочая плоскость по трём точкам» набор координат открывает окно
+«Ввод координат». Enter принимает очередную точку. Доступны общие режимы:
+`!x,y,z` / `G` — глобальные координаты, `$x,y,z` / `A` — от начала текущей
+плоскости, `R x,y,z` — от предыдущей принятой точки. Без префикса используется
+относительный ввод (для первой точки — от начала текущей плоскости).
+Некорректное число оставляет принятые точки и позволяет исправить ввод.
+Escape закрывает окно ввода; повторный Escape отменяет задание плоскости.
+
+Проверки: `workplane_numeric` (3 теста, до исправления все воспроизводили
+ошибку), `workplane_precision`, `keyboard_only`, `snapping`, `construction_trim`,
+`detailing` — 33 теста прошли, один нагрузочный штатно пропущен. Clippy всего
+workspace с `--all-targets -- -D warnings`, rustfmt и diff-check прошли.
+Тесты и Development-сборка использовали release-оптимизацию без LTO.
+
+На macOS в отдельной Development-сборке проверена последовательность
+`!100,200,300.125` → `R 6000,0,1200` → `R -6000,4000,-1200` через настоящее
+окно координат. После третьей точки команда завершилась, система координат
+показывает рабочую плоскость, поле высоты недоступно и содержит `300.125`.
+Тестовая копия `.obim` после закрытия побайтно совпадает с исходной фикстурой.
+
+
+## Переключение основных команд моделирования (2026-11-14)
+
+При запуске балки/колонны/пластины/оси, команд подрезки и построений,
+болтов/швов, измерения расстояния или угла, задания рабочей плоскости,
+секущей плоскости или центра вращения предыдущие незавершённые вводы
+сбрасываются. Новые точки получает новая команда. Сбрасываются также
+числовой ввод, его ошибка, временная опорная точка, клавиатурный курсор,
+блокировки направлений и разовое переопределение привязки. Выделение,
+параметры инструментов и текущая рабочая плоскость сохраняются.
+
+До исправления тест воспроизводил перехват двух точек балки старым измерением.
+`command_transitions` проверяет 49 переходов между семью основными режимами,
+создание балки после незавершённого измерения с undo и сохранение выделения,
+параметров балки и отметки плоскости при смене команд. Вместе с
+`workplane_numeric`, `modeling_roundtrip`, `construction_trim`, `keyboard_only`,
+`view_tools`, `create_by_picks`, `property_files` прошли 46 тестов.
+Clippy всего workspace (`--all-targets -- -D warnings`), rustfmt и diff-check прошли.
+Тесты и отдельная Development-сборка использовали release без LTO.
+
+В окне macOS проверено: F (измерение) → «Балка» → ввод `!0,0,0` → подсказка
+«Укажите конечную точку балки» → Escape. Тестовая копия `.obim` после закрытия
+не изменилась. Установленное приложение и опубликованный Preview не заменялись.

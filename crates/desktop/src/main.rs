@@ -3,8 +3,8 @@
 use eframe::egui;
 use egui_wgpu::wgpu;
 use open_bim_desktop::interaction::selection;
-use open_bim_desktop::tools::{Editor, number, ui::Action};
-use open_bim_desktop::ui::{Request, Workbench};
+use open_bim_desktop::tools::{Editor, ui::Action};
+use open_bim_desktop::ui::{Request, Workbench, project_change::ProjectChange};
 use open_bim_model::{ObjectId, example_steel_frame};
 /// Work area box margin around the model bounds, mm.
 const WORK_AREA_MARGIN_MM: f64 = 500.0;
@@ -222,6 +222,10 @@ impl Desktop {
         options: Options,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let started = std::time::Instant::now();
+        let project_path = options
+            .project_path
+            .clone()
+            .or_else(|| options.open.clone());
         let project = if let Some(path) = options.open {
             open_bim_persistence::load(&path)?
         } else if options.example {
@@ -248,8 +252,8 @@ impl Desktop {
             editor.selected = project.elements.keys().copied().collect();
         }
         let mut bench = Workbench::new(editor);
-        if let Some(path) = options.project_path {
-            bench.tools.path = path;
+        if let Some(path) = project_path {
+            bench.set_project_path(path.into());
         }
         if let Some(mode) = options.display {
             bench.display.mode = mode;
@@ -473,7 +477,6 @@ impl Desktop {
     fn action(&mut self, action: Action) {
         let fit = self.scene.instances.is_empty()
             || matches!(action, Action::New | Action::Example | Action::Open);
-        let replaced = matches!(action, Action::New | Action::Example);
         let result = match action {
             Action::Create => self.bench.editor.create(),
             Action::Commit(label, commands) => self.bench.editor.commit(&label, &commands),
@@ -484,11 +487,17 @@ impl Desktop {
             Action::Undo => self.bench.editor.history(false),
             Action::Redo => self.bench.editor.history(true),
             Action::History(redo, steps) => self.bench.editor.history_steps(redo, steps),
-            Action::New => open_bim_desktop::interaction::tools::default_project()
-                .and_then(|p| self.bench.editor.replace(p, "Новый проект")),
-            Action::Example => example_steel_frame()
-                .map_err(|e| e.to_string())
-                .and_then(|p| self.bench.editor.replace(p, "Контрольный каркас")),
+            Action::New | Action::Example => {
+                let change = if matches!(action, Action::New) {
+                    ProjectChange::New
+                } else {
+                    ProjectChange::Example
+                };
+                match self.bench.change_project(change) {
+                    Some(scene) => Ok(scene),
+                    None => return,
+                }
+            }
             Action::Open => {
                 self.bench.start_open(PathBuf::from(&self.bench.tools.path));
                 return;
@@ -554,10 +563,6 @@ impl Desktop {
         };
         match result {
             Ok(scene) => {
-                if replaced {
-                    let project = self.bench.editor.document.project().clone();
-                    self.bench.tools.autosave.mark_saved(&project);
-                }
                 if fit {
                     self.camera.fit(
                         overlay::model_bounds(&scene, self.bench.editor.document.project())
@@ -594,6 +599,9 @@ impl Desktop {
 
     fn handle(&mut self, ctx: &egui::Context, requests: Vec<Request>) {
         for request in requests {
+            if self.bench.project_change_pending() || self.bench.close_pending() {
+                return;
+            }
             if matches!(
                 request,
                 Request::Fit
@@ -864,6 +872,38 @@ impl eframe::App for Desktop {
     }
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
+        self.bench.native_close_request(&ctx);
+        if self.bench.close_pending() || self.bench.project_change_pending() {
+            // Keep a model backdrop without polling jobs, accepting edits or
+            // processing global shortcuts while the exit decision is pending.
+            egui::CentralPanel::default().show(ui, |ui| {
+                let rect = ui.max_rect();
+                open_bim_desktop::viewport::gradient(
+                    ui.painter(),
+                    rect,
+                    if self.bench.light_theme {
+                        overlay::GRADIENT_LIGHT
+                    } else {
+                        overlay::GRADIENT_DARK
+                    },
+                );
+                ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+                    rect,
+                    ViewportCallback {
+                        scene: self.scene.clone(),
+                        camera: self.camera.clone(),
+                        state: self.view.clone(),
+                        size: [rect.width(), rect.height()],
+                    },
+                ));
+            });
+            if self.bench.close_pending() {
+                self.bench.close_dialog(&ctx);
+            } else if let Some(scene) = self.bench.project_change_dialog(&ctx) {
+                self.handle(&ctx, vec![Request::Loaded(scene)]);
+            }
+            return;
+        }
         self.screenshot(&ctx);
         self.benchmark(&ctx);
         if let Some(view) = self.bench.views.get_mut(self.bench.active_view) {
@@ -875,6 +915,10 @@ impl eframe::App for Desktop {
         let mut requests = self.bench.panels(ui);
         requests.append(&mut self.pending);
         self.handle(&ctx, requests);
+        if self.bench.project_change_pending() {
+            ctx.request_repaint();
+            return;
+        }
         let representation = self
             .bench
             .applied_representation(Arc::as_ptr(&self.scene) as usize);
@@ -1055,6 +1099,7 @@ impl eframe::App for Desktop {
             if fit_home {
                 self.fit();
             }
+            self.bench.sync_workplane_elevation();
             let projector = overlay::Projector {
                 camera: &self.camera,
                 origin: self.scene.origin,
@@ -1081,12 +1126,6 @@ impl eframe::App for Desktop {
                 self.bench.picking() || self.handle_drag.is_some() || self.object_drag.is_some();
             let candidates = match (snapping, response.hover_pos()) {
                 (true, Some(pos)) => {
-                    // The elevation field moves a horizontal work plane.
-                    if let Ok(z) = number(&self.bench.tools.workplane)
-                        && self.bench.engine.workplane.axes[2] == DVec3::Z
-                    {
-                        self.bench.engine.workplane.origin.z = z;
-                    }
                     let px = pos - rect.min;
                     let view = open_bim_desktop::interaction::snap::View {
                         camera: &self.camera,

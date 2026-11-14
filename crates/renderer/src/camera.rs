@@ -144,8 +144,21 @@ impl Camera {
             }
         }
     }
+    fn prepare_orbit(&mut self, dx: f64, dy: f64) -> bool {
+        if !dx.is_finite() || !dy.is_finite() || (dx == 0.0 && dy == 0.0) {
+            return false;
+        }
+        if self.pitch.cos().abs() < 1e-5 {
+            // At a pole up() uses +Y. Choose the equivalent azimuth whose
+            // non-polar +Z-up view has the same screen orientation, so the
+            // first orbit does not suddenly roll the plan through 90 degrees.
+            self.yaw = -self.pitch.signum() * std::f64::consts::FRAC_PI_2;
+        }
+        true
+    }
+
     pub fn orbit(&mut self, dx: f64, dy: f64) {
-        if dx.is_finite() && dy.is_finite() {
+        if self.prepare_orbit(dx, dy) {
             self.yaw -= dx * 0.008;
             self.pitch = (self.pitch + dy * 0.008).clamp(-1.55, 1.55);
         }
@@ -154,15 +167,16 @@ impl Camera {
     /// cursor): yaw about the vertical through `pivot`, pitch about the
     /// horizontal axis across the view; the pivot keeps its place on screen.
     pub fn orbit_about(&mut self, pivot: DVec3, dx: f64, dy: f64) {
-        if !(dx.is_finite() && dy.is_finite() && pivot.is_finite()) {
+        if !pivot.is_finite() || !self.prepare_orbit(dx, dy) {
             return;
         }
         let yaw = -dx * 0.008;
         let pitch = (self.pitch + dy * 0.008).clamp(-1.55, 1.55) - self.pitch;
-        let dir = (self.eye() - self.target).normalize_or_zero();
         let q_yaw = glam::DQuat::from_rotation_z(yaw);
-        let turned = q_yaw * dir;
-        let across = DVec3::Z.cross(turned).normalize_or_zero();
+        // Angles give a stable horizontal axis even when eye-target loses
+        // its tiny horizontal components at large world coordinates.
+        let azimuth = self.yaw + yaw;
+        let across = DVec3::new(-azimuth.sin(), azimuth.cos(), 0.0);
         // Rotating about Z × dir by a negative angle raises the eye.
         let q = glam::DQuat::from_axis_angle(across, -pitch) * q_yaw;
         self.target = pivot + q * (self.target - pivot);

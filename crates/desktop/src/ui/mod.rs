@@ -6,6 +6,7 @@ pub mod auto_connections;
 pub mod batch;
 pub mod catalog_picker;
 pub mod chrome;
+pub mod close;
 pub mod commands;
 pub mod component_editor;
 pub mod components;
@@ -20,6 +21,7 @@ mod node_views;
 pub mod palette;
 pub mod plugins;
 pub mod profile_dialog;
+pub mod project_change;
 pub mod property_fields;
 pub mod property_pane;
 pub mod rebar_ui;
@@ -183,6 +185,10 @@ pub const TREATMENTS: [&str; 6] = [
 ];
 
 pub struct Workbench {
+    close: close::CloseState,
+    change: project_change::ChangeState,
+    /// Accepted document destination, independent of the editable file field.
+    project_path: PathBuf,
     pub mode: Mode,
     pub editor: Editor,
     pub tools: ToolsUi,
@@ -382,6 +388,9 @@ pub struct Workbench {
 impl Workbench {
     pub fn new(editor: Editor) -> Self {
         let mut bench = Self {
+            close: Default::default(),
+            change: Default::default(),
+            project_path: PathBuf::from(ToolsUi::default().path),
             mode: Mode::Model,
             editor,
             tools: ToolsUi::default(),
@@ -547,12 +556,17 @@ impl Workbench {
 
     /// Open a project; a newer autosave snapshot of it is offered first.
     pub fn start_open(&mut self, path: PathBuf) {
+        self.change_project(project_change::ProjectChange::Open(path));
+    }
+
+    /// The current document has already passed the unsaved-changes guard.
+    fn open_project(&mut self, path: PathBuf) {
         if let Some(offer) = self.tools.autosave.recovery(&path) {
             self.tools.autosave.offer = Some(offer);
             return;
         }
         self.recovering = false;
-        self.spawn_open(path);
+        self.spawn_open(path.clone(), path);
     }
 
     /// Restore the offered snapshot; the project path stays the same, so
@@ -561,9 +575,8 @@ impl Workbench {
         let Some(offer) = self.tools.autosave.offer.take() else {
             return;
         };
-        self.tools.path = offer.project.to_string_lossy().into_owned();
         self.recovering = true;
-        self.spawn_open(offer.snapshot);
+        self.spawn_open(offer.snapshot, offer.project);
     }
 
     /// Open the project file and keep the snapshot on disk.
@@ -579,7 +592,7 @@ impl Workbench {
                 offer.snapshot.display()
             ));
         } else {
-            self.start_open(offer.project);
+            self.open_project(offer.project);
         }
     }
 
@@ -590,6 +603,7 @@ impl Workbench {
             .tools
             .autosave
             .save(&path, self.editor.document.project())?;
+        self.project_path = path;
         self.editor.record("Сохранить");
         Ok(message)
     }
@@ -599,7 +613,7 @@ impl Workbench {
         if self.busy() || self.tools.autosave.offer.is_some() {
             return;
         }
-        let path = PathBuf::from(&self.tools.path);
+        let path = self.project_path.clone();
         match self
             .tools
             .autosave
@@ -614,7 +628,7 @@ impl Workbench {
     }
 
     /// Start loading a project on a worker thread (scene meshes included).
-    fn spawn_open(&mut self, path: PathBuf) {
+    fn spawn_open(&mut self, path: PathBuf, destination: PathBuf) {
         let delay = self.load_delay_ms;
         let target = path.clone();
         let job = Job::spawn(
@@ -637,7 +651,7 @@ impl Workbench {
                 Ok((project, Arc::new(scene)))
             },
         );
-        self.job = Some(ActiveJob::Open(Box::new(job), path));
+        self.job = Some(ActiveJob::Open(Box::new(job), destination));
     }
 
     pub fn start_check(&mut self) {
@@ -675,6 +689,10 @@ impl Workbench {
 
     pub fn cancel_job(&mut self) {
         if let Some(job) = self.job.take() {
+            if matches!(job, ActiveJob::Open(..)) {
+                self.recovering = false;
+                self.tools.path = self.project_path.to_string_lossy().into_owned();
+            }
             job.cancel();
             let label = job.job_label().0.to_string();
             self.editor.record(&format!("Отмена: {label}"));
@@ -703,9 +721,12 @@ impl Workbench {
                         .editor
                         .adopt(project, &format!("Открыть {}", path.display()))
                     {
+                        self.recovering = false;
+                        self.tools.path = self.project_path.to_string_lossy().into_owned();
                         self.message(format!("Ошибка файла: {e}"));
                         return None;
                     }
+                    self.set_project_path(path.clone());
                     self.drawings = DrawingEditor::new();
                     self.reports.reports = None;
                     self.reload_model_views();
@@ -714,7 +735,7 @@ impl Workbench {
                         self.tools.autosave.mark_recovered(&project);
                         self.message(format!(
                             "Восстановлено из {}. Сохраните проект (⌘S), чтобы записать его в {}",
-                            path.display(),
+                            crate::autosave::autosave_path(&path).display(),
                             self.tools.path
                         ));
                     } else {
@@ -725,6 +746,7 @@ impl Workbench {
                 }
                 Err(e) => {
                     self.recovering = false;
+                    self.tools.path = self.project_path.to_string_lossy().into_owned();
                     self.editor
                         .record(&format!("Ошибка файла {}: {e}", path.display()));
                     self.message(format!("Ошибка файла: {e}. Текущая модель не изменена."));
@@ -928,8 +950,7 @@ impl Workbench {
             }
             Cmd::ToolCurvedBeam | Cmd::ToolPolyBeam | Cmd::ToolBentPlate => {
                 self.mode = Mode::Model;
-                self.engine.cancel();
-                self.editor.cancel();
+                self.cancel_point_input();
                 let kind = match cmd {
                     Cmd::ToolCurvedBeam => swept::Kind::Arc,
                     Cmd::ToolPolyBeam => swept::Kind::Poly,
@@ -974,9 +995,7 @@ impl Workbench {
                     _ => ToolKind::Plate,
                 });
                 self.mode = mode;
-                self.detail.cancel();
-                // A still armed fitting or rebar command would take the picks.
-                self.trim.cancel();
+                self.cancel_point_input();
                 let first = self.editor.begin(kind);
                 if cmd == Cmd::ToolBeam {
                     // «Сдвоенный профиль» is its own command.
@@ -1013,8 +1032,7 @@ impl Workbench {
                 return r;
             }
             Cmd::ToolBolt | Cmd::ToolWeld | Cmd::ToolWeldPolygon | Cmd::ToolWeldOnPart => {
-                self.engine.cancel();
-                self.editor.cancel();
+                self.cancel_point_input();
                 self.mode = Mode::Model;
                 use crate::interaction::tools::DetailTool;
                 let tool = match cmd {
@@ -1063,8 +1081,7 @@ impl Workbench {
             | Cmd::ToolStiffener
             | Cmd::AssemblyAdd => {
                 use crate::interaction::trim::{TrimPicker, TrimTool};
-                self.engine.cancel();
-                self.detail.cancel();
+                self.cancel_point_input();
                 self.mode = Mode::Model;
                 self.side_panel = Some(chrome::SidePanel::Properties);
                 self.trim = TrimPicker::start(match cmd {
@@ -1172,8 +1189,7 @@ impl Workbench {
                         return None;
                     }
                 }
-                self.engine.cancel();
-                self.detail.cancel();
+                self.cancel_point_input();
                 self.mode = Mode::Model;
                 self.trim = TrimPicker::start(if cmd == Cmd::Item {
                     TrimTool::PlaceItem
@@ -1215,8 +1231,7 @@ impl Workbench {
             }
             Cmd::PourBreak | Cmd::PourBreakHorizontal => {
                 use crate::interaction::trim::{TrimPicker, TrimTool};
-                self.engine.cancel();
-                self.detail.cancel();
+                self.cancel_point_input();
                 self.mode = Mode::Model;
                 self.trim = TrimPicker::start(if cmd == Cmd::PourBreak {
                     TrimTool::PourBreak
@@ -1313,11 +1328,11 @@ impl Workbench {
                     self.palette.open = false;
                 } else if self.swept_dialog.take().is_some() {
                     self.message("Создание гнутой детали отменено");
+                } else if self.engine.numeric.is_some() {
+                    self.engine.numeric = None;
                 } else if self.workplane_picks.is_some() {
                     self.workplane_picks = None;
                     self.message("Задание рабочей плоскости прервано");
-                } else if self.engine.numeric.is_some() {
-                    self.engine.numeric = None;
                 } else if self.measure.take().is_some() {
                     self.measured = None;
                     self.message("Измерение завершено");
@@ -1407,9 +1422,7 @@ impl Workbench {
                     self.message("Сначала выберите объекты");
                     return None;
                 }
-                self.engine.cancel();
-                self.editor.cancel();
-                self.detail.cancel();
+                self.cancel_point_input();
                 self.edit_pick = crate::interaction::selection::EditPicker {
                     op: Some(match cmd {
                         Cmd::MoveByPicks => EditOp::Move,
@@ -1424,10 +1437,7 @@ impl Workbench {
             }
             Cmd::CopySpecial | Cmd::MoveSpecial => {
                 let copy = cmd == Cmd::CopySpecial;
-                self.engine.cancel();
-                self.editor.cancel();
-                self.detail.cancel();
-                self.edit_pick.cancel();
+                self.cancel_point_input();
                 self.special_open = Some(copy);
                 self.mode = Mode::Model;
                 self.message(if copy {
@@ -1571,20 +1581,13 @@ impl Workbench {
                 });
             }
             Cmd::Measure => {
-                self.engine.cancel();
-                self.editor.cancel();
-                self.detail.cancel();
-                self.edit_pick.cancel();
+                self.cancel_point_input();
                 self.measure = Some(Vec::new());
                 self.mode = Mode::Model;
                 self.message(self.prompt());
             }
             Cmd::MeasureAngle => {
-                self.engine.cancel();
-                self.editor.cancel();
-                self.detail.cancel();
-                self.edit_pick.cancel();
-                self.measure = None;
+                self.cancel_point_input();
                 self.angle_picks = Some(Vec::new());
                 self.mode = Mode::Model;
                 self.message(self.prompt());
@@ -1606,11 +1609,7 @@ impl Workbench {
                 });
             }
             Cmd::ClipPlanePick => {
-                self.engine.cancel();
-                self.editor.cancel();
-                self.detail.cancel();
-                self.measure = None;
-                self.angle_picks = None;
+                self.cancel_point_input();
                 self.clip_pick = true;
                 self.mode = Mode::Model;
                 self.message(self.prompt());
@@ -1722,13 +1721,12 @@ impl Workbench {
             }
             Cmd::WorkPlaneThreePoints => {
                 self.mode = Mode::Model;
-                self.engine.cancel();
+                self.cancel_point_input();
                 self.workplane_picks = Some(Vec::new());
                 self.message(self.workplane_prompt());
             }
             Cmd::WorkPlaneReset => {
-                self.engine.workplane = crate::interaction::Workplane::default();
-                self.tools.workplane = "0".into();
+                self.set_workplane(crate::interaction::Workplane::default());
                 self.message("Рабочая плоскость: глобальная XY");
             }
             Cmd::ToggleOrtho => {
@@ -1807,6 +1805,7 @@ impl Workbench {
             }
             Cmd::Paste => {
                 if self.clipboard.is_some() {
+                    self.cancel_point_input();
                     self.mode = Mode::Model;
                     self.paste_pick = true;
                     self.message(self.prompt());
@@ -1909,8 +1908,7 @@ impl Workbench {
             }
             Cmd::AnalysisNode | Cmd::RigidLink | Cmd::MergeNodes | Cmd::CopyAnalysis => {
                 use crate::interaction::trim::{TrimPicker, TrimTool};
-                self.engine.cancel();
-                self.detail.cancel();
+                self.cancel_point_input();
                 self.mode = Mode::Model;
                 self.analysis.show = true;
                 self.trim = TrimPicker::start(match cmd {
@@ -1943,6 +1941,7 @@ impl Workbench {
             Cmd::PreviousView => return Some(Request::PreviousView),
             Cmd::RotationCentre => {
                 self.mode = Mode::Model;
+                self.cancel_point_input();
                 self.view_tools.centre_pick = true;
                 self.message(self.prompt());
             }
@@ -2159,6 +2158,34 @@ impl Workbench {
         None
     }
 
+    /// A newly started point command owns the next pick exclusively.
+    /// Discard transient input, preserving the model, selection and tool presets.
+    fn cancel_point_input(&mut self) {
+        self.engine.cancel();
+        self.swept_dialog = None;
+        self.special_open = None;
+        self.engine.reference = None;
+        self.engine.error = None;
+        self.editor.cancel();
+        self.trim.cancel();
+        self.detail.cancel();
+        self.edit_pick.cancel();
+        self.special.cancel_pick();
+        self.components.cancel();
+        self.management.cancel();
+        self.workplane_picks = None;
+        self.measure = None;
+        self.measured = None;
+        self.angle_picks = None;
+        self.measured_angle = None;
+        self.clip_pick = false;
+        self.paste_pick = false;
+        self.view_tools.centre_pick = false;
+        self.kb_cursor = None;
+        self.snap_override = None;
+        self.locks = Default::default();
+    }
+
     pub fn workplane_prompt(&self) -> String {
         match self.workplane_picks.as_ref().map_or(0, Vec::len) {
             0 => "Укажите начало рабочей плоскости".into(),
@@ -2323,7 +2350,7 @@ impl Workbench {
                 self.workplane_picks = None;
                 match crate::interaction::Workplane::from_points(a, b, c) {
                     Ok(wp) => {
-                        self.engine.workplane = wp;
+                        self.set_workplane(wp);
                         self.message("Рабочая плоскость задана по трём точкам");
                     }
                     Err(e) => self.message(e),
@@ -2591,6 +2618,28 @@ impl Workbench {
             .unwrap_or_default()
     }
 
+    /// Keep the plane, its editable height and the active view in agreement.
+    /// f64's display format round-trips without rounding construction levels.
+    pub fn set_workplane(&mut self, plane: crate::interaction::Workplane) {
+        self.engine.workplane = plane;
+        self.tools.workplane = plane.origin.z.to_string();
+        if let Some(view) = self.views.get_mut(self.active_view) {
+            view.workplane = plane;
+        }
+    }
+
+    /// Apply a valid height edit only to a horizontal plane; preserve its axes.
+    pub fn sync_workplane_elevation(&mut self) {
+        if self.engine.workplane.is_horizontal()
+            && let Ok(z) = crate::tools::number(&self.tools.workplane)
+        {
+            self.engine.workplane.origin.z = z;
+            if let Some(view) = self.views.get_mut(self.active_view) {
+                view.workplane = self.engine.workplane;
+            }
+        }
+    }
+
     /// Activate a model view: remember the work plane of the current one,
     /// switch camera, view depth and work plane (each view keeps its own).
     pub fn apply_view(&mut self, index: usize) -> Option<Request> {
@@ -2602,10 +2651,7 @@ impl Workbench {
             current.hidden = self.hidden.clone();
         }
         self.active_view = index;
-        self.engine.workplane = view.workplane;
-        if view.workplane.axes[2] == open_bim_renderer::DVec3::Z {
-            self.tools.workplane = format!("{:.0}", view.workplane.origin.z);
-        }
+        self.set_workplane(view.workplane);
         self.clip = view.clip;
         self.hidden = view.hidden.clone();
         self.display.mode = view.render;
@@ -2841,6 +2887,9 @@ impl Workbench {
             });
         });
         if let Some(target) = pick {
+            let window = self.special_open;
+            self.cancel_point_input();
+            self.special_open = window;
             self.special.start_pick(target);
             self.message(self.prompt());
         }
@@ -3248,14 +3297,12 @@ impl Workbench {
                 }
             };
         }
-        // Fitting/cutting/construction and bolt commands take typed points too.
-        if self.trim.tool.is_some() || self.detail.picks_points() {
-            let previous = self
-                .trim
-                .points
-                .last()
-                .or(self.detail.points.last())
-                .copied();
+        // Point commands outside the modelling engine take typed points too.
+        if self.trim.tool.is_some()
+            || self.detail.picks_points()
+            || (!self.engine.active() && self.picking())
+        {
+            let previous = self.previous_pick();
             let direction = previous.zip(self.cursor).map(|(p, c)| c - p);
             return match crate::interaction::numeric::parse(
                 text,
@@ -3379,12 +3426,8 @@ impl Workbench {
     }
 
     /// Typing a digit, «@» or «-» during a pick opens the coordinate box.
-    fn numeric_input(&mut self, ctx: &egui::Context, requests: &mut Vec<Request>) {
-        let trim_points = matches!(
-            self.trim.need(),
-            Some(crate::interaction::trim::Need::Point | crate::interaction::trim::Need::Polygon)
-        ) || self.detail.picks_points();
-        if !self.engine.active() && !trim_points {
+    fn open_numeric_input(&mut self, ctx: &egui::Context) {
+        if !self.picking() {
             self.engine.numeric = None;
             return;
         }
@@ -3421,6 +3464,9 @@ impl Workbench {
                 ctx.data_mut(|d| d.insert_temp(egui::Id::new("numeric opened"), pass));
             }
         }
+    }
+
+    fn numeric_input(&mut self, ctx: &egui::Context, requests: &mut Vec<Request>) {
         let Some(mut text) = self.engine.numeric.clone() else {
             return;
         };
@@ -3477,6 +3523,9 @@ impl Workbench {
         self.engine.plate_mode = self.editor.draft.plate_mode;
         self.keytips_input(&ctx, &mut requests);
         self.lock_keys(&ctx);
+        // Text for an existing point command takes focus before global
+        // shortcuts. A key starting a new command cannot become its first point.
+        self.open_numeric_input(&ctx);
         // Drawing editor: arrows move the selection 1 mm (Shift: 10 mm).
         if self.mode == Mode::Drawings && !ctx.egui_wants_keyboard_input() {
             let mut by = [0., 0.];
@@ -3610,7 +3659,11 @@ impl Workbench {
                     self.sync_selection();
                     self.message(format!("Выбрано деталей: {n}"));
                 }
-                management::Outcome::PickSequence => {}
+                management::Outcome::PickSequence => {
+                    let sequence = self.management.picking.take();
+                    self.cancel_point_input();
+                    self.management.picking = sequence;
+                }
             }
             if let Some(p) = self.management.prompt() {
                 self.message(p);
@@ -3656,8 +3709,7 @@ impl Workbench {
             }
             Some(crate::interaction::families::FamiliesAction::Place { two_points }) => {
                 use crate::interaction::trim::{TrimPicker, TrimTool};
-                self.engine.cancel();
-                self.detail.cancel();
+                self.cancel_point_input();
                 self.mode = Mode::Model;
                 self.trim = TrimPicker::start(if two_points {
                     TrimTool::PlaceFamilyLine

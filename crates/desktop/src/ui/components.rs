@@ -264,6 +264,7 @@ pub fn connection(
 impl Workbench {
     /// Arm a component from the catalogue.
     pub fn arm_component(&mut self, component: Component) {
+        self.cancel_point_input();
         self.components.window = false;
         self.components.main = None;
         self.components.armed = Some(component);

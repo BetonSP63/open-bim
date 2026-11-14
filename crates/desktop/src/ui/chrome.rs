@@ -1021,8 +1021,16 @@ impl Workbench {
                 );
                 ui.separator();
                 let z = ui.label("Высота плоскости, мм");
-                ui.add(egui::TextEdit::singleline(&mut self.tools.workplane).desired_width(60.))
-                    .labelled_by(z.id);
+                let height = ui
+                    .add_enabled(
+                        self.engine.workplane.is_horizontal(),
+                        egui::TextEdit::singleline(&mut self.tools.workplane).desired_width(60.),
+                    )
+                    .labelled_by(z.id)
+                    .on_disabled_hover_text("Наклонную плоскость задайте по трём точкам");
+                if height.changed() {
+                    self.sync_workplane_elevation();
+                }
             });
         });
     }
@@ -1103,9 +1111,16 @@ impl Workbench {
         if !open {
             return;
         }
+        let max_width =
+            if self.mode == Mode::Model && self.side_panel == Some(SidePanel::Properties) {
+                (ui.available_width() * 0.4).clamp(280., 480.)
+            } else {
+                f32::INFINITY
+            };
         egui::Panel::right("model tools")
             .default_size(330.0)
             .min_size(280.)
+            .max_size(max_width)
             .show(ui, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     let has_selection = self.selection_common().is_some();
@@ -2170,7 +2185,7 @@ impl Workbench {
 
     /// Common properties of the selected parts; «Изменить» applies the edits.
     fn selection_pane(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
-        use super::property_pane::{Shared, VARIES, modify};
+        use super::property_pane::{VARIES, modify};
         let Some(c) = self.selection_common() else {
             return;
         };
@@ -2242,7 +2257,7 @@ impl Workbench {
                         )
                         .labelled_by(l.id);
                         ui.end_row();
-                        if let Some(profile) = &c.profile {
+                        if c.profile.is_some() {
                             ui.label(format!(
                                 "Профиль{}",
                                 super::property_pane::type_mark(
@@ -2276,9 +2291,9 @@ impl Workbench {
                                 }
                                 None => {}
                             }
-                            if matches!(profile, Shared::Varies) && self.pane.profile.is_none() {
-                                ui.small(VARIES);
-                            }
+                            // The profile button already displays VARIES. A
+                            // third cell makes this two-column grid grow on
+                            // every frame as the panel follows its contents.
                             ui.end_row();
                         }
                         ui.label(format!(
@@ -2295,33 +2310,38 @@ impl Workbench {
                         )
                         .unwrap_or(VARIES)
                         .to_string();
-                        egui::ComboBox::new("pane material", "")
-                            .selected_text(shown)
-                            .width(super::property_pane::field_width(ui))
-                            .show_ui(ui, |ui| {
-                                match super::catalog_picker::material_menu(
-                                    ui,
-                                    project,
-                                    self.pane.material,
-                                ) {
-                                    Some(super::catalog_picker::Pick::Project(id)) => {
-                                        self.pane.material = Some(id)
+                        let width = super::property_pane::field_width(ui);
+                        ui.allocate_ui(egui::vec2(width, ui.spacing().interact_size.y), |ui| {
+                            egui::ComboBox::new("pane material", "")
+                                .selected_text(shown.clone())
+                                .truncate()
+                                .width(width)
+                                .show_ui(ui, |ui| {
+                                    match super::catalog_picker::material_menu(
+                                        ui,
+                                        project,
+                                        self.pane.material,
+                                    ) {
+                                        Some(super::catalog_picker::Pick::Project(id)) => {
+                                            self.pane.material = Some(id)
+                                        }
+                                        Some(super::catalog_picker::Pick::New(m)) => {
+                                            self.pane.material = Some(m.id);
+                                            self.pane.pending_material = Some(m);
+                                        }
+                                        None => {}
                                     }
-                                    Some(super::catalog_picker::Pick::New(m)) => {
-                                        self.pane.material = Some(m.id);
-                                        self.pane.pending_material = Some(m);
-                                    }
-                                    None => {}
-                                }
-                            })
-                            .response
-                            .widget_info(|| {
-                                egui::WidgetInfo::labeled(
-                                    egui::WidgetType::ComboBox,
-                                    true,
-                                    "Материал",
-                                )
-                            });
+                                })
+                                .response
+                                .on_hover_text(shown)
+                                .widget_info(|| {
+                                    egui::WidgetInfo::labeled(
+                                        egui::WidgetType::ComboBox,
+                                        true,
+                                        "Материал",
+                                    )
+                                });
+                        });
                         ui.end_row();
                         let l = ui.label(format!(
                             "Класс{}",

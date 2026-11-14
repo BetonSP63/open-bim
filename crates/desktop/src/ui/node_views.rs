@@ -42,7 +42,7 @@ impl Workbench {
         self.hidden = self.views[self.active_view].hidden.clone();
         self.clip = self.views[self.active_view].clip;
         self.display.mode = self.views[self.active_view].render;
-        self.engine.workplane = self.views[self.active_view].workplane;
+        self.set_workplane(self.views[self.active_view].workplane);
     }
 
     pub(super) fn sync_model_views(&mut self) -> Option<Request> {

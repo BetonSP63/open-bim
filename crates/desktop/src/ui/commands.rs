@@ -1842,6 +1842,7 @@ pub fn search(query: &str) -> Vec<Cmd> {
 /// while a text field has keyboard focus, so typing never triggers commands.
 pub fn pressed(ctx: &eframe::egui::Context) -> Vec<Cmd> {
     let typing = ctx.egui_wants_keyboard_input();
+    let popup_open = eframe::egui::Popup::is_any_open(ctx);
     let mut result = Vec::new();
     // Longer modifier sets first, so ⇧⌘Z is not also read as ⌘Z.
     let mut specs: Vec<&Spec> = ALL.iter().filter(|s| s.shortcut.is_some()).collect();
@@ -1851,6 +1852,11 @@ pub fn pressed(ctx: &eframe::egui::Context) -> Vec<Cmd> {
     });
     for spec in specs {
         let Some(sc) = spec.shortcut else { continue };
+        // The popup owns Escape first. Consuming it here would also cancel
+        // the underlying selection/tool before the list can close itself.
+        if popup_open && sc.logical_key == Key::Escape {
+            continue;
+        }
         let plain = sc.modifiers.is_none()
             && !matches!(
                 sc.logical_key,

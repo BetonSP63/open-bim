@@ -97,6 +97,16 @@ impl Default for Autosave {
 }
 
 impl Autosave {
+    /// A new document has neither a saved file nor an on-disk snapshot yet.
+    pub fn mark_new(&mut self) {
+        self.saved = None;
+        self.snapshot = None;
+        self.last_snapshot = None;
+        self.last_check = Instant::now();
+        self.offer = None;
+        self.declined = None;
+    }
+
     pub fn interval(&self) -> Duration {
         Duration::from_secs(u64::from(self.minutes.clamp(1, 60)) * 60)
     }

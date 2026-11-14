@@ -610,8 +610,12 @@ pub fn profile_field(
     let mut dialog: ProfileDialog = ui.data_mut(|d| d.get_temp(id)).unwrap_or_default();
     let accessible = accessible.to_string();
     let response = ui
-        .add(egui::Button::new(format!("{shown}  …")).min_size(egui::vec2(width, 0.)))
-        .on_hover_text("Выбор профиля из каталога");
+        .add(
+            egui::Button::new(format!("{shown}  …"))
+                .truncate()
+                .min_size(egui::vec2(width, 0.)),
+        )
+        .on_hover_text(format!("{shown}\nВыбор профиля из каталога"));
     response.widget_info(|| {
         egui::WidgetInfo::labeled(egui::WidgetType::Button, true, accessible.clone())
     });
