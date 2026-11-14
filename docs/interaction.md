@@ -81,6 +81,12 @@ Ctrl+C must then start copying without requiring reselection. Copy to the next
 grid line, undo, redo, save, create a new project and reopen the saved file.
 The four parts and their edited properties must remain intact.
 
+Native macOS ARM64 check, 2026-11-14, code commit `aeb8f40`: in a disposable
+copy of the steel fixture, Escape closed the material list with all 16 parts
+still selected. Ctrl+C immediately started point-based copying; Escape cancelled
+that command while keeping the group, and the next Escape cleared selection.
+The fixture file remained byte-for-byte unchanged.
+
 | Reference workflow | Open BIM | Evidence |
 |---|---|---|
 | A new model comes with a rectangular grid | grid 1–5 × А–Г at 6000 mm, levels 0.000 and +3.600 | new_model_has_the_default_grid |
