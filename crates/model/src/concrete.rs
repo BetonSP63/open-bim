@@ -199,7 +199,8 @@ impl RebarSet {
     }
 
     /// Cut length of a bar: the corner polyline less, at each bend through
-    /// θ, the two tangents R·tan(θ/2) plus the arc R·θ.
+    /// θ, the two tangents R·tan(θ/2) plus the arc R·θ. A 180° hook uses
+    /// the limit of its two tangent legs: 3R less plus πR for the semicircle.
     pub fn developed_length(&self, bar: &[Point3]) -> f64 {
         let r = self.bend_radius();
         let dir = |a: &Point3, b: &Point3| {
@@ -213,8 +214,10 @@ impl RebarSet {
                 continue;
             };
             let cos = (0..3).map(|k| u[k] * v[k]).sum::<f64>().clamp(-1., 1.);
-            let theta = cos.acos().min(179f64.to_radians());
-            if theta > 1e-6 {
+            let theta = cos.acos();
+            if (theta - std::f64::consts::PI).abs() < 1e-9 {
+                length -= 3. * r - r * theta;
+            } else if theta > 1e-6 {
                 length -= 2. * r * (theta / 2.).tan() - r * theta;
             }
         }

@@ -281,6 +281,12 @@ pub fn save_schedule(project: &Project, path: &std::path::Path) -> Result<(), St
     std::fs::write(path, open_bim_reports::csv::rebar(&schedule)).map_err(|e| e.to_string())
 }
 
+/// Saves BVBS 3.1 two-dimensional bending shapes for production.
+pub fn save_bvbs(project: &Project, path: &std::path::Path) -> Result<(), String> {
+    let text = open_bim_reports::bvbs::export(project)?;
+    std::fs::write(path, text).map_err(|e| e.to_string())
+}
+
 const BAR: [u8; 4] = [200, 60, 40, 255];
 
 /// Bars drawn over the model.

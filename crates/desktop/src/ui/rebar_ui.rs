@@ -312,6 +312,17 @@ impl Workbench {
                             Err(e) => e,
                         });
                     }
+                    if ui.button("Экспорт BVBS…").clicked()
+                        && let Some(path) = rfd::FileDialog::new()
+                            .add_filter("BVBS", &["abs"])
+                            .set_file_name("арматура.abs")
+                            .save_file()
+                    {
+                        message = Some(match rb::save_bvbs(project, &path) {
+                            Ok(()) => format!("BVBS: {}", path.display()),
+                            Err(e) => e,
+                        });
+                    }
                 });
                 let (schedule, _) = open_bim_reports::rebar::schedule(project);
                 egui::ScrollArea::vertical()

@@ -1,6 +1,7 @@
 //! Steel release lists regenerated from the model: parts, assemblies and
 //! fasteners. Positions come from `open-bim-numbering`; masses are net masses
 //! of the exact bodies (holes and cuts removed).
+pub mod bvbs;
 pub mod csv;
 pub mod gost_release;
 pub mod gost_tables;

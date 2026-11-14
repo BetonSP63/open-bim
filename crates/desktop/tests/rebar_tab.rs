@@ -185,3 +185,16 @@ fn position_schedule_is_saved_as_csv() {
     assert!(text.starts_with("\u{feff}Позиция;Класс;Диаметр, мм"));
     assert!(text.ends_with("Итого;;;;0;;;0,000\r\n"));
 }
+
+#[test]
+fn bvbs_is_saved_through_the_export_command() {
+    let project = Project::default();
+    let path = std::env::temp_dir().join(format!(
+        "open-bim-rebar-schedule-{}.abs",
+        std::process::id()
+    ));
+    rebar::save_bvbs(&project, &path).unwrap();
+    let text = std::fs::read_to_string(&path).unwrap();
+    std::fs::remove_file(path).unwrap();
+    assert!(text.is_empty());
+}

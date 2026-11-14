@@ -89,6 +89,28 @@ fn bends_use_developed_length_and_mandrel_in_the_position_key() {
 }
 
 #[test]
+fn semicircular_hooks_use_the_limit_not_an_approximate_179_degree_bend() {
+    let mut project = Project::default();
+    project.concrete.rebars = vec![set(
+        1,
+        16.,
+        vec![vec![
+            Point3([0., 0., 0.]),
+            Point3([1000., 0., 0.]),
+            Point3([1000., 96., 0.]),
+            Point3([1000., -66., 0.]),
+        ]],
+    )];
+    let set = &project.concrete.rebars[0];
+    let bar = &set.bars[0];
+    let r = set.bend_radius();
+    let expected = RebarSet::bar_length(bar) - 3. * r + r * std::f64::consts::PI - 2. * r
+        + r * std::f64::consts::FRAC_PI_2;
+    assert!((set.developed_length(bar) - expected).abs() < 1e-9);
+    assert!(set.developed_length(bar) > 1000.);
+}
+
+#[test]
 fn positions_are_deterministic_when_sets_are_reordered() {
     let mut project = Project::default();
     project.concrete.rebars = vec![
