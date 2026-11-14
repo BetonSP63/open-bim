@@ -46,6 +46,19 @@ to save it. Automated capture/benchmark/script exit commands remain unchanged.
 
 ## Mouse and keyboard
 
+### Visible command guidance (2026-11-15)
+
+An active modelling command shows a wrapping step prompt below the ribbon,
+using the same `Workbench::prompt()` as the status bar. Point commands also
+explain mouse/numeric input and show a refused-pick error without hiding the
+next step. The visible cancel button takes its caption/shortcut from the
+command registry and dispatches `CancelTool`; it retains the keyboard's layered
+numeric-input cancellation. No separate command state is stored by this panel.
+Evidence: `crates/desktop/tests/command_guidance.rs` exercises a real button
+click and checks that model and nonempty selection survive, and verifies
+measurement-to-workplane prompt transitions. This is automated headless UI
+coverage; native-window visual verification remains pending.
+
 | Reference workflow | Open BIM | Evidence |
 |---|---|---|
 | Wheel zooms about the pointer; Page Up/Down zoom; Home zooms to the original view | wheel zooms about the cursor (`Camera::zoom_at`); PgUp/PgDn; Home fits the model and the grid (F is now measure) | wheel_zoom_keeps_the_point_under_the_cursor; `tests/ui/navigation/05-pageup-zoom.png`, `07-home-fit.png` |

@@ -465,6 +465,7 @@ impl Workbench {
         }
         self.title_row(ui, requests);
         self.ribbon(ui, requests);
+        self.command_guidance(ui, requests);
         self.status_bar(ui);
         self.selection_toolbar(ui, requests);
         self.snap_toolbar(ui, requests);
@@ -634,6 +635,38 @@ impl Workbench {
                         }
                     }
                 });
+        });
+    }
+
+    /// Keep the next step readable even when the status bar is crowded.
+    /// Both this panel and the keyboard use the command registry and dispatcher.
+    fn command_guidance(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
+        if self.mode != Mode::Model || !self.in_command() {
+            return;
+        }
+        egui::Panel::top("command guidance").show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                ui.strong("Активная команда");
+                if ui
+                    .button(super::commands::caption(Cmd::CancelTool))
+                    .clicked()
+                {
+                    self.run(Cmd::CancelTool, requests);
+                }
+            });
+            // Cancellation can end the command in this frame.
+            if !self.in_command() {
+                return;
+            }
+            ui.label(self.prompt());
+            if self.picking() {
+                ui.label(
+                    "Точка: щёлкните в модели или начните вводить координаты. Размеры — в мм.",
+                );
+                if let Some(error) = &self.engine.error {
+                    ui.colored_label(ui.visuals().error_fg_color, error);
+                }
+            }
         });
     }
 
