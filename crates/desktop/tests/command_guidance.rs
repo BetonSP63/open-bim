@@ -93,3 +93,28 @@ fn switching_commands_replaces_the_visible_step_and_keeps_model_unchanged() {
     assert!(b.measure.is_none());
     assert_eq!(*b.editor.document.project(), before);
 }
+
+#[test]
+fn point_context_tracks_plane_and_clears_snap_when_command_changes() {
+    use open_bim_desktop::interaction::{Workplane, snap::SnapKind};
+    let mut b = Workbench::new(
+        Editor::new(open_bim_desktop::interaction::tools::default_project().unwrap()).unwrap(),
+    );
+    b.execute(Cmd::Measure);
+    b.engine.workplane = Workplane::from_points(
+        DVec3::new(100., 200., 300.125),
+        DVec3::new(100., 201., 300.125),
+        DVec3::new(100., 200., 301.125),
+    )
+    .unwrap();
+    b.last_snap = Some(SnapKind::MidPoint);
+    let before = b.editor.document.project().clone();
+    let context = b.point_context();
+    assert!(context.contains("наклонная"));
+    assert!(context.contains("100, 200, 300.125"));
+    assert!(context.contains(SnapKind::MidPoint.label()));
+    assert_eq!(*b.editor.document.project(), before);
+    b.execute(Cmd::ToolBeam);
+    assert!(b.last_snap.is_none());
+    assert!(b.point_context().contains("не найдена"));
+}

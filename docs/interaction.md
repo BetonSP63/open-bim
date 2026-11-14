@@ -85,6 +85,12 @@ and distance 6000.000 mm. Enter created a beam; Escape and Select All showed
 This completes the initial native-window check for command guidance too;
 small-window and multi-display visual checks remain separate follow-up work.
 
+While picking, command guidance also shows the workplane origin in millimetres,
+horizontal/tilted orientation (tilted normal is approximate display only), and
+the current snap kind or «не найдена». Command changes clear stale snap feedback.
+`command_guidance::point_context_tracks_plane_and_clears_snap_when_command_changes`
+checks that this display is read-only and follows the actual workplane.
+
 | Reference workflow | Open BIM | Evidence |
 |---|---|---|
 | Wheel zooms about the pointer; Page Up/Down zoom; Home zooms to the original view | wheel zooms about the cursor (`Camera::zoom_at`); PgUp/PgDn; Home fits the model and the grid (F is now measure) | wheel_zoom_keeps_the_point_under_the_cursor; `tests/ui/navigation/05-pageup-zoom.png`, `07-home-fit.png` |

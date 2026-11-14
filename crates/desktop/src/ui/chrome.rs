@@ -663,11 +663,32 @@ impl Workbench {
                 ui.label(
                     "Точка: щёлкните в модели или начните вводить координаты. Размеры — в мм.",
                 );
+                ui.label(self.point_context());
                 if let Some(error) = &self.engine.error {
                     ui.colored_label(ui.visuals().error_fg_color, error);
                 }
             }
         });
+    }
+
+    /// Read-only feedback: never changes the plane, picks or snap settings.
+    pub fn point_context(&self) -> String {
+        let plane = self.engine.workplane;
+        let origin = plane.origin;
+        let normal = plane.axes[2];
+        let orientation = if plane.is_horizontal() {
+            "горизонтальная".to_string()
+        } else {
+            format!(
+                "наклонная, нормаль ≈ ({:.3}; {:.3}; {:.3})",
+                normal.x, normal.y, normal.z
+            )
+        };
+        let snap = self.last_snap.map_or("не найдена", |kind| kind.label());
+        format!(
+            "Рабочая плоскость: {orientation} · начало ({}, {}, {}) мм · Привязка: {snap}",
+            origin.x, origin.y, origin.z
+        )
     }
 
     fn status_bar(&mut self, ui: &mut egui::Ui) {

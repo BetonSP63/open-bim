@@ -2162,6 +2162,7 @@ impl Workbench {
     /// Discard transient input, preserving the model, selection and tool presets.
     fn cancel_point_input(&mut self) {
         self.engine.cancel();
+        self.last_snap = None;
         self.swept_dialog = None;
         self.special_open = None;
         self.engine.reference = None;
