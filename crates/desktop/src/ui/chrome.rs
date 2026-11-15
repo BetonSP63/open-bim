@@ -511,15 +511,17 @@ impl Workbench {
                     }
                 }
                 self.history_button(ui, requests);
-                // Title in the middle of the row: program, file, active view.
-                let row = ui.max_rect();
-                ui.painter().text(
-                    egui::pos2(row.center().x, ui.min_rect().center().y),
-                    egui::Align2::CENTER_CENTER,
-                    format!("Open BIM - {} - [{}]", self.tools.path, self.view_title),
-                    egui::FontId::proportional(12.5),
-                    ui.visuals().text_color(),
+                // Reserve a bounded document area instead of painting a full
+                // path across the quick access buttons and command search.
+                let document_width = (ui.available_width() - 280.).max(40.);
+                let document = format!(
+                    "{}{} · {}",
+                    if self.modified() { "* " } else { "" },
+                    super::platform::document_name(&self.tools.path),
+                    self.view_title
                 );
+                ui.add_sized([document_width, 22.], egui::Label::new(document).truncate())
+                    .on_hover_text(&self.tools.path);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if icons::button(
                         ui,
@@ -1094,69 +1096,74 @@ impl Workbench {
             .exact_size(40.)
             .resizable(false)
             .show(ui, |ui| {
-                ui.vertical_centered(|ui| {
-                    for (panel, icon, cmd) in [
-                        (
-                            SidePanel::Properties,
-                            Icon::Properties,
-                            Cmd::PanelProperties,
-                        ),
-                        (SidePanel::Edit, Icon::Move, Cmd::PanelEdit),
-                        (SidePanel::Detailing, Icon::Bolt, Cmd::PanelDetailing),
-                        (
-                            SidePanel::Connections,
-                            Icon::Component,
-                            Cmd::PanelConnections,
-                        ),
-                        (SidePanel::Clash, Icon::Clash, Cmd::PanelClash),
-                        (SidePanel::Tree, Icon::Grid, Cmd::PanelModelTree),
-                        (SidePanel::Views, Icon::View3d, Cmd::PanelViews),
-                    ] {
-                        let open = self.mode == Mode::Model && self.side_panel == Some(panel);
-                        let response = icons::button(
-                            ui,
-                            icon,
-                            20.,
-                            None,
-                            panel.title(),
-                            &tooltip(cmd),
-                            true,
-                            open,
-                        );
-                        // F6: an open pane takes the focus on its first field
-                        // (below); a closed one leaves it on its strip button.
-                        if panel == SidePanel::Properties
-                            && self.focus_target == Some(FocusArea::SidePane)
-                            && !(self.mode == Mode::Model && self.side_panel.is_some())
-                        {
-                            self.focus_target = None;
-                            response.request_focus();
-                        }
-                        if response.clicked() {
-                            self.run(cmd, requests);
-                        }
-                    }
-                    ui.separator();
-                    for (mode, icon, cmd) in [
-                        (Mode::Drawings, Icon::Drawing, Cmd::ModeDrawings),
-                        (Mode::Reports, Icon::Report, Cmd::ModeReports),
-                    ] {
-                        if icons::button(
-                            ui,
-                            icon,
-                            20.,
-                            None,
-                            commands::spec(cmd).label,
-                            &tooltip(cmd),
-                            true,
-                            self.mode == mode,
-                        )
-                        .clicked()
-                        {
-                            self.mode = if self.mode == mode { Mode::Model } else { mode };
-                        }
-                    }
-                });
+                egui::ScrollArea::vertical()
+                    .id_salt("side strip scroll")
+                    .show(ui, |ui| {
+                        ui.vertical_centered(|ui| {
+                            for (panel, icon, cmd) in [
+                                (
+                                    SidePanel::Properties,
+                                    Icon::Properties,
+                                    Cmd::PanelProperties,
+                                ),
+                                (SidePanel::Edit, Icon::Move, Cmd::PanelEdit),
+                                (SidePanel::Detailing, Icon::Bolt, Cmd::PanelDetailing),
+                                (
+                                    SidePanel::Connections,
+                                    Icon::Component,
+                                    Cmd::PanelConnections,
+                                ),
+                                (SidePanel::Clash, Icon::Clash, Cmd::PanelClash),
+                                (SidePanel::Tree, Icon::Grid, Cmd::PanelModelTree),
+                                (SidePanel::Views, Icon::View3d, Cmd::PanelViews),
+                            ] {
+                                let open =
+                                    self.mode == Mode::Model && self.side_panel == Some(panel);
+                                let response = icons::button(
+                                    ui,
+                                    icon,
+                                    20.,
+                                    None,
+                                    panel.title(),
+                                    &tooltip(cmd),
+                                    true,
+                                    open,
+                                );
+                                // F6: an open pane takes the focus on its first field
+                                // (below); a closed one leaves it on its strip button.
+                                if panel == SidePanel::Properties
+                                    && self.focus_target == Some(FocusArea::SidePane)
+                                    && !(self.mode == Mode::Model && self.side_panel.is_some())
+                                {
+                                    self.focus_target = None;
+                                    response.request_focus();
+                                }
+                                if response.clicked() {
+                                    self.run(cmd, requests);
+                                }
+                            }
+                            ui.separator();
+                            for (mode, icon, cmd) in [
+                                (Mode::Drawings, Icon::Drawing, Cmd::ModeDrawings),
+                                (Mode::Reports, Icon::Report, Cmd::ModeReports),
+                            ] {
+                                if icons::button(
+                                    ui,
+                                    icon,
+                                    20.,
+                                    None,
+                                    commands::spec(cmd).label,
+                                    &tooltip(cmd),
+                                    true,
+                                    self.mode == mode,
+                                )
+                                .clicked()
+                                {
+                                    self.mode = if self.mode == mode { Mode::Model } else { mode };
+                                }
+                            }
+                        });
+                    });
             });
         let open = match self.mode {
             Mode::Model => self.side_panel.is_some(),
@@ -1176,80 +1183,80 @@ impl Workbench {
             .min_size(280.)
             .max_size(max_width)
             .show(ui, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    let has_selection = self.selection_common().is_some();
-                    let has_axes = {
-                        let project = self.editor.document.project();
-                        self.editor
-                            .selected
-                            .iter()
-                            .any(|id| project.axes.contains_key(id))
-                    };
-                    let has_levels = {
-                        let project = self.editor.document.project();
-                        self.editor
-                            .selected
-                            .iter()
-                            .any(|id| project.levels.contains_key(id))
-                    };
-                    let has_welds = {
-                        let project = self.editor.document.project();
-                        self.editor.selected.iter().any(|id| {
-                            matches!(
-                                project.details.get(id).map(|d| &d.kind),
-                                Some(open_bim_model::DetailKind::Weld { .. })
-                            )
-                        })
-                    };
-                    ui.add_enabled_ui(!self.busy(), |ui| match self.mode {
-                        Mode::Drawings => self.drawings.show(ui, &mut self.editor),
-                        Mode::Reports => {
-                            if let Some(cmd) = self.reports.show_panel(ui, &mut self.editor) {
-                                self.run(cmd, requests);
-                            }
-                        }
-                        Mode::Model => match self.side_panel {
-                            Some(SidePanel::Properties) if self.tool_pane_active() => {
-                                self.tool_pane(ui)
-                            }
-                            Some(SidePanel::Tree) => self.tree_panel(ui),
-                            Some(SidePanel::Views) => self.views_panel(ui, requests),
-                            Some(SidePanel::Properties) if self.editor.active => {
-                                self.draft_pane(ui, requests)
-                            }
-                            Some(SidePanel::Properties) if has_selection => {
-                                self.selection_pane(ui, requests)
-                            }
-                            Some(SidePanel::Properties) if has_welds => {
-                                self.weld_pane(ui, requests)
-                            }
-                            Some(SidePanel::Properties) if has_axes => self.axis_pane(ui, requests),
-                            Some(SidePanel::Properties) if has_levels => {
-                                self.level_pane(ui, requests)
-                            }
-                            Some(panel) => {
-                                if panel == SidePanel::Properties {
-                                    self.object_type(ui, requests);
+                egui::ScrollArea::vertical()
+                    .auto_shrink([false, true])
+                    .show(ui, |ui| {
+                        let has_selection = self.selection_common().is_some();
+                        let has_axes = {
+                            let project = self.editor.document.project();
+                            self.editor
+                                .selected
+                                .iter()
+                                .any(|id| project.axes.contains_key(id))
+                        };
+                        let has_levels = {
+                            let project = self.editor.document.project();
+                            self.editor
+                                .selected
+                                .iter()
+                                .any(|id| project.levels.contains_key(id))
+                        };
+                        let has_welds = {
+                            let project = self.editor.document.project();
+                            self.editor.selected.iter().any(|id| {
+                                matches!(
+                                    project.details.get(id).map(|d| &d.kind),
+                                    Some(open_bim_model::DetailKind::Weld { .. })
+                                )
+                            })
+                        };
+                        ui.add_enabled_ui(!self.busy(), |ui| match self.mode {
+                            Mode::Drawings => self.drawings.show(ui, &mut self.editor),
+                            Mode::Reports => {
+                                if let Some(cmd) = self.reports.show_panel(ui, &mut self.editor) {
+                                    self.run(cmd, requests);
                                 }
-                                self.tools.panel = match panel {
-                                    SidePanel::Edit => ToolsPanel::Edit,
-                                    SidePanel::Detailing => ToolsPanel::Detailing,
-                                    SidePanel::Connections => ToolsPanel::Connections,
-                                    SidePanel::Clash => ToolsPanel::Clash,
-                                    _ => ToolsPanel::Properties,
-                                };
-                                if let Some(a) = self.tools.show(ui, &mut self.editor) {
-                                    match a {
-                                        Action::Open => self
-                                            .start_open(std::path::PathBuf::from(&self.tools.path)),
-                                        other => requests.push(Request::Action(other)),
+                            }
+                            Mode::Model => match self.side_panel {
+                                Some(SidePanel::Properties) if self.tool_pane_active() => {
+                                    self.tool_pane(ui)
+                                }
+                                Some(SidePanel::Tree) => self.tree_panel(ui),
+                                Some(SidePanel::Views) => self.views_panel(ui, requests),
+                                Some(SidePanel::Properties) if self.editor.active => {
+                                    self.draft_pane(ui, requests)
+                                }
+                                Some(SidePanel::Properties) if has_selection => {
+                                    self.selection_pane(ui, requests)
+                                }
+                                Some(SidePanel::Properties) if has_welds => {
+                                    self.weld_pane(ui, requests)
+                                }
+                                Some(SidePanel::Properties) if has_axes => {
+                                    self.axis_pane(ui, requests)
+                                }
+                                Some(SidePanel::Properties) if has_levels => {
+                                    self.level_pane(ui, requests)
+                                }
+                                Some(panel) => {
+                                    if panel == SidePanel::Properties {
+                                        self.object_type(ui, requests);
+                                    }
+                                    self.tools.panel = match panel {
+                                        SidePanel::Edit => ToolsPanel::Edit,
+                                        SidePanel::Detailing => ToolsPanel::Detailing,
+                                        SidePanel::Connections => ToolsPanel::Connections,
+                                        SidePanel::Clash => ToolsPanel::Clash,
+                                        _ => ToolsPanel::Properties,
+                                    };
+                                    if let Some(a) = self.tools.show(ui, &mut self.editor) {
+                                        requests.push(Request::Action(a));
                                     }
                                 }
-                            }
-                            None => {}
-                        },
+                                None => {}
+                            },
+                        });
                     });
-                });
                 if self.focus_target == Some(FocusArea::SidePane) {
                     self.focus_target = None;
                     let (layer, area) = (ui.layer_id(), ui.max_rect());
@@ -2798,7 +2805,12 @@ impl Workbench {
         ui.heading(SidePanel::Tree.title());
         let project = self.editor.document.project();
         if project.elements.is_empty() && project.axes.is_empty() {
-            ui.label("Модель пуста: Alt+B — балка, ⌘O — открыть, ⌘P — все команды");
+            ui.label(
+                super::platform::text(
+                    "Модель пуста: Alt+B — балка, ⌘O — открыть, ⌘P — все команды",
+                )
+                .as_ref(),
+            );
         }
         let grouping_label = ui.label("Группировать");
         egui::ComboBox::from_id_salt("organizer grouping")
@@ -2914,7 +2926,11 @@ fn pane_title(ui: &mut egui::Ui, title: &str, help: Option<&str>) -> bool {
                 let (rect, _) = ui.allocate_exact_size(egui::vec2(16., 16.), egui::Sense::hover());
                 let ink = ui.visuals().text_color();
                 icons::paint(ui.painter(), rect, Icon::Properties, ink, true);
-                ui.label(egui::RichText::new(title).strong());
+                ui.add_sized(
+                    [(ui.available_width() - 52.).max(40.), 20.],
+                    egui::Label::new(egui::RichText::new(title).strong()).truncate(),
+                )
+                .on_hover_text(title);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let (rect, close) =
                         ui.allocate_exact_size(egui::vec2(16., 16.), egui::Sense::click());

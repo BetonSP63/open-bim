@@ -126,6 +126,11 @@ impl Autosave {
     }
 
     /// The model differs from the project file.
+    pub fn saved_hash(&self) -> Option<&str> {
+        self.saved.as_deref()
+    }
+
+    /// The model differs from the project file.
     pub fn modified(&self, project: &Project) -> bool {
         hash(project).ok() != self.saved
     }

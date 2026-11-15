@@ -7,9 +7,14 @@ struct Output { @builtin(position) position: vec4<f32>, @location(0) world: vec3
  var o: Output; o.position = camera.mvp*world; o.world=world.xyz; o.normal=(model*vec4<f32>(v.normal,0.0)).xyz; o.color=v.color; return o;
 }
 // Premultiplied output: opaque parts have alpha 1, see-through parts less.
-@fragment fn fs(o: Output) -> @location(0) vec4<f32> {
+@fragment fn fs(o: Output, @builtin(front_facing) front: bool) -> @location(0) vec4<f32> {
  if dot(camera.plane,vec4<f32>(o.world,1.0))<0.0 || dot(camera.depth,vec4<f32>(o.world,1.0))<0.0 { discard; }
- let light=0.35+0.65*max(dot(normalize(o.normal),normalize(vec3<f32>(0.4,-0.6,0.8))),0.0);
+ // A soft fill preserves the shape of webs and flanges facing away from
+ // the key light. Back faces remain readable in clipped/open solids.
+ let n = select(-normalize(o.normal), normalize(o.normal), front);
+ let key = max(dot(n,normalize(vec3<f32>(0.4,-0.6,0.8))),0.0);
+ let fill = max(dot(n,normalize(vec3<f32>(-0.6,0.4,0.3))),0.0);
+ let light = min(0.50+0.32*key+0.14*fill+0.06*(n.z*0.5+0.5),1.0);
  return vec4<f32>(o.color.rgb*light*o.color.a,o.color.a);
 }
 // Feature edges: a darker shade of the part colour, always opaque.

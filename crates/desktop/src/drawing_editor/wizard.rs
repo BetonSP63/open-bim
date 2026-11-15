@@ -140,7 +140,10 @@ impl Wizard {
                 if ui.button("Создать чертежи").clicked() {
                     let selected = editor.selected.clone();
                     self.message = Some(match run(editor, &selected, &self.settings) {
-                        Ok(n) => format!("Создано чертежей: {n} (⌘Z — отменить)"),
+                        Ok(n) => crate::ui::platform::text(&format!(
+                            "Создано чертежей: {n} (⌘Z — отменить)"
+                        ))
+                        .into_owned(),
                         Err(e) => e,
                     });
                 }

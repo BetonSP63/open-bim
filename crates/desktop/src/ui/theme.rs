@@ -201,6 +201,20 @@ pub fn fonts_with_system() -> egui::FontDefinitions {
 /// Fonts plus the chosen theme (light by default).
 pub fn apply(ctx: &egui::Context) {
     ctx.set_fonts(fonts());
+    if cfg!(target_os = "windows") {
+        ctx.all_styles_mut(|style| {
+            style
+                .text_styles
+                .insert(egui::TextStyle::Body, egui::FontId::proportional(14.));
+            style
+                .text_styles
+                .insert(egui::TextStyle::Button, egui::FontId::proportional(14.));
+            style
+                .text_styles
+                .insert(egui::TextStyle::Small, egui::FontId::proportional(12.));
+            style.spacing.interact_size.y = 24.;
+        });
+    }
     set_theme(ctx, true);
 }
 

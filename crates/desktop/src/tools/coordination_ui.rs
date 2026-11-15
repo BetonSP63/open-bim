@@ -294,8 +294,12 @@ impl CoordinationUi {
                 Ok(())
             })();
             self.message = Some(match result {
-                Ok(()) if reset => "Серия сброшена; нумеруйте заново (⌘K)".into(),
-                Ok(()) => "Серия назначена; нумеруйте заново (⌘K)".into(),
+                Ok(()) if reset => {
+                    crate::ui::platform::text("Серия сброшена; нумеруйте заново (⌘K)").into_owned()
+                }
+                Ok(()) => {
+                    crate::ui::platform::text("Серия назначена; нумеруйте заново (⌘K)").into_owned()
+                }
                 Err(e) => e,
             });
         });
@@ -306,7 +310,7 @@ impl CoordinationUi {
             .default_open(true)
             .show(ui, |ui| {
                 if ui
-                    .button("Нумеровать и проверить · ⌘K")
+                    .button(crate::ui::platform::text("Нумеровать и проверить · ⌘K").as_ref())
                     .on_hover_text("Пересчитать позиции и проверить пересечения в фоне")
                     .clicked()
                 {

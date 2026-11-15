@@ -18,9 +18,56 @@ pub(super) struct ChangeState {
     error: Option<String>,
 }
 
+pub(super) struct ModifiedState {
+    revision: u64,
+    events: usize,
+    saved_hash: Option<String>,
+    modified: bool,
+}
+
 impl Workbench {
+    pub fn project_path(&self) -> &Path {
+        &self.project_path
+    }
+
+    pub fn modified(&self) -> bool {
+        let project = self.editor.document.project();
+        let events = self.editor.events.len();
+        let saved_hash = self.tools.autosave.saved_hash();
+        if let Some(state) = self.modified_cache.borrow().as_ref()
+            && state.revision == project.revision
+            && state.events == events
+            && state.saved_hash.as_deref() == saved_hash
+        {
+            return state.modified;
+        }
+        // A title redraw must not hash a large model on every camera frame.
+        let modified = self.tools.autosave.modified(project);
+        *self.modified_cache.borrow_mut() = Some(ModifiedState {
+            revision: project.revision,
+            events,
+            saved_hash: saved_hash.map(str::to_owned),
+            modified,
+        });
+        modified
+    }
+
+    /// A cancelled or failed Save As must retain the current destination.
+    pub fn save_project_as(&mut self, path: PathBuf) -> Result<String, String> {
+        let previous = self.tools.path.clone();
+        self.tools.path = super::platform::obim_path(&path)
+            .to_string_lossy()
+            .into_owned();
+        let result = self.save_project();
+        if result.is_err() {
+            self.tools.path = previous;
+        }
+        result
+    }
+
     /// Initialise the accepted destination (also used by native startup).
     pub fn set_project_path(&mut self, path: PathBuf) {
+        *self.modified_cache.get_mut() = None;
         self.tools.path = path.to_string_lossy().into_owned();
         self.project_path = path;
     }

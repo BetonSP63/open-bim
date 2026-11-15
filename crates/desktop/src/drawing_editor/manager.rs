@@ -461,8 +461,12 @@ impl Manager {
                             Err(e) => e,
                         });
                     }
-                    if run(ui, "Удалить", "Удалить отмеченные чертежи (⌘Z — вернуть)")
-                    {
+                    if run(
+                        ui,
+                        "Удалить",
+                        crate::ui::platform::text("Удалить отмеченные чертежи (⌘Z — вернуть)")
+                            .as_ref(),
+                    ) {
                         let ids = self.targets(editor.document.project());
                         self.message = Some(match delete(editor, &ids) {
                             Ok(b) => b.message("Удалено"),
