@@ -1,7 +1,9 @@
 #![cfg(target_os = "windows")]
 //! Exercise actual Control events, which expose Command/Control collisions
 //! that a registry comparison of the modifier structs cannot detect.
+mod headless;
 use eframe::egui::{self, Key, Modifiers};
+use headless::HeadlessFrame;
 use open_bim_desktop::{
     interaction::tools::default_project,
     tools::Editor,
@@ -66,7 +68,7 @@ fn physical_windows_shortcuts_run_one_intended_command() {
     ] {
         let ctx = egui::Context::default();
         let mut commands = vec![];
-        let _ = ctx.run_ui(
+        let _ = ctx.run_headless(
             egui::RawInput {
                 events: key(key_code, control(shift)),
                 ..Default::default()
@@ -89,7 +91,7 @@ fn text_field_keeps_select_all_clipboard_and_undo_keys() {
     let ctx = egui::Context::default();
     let mut text = "Текст свойства".to_owned();
     let id = egui::Id::new("Windows property text");
-    let _ = ctx.run_ui(Default::default(), |ui| {
+    let _ = ctx.run_headless(Default::default(), |ui| {
         ui.add(egui::TextEdit::singleline(&mut text).id(id))
             .request_focus();
     });
@@ -100,7 +102,7 @@ fn text_field_keeps_select_all_clipboard_and_undo_keys() {
         (Key::Z, Cmd::Undo),
         (Key::Y, Cmd::Redo),
     ] {
-        let _ = ctx.run_ui(
+        let _ = ctx.run_headless(
             egui::RawInput {
                 events: key(key_code, control(false)),
                 ..Default::default()
@@ -131,7 +133,7 @@ fn native_clipboard_events_reach_model_commands_but_other_text_does_not() {
             vec![],
         ),
     ] {
-        let _ = ctx.run_ui(
+        let _ = ctx.run_headless(
             egui::RawInput {
                 events: vec![event],
                 ..Default::default()
@@ -231,7 +233,7 @@ fn scaled_windows_layout_keeps_space_for_the_model() {
         let mut bench = Workbench::new(Editor::new(default_project().unwrap()).unwrap());
         let mut viewport = egui::Rect::NOTHING;
         for _ in 0..20 {
-            let output = ctx.run_ui(
+            let output = ctx.run_headless(
                 egui::RawInput {
                     screen_rect: Some(egui::Rect::from_min_size(
                         egui::Pos2::ZERO,
