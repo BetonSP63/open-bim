@@ -19,6 +19,7 @@ pub mod keytips;
 pub mod management;
 mod node_views;
 pub mod palette;
+pub mod platform;
 pub mod plugins;
 pub mod profile_dialog;
 pub mod project_change;
@@ -60,6 +61,7 @@ pub enum Mode {
 /// Work the binary performs (scene, camera, GPU-side state).
 pub enum Request {
     Action(Action),
+    SaveAs,
     Fit,
     View(NamedView),
     /// A project finished loading in the background.
@@ -189,6 +191,7 @@ pub struct Workbench {
     change: project_change::ChangeState,
     /// Accepted document destination, independent of the editable file field.
     project_path: PathBuf,
+    modified_cache: std::cell::RefCell<Option<project_change::ModifiedState>>,
     pub mode: Mode,
     pub editor: Editor,
     pub tools: ToolsUi,
@@ -324,6 +327,7 @@ pub struct Workbench {
     pub clip_pick: bool,
     /// «Копировать в буфер» / «Вставить».
     pub clipboard: Option<crate::interaction::clipboard::Clipboard>,
+    clipboard_pending: bool,
     /// «Вставить» waits for the insertion point.
     pub paste_pick: bool,
     /// View tab tools (view properties, paint, fly, centre of rotation).
@@ -391,6 +395,7 @@ impl Workbench {
             close: Default::default(),
             change: Default::default(),
             project_path: PathBuf::from(ToolsUi::default().path),
+            modified_cache: Default::default(),
             mode: Mode::Model,
             editor,
             tools: ToolsUi::default(),
@@ -475,6 +480,7 @@ impl Workbench {
             plugins_seen: (0, 0),
             clip_pick: false,
             clipboard: None,
+            clipboard_pending: false,
             paste_pick: false,
             view_tools: Default::default(),
             visualizer: Default::default(),
@@ -734,8 +740,9 @@ impl Workbench {
                     if std::mem::take(&mut self.recovering) {
                         self.tools.autosave.mark_recovered(&project);
                         self.message(format!(
-                            "Восстановлено из {}. Сохраните проект (⌘S), чтобы записать его в {}",
+                            "Восстановлено из {}. Сохраните проект ({}), чтобы записать его в {}",
                             crate::autosave::autosave_path(&path).display(),
+                            commands::shortcut_text(Cmd::SaveProject),
                             self.tools.path
                         ));
                     } else {
@@ -912,8 +919,9 @@ impl Workbench {
         };
         match cmd {
             Cmd::NewProject => return Some(Request::Action(Action::New)),
-            Cmd::OpenProject => self.start_open(PathBuf::from(&self.tools.path)),
+            Cmd::OpenProject => return Some(Request::Action(Action::Open)),
             Cmd::SaveProject => return Some(Request::Action(Action::Save)),
+            Cmd::SaveProjectAs => return Some(Request::SaveAs),
             Cmd::ExampleFrame => return Some(Request::Action(Action::Example)),
             Cmd::Undo => return Some(Request::Action(Action::Undo)),
             Cmd::Redo => return Some(Request::Action(Action::Redo)),
@@ -1751,7 +1759,10 @@ impl Workbench {
                     self.special.picks.pop();
                 } else if self.detail.picks_points() {
                     self.detail.points.pop();
-                } else if !self.engine.active() && !self.editor.selected.is_empty() {
+                } else if cfg!(target_os = "macos")
+                    && !self.engine.active()
+                    && !self.editor.selected.is_empty()
+                {
                     // macOS «delete» is Backspace: without a command it deletes.
                     return self.execute(Cmd::DeleteSelected);
                 } else if let crate::interaction::Outcome::Ignored(e) = self.engine.undo_pick() {
@@ -1799,6 +1810,7 @@ impl Workbench {
                             clip.len()
                         ));
                         self.clipboard = Some(clip);
+                        self.clipboard_pending = true;
                     }
                     None => self.message("Выберите детали или оси для копирования"),
                 }
@@ -3791,6 +3803,9 @@ impl Workbench {
         self.special_window(&ctx, &mut requests);
         self.filter_window(&ctx);
         self.chrome(ui, &mut requests);
+        if std::mem::take(&mut self.clipboard_pending) {
+            ctx.copy_text(commands::MODEL_CLIPBOARD_MARKER.into());
+        }
         if self
             .views
             .get(self.active_view)

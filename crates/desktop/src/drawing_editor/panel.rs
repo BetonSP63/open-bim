@@ -182,7 +182,9 @@ impl DrawingEditor {
         ui.separator();
         ui.colored_label(status_color(&status, ui.visuals()), status.label());
         ui.horizontal(|ui| {
-            if ui.button("Обновить по модели · ⌘U").clicked()
+            if ui
+                .button(crate::ui::platform::text("Обновить по модели · ⌘U").as_ref())
+                .clicked()
                 || ui.input(|i| i.modifiers.command && i.key_pressed(egui::Key::U))
             {
                 let r = self.update(editor);
@@ -820,7 +822,9 @@ impl DrawingEditor {
                     let r = self.delete_selected(editor);
                     report(self, r);
                 }
-                ui.label("Стрелки — сдвиг на 1 мм, ⇧ — на 10 мм");
+                ui.label(
+                    crate::ui::platform::text("Стрелки — сдвиг на 1 мм, ⇧ — на 10 мм").as_ref(),
+                );
             }
         });
     }

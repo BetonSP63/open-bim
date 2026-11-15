@@ -136,7 +136,7 @@ impl ToolsUi {
     /// User-defined property of the selected objects (UDA), ⌘L focuses it.
     pub fn user_property(&mut self, ui: &mut egui::Ui, editor: &mut Editor) -> Option<Action> {
         let mut action = None;
-        ui.label("Свойство выбранных · ⌘L");
+        ui.label(crate::ui::platform::text("Свойство выбранных · ⌘L").as_ref());
         let mut key = None;
         let mut value = None;
         crate::ui::property_pane::rows(ui, "user property", |ui| {
@@ -411,7 +411,10 @@ impl ToolsUi {
             });
         ui.separator();
         ui.horizontal(|ui| {
-            if ui.button("Создать · ⌘↩").clicked() {
+            if ui
+                .button(crate::ui::platform::text("Создать · ⌘↩").as_ref())
+                .clicked()
+            {
                 action = Some(Action::Create);
             }
             if ui.button("Отмена · Esc").clicked() {
@@ -576,8 +579,11 @@ impl ToolsUi {
             ui.separator();
             ui.label(egui::RichText::new("Проект").strong());
             let path_label = ui.label("Файл проекта .obim");
-            ui.text_edit_singleline(&mut self.path)
-                .labelled_by(path_label.id);
+            ui.add(
+                egui::TextEdit::singleline(&mut self.path)
+                    .desired_width((ui.available_width() - 12.).max(80.)),
+            )
+            .labelled_by(path_label.id);
             ui.horizontal(|ui| {
                 if ui.button("Сохранить").clicked() {
                     action = Some(Action::Save);
@@ -603,7 +609,7 @@ impl ToolsUi {
                     )
                 });
             });
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 if ui
                     .button("Экспорт IFC4")
                     .on_hover_text("Файл с тем же именем и расширением .ifc")

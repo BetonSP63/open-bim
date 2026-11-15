@@ -529,67 +529,73 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
 impl Workbench {
     pub(super) fn ribbon(&mut self, ui: &mut egui::Ui, requests: &mut Vec<Request>) {
         let tabs = egui::Panel::top("ribbon tabs").show(ui, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.spacing_mut().item_spacing.x = 14.;
-                // Room for the blue «Файл» strip painted over both rows below.
-                ui.add_space(STRIP - 4.);
-                for tab in RibbonTab::ALL {
-                    let text = egui::RichText::new(tab.title());
-                    let text = if tab.available() || self.ribbon_tab == tab {
-                        text
-                    } else {
-                        text.color(ui.visuals().weak_text_color())
-                    };
-                    // The open tab is blue text with a blue underline, not a filled box.
-                    let open = self.ribbon_tab == tab;
-                    let accent = if ui.visuals().dark_mode {
-                        theme::FOCUS
-                    } else {
-                        theme::LIGHT_FOCUS
-                    };
-                    let response = ui
-                        .scope(|ui| {
-                            ui.visuals_mut().selection.bg_fill = egui::Color32::TRANSPARENT;
-                            ui.visuals_mut().selection.stroke.color = accent;
-                            ui.selectable_label(open, text)
-                        })
-                        .inner;
-                    if open {
-                        let r = response.rect;
-                        ui.painter().line_segment(
-                            [r.left_bottom(), r.right_bottom()],
-                            egui::Stroke::new(2.5, accent),
-                        );
-                    }
-                    let response = if tab.available() {
-                        response
-                    } else {
-                        response.on_hover_text(UNAVAILABLE)
-                    };
-                    if tab == self.ribbon_tab && self.focus_target == Some(super::FocusArea::Ribbon)
-                    {
-                        self.focus_target = None;
-                        response.request_focus();
-                    }
-                    if self.keytips == super::keytips::KeyTips::Tabs
-                        && let Some(tip) = super::keytips::tab_tip(tab)
-                    {
-                        super::keytips::badge(ui.ctx(), response.rect, tip);
-                    }
-                    if response.clicked() {
-                        self.ribbon_tab = tab;
-                        if matches!(
-                            tab,
-                            RibbonTab::Steel
-                                | RibbonTab::Edit
-                                | RibbonTab::View
-                                | RibbonTab::Manage
-                        ) {
-                            self.mode = Mode::Model;
+            egui::ScrollArea::horizontal()
+                .id_salt("ribbon tabs scroll")
+                .max_height(42.)
+                .show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = 14.;
+                        // Room for the blue «Файл» strip painted over both rows below.
+                        ui.add_space(STRIP - 4.);
+                        for tab in RibbonTab::ALL {
+                            let text = egui::RichText::new(tab.title());
+                            let text = if tab.available() || self.ribbon_tab == tab {
+                                text
+                            } else {
+                                text.color(ui.visuals().weak_text_color())
+                            };
+                            // The open tab is blue text with a blue underline, not a filled box.
+                            let open = self.ribbon_tab == tab;
+                            let accent = if ui.visuals().dark_mode {
+                                theme::FOCUS
+                            } else {
+                                theme::LIGHT_FOCUS
+                            };
+                            let response = ui
+                                .scope(|ui| {
+                                    ui.visuals_mut().selection.bg_fill = egui::Color32::TRANSPARENT;
+                                    ui.visuals_mut().selection.stroke.color = accent;
+                                    ui.selectable_label(open, text)
+                                })
+                                .inner;
+                            if open {
+                                let r = response.rect;
+                                ui.painter().line_segment(
+                                    [r.left_bottom(), r.right_bottom()],
+                                    egui::Stroke::new(2.5, accent),
+                                );
+                            }
+                            let response = if tab.available() {
+                                response
+                            } else {
+                                response.on_hover_text(UNAVAILABLE)
+                            };
+                            if tab == self.ribbon_tab
+                                && self.focus_target == Some(super::FocusArea::Ribbon)
+                            {
+                                self.focus_target = None;
+                                response.request_focus();
+                            }
+                            if self.keytips == super::keytips::KeyTips::Tabs
+                                && let Some(tip) = super::keytips::tab_tip(tab)
+                            {
+                                super::keytips::badge(ui.ctx(), response.rect, tip);
+                            }
+                            if response.clicked() {
+                                self.ribbon_tab = tab;
+                                if matches!(
+                                    tab,
+                                    RibbonTab::Steel
+                                        | RibbonTab::Edit
+                                        | RibbonTab::View
+                                        | RibbonTab::Manage
+                                ) {
+                                    self.mode = Mode::Model;
+                                }
+                            }
                         }
-                    }
-                }
-            });
+                    });
+                });
         });
         let fill = theme::ribbon_bg(ui.visuals());
         let ribbon = egui::Panel::top("ribbon")
@@ -716,18 +722,29 @@ impl Workbench {
             ui.painter()
                 .rect_filled(button, 0., egui::Color32::from_white_alpha(40));
         }
-        icons::paint(
-            ui.painter(),
-            button.shrink(8.),
-            Icon::Menu,
-            theme::STATUS_TEXT,
-            true,
-        );
+        if cfg!(target_os = "windows") {
+            ui.painter().text(
+                button.center(),
+                egui::Align2::CENTER_CENTER,
+                "Файл",
+                egui::FontId::proportional(11.),
+                theme::STATUS_TEXT,
+            );
+        } else {
+            icons::paint(
+                ui.painter(),
+                button.shrink(8.),
+                Icon::Menu,
+                theme::STATUS_TEXT,
+                true,
+            );
+        }
         egui::Popup::menu(&response).show(|ui| {
             for cmd in [
                 Cmd::NewProject,
                 Cmd::OpenProject,
                 Cmd::SaveProject,
+                Cmd::SaveProjectAs,
                 Cmd::ExampleFrame,
                 Cmd::ExportIfc,
                 Cmd::ExportIfc43,

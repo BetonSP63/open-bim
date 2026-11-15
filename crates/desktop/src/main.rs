@@ -128,7 +128,11 @@ impl Options {
                 }
                 // A bare project file, as the file manager passes it on
                 // double click or «Открыть с помощью».
-                _ if !arg.starts_with("--") && arg.ends_with(".obim") => {
+                _ if !arg.starts_with("--")
+                    && std::path::Path::new(&arg)
+                        .extension()
+                        .is_some_and(|ext| ext.eq_ignore_ascii_case("obim")) =>
+                {
                     options.project_path.get_or_insert_with(|| arg.clone());
                     options.open = Some(arg);
                 }
@@ -139,7 +143,7 @@ impl Options {
             return Err("Высота должна быть конечной".into());
         }
         if std::env::args_os().len() == 1 {
-            options.package_defaults();
+            options.package_defaults()?;
         }
         Ok(options)
     }
@@ -147,28 +151,19 @@ impl Options {
     /// Started without arguments from the Windows package: open the bundled
     /// example and save into the user's Documents, as the macOS launcher
     /// does. The program folder itself may be read-only.
-    fn package_defaults(&mut self) {
-        if !cfg!(windows) {
-            return;
+    fn package_defaults(&mut self) -> Result<(), String> {
+        #[cfg(windows)]
+        if let Some(documents) = dirs::document_dir() {
+            let executable = std::env::current_exe().map_err(|error| error.to_string())?;
+            if let Some(project) =
+                open_bim_desktop::startup::packaged_project(&executable, &documents)?
+            {
+                let path = project.to_string_lossy().into_owned();
+                self.open = Some(path.clone());
+                self.project_path = Some(path);
+            }
         }
-        let example = std::env::current_exe().ok().and_then(|exe| {
-            let path = exe.parent()?.join("examples").join("steel-release.obim");
-            path.is_file().then_some(path)
-        });
-        let Some(example) = example else {
-            return;
-        };
-        let Some(profile) = std::env::var_os("USERPROFILE") else {
-            return;
-        };
-        self.open = Some(example.to_string_lossy().into_owned());
-        self.project_path = Some(
-            PathBuf::from(profile)
-                .join("Documents")
-                .join("Open BIM проект.obim")
-                .to_string_lossy()
-                .into_owned(),
-        );
+        Ok(())
     }
 }
 #[derive(Clone)]
@@ -215,6 +210,7 @@ struct Desktop {
     load_ms: f64,
     /// Temporary dimension being typed.
     axis_edit: Option<AxisEdit>,
+    window_title: String,
 }
 impl Desktop {
     fn new(
@@ -288,7 +284,24 @@ impl Desktop {
             *error_copy.lock().unwrap_or_else(|e| e.into_inner()) = Some(message);
             ctx.request_repaint();
         }));
-        let renderer = GpuRenderer::new(&state.device, state.target_format);
+        let color_features = state
+            .adapter
+            .get_texture_format_features(wgpu::TextureFormat::Rgba8UnormSrgb)
+            .flags;
+        let depth_features = state
+            .adapter
+            .get_texture_format_features(wgpu::TextureFormat::Depth32Float)
+            .flags;
+        let samples = if color_features.sample_count_supported(4)
+            && color_features.contains(wgpu::TextureFormatFeatureFlags::MULTISAMPLE_RESOLVE)
+            && depth_features.sample_count_supported(4)
+        {
+            4
+        } else {
+            1
+        };
+        eprintln!("VIEWPORT: MSAA {samples}x; native physical-pixel resolution");
+        let renderer = GpuRenderer::new(&state.device, state.target_format, samples);
         state.renderer.write().callback_resources.insert(renderer);
         if options.gpu_error_test {
             // Real wgpu validation failure; use the same handler as runtime GPU errors.
@@ -342,6 +355,7 @@ impl Desktop {
             load_ms,
             pending: Vec::new(),
             axis_edit: None,
+            window_title: String::new(),
         })
     }
     fn axis_anchor(&self) -> Option<DVec3> {
@@ -499,7 +513,10 @@ impl Desktop {
                 }
             }
             Action::Open => {
-                self.bench.start_open(PathBuf::from(&self.bench.tools.path));
+                if let Some(path) = self.project_dialog("Открыть проект Open BIM").pick_file()
+                {
+                    self.bench.start_open(path);
+                }
                 return;
             }
             Action::ExportIfc => {
@@ -556,8 +573,12 @@ impl Desktop {
                 return;
             }
             Action::Save => {
-                self.bench.tools.message =
-                    Some(self.bench.save_project().unwrap_or_else(|error| error));
+                if self.bench.project_path().is_file() {
+                    self.bench.tools.message =
+                        Some(self.bench.save_project().unwrap_or_else(|error| error));
+                } else {
+                    self.save_as();
+                }
                 return;
             }
         };
@@ -578,6 +599,37 @@ impl Desktop {
             }
             Err(error) => self.bench.tools.message = Some(error),
         }
+    }
+    fn project_dialog(&self, title: &str) -> rfd::FileDialog {
+        let path = self.bench.project_path();
+        let mut dialog = rfd::FileDialog::new()
+            .set_title(title)
+            .add_filter("Проект Open BIM", &["obim"]);
+        if let Some(folder) = path.parent().filter(|p| p.is_dir()) {
+            dialog = dialog.set_directory(folder);
+        }
+        dialog
+    }
+
+    fn save_as(&mut self) {
+        let name = self
+            .bench
+            .project_path()
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy();
+        let Some(path) = self
+            .project_dialog("Сохранить проект как")
+            .set_file_name(name)
+            .save_file()
+        else {
+            return;
+        };
+        self.bench.tools.message = Some(
+            self.bench
+                .save_project_as(path)
+                .unwrap_or_else(|error| error),
+        );
     }
     /// Zoom to the model extent including the grid («Вписать»).
     fn fit(&mut self) {
@@ -619,6 +671,7 @@ impl Desktop {
                 }
             }
             match request {
+                Request::SaveAs => self.save_as(),
                 Request::Projection(orthographic) => self.camera.orthographic = orthographic,
                 Request::Zoom(delta) => self.camera.zoom(delta),
                 Request::CenterAt(point) => self.camera.look_at(point),
@@ -872,6 +925,14 @@ impl eframe::App for Desktop {
     }
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
+        let title = open_bim_desktop::ui::platform::document_title(
+            &self.bench.project_path().to_string_lossy(),
+            self.bench.modified(),
+        );
+        if title != self.window_title {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.clone()));
+            self.window_title = title;
+        }
         self.bench.native_close_request(&ctx);
         if self.bench.close_pending() || self.bench.project_change_pending() {
             // Keep a model backdrop without polling jobs, accepting edits or
@@ -992,7 +1053,16 @@ impl eframe::App for Desktop {
             });
             let kb_space = if typing {
                 None
-            } else if ctx.input_mut(|i| i.consume_key(egui::Modifiers::ALT, egui::Key::Space)) {
+            } else if ctx.input_mut(|i| {
+                i.consume_key(
+                    if cfg!(target_os = "windows") {
+                        egui::Modifiers::CTRL
+                    } else {
+                        egui::Modifiers::ALT
+                    },
+                    egui::Key::Space,
+                )
+            }) {
                 Some(selection::Click::Toggle)
             } else if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Space)) {
                 Some(selection::Click::Replace)
@@ -1499,7 +1569,7 @@ impl eframe::App for Desktop {
                     (None, Some(p)) => {
                         self.object_drag = Some(p);
                         self.bench.tools.message = Some(
-                            "Перетаскивание: отпустите в точке назначения (Ctrl или ⌥ — копия)"
+                            "Перетаскивание: отпустите в точке назначения (Ctrl или Alt — копия)"
                                 .into(),
                         );
                     }
@@ -1929,12 +1999,23 @@ fn gizmo_axis_at(camera: &Camera, rect: egui::Rect, p: egui::Pos2) -> Option<Nam
 fn main() -> eframe::Result {
     let options = Options::parse().map_err(|e| eframe::Error::AppCreation(e.into()))?;
     let size = options.size.unwrap_or([1280.0, 800.0]);
+    let maximized = cfg!(target_os = "windows")
+        && options.size.is_none()
+        && options.capture.is_none()
+        && options.script.is_none()
+        && options.bench.is_none();
     eframe::run_native(
         "Open BIM",
         eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default()
                 .with_inner_size(size)
-                .with_min_inner_size([1000.0, 600.0]),
+                .with_decorations(true)
+                .with_maximized(maximized)
+                .with_min_inner_size(if cfg!(target_os = "windows") {
+                    [800.0, 480.0]
+                } else {
+                    [1000.0, 600.0]
+                }),
             renderer: eframe::Renderer::Wgpu,
             wgpu_options: eframe::egui_wgpu::WgpuConfiguration {
                 surface: eframe::egui_wgpu::SurfaceConfig {

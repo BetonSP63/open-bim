@@ -32,6 +32,10 @@ open-bim-nc.workspace = true
 open-bim-api.workspace = true
 # Native file picker for model import (MIT).
 rfd = { version = "=0.17.2", default-features = false, features = ["xdg-portal"] }
+tempfile = "=3.27.0"
+
+[target.'cfg(windows)'.dependencies]
+dirs = "=6.0.0"
 
 [dev-dependencies]
 skrifa = "=0.44.0"

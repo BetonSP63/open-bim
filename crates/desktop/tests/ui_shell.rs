@@ -200,7 +200,10 @@ fn commands_are_named_unique_searchable_and_not_stubs() {
     assert!(commands::search("балка").contains(&commands::Cmd::ToolBeam));
     assert!(commands::search("pdf").contains(&commands::Cmd::ExportPdf));
     assert!(commands::search("ЧЕРТЁЖ ДЕТ").contains(&commands::Cmd::PartDrawing));
-    assert!(commands::search("⌘K").contains(&commands::Cmd::NumberAndCheck));
+    assert!(
+        commands::search(&commands::shortcut_text(commands::Cmd::NumberAndCheck))
+            .contains(&commands::Cmd::NumberAndCheck)
+    );
     // Every command has an observable effect (request, state change or message).
     for spec in commands::ALL {
         let mut b = bench();

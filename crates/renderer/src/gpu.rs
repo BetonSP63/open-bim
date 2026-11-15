@@ -14,11 +14,13 @@ struct MeshBuffers {
 }
 struct Target {
     color: wgpu::TextureView,
+    multisampled_color: Option<wgpu::TextureView>,
     depth: wgpu::TextureView,
     group: wgpu::BindGroup,
     size: [u32; 2],
 }
 pub struct GpuRenderer {
+    sample_count: u32,
     pipeline: wgpu::RenderPipeline,
     /// See-through parts: blended, depth tested but not written.
     transparent: wgpu::RenderPipeline,
@@ -44,7 +46,11 @@ const EDGE: [wgpu::VertexAttribute; 3] =
     wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 7 => Float32x2];
 const INSTANCE: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![2 => Float32x4, 3 => Float32x4, 4 => Float32x4, 5 => Float32x4, 6 => Float32x4];
 impl GpuRenderer {
-    pub fn new(device: &wgpu::Device, target_format: wgpu::TextureFormat) -> Self {
+    pub fn new(
+        device: &wgpu::Device,
+        target_format: wgpu::TextureFormat,
+        sample_count: u32,
+    ) -> Self {
         let uniform = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("camera + section"),
             size: 112,
@@ -145,7 +151,10 @@ impl GpuRenderer {
                     stencil: Default::default(),
                     bias: Default::default(),
                 }),
-                multisample: Default::default(),
+                multisample: wgpu::MultisampleState {
+                    count: sample_count,
+                    ..Default::default()
+                },
                 multiview_mask: None,
                 cache: None,
             })
@@ -222,6 +231,7 @@ impl GpuRenderer {
             ..Default::default()
         });
         Self {
+            sample_count,
             pipeline,
             transparent,
             edges,
@@ -242,7 +252,7 @@ impl GpuRenderer {
         if self.target.as_ref().is_some_and(|t| t.size == size) {
             return;
         }
-        let texture = |format, usage| {
+        let texture = |format, usage, sample_count| {
             device
                 .create_texture(&wgpu::TextureDescriptor {
                     label: Some("BIM viewport"),
@@ -252,7 +262,7 @@ impl GpuRenderer {
                         depth_or_array_layers: 1,
                     },
                     mip_level_count: 1,
-                    sample_count: 1,
+                    sample_count,
                     dimension: wgpu::TextureDimension::D2,
                     format,
                     usage,
@@ -263,10 +273,19 @@ impl GpuRenderer {
         let color = texture(
             wgpu::TextureFormat::Rgba8UnormSrgb,
             wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            1,
         );
+        let multisampled_color = (self.sample_count > 1).then(|| {
+            texture(
+                wgpu::TextureFormat::Rgba8UnormSrgb,
+                wgpu::TextureUsages::RENDER_ATTACHMENT,
+                self.sample_count,
+            )
+        });
         let depth = texture(
             wgpu::TextureFormat::Depth32Float,
             wgpu::TextureUsages::RENDER_ATTACHMENT,
+            self.sample_count,
         );
         let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: None,
@@ -284,6 +303,7 @@ impl GpuRenderer {
         });
         self.target = Some(Target {
             color,
+            multisampled_color,
             depth,
             group,
             size,
@@ -461,13 +481,17 @@ impl GpuRenderer {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("BIM depth pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &target.color,
+                view: target.multisampled_color.as_ref().unwrap_or(&target.color),
                 depth_slice: None,
-                resolve_target: None,
+                resolve_target: target.multisampled_color.as_ref().map(|_| &target.color),
                 ops: wgpu::Operations {
                     // Transparent: the egui gradient behind the viewport shows through.
                     load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                    store: wgpu::StoreOp::Store,
+                    store: if self.sample_count > 1 {
+                        wgpu::StoreOp::Discard
+                    } else {
+                        wgpu::StoreOp::Store
+                    },
                 },
             })],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {

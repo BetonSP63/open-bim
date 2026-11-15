@@ -7,6 +7,7 @@ pub enum Cmd {
     NewProject,
     OpenProject,
     SaveProject,
+    SaveProjectAs,
     ExampleFrame,
     Undo,
     Redo,
@@ -237,6 +238,23 @@ const SHIFT_ALT: Modifiers = Modifiers {
 const CTRL: Modifiers = Modifiers::CTRL;
 const SHIFT: Modifiers = Modifiers::SHIFT;
 const NONE: Modifiers = Modifiers::NONE;
+const SHIFT_CTRL: Modifiers = Modifiers {
+    shift: true,
+    ..CTRL
+};
+// Command and Control are separate keys on Mac but the same key on Windows.
+// Keep the familiar file/search shortcuts and move colliding CAD commands.
+const CAD_CTRL: Modifiers = if cfg!(target_os = "macos") {
+    CTRL
+} else {
+    SHIFT_CTRL
+};
+const REDO: Option<KeyboardShortcut> = if cfg!(target_os = "macos") {
+    s(SHIFT_CMD, Key::Z)
+} else {
+    s(CTRL, Key::Y)
+};
+pub const MODEL_CLIPBOARD_MARKER: &str = "Open BIM: объекты модели";
 
 pub struct Spec {
     pub cmd: Cmd,
@@ -271,6 +289,13 @@ pub const ALL: &[Spec] = &[
         category: "Файл",
         shortcut: s(CMD, Key::S),
         keywords: "записать save",
+    },
+    Spec {
+        cmd: Cmd::SaveProjectAs,
+        label: "Сохранить как…",
+        category: "Файл",
+        shortcut: s(SHIFT_CMD, Key::S),
+        keywords: "копия файл другое имя save as",
     },
     Spec {
         cmd: Cmd::ExampleFrame,
@@ -318,7 +343,7 @@ pub const ALL: &[Spec] = &[
         cmd: Cmd::Redo,
         label: "Повторить",
         category: "Правка",
-        shortcut: s(SHIFT_CMD, Key::Z),
+        shortcut: REDO,
         keywords: "redo вперёд",
     },
     Spec {
@@ -752,7 +777,11 @@ pub const ALL: &[Spec] = &[
         cmd: Cmd::CopyByPicks,
         label: "Копировать по точкам",
         category: "Правка",
-        shortcut: s(CTRL, Key::C),
+        shortcut: if cfg!(target_os = "macos") {
+            s(CTRL, Key::C)
+        } else {
+            s(SHIFT_CTRL, Key::D)
+        },
         keywords: "копировать копия copy",
     },
     Spec {
@@ -857,21 +886,25 @@ pub const ALL: &[Spec] = &[
         cmd: Cmd::PanelViews,
         label: "Панель: виды модели",
         category: "Вид",
-        shortcut: s(CTRL, Key::I),
+        shortcut: s(CAD_CTRL, Key::I),
         keywords: "виды модели список",
     },
     Spec {
         cmd: Cmd::PlaneOr3d,
         label: "Переключить 3D / плоский вид",
         category: "Вид",
-        shortcut: s(CTRL, Key::P),
+        shortcut: if cfg!(target_os = "macos") {
+            s(CTRL, Key::P)
+        } else {
+            s(SHIFT_CTRL, Key::Num3)
+        },
         keywords: "3d план плоский вид",
     },
     Spec {
         cmd: Cmd::ToggleContextual,
         label: "Контекстная панель",
         category: "Вид",
-        shortcut: s(CTRL, Key::K),
+        shortcut: s(CAD_CTRL, Key::K),
         keywords: "контекстная панель свойства у курсора",
     },
     Spec {
@@ -962,7 +995,7 @@ pub const ALL: &[Spec] = &[
         cmd: Cmd::ComponentCatalog,
         label: "Каталог компонентов…",
         category: "Детали",
-        shortcut: s(CTRL, Key::F),
+        shortcut: s(CAD_CTRL, Key::F),
         keywords: "компоненты узлы соединения каталог пластина шарнир база",
     },
     Spec {
@@ -1207,14 +1240,14 @@ pub const ALL: &[Spec] = &[
         cmd: Cmd::CopyToClipboard,
         label: "Копировать в буфер",
         category: "Правка",
-        shortcut: None,
+        shortcut: s(CMD, Key::C),
         keywords: "буфер обмена копировать вставить",
     },
     Spec {
         cmd: Cmd::Paste,
         label: "Вставить",
         category: "Правка",
-        shortcut: None,
+        shortcut: s(CMD, Key::V),
         keywords: "вставить буфер обмена paste",
     },
     Spec {
@@ -1333,7 +1366,7 @@ pub const ALL: &[Spec] = &[
         cmd: Cmd::DocumentManager,
         label: "Менеджер документов",
         category: "Чертежи",
-        shortcut: s(CTRL, Key::L),
+        shortcut: s(CAD_CTRL, Key::L),
         keywords: "список чертежей документы выдать обновить комплект",
     },
     Spec {
@@ -1769,11 +1802,30 @@ pub fn spec(cmd: Cmd) -> &'static Spec {
     ALL.iter().find(|s| s.cmd == cmd).unwrap_or(&ALL[0])
 }
 
-/// macOS-style shortcut text, e.g. «⇧⌘Z», «Alt+B», «F2».
+/// Shortcut text using the operating system's key names.
 pub fn shortcut_text(cmd: Cmd) -> String {
     let Some(sc) = spec(cmd).shortcut else {
         return String::new();
     };
+    if !cfg!(target_os = "macos") {
+        let mut text = String::new();
+        if sc.modifiers.command || sc.modifiers.ctrl {
+            text.push_str("Ctrl+");
+        }
+        if sc.modifiers.alt {
+            text.push_str("Alt+");
+        }
+        if sc.modifiers.shift {
+            text.push_str("Shift+");
+        }
+        text.push_str(match sc.logical_key {
+            Key::Enter => "Enter",
+            Key::Escape => "Esc",
+            Key::Space => "Пробел",
+            key => key.name(),
+        });
+        return text;
+    }
     let mut text = String::new();
     if sc.modifiers.alt {
         // The bundled fonts have no ⌥ glyph; Option is labelled «Alt».
@@ -1798,7 +1850,7 @@ pub fn shortcut_text(cmd: Cmd) -> String {
         Key::Space => "Пробел".into(),
         other => other.name().to_string(),
     };
-    text + &key
+    super::platform::text(&(text + &key)).into_owned()
 }
 
 /// Quiet status line after a ribbon click: «Быстрее: Alt+B».
@@ -1844,6 +1896,31 @@ pub fn pressed(ctx: &eframe::egui::Context) -> Vec<Cmd> {
     let typing = ctx.egui_wants_keyboard_input();
     let popup_open = eframe::egui::Popup::is_any_open(ctx);
     let mut result = Vec::new();
+    // Native integrations translate Ctrl+C/V (also Ctrl+Insert and
+    // Shift+Insert on Windows) into clipboard events instead of key events.
+    // Text edits keep those events; model paste only accepts our marker.
+    if !typing {
+        ctx.input_mut(|input| {
+            input.events.retain(|event| match event {
+                eframe::egui::Event::Copy => {
+                    result.push(Cmd::CopyToClipboard);
+                    false
+                }
+                eframe::egui::Event::Paste(text) if text == MODEL_CLIPBOARD_MARKER => {
+                    result.push(Cmd::Paste);
+                    false
+                }
+                _ => true,
+            })
+        });
+    }
+    // Consume this alternate redo before Ctrl+Z can claim the same event.
+    if !cfg!(target_os = "macos")
+        && !typing
+        && ctx.input_mut(|i| i.consume_shortcut(&KeyboardShortcut::new(SHIFT_CMD, Key::Z)))
+    {
+        result.push(Cmd::Redo);
+    }
     // Longer modifier sets first, so ⇧⌘Z is not also read as ⌘Z.
     let mut specs: Vec<&Spec> = ALL.iter().filter(|s| s.shortcut.is_some()).collect();
     specs.sort_by_key(|s| {
@@ -1852,6 +1929,21 @@ pub fn pressed(ctx: &eframe::egui::Context) -> Vec<Cmd> {
     });
     for spec in specs {
         let Some(sc) = spec.shortcut else { continue };
+        // A text edit owns its clipboard, select-all and undo shortcuts.
+        if typing
+            && matches!(
+                spec.cmd,
+                Cmd::CopyToClipboard
+                    | Cmd::Paste
+                    | Cmd::SelectAll
+                    | Cmd::Undo
+                    | Cmd::Redo
+                    | Cmd::DeleteSelected
+                    | Cmd::UndoPick
+            )
+        {
+            continue;
+        }
         // The popup owns Escape first. Consuming it here would also cancel
         // the underlying selection/tool before the list can close itself.
         if popup_open && sc.logical_key == Key::Escape {
