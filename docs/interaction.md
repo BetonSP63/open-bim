@@ -7,6 +7,20 @@ are listed in `docs/reference-docs-comparison.md`.
 
 ## Saving and closing
 
+Windows-specific controls and first-launch behaviour are documented in
+`docs/windows-interface.md`: native file dialogs, Ctrl shortcuts without CAD
+conflicts, bounded DPI layout and a user-owned default project in the Windows
+Documents known folder. The default project is published without replacing an
+existing file, including two simultaneous first launches. Regression tests:
+`windows_interface`, `startup`, `scripts/test-windows-package.ps1`.
+
+Manual macOS regression (a disposable project): Command+O must open a file
+dialog, Command+S save, Command+Shift+S offer another destination, Command+Z /
+Command+Shift+Z undo/redo. Control+C remains copy-by-picks; Command+C/V use the
+model clipboard. Cancel a file dialog and verify that the current model/path
+remain unchanged. The macOS launcher still uses its existing home-directory
+project; the Windows Documents default is platform-specific.
+
 A native window close request prompts before discarding unsaved model changes:
 «Сохранить и выйти», «Не сохранять», «Отмена». Escape and clicking outside the
 dialog cancel the exit. A failed save keeps the dialog, model and undo history

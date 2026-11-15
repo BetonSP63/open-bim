@@ -7,6 +7,7 @@ pub mod interaction;
 pub mod organizer;
 pub mod reports_ui;
 pub mod script;
+pub mod startup;
 pub mod synthetic;
 pub mod tools;
 pub mod ui;

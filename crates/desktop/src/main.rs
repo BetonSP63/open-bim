@@ -143,7 +143,7 @@ impl Options {
             return Err("Высота должна быть конечной".into());
         }
         if std::env::args_os().len() == 1 {
-            options.package_defaults();
+            options.package_defaults()?;
         }
         Ok(options)
     }
@@ -151,29 +151,19 @@ impl Options {
     /// Started without arguments from the Windows package: open the bundled
     /// example and save into the user's Documents, as the macOS launcher
     /// does. The program folder itself may be read-only.
-    fn package_defaults(&mut self) {
-        if !cfg!(windows) {
-            return;
+    fn package_defaults(&mut self) -> Result<(), String> {
+        #[cfg(windows)]
+        if let Some(documents) = dirs::document_dir() {
+            let executable = std::env::current_exe().map_err(|error| error.to_string())?;
+            if let Some(project) =
+                open_bim_desktop::startup::packaged_project(&executable, &documents)?
+            {
+                let path = project.to_string_lossy().into_owned();
+                self.open = Some(path.clone());
+                self.project_path = Some(path);
+            }
         }
-        let example = std::env::current_exe().ok().and_then(|exe| {
-            let path = exe.parent()?.join("examples").join("steel-release.obim");
-            path.is_file().then_some(path)
-        });
-        let Some(example) = example else {
-            return;
-        };
-        let Some(profile) = std::env::var_os("USERPROFILE") else {
-            return;
-        };
-        let project = PathBuf::from(profile)
-            .join("Documents")
-            .join("Open BIM проект.obim");
-        self.open = Some(if project.is_file() {
-            project.to_string_lossy().into_owned()
-        } else {
-            example.to_string_lossy().into_owned()
-        });
-        self.project_path = Some(project.to_string_lossy().into_owned());
+        Ok(())
     }
 }
 #[derive(Clone)]
