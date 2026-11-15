@@ -48,6 +48,16 @@ try {
     try { Assert ($reader.ReadToEnd().Trim() -eq 'desktop fixture') 'Wrong executable in ZIP' }
     finally { $reader.Dispose() }
 } finally { $archive.Dispose() }
+# A dirty Git tree is metadata, not a failed package command. GitHub's pwsh
+# runner propagates LASTEXITCODE after the script returns.
+& git -C $fixture init --quiet
+& git -C $fixture add Cargo.toml README.md
+& git -C $fixture -c user.name=PackageTest -c user.email=package-test@example.invalid commit --quiet -m fixture
+'changed readme' | Set-Content -LiteralPath (Join-Path $fixture 'README.md')
+$dirtyOutput = Join-Path $testRoot 'Dirty source'
+& $packager $dirtyOutput -SkipBuild | Out-Null
+Assert ($LASTEXITCODE -eq 0) 'Successful packaging leaked a nonzero native exit status'
+Assert ((Get-Content -LiteralPath (Join-Path $dirtyOutput 'Open BIM/BUILD.txt') -Raw).Contains('Tracked source changes: true')) 'Dirty source was not recorded'
 'keep existing app' | Set-Content -LiteralPath (Join-Path $app 'Open BIM.exe')
 Assert-Refuses { & $packager $output -SkipBuild } 'Existing package was overwritten'
 Assert ((Get-FileHash -LiteralPath $zip).Hash.ToLowerInvariant() -eq $hash) 'Existing ZIP changed'

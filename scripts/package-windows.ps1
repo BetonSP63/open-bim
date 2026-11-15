@@ -72,6 +72,9 @@ try {
     Write-Output "Готово: $app"
     Write-Output "Архив: $zip"
     Write-Output "SHA256: $hash"
+    # `git diff --quiet` returns 1 for tracked changes. That is metadata,
+    # not a failed package; GitHub's pwsh runner propagates LASTEXITCODE.
+    $global:LASTEXITCODE = 0
 } finally {
     Pop-Location
 }
