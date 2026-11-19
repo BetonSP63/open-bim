@@ -26,6 +26,9 @@ as IFC4.3 with a warning.
 * Import keeps a predefined type other than the default (`BEAM`, `COLUMN`,
   `SHEET`, `NOTDEFINED`) and a USERDEFINED ObjectType in the part properties
   `ifc_predefined_type` / `ifc_object_type`, so they survive re-export.
+* Reinforcement is written only in IFC4.3. An IFC4 file of the same model
+  omits the bars and lists their set numbers in `ExportReport.rebar_not_in_schema`
+  (`SPACEBAR`, the frog, exists only in IFC4.3). See [Reinforcement](#reinforcement).
 * IFC4.3 facilities (`IfcBridge`, `IfcRoad`, `IfcRailway`, `IfcMarineFacility`,
   `IfcFacility`) and their parts are read like a building: elements contained
   in them are imported with the full placement chain. Infrastructure objects
@@ -53,10 +56,37 @@ as IFC4.3 with a warning.
 | GUID | `GlobalId`; stored on import in element property `IFC GUID`, reused on export; otherwise deterministic from the element ID |
 | Properties | element properties ↔ `IfcPropertySet` 'Open BIM' of `IfcPropertySingleValue` (IfcLabel / IfcReal / IfcBoolean); other psets imported as `Pset.Name` keys |
 | ГОСТ data | export only: `IfcPropertySet` 'Сведения по ГОСТ' per part with «Профиль», «Сортамент» (standard of the section; ГОСТ 19903-2015 for plates), «Сталь» and «Масса, кг» (`IfcMassMeasure`); skipped on import, since it is derived from the model |
-| КСИ | an element property «КСИ» (code of the construction information classifier, entered by the user) becomes `IfcClassificationReference` under `IfcClassification` 'КСИ' via `IfcRelAssociatesClassification`; the code returns on import through the 'Open BIM' set. Open BIM ships no КСИ table: take codes from ksi.faufcc.ru |
+| КСИ | an element property «КСИ» (code of the construction information classifier, entered by the user) becomes `IfcClassificationReference` under `IfcClassification` 'КСИ' via `IfcRelAssociatesClassification`; the code returns on import through the 'Open BIM' set. Open BIM ships no КСИ table: take codes from ksi.faufcc.ru. A bar set has no property of its own, so the code stays on the concrete part |
+| Reinforcing bar (IFC4.3) | `IfcReinforcingBar` + `IfcReinforcingBarType` per schedule position. See [Reinforcement](#reinforcement). Not read back into bar sets |
 | Assemblies (import) | `IfcElementAssembly` + `IfcRelAggregates` → model assemblies, longest part main, nesting kept |
 | Holes, box cuts | `IfcOpeningElement` (circle / rectangle extrusion) + `IfcRelVoidsElement` |
 | Units | `IfcSIUnit` mm (import also m, cm, dm, km, foot, inch) |
+
+## Reinforcement
+
+IFC4.3 only (`export_schema(..., Schema::Ifc4x3)`). One
+`IfcReinforcingBarType` per detail-schedule position, one
+`IfcReinforcingBar` per bar.
+
+| Data | IFC |
+|---|---|
+| Shape code («ПР», «П», «Л»…) | `IfcReinforcingBarType.BendingShapeCode` |
+| Legs A, B, C… and hook extensions, then the bend after each leg | `BendingParameters`: `IfcLengthMeasure` (mm), `IfcPlaneAngleMeasure` (radian, the file's angle unit). A positive angle turns left, as in the shape type |
+| Nominal diameter, cut length, area | on the type and on the bar. The cut length is the centreline with the arc correction, the same length as the schedule |
+| Steel grade | `SteelGrade` on the bar, `IfcMaterial` (7850 kg/m³, `Pset_MaterialCommon`) and `Pset_ReinforcingBarCommon.SteelGrade` |
+| Surface | `.PLAIN.` for А240, `.TEXTURED.` otherwise |
+| Role | `.MAIN.` mesh and longitudinal, `.EDGE.` U-bars, `.SHEAR.` stirrups, `.SPACEBAR.` frogs, `.NOTDEFINED.` a bar placed from a shape with no role |
+| Position | `Tag` of the bar and of the type |
+| Centreline | `IfcShapeRepresentation` 'Body' 'AdvancedSweptSolid' → `IfcSweptDiskSolid`. A straight bar's directrix is an `IfcPolyline`. A bend is an `IfcCompositeCurve`: straight legs and an `IfcTrimmedCurve` of an `IfcCircle` whose radius is `(mandrel + diameter) / 2`. The radius is reduced only when a leg is shorter than the tangent setback |
+| Host | `IfcRelAggregates`: the concrete part (whatever class it exports as — `IfcSlab` when that class is chosen, otherwise `IfcPlate` for a plate-shaped part) aggregates its bars. Placement of a bar is relative to the host. The same bars are also in `IfcRelContainedInSpatialStructure` of the host's storey, so a viewer that only walks containment still sees them |
+| No host | containment in «Уровень 0» only |
+| Properties | `Pset_ReinforcingBarCommon` (Reference, SteelGrade, NominalDiameter, CrossSectionArea, BarLength), the project set «Open BIM» (position, shape, class, set numbers) and «Сведения по ГОСТ» (grade, ГОСТ 34028-2016, unit mass) |
+| Meshes | individual bars. A mesh cut by an opening, or one with a remainder step, is not a regular welded mesh, so it is not an `IfcReinforcingMesh` |
+
+The importer does not rebuild bar sets. `IfcReinforcingBar` is counted under
+`unsupported_entities` and reported as «арматура». The STEP reader can parse
+the entities; the model keeps the concrete parts it already knew how to read
+(beam, column, member, plate) and leaves the bars out.
 
 ## Not in the subset (reported)
 
@@ -92,7 +122,10 @@ transaction. Elements the model rejects are dropped one by one (`skipped`).
   (schema, attribute counts and EXPRESS rules, checked by file path; a negative
   control gives 3); element volumes equal those of the IFC4 files; a bridge
   file of another program (IfcBridge, IfcBridgePart, girder, bearing,
-  alignment) validates and is imported.
+  alignment) validates and is imported. `rebar-slab.ifc` is the slab sample
+  (meshes, U-bars, frogs); the same script checks its schema and that every
+  bar produces a solid. `crates/ifc/tests/rebar.rs` checks entities, the host
+  aggregate, the type parameters and that import does not rebuild the bars.
 * GUI: `tests/ifc_flow/` — export, new project, import in the native app; the
   exported file is byte-identical to the validated fixture.
 

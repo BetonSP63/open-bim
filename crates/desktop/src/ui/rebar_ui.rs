@@ -137,6 +137,7 @@ impl Workbench {
         }
         let mut open = true;
         let mut export = false;
+        let mut export_bvbs = false;
         {
             let selected: Vec<ObjectId> = self.editor.selected.iter().copied().collect();
             let project = self.editor.document.project();
@@ -308,13 +309,25 @@ impl Workbench {
                     )));
                 }
                 ui.separator();
-                if ui
-                    .button("Экспорт CSV ведомостей")
-                    .on_hover_text("Папка release: ведомость деталей и ведомость расхода стали")
-                    .clicked()
-                {
-                    export = true;
-                }
+                ui.horizontal(|ui| {
+                    if ui
+                        .button("Экспорт CSV ведомостей")
+                        .on_hover_text("Папка release: ведомость деталей и ведомость расхода стали")
+                        .clicked()
+                    {
+                        export = true;
+                    }
+                    if ui
+                        .button("Экспорт BVBS")
+                        .on_hover_text(
+                            "Папка release: арматура.bvbs, одна строка на позицию \
+                             (BVBS-Richtlinie 3.1, BF2D)",
+                        )
+                        .clicked()
+                    {
+                        export_bvbs = true;
+                    }
+                });
                 schedule_tables(ui, &details, &steel);
                 let _ = s;
                 kj_panel(ui, rebar, project, &selected, requests);
@@ -327,6 +340,21 @@ impl Workbench {
                 Ok(files) if files.is_empty() => self.message("В модели нет арматуры"),
                 Ok(files) => self.message(format!(
                     "Ведомости арматуры: {}",
+                    files
+                        .iter()
+                        .map(|p| p.display().to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )),
+                Err(e) => self.message(e),
+            }
+        }
+        if export_bvbs {
+            let project = self.editor.document.project();
+            match open_bim_reports::csv::write_bvbs(project, std::path::Path::new("release")) {
+                Ok(files) if files.is_empty() => self.message("В модели нет арматуры"),
+                Ok(files) => self.message(format!(
+                    "BVBS: {}",
                     files
                         .iter()
                         .map(|p| p.display().to_string())

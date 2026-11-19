@@ -270,6 +270,20 @@ pub fn rebar_steel(project: &open_bim_model::Project) -> String {
     )
 }
 
+/// BVBS BF2D file of the bar positions. Empty when the model has no bars.
+pub fn write_bvbs(
+    project: &open_bim_model::Project,
+    dir: &std::path::Path,
+) -> Result<Vec<std::path::PathBuf>, String> {
+    if project.concrete.rebars.is_empty() {
+        return Ok(Vec::new());
+    }
+    std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    let path = dir.join("арматура.bvbs");
+    std::fs::write(&path, open_bim_model::rebar::bvbs::file(project)).map_err(|e| e.to_string())?;
+    Ok(vec![path])
+}
+
 /// Writes both rebar schedules. Empty when the model has no bars.
 pub fn write_rebar(
     project: &open_bim_model::Project,

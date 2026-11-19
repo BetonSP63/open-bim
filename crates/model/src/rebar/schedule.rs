@@ -125,7 +125,7 @@ pub fn steel_schedule(project: &Project) -> SteelSchedule {
         let grade = grade_of(&set.grade);
         let d_key = (set.diameter * 1000.).round() as i64;
         let element = host_name(project, set.host);
-        let radius = (effective_mandrel(project, set) + set.diameter) / 2.;
+        let radius = (mandrel_diameter(project, set) + set.diameter) / 2.;
         for bar in &set.bars {
             let length = cut_length(bar, radius);
             let mass = mass_per_m(set.diameter) * length / 1000.;
@@ -190,6 +190,96 @@ pub fn write_positions(project: &mut Project) {
     for zone in &mut project.concrete.zones {
         zone.mark = labels.get(&zone.number).cloned().unwrap_or_default();
     }
+}
+
+/// One leg of a bending shape, in bar order. `angle_deg` is the turn after
+/// the leg (positive to the left); the last leg ends at 0.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BendLeg {
+    /// Length between bend tangents, or the straight part of a hook, mm.
+    pub length_mm: i64,
+    pub angle_deg: i32,
+}
+
+/// Legs of one schedule position: a start hook, the segments A, B, C…, then
+/// an end hook. This is the bending shape shared by BVBS and IFC.
+pub fn bend_legs(row: &DetailRow) -> Vec<BendLeg> {
+    let mut legs = Vec::new();
+    if let Some(deg) = hook_degrees(row.hooks[0].kind) {
+        legs.push(BendLeg {
+            length_mm: whole_mm(row.hooks[0].extension(row.diameter)),
+            angle_deg: deg,
+        });
+    }
+    let n = row.segments.len();
+    for (i, seg) in row.segments.iter().enumerate() {
+        let mut angle = seg.bend_deg.round() as i32;
+        if i + 1 == n {
+            if let Some(deg) = hook_degrees(row.hooks[1].kind) {
+                if angle == 0 {
+                    angle = deg;
+                }
+            } else {
+                angle = 0;
+            }
+        }
+        legs.push(BendLeg {
+            length_mm: whole_mm(seg.length_mm),
+            angle_deg: angle,
+        });
+    }
+    if hook_degrees(row.hooks[1].kind).is_some() {
+        legs.push(BendLeg {
+            length_mm: whole_mm(row.hooks[1].extension(row.diameter)),
+            angle_deg: 0,
+        });
+    }
+    if legs.is_empty() {
+        legs.push(BendLeg {
+            length_mm: whole_mm(row.length_mm),
+            angle_deg: 0,
+        });
+    }
+    legs
+}
+
+fn hook_degrees(kind: HookKind) -> Option<i32> {
+    match kind {
+        HookKind::None => None,
+        HookKind::Deg90 => Some(90),
+        HookKind::Deg135 => Some(135),
+        HookKind::Deg180 => Some(180),
+    }
+}
+
+fn whole_mm(value: f64) -> i64 {
+    let n = value.round() as i64;
+    if n < 1 { 1 } else { n }
+}
+
+/// Where one bar sits in the detail schedule.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BarPlace {
+    pub set_number: u32,
+    pub bar_index: usize,
+    pub mark: u32,
+}
+
+/// Position of every bar. The mark matches [`detail_schedule`].
+pub fn bar_places(project: &Project) -> Vec<BarPlace> {
+    let items = items_of(project);
+    let mut out = Vec::new();
+    for (n, ix) in grouped(&items).into_iter().enumerate() {
+        let mark = n as u32 + 1;
+        for i in ix {
+            out.push(BarPlace {
+                set_number: items[i].set_number,
+                bar_index: items[i].bar_index,
+                mark,
+            });
+        }
+    }
+    out
 }
 
 /// Letters used by the schedule, in the order they first appear.
@@ -390,9 +480,18 @@ struct Key {
 }
 
 fn assemble(project: &Project, sketches: bool) -> Vec<DetailRow> {
+    let items = items_of(project);
+    grouped(&items)
+        .into_iter()
+        .enumerate()
+        .map(|(n, ix)| row_of(&items, ix, n as u32 + 1, sketches))
+        .collect()
+}
+
+fn items_of(project: &Project) -> Vec<BarItem> {
     let mut items = Vec::new();
     for set in &project.concrete.rebars {
-        let mandrel = effective_mandrel(project, set);
+        let mandrel = mandrel_diameter(project, set);
         let radius = (mandrel + set.diameter) / 2.;
         for (bar_index, bar) in set.bars.iter().enumerate() {
             if bar.len() < 2 {
@@ -416,6 +515,10 @@ fn assemble(project: &Project, sketches: bool) -> Vec<DetailRow> {
             });
         }
     }
+    items
+}
+
+fn grouped(items: &[BarItem]) -> Vec<Vec<usize>> {
     let mut groups: BTreeMap<Key, Vec<usize>> = BTreeMap::new();
     for (i, item) in items.iter().enumerate() {
         groups.entry(item.key.clone()).or_default().push(i);
@@ -433,10 +536,6 @@ fn assemble(project: &Project, sketches: bool) -> Vec<DetailRow> {
             .then_with(|| items[a[0]].key.cmp(&items[b[0]].key))
     });
     order
-        .into_iter()
-        .enumerate()
-        .map(|(n, ix)| row_of(&items, ix, n as u32 + 1, sketches))
-        .collect()
 }
 
 fn row_of(items: &[BarItem], ix: Vec<usize>, mark: u32, sketches: bool) -> DetailRow {
@@ -624,7 +723,8 @@ fn host_name(project: &Project, host: Option<ObjectId>) -> String {
         .unwrap_or_else(|| "—".into())
 }
 
-fn effective_mandrel(project: &Project, set: &RebarSet) -> f64 {
+/// Mandrel diameter of a set, mm: the set, else the shape type, else СП 63.
+pub fn mandrel_diameter(project: &Project, set: &RebarSet) -> f64 {
     if let Some(d) = set.bend_diameter {
         return d;
     }

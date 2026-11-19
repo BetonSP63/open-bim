@@ -5,13 +5,15 @@
 //! of slabs, and the generators that place a bar set in its host part and
 //! build it again when the host changes.
 mod area;
+pub mod bvbs;
 mod schedule;
 mod shape;
 
 pub use area::{host_cover, install_slab, model_checks, set_zone_framing};
 pub use schedule::{
-    DetailRow, SegmentLen, ShapeSketch, SketchMark, SteelRow, SteelSchedule, column_letters,
-    detail_schedule, shape_sketch, steel_schedule, write_positions, zone_marks,
+    BarPlace, BendLeg, DetailRow, SegmentLen, ShapeSketch, SketchMark, SteelRow, SteelSchedule,
+    bar_places, bend_legs, column_letters, detail_schedule, mandrel_diameter, shape_sketch,
+    steel_schedule, write_positions, zone_marks,
 };
 pub use shape::{builtin_shapes, instantiate, resolve_shape, shape_known};
 
