@@ -202,3 +202,152 @@ pub fn pours(project: &open_bim_model::Project) -> String {
         rows.into_iter(),
     )
 }
+
+/// «Ведомость деталей» of reinforcing bars.
+pub fn rebar_details(project: &open_bim_model::Project) -> String {
+    let rows = open_bim_model::rebar::detail_schedule(project);
+    let total_mass: f64 = rows.iter().map(|r| r.total_mass_kg).sum();
+    let total_count: usize = rows.iter().map(|r| r.count).sum();
+    let mut body: Vec<Vec<String>> = rows.iter().map(detail_cells).collect();
+    body.push(vec![
+        "Итого".into(),
+        String::new(),
+        String::new(),
+        String::new(),
+        String::new(),
+        String::new(),
+        String::new(),
+        String::new(),
+        total_count.to_string(),
+        String::new(),
+        number(total_mass),
+    ]);
+    table(
+        &[
+            "Позиция",
+            "Форма",
+            "Диаметр, мм",
+            "Класс",
+            "Стандарт",
+            "Участки",
+            "Крюки",
+            "Длина, мм",
+            "Кол-во",
+            "Масса ед., кг",
+            "Масса, кг",
+        ],
+        body.into_iter(),
+    )
+}
+
+/// «Ведомость расхода стали» by element, then totals by class.
+pub fn rebar_steel(project: &open_bim_model::Project) -> String {
+    let steel = open_bim_model::rebar::steel_schedule(project);
+    let mut rows: Vec<Vec<String>> = steel.by_element.iter().map(steel_cells).collect();
+    for row in &steel.by_class {
+        let mut cells = steel_cells(row);
+        cells[0] = "Всего".into();
+        rows.push(cells);
+    }
+    rows.push(vec![
+        "Итого".into(),
+        String::new(),
+        String::new(),
+        steel.total_bars.to_string(),
+        number(steel.total_length_m),
+        number(steel.total_kg),
+    ]);
+    table(
+        &[
+            "Элемент",
+            "Класс",
+            "Диаметр, мм",
+            "Стержней",
+            "Длина, м",
+            "Масса, кг",
+        ],
+        rows.into_iter(),
+    )
+}
+
+/// Writes both rebar schedules. Empty when the model has no bars.
+pub fn write_rebar(
+    project: &open_bim_model::Project,
+    dir: &std::path::Path,
+) -> Result<Vec<std::path::PathBuf>, String> {
+    if project.concrete.rebars.is_empty() {
+        return Ok(Vec::new());
+    }
+    std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    let mut files = Vec::new();
+    for (name, text) in [
+        ("ведомость-деталей-арматуры.csv", rebar_details(project)),
+        ("ведомость-расхода-стали.csv", rebar_steel(project)),
+    ] {
+        let path = dir.join(name);
+        std::fs::write(&path, text).map_err(|e| e.to_string())?;
+        files.push(path);
+    }
+    Ok(files)
+}
+
+fn detail_cells(row: &open_bim_model::rebar::DetailRow) -> Vec<String> {
+    vec![
+        row.mark.to_string(),
+        row.code.clone(),
+        fmt(row.diameter),
+        row.grade.clone(),
+        row.standard.clone(),
+        segment_text(row),
+        hook_text(&row.hooks),
+        fmt(row.length_mm),
+        row.count.to_string(),
+        number(row.unit_mass_kg),
+        number(row.total_mass_kg),
+    ]
+}
+
+fn steel_cells(row: &open_bim_model::rebar::SteelRow) -> Vec<String> {
+    vec![
+        row.element.clone(),
+        row.grade.clone(),
+        fmt(row.diameter),
+        row.bars.to_string(),
+        number(row.length_m),
+        number(row.mass_kg),
+    ]
+}
+
+fn segment_text(row: &open_bim_model::rebar::DetailRow) -> String {
+    let mut out: Vec<(String, f64)> = Vec::new();
+    for seg in &row.segments {
+        if let Some((letter, value)) = out.last()
+            && letter == &seg.letter
+            && (*value - seg.length_mm).abs() < 0.5
+        {
+            continue;
+        }
+        out.push((seg.letter.clone(), seg.length_mm));
+    }
+    out.iter()
+        .map(|(letter, value)| format!("{letter}={}", fmt(*value)))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn hook_text(hooks: &[open_bim_model::Hook; 2]) -> String {
+    use open_bim_model::rebar::HookKind;
+    if hooks.iter().all(open_bim_model::Hook::is_none) {
+        return "—".into();
+    }
+    hooks
+        .iter()
+        .map(|h| match h.kind {
+            HookKind::None => "—",
+            HookKind::Deg90 => "90°",
+            HookKind::Deg135 => "135°",
+            HookKind::Deg180 => "180°",
+        })
+        .collect::<Vec<_>>()
+        .join("/")
+}

@@ -63,7 +63,15 @@ fn a_new_slab_of_the_default_type_is_reinforced() {
         Some(&PropertyValue::Number(30.))
     );
     let zone = p.concrete.zones.iter().find(|z| z.host == slab).unwrap();
-    assert_eq!(zone.mark, "1, 2, 3, 4, 5, 6");
+    let rows = open_bim_model::rebar::detail_schedule(p);
+    assert_eq!(
+        zone.mark,
+        open_bim_model::rebar::zone_marks(p)[&zone.number]
+    );
+    assert!(zone.mark.split(", ").count() < 6, "{}", zone.mark);
+    assert!(rows.iter().any(|r| r.code == "ПР" && r.count > 1));
+    assert!(rows.iter().any(|r| r.code == "П"));
+    assert!(rows.iter().any(|r| r.code == "Л"));
     assert!(
         p.concrete
             .rebars

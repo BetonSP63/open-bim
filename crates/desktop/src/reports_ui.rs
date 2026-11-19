@@ -88,6 +88,7 @@ impl ReportsUi {
             std::fs::write(&path, text).map_err(|e| e.to_string())?;
             files.push(path);
         }
+        files.extend(csv::write_rebar(editor.document.project(), &dir)?);
         editor.record(&format!("Экспорт CSV {}", dir.display()));
         Ok(files)
     }

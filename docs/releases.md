@@ -1,5 +1,15 @@
 # Releases
 
+## 0.2.3 — current development version (`main`)
+
+Not yet a packaged GitHub Release. Adds reinforcement positions, the bar
+detail schedule with shape sketches and the steel-consumption schedule
+(`docs/rebar.md`) on top of 0.2.2. Packaging reads
+`workspace.package.version`, so a local archive is named
+`dist/Open-BIM-0.2.3-macos-arm64.zip` or
+`dist/Open-BIM-0.2.3-windows-x86_64.zip`. 1.0 remains the next major
+milestone (КЖ drawings and the remaining rows of `docs/parity.csv`).
+
 ## 0.2.2 — macOS ARM64
 
 Usability update for the existing modelling workflow:

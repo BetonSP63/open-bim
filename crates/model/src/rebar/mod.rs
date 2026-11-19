@@ -5,9 +5,14 @@
 //! of slabs, and the generators that place a bar set in its host part and
 //! build it again when the host changes.
 mod area;
+mod schedule;
 mod shape;
 
 pub use area::{host_cover, install_slab, model_checks, set_zone_framing};
+pub use schedule::{
+    DetailRow, SegmentLen, ShapeSketch, SketchMark, SteelRow, SteelSchedule, column_letters,
+    detail_schedule, shape_sketch, steel_schedule, write_positions, zone_marks,
+};
 pub use shape::{builtin_shapes, instantiate, resolve_shape, shape_known};
 
 use serde::{Deserialize, Serialize};
@@ -748,5 +753,6 @@ pub fn rebuild_rebars(project: &mut Project, previous: &Project) -> Result<(), M
     }
     project.concrete.rebars = sets;
     project.concrete.zones = zones;
+    write_positions(project);
     Ok(())
 }
