@@ -631,7 +631,7 @@ pub const ALL: &[Spec] = &[
         label: "Свойства арматуры и ведомость",
         category: "Армирование",
         shortcut: None,
-        keywords: "ещё ведомость расход стали диаметр класс",
+        keywords: "ещё ведомость расход стали диаметр класс эскиз детали позиция",
     },
     Spec {
         cmd: Cmd::RebarVisibility,

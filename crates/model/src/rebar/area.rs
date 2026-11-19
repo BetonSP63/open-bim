@@ -77,8 +77,11 @@ pub fn install_slab(
     concrete.zones.push(zone);
     concrete.rebars.sort_by_key(|r| r.number);
     concrete.zones.sort_by_key(|z| z.number);
-    concrete.validate().map_err(|e| e.to_string())?;
-    Ok(concrete)
+    let mut staged = project.clone();
+    staged.concrete = concrete;
+    super::schedule::write_positions(&mut staged);
+    staged.concrete.validate().map_err(|e| e.to_string())?;
+    Ok(staged.concrete)
 }
 
 /// Turn U-bars off on the given outer edges and opening sides. The meshes stay.
@@ -1216,9 +1219,16 @@ mod tests {
             "{:?}",
             cross.remainders
         );
-        // The mark lists every position and sits at the centre.
+        // Identical bars share a position, so the mark is shorter than one
+        // number per set and stays put when only the thickness changes.
         let zone = &p.concrete.zones[0];
-        assert_eq!(zone.mark, "1, 2, 3, 4, 5, 6");
+        let live = crate::rebar::zone_marks(&p);
+        assert_eq!(zone.mark, live[&zone.number]);
+        assert!(
+            zone.mark.split(", ").count() < 6,
+            "одинаковые стержни не сведены: {}",
+            zone.mark
+        );
         assert!(near(zone.mark_at.0[0], 1000.) && near(zone.mark_at.0[1], 500.));
         assert!(near(zone.mark_at.0[2], 100.));
         let top_z = p
@@ -1231,6 +1241,7 @@ mod tests {
             .0[2];
         assert!(near(top_z, 165.), "{top_z}");
         // A thicker slab lifts the top mesh; the bars are built again.
+        let before_mark = p.concrete.zones[0].mark.clone();
         let previous = p.clone();
         if let ElementShape::Plate { thickness, .. } = &mut p.elements.get_mut(&host).unwrap().shape
         {
@@ -1246,7 +1257,7 @@ mod tests {
             .bars[0][0]
             .0[2];
         assert!(near(top_z, 265.), "{top_z}");
-        assert_eq!(p.concrete.zones[0].mark, "1, 2, 3, 4, 5, 6");
+        assert_eq!(p.concrete.zones[0].mark, before_mark);
     }
 
     #[test]

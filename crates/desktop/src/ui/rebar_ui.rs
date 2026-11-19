@@ -136,6 +136,7 @@ impl Workbench {
             return;
         }
         let mut open = true;
+        let mut export = false;
         {
             let selected: Vec<ObjectId> = self.editor.selected.iter().copied().collect();
             let project = self.editor.document.project();
@@ -143,7 +144,7 @@ impl Workbench {
             egui::Window::new("Армирование")
             .id(egui::Id::new("rebar"))
             .open(&mut open)
-            .default_width(520.)
+            .default_width(920.)
             .show(ctx, |ui| {
                 let s = &mut rebar.settings;
                 ui.strong("Свойства следующих стержней");
@@ -256,23 +257,26 @@ impl Workbench {
                     );
                 }
                 ui.separator();
+                let details = open_bim_model::rebar::detail_schedule(project);
+                let steel = open_bim_model::rebar::steel_schedule(project);
                 ui.strong(format!("Наборы: {}", project.concrete.rebars.len()));
                 let mut remove = None;
                 egui::ScrollArea::vertical()
                     .id_salt("rebar sets")
-                    .max_height(200.)
+                    .max_height(160.)
                     .show(ui, |ui| {
                         egui::Grid::new("rebar sets grid")
-                            .num_columns(6)
+                            .num_columns(7)
                             .striped(true)
                             .show(ui, |ui| {
-                                for h in ["№", "Вид", "Деталь", "Ø, класс", "Стержней", ""]
+                                for h in ["№", "Поз.", "Вид", "Деталь", "Ø, класс", "Стержней", ""]
                                 {
                                     ui.strong(h);
                                 }
                                 ui.end_row();
                                 for r in &project.concrete.rebars {
                                     ui.label(r.number.to_string());
+                                    ui.label(position_text(&details, r.number));
                                     ui.label(r.kind.label());
                                     ui.label(r.host.map_or("—".into(), |h| {
                                         project
@@ -304,38 +308,221 @@ impl Workbench {
                     )));
                 }
                 ui.separator();
-                ui.strong("Ведомость расхода стали");
-                let rows = rb::schedule(project);
-                egui::Grid::new("rebar schedule")
-                    .num_columns(5)
-                    .striped(true)
-                    .show(ui, |ui| {
-                        for h in ["Класс", "Ø, мм", "Стержней", "Длина, м", "Масса, кг"]
-                        {
-                            ui.strong(h);
-                        }
-                        ui.end_row();
-                        for r in &rows {
-                            ui.label(&r.grade);
-                            ui.label(open_bim_reports::fmt(r.diameter));
-                            ui.label(r.bars.to_string());
-                            ui.label(format!("{:.2}", r.length_m));
-                            ui.label(format!("{:.1}", r.mass_kg));
-                            ui.end_row();
-                        }
-                        let total: f64 = rows.iter().map(|r| r.mass_kg).sum();
-                        ui.strong("Итого");
-                        ui.label("");
-                        ui.label("");
-                        ui.label("");
-                        ui.strong(format!("{total:.1}"));
-                        ui.end_row();
-                    });
+                if ui
+                    .button("Экспорт CSV ведомостей")
+                    .on_hover_text("Папка release: ведомость деталей и ведомость расхода стали")
+                    .clicked()
+                {
+                    export = true;
+                }
+                schedule_tables(ui, &details, &steel);
                 let _ = s;
                 kj_panel(ui, rebar, project, &selected, requests);
             });
         }
         self.rebar.open = open;
+        if export {
+            let project = self.editor.document.project();
+            match open_bim_reports::csv::write_rebar(project, std::path::Path::new("release")) {
+                Ok(files) if files.is_empty() => self.message("В модели нет арматуры"),
+                Ok(files) => self.message(format!(
+                    "Ведомости арматуры: {}",
+                    files
+                        .iter()
+                        .map(|p| p.display().to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )),
+                Err(e) => self.message(e),
+            }
+        }
+    }
+}
+
+fn position_text(rows: &[open_bim_model::rebar::DetailRow], set: u32) -> String {
+    let mut marks: Vec<u32> = rows
+        .iter()
+        .filter(|r| r.sets.contains(&set))
+        .map(|r| r.mark)
+        .collect();
+    marks.sort_unstable();
+    marks.dedup();
+    if marks.is_empty() {
+        "—".into()
+    } else {
+        marks
+            .iter()
+            .map(|n| n.to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+}
+
+fn schedule_tables(
+    ui: &mut egui::Ui,
+    details: &[open_bim_model::rebar::DetailRow],
+    steel: &open_bim_model::rebar::SteelSchedule,
+) {
+    use open_bim_model::rebar::column_letters;
+    egui::CollapsingHeader::new("Ведомость деталей")
+        .id_salt("rebar detail schedule")
+        .default_open(true)
+        .show(ui, |ui| {
+            ui.label(
+                "Позиция — одинаковые стержни (форма, диаметр, класс по ГОСТ 34028, \
+                 длины участков, крюки). Эскиз строится по осевой линии формы.",
+            );
+            if details.is_empty() {
+                ui.label("Стержней нет");
+                return;
+            }
+            let letters = column_letters(details);
+            egui::ScrollArea::horizontal()
+                .id_salt("rebar detail scroll")
+                .show(ui, |ui| {
+                    egui::Grid::new("rebar detail grid")
+                        .striped(true)
+                        .num_columns(9 + letters.len())
+                        .show(ui, |ui| {
+                            for h in ["Поз.", "Эскиз", "Форма", "Ø", "Класс"] {
+                                ui.strong(h);
+                            }
+                            for letter in &letters {
+                                ui.strong(letter);
+                            }
+                            for h in ["Длина, мм", "Кол.", "Масса ед., кг", "Масса, кг"]
+                            {
+                                ui.strong(h);
+                            }
+                            ui.end_row();
+                            for row in details {
+                                ui.label(row.mark.to_string());
+                                paint_sketch(ui, &row.sketch);
+                                ui.label(&row.code).on_hover_text(&row.standard);
+                                ui.label(open_bim_reports::fmt(row.diameter));
+                                ui.label(&row.grade).on_hover_text(&row.standard);
+                                for letter in &letters {
+                                    let lens = row.lengths_of(letter);
+                                    ui.label(if lens.is_empty() {
+                                        String::new()
+                                    } else {
+                                        lens.iter()
+                                            .map(|v| open_bim_reports::fmt(*v))
+                                            .collect::<Vec<_>>()
+                                            .join(" / ")
+                                    });
+                                }
+                                ui.label(open_bim_reports::fmt(row.length_mm));
+                                ui.label(row.count.to_string());
+                                ui.label(format!("{:.3}", row.unit_mass_kg));
+                                ui.label(format!("{:.3}", row.total_mass_kg));
+                                ui.end_row();
+                            }
+                            ui.strong("Итого");
+                            for _ in 0..5 + letters.len() {
+                                ui.label("");
+                            }
+                            ui.strong(details.iter().map(|r| r.count).sum::<usize>().to_string());
+                            ui.label("");
+                            ui.strong(format!(
+                                "{:.3}",
+                                details.iter().map(|r| r.total_mass_kg).sum::<f64>()
+                            ));
+                            ui.end_row();
+                        });
+                });
+        });
+    egui::CollapsingHeader::new("Ведомость расхода стали")
+        .id_salt("rebar steel schedule")
+        .default_open(true)
+        .show(ui, |ui| {
+            ui.label("По элементу, классу стали и диаметру. Итог — по классу и диаметру.");
+            if steel.by_class.is_empty() {
+                ui.label("Стержней нет");
+                return;
+            }
+            if steel.by_element.iter().any(|r| r.element != "—") {
+                steel_grid(ui, "rebar steel elements", &steel.by_element, true);
+                ui.add_space(6.);
+                ui.strong("Всего по классу и диаметру");
+            }
+            steel_grid(ui, "rebar steel class", &steel.by_class, false);
+            ui.strong(format!(
+                "Итого: {} стержней, {:.3} м, {:.3} кг",
+                steel.total_bars, steel.total_length_m, steel.total_kg
+            ));
+        });
+}
+
+fn steel_grid(
+    ui: &mut egui::Ui,
+    id: &str,
+    rows: &[open_bim_model::rebar::SteelRow],
+    element: bool,
+) {
+    egui::Grid::new(id)
+        .striped(true)
+        .num_columns(if element { 6 } else { 5 })
+        .show(ui, |ui| {
+            if element {
+                ui.strong("Элемент");
+            }
+            for h in ["Класс", "Ø, мм", "Стержней", "Длина, м", "Масса, кг"]
+            {
+                ui.strong(h);
+            }
+            ui.end_row();
+            for r in rows {
+                if element {
+                    ui.label(&r.element);
+                }
+                ui.label(&r.grade);
+                ui.label(open_bim_reports::fmt(r.diameter));
+                ui.label(r.bars.to_string());
+                ui.label(format!("{:.3}", r.length_m));
+                ui.label(format!("{:.3}", r.mass_kg));
+                ui.end_row();
+            }
+        });
+}
+
+fn paint_sketch(ui: &mut egui::Ui, sketch: &open_bim_model::rebar::ShapeSketch) {
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(168., 96.), egui::Sense::hover());
+    let visuals = ui.visuals().clone();
+    let painter = ui.painter_at(rect);
+    painter.rect_filled(rect, 2., visuals.extreme_bg_color);
+    painter.rect_stroke(
+        rect,
+        2.,
+        egui::Stroke::new(1., visuals.widgets.noninteractive.bg_stroke.color),
+        egui::StrokeKind::Inside,
+    );
+    if sketch.points.len() < 2 {
+        return;
+    }
+    let [x0, y0, x1, y1] = sketch.bounds;
+    let (w, h) = ((x1 - x0).max(1.), (y1 - y0).max(1.));
+    let pad = 8.;
+    let scale = ((rect.width() - 2. * pad) / w as f32).min((rect.height() - 2. * pad) / h as f32);
+    let map = |p: [f64; 2]| {
+        egui::pos2(
+            rect.left() + pad + (p[0] - x0) as f32 * scale,
+            rect.bottom() - pad - (p[1] - y0) as f32 * scale,
+        )
+    };
+    let stroke = egui::Stroke::new(1.6, visuals.strong_text_color());
+    for pair in sketch.points.windows(2) {
+        painter.line_segment([map(pair[0]), map(pair[1])], stroke);
+    }
+    let font = egui::FontId::proportional(10.);
+    for mark in &sketch.marks {
+        painter.text(
+            map(mark.at),
+            egui::Align2::CENTER_CENTER,
+            &mark.text,
+            font.clone(),
+            visuals.text_color(),
+        );
     }
 }
 

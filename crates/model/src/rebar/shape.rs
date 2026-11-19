@@ -148,6 +148,22 @@ fn length_of(seg: &ShapeSegment, params: &BTreeMap<String, f64>) -> f64 {
     params.get(&seg.letter).copied().unwrap_or(seg.length)
 }
 
+/// Centreline in the shape plane, hooks included, mm. The first segment
+/// runs along +X; a positive angle turns left. `radius` is the centre-line
+/// bend radius.
+pub fn plane_points(
+    shape: &BarShapeType,
+    params: &BTreeMap<String, f64>,
+    diameter: f64,
+    radius: f64,
+) -> Result<Vec<[f64; 2]>, String> {
+    let line = centerline(shape, params)?;
+    Ok(with_hooks(&line, shape.hooks, diameter, radius)
+        .into_iter()
+        .map(|p| [p[0], p[1]])
+        .collect())
+}
+
 /// Centreline corners in the shape plane, before hooks. The first segment
 /// runs along +X from the origin; a positive angle turns left.
 pub fn centerline(

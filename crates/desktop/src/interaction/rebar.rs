@@ -417,36 +417,19 @@ pub struct ScheduleRow {
     pub mass_kg: f64,
 }
 
-/// Rows grouped by grade and diameter.
+/// Rows grouped by grade and diameter. Masses come from the detail schedule.
 pub fn schedule(project: &Project) -> Vec<ScheduleRow> {
-    let mut rows: Vec<ScheduleRow> = Vec::new();
-    for r in &project.concrete.rebars {
-        let i = match rows
-            .iter()
-            .position(|x| x.grade == r.grade && x.diameter == r.diameter)
-        {
-            Some(i) => i,
-            None => {
-                rows.push(ScheduleRow {
-                    diameter: r.diameter,
-                    grade: r.grade.clone(),
-                    bars: 0,
-                    length_m: 0.,
-                    mass_kg: 0.,
-                });
-                rows.len() - 1
-            }
-        };
-        rows[i].bars += r.bars.len();
-        rows[i].length_m += r.total_length_mm() / 1000.;
-        rows[i].mass_kg += r.mass_kg();
-    }
-    rows.sort_by(|a, b| {
-        a.grade
-            .cmp(&b.grade)
-            .then(a.diameter.total_cmp(&b.diameter))
-    });
-    rows
+    open_bim_model::rebar::steel_schedule(project)
+        .by_class
+        .into_iter()
+        .map(|r| ScheduleRow {
+            diameter: r.diameter,
+            grade: r.grade,
+            bars: r.bars,
+            length_m: r.length_m,
+            mass_kg: r.mass_kg,
+        })
+        .collect()
 }
 
 const BAR: [u8; 4] = [200, 60, 40, 255];
@@ -454,14 +437,15 @@ const BAR: [u8; 4] = [200, 60, 40, 255];
 /// Bars drawn over the model.
 pub fn marks(project: &Project, p: &Projector) -> Vec<Mark> {
     let mut out = Vec::new();
+    let labels = open_bim_model::rebar::zone_marks(project);
     for z in &project.concrete.zones {
-        if z.mark.is_empty() {
+        let Some(text) = labels.get(&z.number).filter(|t| !t.is_empty()) else {
             continue;
-        }
+        };
         if let Some(at) = p.screen(DVec3::from_array(z.mark_at.0)) {
             out.push(Mark::Text {
                 at,
-                text: z.mark.clone(),
+                text: text.clone(),
                 color: [20, 40, 80, 255],
                 align: [0, 0],
                 size: 14.,

@@ -398,7 +398,8 @@ pub struct RebarSet {
     pub place: Option<ShapePlace>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub zone: Option<u32>,
-    /// Position shown on the zone mark. Stable across a rebuild.
+    /// Schedule position when every bar of the set belongs to one position.
+    /// Empty when the set mixes lengths. The zone mark lists every position.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub position: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -671,12 +672,10 @@ impl Concrete {
         self.validate_shapes()?;
         self.validate_slab_types()?;
         self.validate_zones()?;
-        let mut positions = BTreeSet::new();
         for r in &self.rebars {
-            if let Some(n) = r.position
-                && (n == 0 || !positions.insert(n))
-            {
-                return bad("Номер позиции арматуры повторяется");
+            // Identical bars share one position, so the number may repeat.
+            if r.position == Some(0) {
+                return bad("Номер позиции арматуры не задан");
             }
             if r.shape_params
                 .values()
