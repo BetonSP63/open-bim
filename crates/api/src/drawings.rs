@@ -154,6 +154,9 @@ impl Session {
         };
         let number = match number.map(str::trim).filter(|n| !n.is_empty()) {
             Some(n) => n.to_string(),
+            None if matches!(kind, DrawingKind::Reinforcement { .. }) => {
+                format!("КЖ-{}", id.0)
+            }
             None => format!("КМД-{}", mark().unwrap_or_else(|| id.0.to_string())),
         };
         let drawing = match kind {
@@ -169,6 +172,9 @@ impl Session {
             }
             DrawingKind::Multi { objects } => {
                 open_bim_drawings::multi_drawing(p, id, objects, &number)
+            }
+            DrawingKind::Reinforcement { part } => {
+                open_bim_drawings::reinforcement_drawing(p, id, part, &number)
             }
         }
         .map_err(ApiError::Invalid)?;

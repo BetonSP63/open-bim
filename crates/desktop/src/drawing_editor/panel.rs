@@ -107,6 +107,14 @@ impl DrawingEditor {
                 let r = self.create_assembly(editor);
                 report(self, r);
             }
+            if ui
+                .button("Чертёж КЖ плиты")
+                .on_hover_text("Планы сеток, разрез, ведомости и штамп по выбранной плите")
+                .clicked()
+            {
+                let r = self.create_reinforcement(editor);
+                report(self, r);
+            }
             if ui.button("Общий вид A1").clicked() {
                 let r = self.create_general(editor, SheetSize::A1);
                 report(self, r);

@@ -21,7 +21,8 @@ part/assembly/fastener lists. Everything is regenerated from the model.
 * Арматура — отдельные ведомости, живые от модели: `csv::rebar_details` и
   `csv::rebar_steel`. «Экспорт ведомостей CSV» дописывает их в ту же папку,
   если в модели есть стержни (`ведомость-деталей-арматуры.csv`,
-  `ведомость-расхода-стали.csv`). Описание — в `docs/rebar.md`.
+  `ведомость-расхода-стали.csv`). Чертёж КЖ плиты — отдельный комплект «КЖ»,
+  не лист выпуска КМ/КМД. Описание — в `docs/rebar.md`.
 
 Evidence: `crates/reports/tests/release.rs` (independent totals from
 `tests/fixtures/steel_release/expected.py`, CSV escaping, regeneration after a

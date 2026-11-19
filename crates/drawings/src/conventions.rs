@@ -34,9 +34,12 @@ pub const DIM_OVERSHOOT: f64 = 2.;
 /// Level sign strokes, 2–4 mm at 45° (5.4.3).
 pub const LEVEL_STROKE: f64 = 3.;
 
-/// КМ arrangement drawings use ticks; КМД product drawings keep ГОСТ 2.307 arrows.
+/// КМ schemes and КЖ sheets use ticks; КМД product drawings keep ГОСТ 2.307 arrows.
 pub fn uses_ticks(drawing: &Drawing) -> bool {
-    matches!(drawing.kind, DrawingKind::General { .. })
+    matches!(
+        drawing.kind,
+        DrawingKind::General { .. } | DrawingKind::Reinforcement { .. }
+    )
 }
 
 fn line(points: Vec<[f64; 2]>, style: LineStyle) -> Polyline {
@@ -103,8 +106,10 @@ pub(crate) fn axes(
     ctx: &ViewContext,
     graphic: &mut ViewGraphic,
     reach: [f64; 2],
+    as_plan: bool,
 ) {
-    let plan = view.direction == ViewDirection::Top;
+    // A slab plan looks at the plate face (Front), not along Top.
+    let plan = as_plan || view.direction == ViewDirection::Top;
     let [lo, hi] = graphic.bounds;
     let below = (lo[1] - 12.).min(reach[1] - 4.);
     for axis in project.axes.values() {

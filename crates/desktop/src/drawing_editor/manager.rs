@@ -18,15 +18,17 @@ pub enum KindFilter {
     General,
     Assembly,
     Part,
+    Reinforcement,
 }
 
 impl KindFilter {
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::All,
         Self::GeneralData,
         Self::General,
         Self::Assembly,
         Self::Part,
+        Self::Reinforcement,
     ];
     pub fn label(self) -> &'static str {
         match self {
@@ -35,6 +37,7 @@ impl KindFilter {
             Self::General => "Общие виды",
             Self::Assembly => "Сборки",
             Self::Part => "Детали",
+            Self::Reinforcement => "КЖ",
         }
     }
 }
@@ -159,6 +162,7 @@ fn kind_of(row: &Row, kind: KindFilter) -> bool {
             KindFilter::General => "Общий вид",
             KindFilter::Assembly => "Сборка",
             KindFilter::Part => "Деталь",
+            KindFilter::Reinforcement => "КЖ",
         }
 }
 

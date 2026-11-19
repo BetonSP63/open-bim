@@ -356,9 +356,33 @@ impl Table {
         out.size = [w, top_left[1] - bottom];
         out
     }
+
+    /// Data-cell rectangles of one column, `[x0, y0, x1, y1]`, top-left of
+    /// the table (including its title) at `top_left`. Heading rows are
+    /// included so the index matches `rows`.
+    pub fn column_cells(&self, top_left: [f64; 2], column: usize) -> Vec<[f64; 4]> {
+        let font = Font::load().ok();
+        let font = font.as_ref();
+        let mut x = top_left[0];
+        for (i, c) in self.columns.iter().enumerate() {
+            if i == column {
+                break;
+            }
+            x += c.width;
+        }
+        let width = self.columns.get(column).map_or(0., |c| c.width);
+        let (header, _) = self.header_heights(font);
+        let mut y = top_left[1] - self.title_height() - header;
+        let mut cells = Vec::new();
+        for h in self.row_heights(font) {
+            cells.push([x, y - h, x + width, y]);
+            y -= h;
+        }
+        cells
+    }
 }
 
-fn column(title: &str, width: f64, align: Align) -> Column {
+pub(crate) fn column(title: &str, width: f64, align: Align) -> Column {
     Column {
         title: title.into(),
         width,

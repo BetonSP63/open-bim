@@ -250,6 +250,35 @@ impl DrawingEditor {
         self.create(editor, drawing)
     }
 
+    /// КЖ sheet of the selected slab (or the only reinforced slab).
+    pub fn create_reinforcement(&mut self, editor: &mut Editor) -> Result<(), String> {
+        let project = editor.document.project();
+        let plate = |id: ObjectId| {
+            project
+                .elements
+                .get(&id)
+                .is_some_and(|e| matches!(e.shape, open_bim_model::ElementShape::Plate { .. }))
+        };
+        let part = editor
+            .selected
+            .iter()
+            .copied()
+            .find(|id| plate(*id))
+            .or_else(|| {
+                project
+                    .concrete
+                    .zones
+                    .iter()
+                    .map(|z| z.host)
+                    .find(|id| plate(*id))
+            })
+            .ok_or("Выберите плиту в модели")?;
+        let id = ObjectId(project.next_id);
+        let number = format!("КЖ-{}", project.drawings.len() + 1);
+        let drawing = open_bim_drawings::reinforcement_drawing(project, id, part, &number)?;
+        self.create(editor, drawing)
+    }
+
     pub fn create_general(&mut self, editor: &mut Editor, sheet: SheetSize) -> Result<(), String> {
         let project = editor.document.project();
         let id = ObjectId(project.next_id);
@@ -545,6 +574,7 @@ impl DrawingEditor {
             DrawingKind::Assembly { .. } => "Сборка",
             DrawingKind::GeneralData { .. } => "Общие данные",
             DrawingKind::Multi { .. } => "Комплексный",
+            DrawingKind::Reinforcement { .. } => "КЖ",
         }
     }
 }
