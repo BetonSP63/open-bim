@@ -7,6 +7,7 @@ pub mod general_data;
 mod pour_marks;
 pub mod projection;
 pub mod qr;
+mod rebar_drawing;
 pub mod sample;
 pub mod sheet_objects;
 pub mod svg;
@@ -16,6 +17,7 @@ pub mod title_block;
 pub mod wizard;
 
 pub use general_data::general_data_drawing;
+pub use rebar_drawing::reinforcement_drawing;
 
 use open_bim_model::{
     Anchor, AnchorPoint, DetailKind, DimensionAxis, DimensionDef, Drawing, DrawingKind,
@@ -176,7 +178,7 @@ pub fn drawing_basis(project: &Project, kind: &DrawingKind) -> Result<Basis, Err
         DrawingKind::General { .. }
         | DrawingKind::GeneralData { .. }
         | DrawingKind::Multi { .. } => return Ok(world),
-        DrawingKind::Part { part } => *part,
+        DrawingKind::Part { part } | DrawingKind::Reinforcement { part } => *part,
         DrawingKind::Assembly { assembly } => {
             project
                 .assemblies
@@ -238,7 +240,7 @@ pub fn drawing_parts(project: &Project, kind: &DrawingKind) -> Vec<ObjectId> {
                 parts.extend(drawing_parts(project, &source_kind(project, *o)));
             }
         }
-        DrawingKind::Part { part } => {
+        DrawingKind::Part { part } | DrawingKind::Reinforcement { part } => {
             parts.insert(*part);
         }
         DrawingKind::Assembly { assembly } => {
@@ -268,7 +270,7 @@ pub fn referenced_objects(project: &Project, drawing: &Drawing) -> BTreeSet<Obje
         DrawingKind::General { objects } => objects.iter().copied().collect(),
         // The general notes state the model mass.
         DrawingKind::GeneralData { .. } => project.elements.keys().copied().collect(),
-        DrawingKind::Part { part } => BTreeSet::from([*part]),
+        DrawingKind::Part { part } | DrawingKind::Reinforcement { part } => BTreeSet::from([*part]),
         DrawingKind::Assembly { assembly } => {
             let mut set: BTreeSet<_> = drawing_parts(project, &drawing.kind).into_iter().collect();
             set.insert(*assembly);
@@ -317,6 +319,28 @@ pub fn fingerprint(project: &Project, id: ObjectId) -> Option<String> {
     let mut value = value;
     if let (Some(swept), Some(object)) = (project.swept_parts.get(&id), value.as_object_mut()) {
         object.insert("swept_part".into(), serde_json::json!(swept));
+    }
+    // Bars hosted by this part are drawn on its КЖ sheet. Parts without
+    // them keep the fingerprints of models that have no reinforcement.
+    let hosted: Vec<_> = project
+        .concrete
+        .rebars
+        .iter()
+        .filter(|r| r.host == Some(id))
+        .collect();
+    let zones: Vec<_> = project
+        .concrete
+        .zones
+        .iter()
+        .filter(|z| z.host == id)
+        .collect();
+    if (!hosted.is_empty() || !zones.is_empty())
+        && let Some(object) = value.as_object_mut()
+    {
+        object.insert(
+            "rebar".into(),
+            serde_json::json!({ "sets": hosted, "zones": zones }),
+        );
     }
     // Joints and stored zone numbers are drawn on concrete parts; parts
     // without them keep their fingerprints.
@@ -1010,6 +1034,7 @@ pub fn set_mark(kind: &DrawingKind) -> &'static str {
         }
         DrawingKind::GeneralData { mark } if mark == "КМД" => "КМД",
         DrawingKind::GeneralData { .. } => "КМ",
+        DrawingKind::Reinforcement { .. } => "КЖ",
     }
 }
 
@@ -1478,7 +1503,7 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
                     .filter(|d| d.view == view.id)
                     .flat_map(|d| d.lines.iter().flat_map(|l| l.points.iter()))
                     .fold(g.bounds[0], |r, p| [r[0].min(p[0]), r[1].min(p[1])]);
-                conventions::axes(project, view, ctx, g, reach);
+                conventions::axes(project, view, ctx, g, reach, false);
                 conventions::levels(project, view, ctx, g);
             }
         }
@@ -1514,7 +1539,10 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
         node_number += 1;
         if let Some(g) = views.iter_mut().find(|g| g.id == view.id) {
             conventions::keep_inside(g);
-            if let Some(t) = g.labels.first_mut() {
+            // A КЖ section keeps its «1-1» title; the node only crops the cut.
+            if let Some(t) = g.labels.first_mut()
+                && !matches!(drawing.kind, DrawingKind::Reinforcement { .. })
+            {
                 t.text = if matches!(drawing.kind, DrawingKind::General { .. }) {
                     format!("Узел {node_number}")
                 } else {
@@ -1739,6 +1767,9 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
             }
         }
     }
+    if let DrawingKind::Reinforcement { part } = drawing.kind {
+        rebar_drawing::annotate(project, drawing, part, &contexts, &dimensions, &mut views);
+    }
     // View titles go under the lowest dimension of their view.
     for view in &mut views {
         let lowest = dimensions
@@ -1778,6 +1809,11 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
     }
     if matches!(drawing.kind, DrawingKind::GeneralData { .. }) {
         let (lines, texts) = general_data::content(project, drawing, size, title_area)?;
+        frame.extend(lines);
+        labels.extend(texts);
+    }
+    if let DrawingKind::Reinforcement { part } = drawing.kind {
+        let (lines, texts) = rebar_drawing::schedules_and_notes(project, part, size, title_area);
         frame.extend(lines);
         labels.extend(texts);
     }

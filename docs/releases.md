@@ -1,14 +1,22 @@
 # Releases
 
-## 0.2.3 — current development version (`main`)
+## 0.2.4 — current development version (`main`)
 
-Not yet a packaged GitHub Release. Adds reinforcement positions, the bar
-detail schedule with shape sketches and the steel-consumption schedule
-(`docs/rebar.md`) on top of 0.2.2. Packaging reads
+Not yet a packaged GitHub Release. Adds a slab reinforcement sheet (КЖ):
+bottom and top plans, a section, the detail schedule with shape sketches
+and the steel-consumption schedule on the same GOST R 21.101 sheet
+(`docs/rebar.md`, `docs/drawings.md`) on top of 0.2.3. Packaging reads
 `workspace.package.version`, so a local archive is named
-`dist/Open-BIM-0.2.3-macos-arm64.zip` or
-`dist/Open-BIM-0.2.3-windows-x86_64.zip`. 1.0 remains the next major
-milestone (КЖ drawings and the remaining rows of `docs/parity.csv`).
+`dist/Open-BIM-0.2.4-macos-arm64.zip` or
+`dist/Open-BIM-0.2.4-windows-x86_64.zip`. 1.0 remains the next major
+milestone (beam, column and wall КЖ drawings, IFC rebar, BVBS, and the
+remaining rows of `docs/parity.csv`).
+
+## 0.2.3 — development
+
+Not a packaged GitHub Release. Added reinforcement positions, the bar
+detail schedule with shape sketches and the steel-consumption schedule
+on top of 0.2.2.
 
 ## 0.2.2 — macOS ARM64
 

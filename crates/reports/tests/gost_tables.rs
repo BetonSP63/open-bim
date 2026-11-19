@@ -199,6 +199,7 @@ fn reference_sheets_for_the_independent_check() {
                 DrawingKind::Assembly { .. } => "kmd-assembly",
                 DrawingKind::Part { .. } => "kmd-part",
                 DrawingKind::Multi { .. } => "kmd-multi",
+                DrawingKind::Reinforcement { .. } => "kj-slab",
             };
             (d.id, name)
         })

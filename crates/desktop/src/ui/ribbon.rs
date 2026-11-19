@@ -388,6 +388,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     small(Cmd::PartDrawing, Icon::Drawing, "Чертёж детали"),
                     small(Cmd::AssemblyDrawing, Icon::Drawing, "Чертёж сборки"),
                     small(Cmd::GeneralDrawing, Icon::Drawing, "Чертёж общего вида"),
+                    small(Cmd::RebarDrawing, Icon::Drawing, "Чертёж КЖ плиты"),
                     small(Cmd::DrawingWizard, Icon::Drawing, "Мастер чертежей"),
                     small(Cmd::ModeDrawings, Icon::Drawing, "Список чертежей"),
                     small(Cmd::DrawingProperties, Icon::Properties, "Свойства чертежа"),

@@ -133,8 +133,8 @@ pub enum Step {
 }
 
 /// A drawing of one type: exactly one of `part`, `assembly`, `general`
-/// (parts of a general arrangement, empty = whole model) or `general_data`
-/// (set mark, «КМД» or «КМ»).
+/// (parts of a general arrangement, empty = whole model), `general_data`
+/// (set mark, «КМД» or «КМ») or `reinforcement` (slab id of a КЖ sheet).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct NewDrawing {
@@ -142,6 +142,8 @@ pub struct NewDrawing {
     pub assembly: Option<ObjectId>,
     pub general: Option<Vec<ObjectId>>,
     pub general_data: Option<String>,
+    /// Slab of a reinforcement drawing («КЖ»).
+    pub reinforcement: Option<ObjectId>,
     pub number: Option<String>,
 }
 
@@ -157,12 +159,14 @@ impl NewDrawing {
             self.general_data
                 .clone()
                 .map(|mark| DrawingKind::GeneralData { mark }),
+            self.reinforcement
+                .map(|part| DrawingKind::Reinforcement { part }),
         ];
         let mut set = kinds.into_iter().flatten();
         match (set.next(), set.next()) {
             (Some(kind), None) => Ok(kind),
             _ => Err(ApiError::Invalid(
-                "Чертёж: укажите ровно один тип — part, assembly, general или general_data".into(),
+                "Чертёж: укажите ровно один тип — part, assembly, general, general_data или reinforcement".into(),
             )),
         }
     }
