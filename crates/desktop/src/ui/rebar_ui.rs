@@ -20,6 +20,8 @@ pub struct RebarUi {
     pub slab_draft: Option<open_bim_model::concrete::SlabRebarType>,
     /// Cage type being edited.
     pub cage_draft: Option<open_bim_model::concrete::CageType>,
+    /// Wall type being edited.
+    pub wall_draft: Option<open_bim_model::concrete::WallRebarType>,
     /// 0–3 member face, 4 column top, 5 slab edge.
     pub starter_where: u8,
     pub starter_edge: u32,
@@ -559,6 +561,129 @@ fn paint_sketch(ui: &mut egui::Ui, sketch: &open_bim_model::rebar::ShapeSketch) 
             visuals.text_color(),
         );
     }
+}
+
+fn wall_panel(
+    ui: &mut egui::Ui,
+    rebar: &mut RebarUi,
+    project: &open_bim_model::Project,
+    selected: &[ObjectId],
+    requests: &mut Vec<Request>,
+) {
+    use open_bim_model::concrete::{WallFace, WallRebarType};
+    egui::CollapsingHeader::new("Раскладка в стене")
+        .id_salt("kj wall")
+        .show(ui, |ui| {
+            ui.label(
+                "Тип стены задаёт вертикальные и горизонтальные стержни обеих граней. \
+                 Защитный слой — на стене. П-стержни ставятся по свободным кромкам и проёмам.",
+            );
+            if rebar.wall_draft.is_none() && ui.button("Новый тип стены").clicked() {
+                let mut ty = WallRebarType::new(
+                    format!("wall-{}", project.concrete.wall_types.len() + 1),
+                    "Стена, две сетки",
+                );
+                ty.near = Some(WallFace::new(12., 200., 8., 200.));
+                ty.far = Some(WallFace::new(12., 200., 8., 200.));
+                rebar.wall_draft = Some(ty);
+            }
+            let mut edit = None;
+            for ty in &project.concrete.wall_types {
+                ui.horizontal(|ui| {
+                    ui.label(format!(
+                        "{}{}",
+                        ty.name,
+                        if ty.default_for_new {
+                            " — для новых стен"
+                        } else {
+                            ""
+                        }
+                    ));
+                    if ui.small_button("Изменить").clicked() {
+                        edit = Some(ty.clone());
+                    }
+                });
+            }
+            if let Some(ty) = edit {
+                rebar.wall_draft = Some(ty);
+            }
+            if let Some(draft) = &mut rebar.wall_draft {
+                ui.horizontal(|ui| {
+                    ui.label("Имя");
+                    ui.text_edit_singleline(&mut draft.name);
+                });
+                ui.checkbox(&mut draft.default_for_new, "Для новых стен");
+                ui.checkbox(&mut draft.cut_openings, "Резать стержни в проёмах");
+                ui.checkbox(&mut draft.edge_bars, "П-образные по кромкам и проёмам");
+                for (title, face) in [
+                    ("Ближняя грань", &mut draft.near),
+                    ("Дальняя грань", &mut draft.far),
+                ] {
+                    let mut on = face.is_some();
+                    ui.checkbox(&mut on, title);
+                    if on && face.is_none() {
+                        *face = Some(WallFace::new(12., 200., 8., 200.));
+                    }
+                    if !on {
+                        *face = None;
+                    }
+                    if let Some(face) = face {
+                        ui.horizontal(|ui| {
+                            ui.label("Верт. Ø");
+                            ui.add(
+                                egui::DragValue::new(&mut face.vertical_diameter).range(4.0..=40.),
+                            );
+                            ui.label("шаг");
+                            ui.add(
+                                egui::DragValue::new(&mut face.vertical_spacing)
+                                    .range(face.vertical_diameter..=10_000.),
+                            );
+                            ui.label("Гор. Ø");
+                            ui.add(
+                                egui::DragValue::new(&mut face.horizontal_diameter)
+                                    .range(4.0..=40.),
+                            );
+                            ui.label("шаг");
+                            ui.add(
+                                egui::DragValue::new(&mut face.horizontal_spacing)
+                                    .range(face.horizontal_diameter..=10_000.),
+                            );
+                        });
+                    }
+                }
+                if ui.button("Записать тип стены").clicked()
+                    && let Ok(commands) = rb::save_wall_type(project, draft.clone())
+                {
+                    requests.push(Request::Action(Action::Commit(
+                        "Тип стены".into(),
+                        commands,
+                    )));
+                }
+            }
+            if ui.button("Разложить в выбранных стенах").clicked() {
+                let id = rebar
+                    .wall_draft
+                    .as_ref()
+                    .map(|t| t.id.clone())
+                    .or_else(|| {
+                        project
+                            .concrete
+                            .wall_types
+                            .iter()
+                            .find(|t| t.default_for_new)
+                            .map(|t| t.id.clone())
+                    })
+                    .or_else(|| project.concrete.wall_types.first().map(|t| t.id.clone()));
+                if let Some(id) = id
+                    && let Ok(commands) = rb::place_wall(project, selected, &id)
+                {
+                    requests.push(Request::Action(Action::Commit(
+                        "Раскладка стены".into(),
+                        commands,
+                    )));
+                }
+            }
+        });
 }
 
 fn cage_panel(
@@ -1109,6 +1234,7 @@ fn kj_panel(
             }
         });
 
+    wall_panel(ui, rebar, project, selected, requests);
     cage_panel(ui, rebar, project, selected, requests);
     starter_panel(ui, rebar, project, selected, requests);
 

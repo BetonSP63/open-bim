@@ -2,8 +2,9 @@
 //! design resistances of СП 63.13330.2018 tables 6.13–6.14), nominal
 //! masses, bend diameters and hooks, anchorage and lap lengths
 //! (СП 63.13330.2018, 10.3.24–10.3.31), bar shape types, area reinforcement
-//! of slabs, beam and column cages, starter bars, and the generators that
-//! place a bar set in its host part and build it again when the host changes.
+//! of slabs and walls, beam and column cages, starter bars, and the
+//! generators that place a bar set in its host part and build it again
+//! when the host changes.
 mod area;
 pub mod bvbs;
 mod cage;
@@ -11,7 +12,7 @@ mod schedule;
 mod shape;
 mod starter;
 
-pub use area::{host_cover, install_slab, model_checks, set_zone_framing};
+pub use area::{area_host, host_cover, install_slab, install_wall, model_checks, set_zone_framing};
 pub use cage::install_cage;
 pub use schedule::{
     BarPlace, BendLeg, DetailRow, SegmentLen, ShapeSketch, SketchMark, SteelRow, SteelSchedule,

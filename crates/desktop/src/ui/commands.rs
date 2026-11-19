@@ -1505,10 +1505,10 @@ pub const ALL: &[Spec] = &[
     },
     Spec {
         cmd: Cmd::RebarDrawing,
-        label: "Чертёж КЖ плиты",
+        label: "Чертёж КЖ",
         category: "Чертежи",
         shortcut: None,
-        keywords: "кж армирование плита сетка ведомость деталей разрез",
+        keywords: "кж армирование плита балка колонна стена сетка каркас ведомость деталей разрез",
     },
     Spec {
         cmd: Cmd::GeneralData,

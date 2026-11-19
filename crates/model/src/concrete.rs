@@ -337,6 +337,109 @@ pub struct SlabRebarType {
     pub default_for_new: bool,
 }
 
+/// One face of a wall: vertical bars and the horizontal bars beside them.
+/// The cover is not here; it lives on the concrete host (`REBAR_COVER`).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WallFace {
+    pub vertical_diameter: f64,
+    pub horizontal_diameter: f64,
+    pub grade: String,
+    pub vertical_spacing: f64,
+    pub horizontal_spacing: f64,
+}
+
+impl WallFace {
+    pub fn new(vertical: f64, v_step: f64, horizontal: f64, h_step: f64) -> Self {
+        Self {
+            vertical_diameter: vertical,
+            horizontal_diameter: horizontal,
+            grade: "А500С".into(),
+            vertical_spacing: v_step,
+            horizontal_spacing: h_step,
+        }
+    }
+
+    /// Mesh in the wall plane. Vertical bars run with the height (90° from
+    /// the wall length); horizontal bars are the cross direction.
+    pub fn mesh(&self) -> MeshLayer {
+        MeshLayer {
+            diameter: self.vertical_diameter,
+            grade: self.grade.clone(),
+            spacing: self.vertical_spacing,
+            direction_deg: 90.,
+            cross_spacing: Some(self.horizontal_spacing),
+            cross_diameter: Some(self.horizontal_diameter),
+        }
+    }
+}
+
+/// Reinforcement stored on a wall type and applied to concrete walls
+/// («панели»). Both faces carry a vertical and a horizontal mesh. U-bars
+/// use the same edge machinery as a slab. The cover lives on the host.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WallRebarType {
+    pub id: String,
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub near: Option<WallFace>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub far: Option<WallFace>,
+    pub cut_openings: bool,
+    pub align: BarAlign,
+    pub edge_shape: String,
+    pub edge_diameter: f64,
+    pub edge_grade: String,
+    pub edge_spacing: f64,
+    pub edge_bars: bool,
+    /// Applied to a new concrete wall.
+    pub default_for_new: bool,
+}
+
+impl WallRebarType {
+    pub fn new(id: impl Into<String>, name: impl Into<String>) -> Self {
+        Self {
+            id: id.into(),
+            name: name.into(),
+            near: None,
+            far: None,
+            cut_openings: true,
+            align: BarAlign::Edge,
+            edge_shape: "gost.u".into(),
+            edge_diameter: 8.,
+            edge_grade: "А500С".into(),
+            edge_spacing: 200.,
+            edge_bars: true,
+            default_for_new: false,
+        }
+    }
+
+    /// The slab layout, with the near face as the bottom mesh and the far
+    /// face as the top mesh. Walls do not place frogs.
+    pub fn to_slab(&self) -> SlabRebarType {
+        SlabRebarType {
+            id: self.id.clone(),
+            name: self.name.clone(),
+            bottom: self.near.as_ref().map(WallFace::mesh),
+            top: self.far.as_ref().map(WallFace::mesh),
+            cut_openings: self.cut_openings,
+            align: self.align,
+            edge_shape: self.edge_shape.clone(),
+            edge_diameter: self.edge_diameter,
+            edge_grade: self.edge_grade.clone(),
+            edge_spacing: self.edge_spacing,
+            frog_shape: "gost.frog".into(),
+            frog_diameter: self.edge_diameter,
+            frog_grade: self.edge_grade.clone(),
+            frog_spacing: 600.,
+            frogs: false,
+            edge_bars: self.edge_bars,
+            default_for_new: false,
+        }
+    }
+}
+
 impl SlabRebarType {
     pub fn new(id: impl Into<String>, name: impl Into<String>) -> Self {
         Self {
@@ -671,6 +774,9 @@ pub struct Concrete {
     /// Slab types that carry the default meshes.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub slab_types: Vec<SlabRebarType>,
+    /// Wall types: vertical and horizontal meshes on both faces.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub wall_types: Vec<WallRebarType>,
     /// Area-reinforcement zones.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub zones: Vec<RebarZone>,
@@ -789,6 +895,7 @@ impl Concrete {
         }
         self.validate_shapes()?;
         self.validate_slab_types()?;
+        self.validate_wall_types()?;
         self.validate_zones()?;
         self.validate_cages()?;
         for r in &self.rebars {
@@ -944,6 +1051,47 @@ impl Concrete {
         Ok(())
     }
 
+    fn validate_wall_types(&self) -> Result<(), ModelError> {
+        let bad = |m: &str| Err(ModelError::InvalidValue(m.into()));
+        let mut ids = BTreeSet::new();
+        let mut defaults = 0;
+        if self.wall_types.len() > 10_000 {
+            return bad("Слишком много типов стен");
+        }
+        for t in &self.wall_types {
+            if t.id.is_empty() || t.id.len() > 64 || !ids.insert(t.id.clone()) {
+                return bad("Идентификатор типа стены пустой или повторяется");
+            }
+            if self.slab_types.iter().any(|s| s.id == t.id) {
+                return bad("Идентификатор типа стены совпадает с типом плиты");
+            }
+            if t.name.trim().is_empty() || t.name.len() > 128 {
+                return bad("Имя типа стены не задано");
+            }
+            if t.default_for_new {
+                defaults += 1;
+            }
+            for face in t.near.iter().chain(&t.far) {
+                check_layer(&face.mesh())?;
+            }
+            if !(3.0..=60.).contains(&t.edge_diameter)
+                || !(t.edge_diameter..=100_000.).contains(&t.edge_spacing)
+            {
+                return bad("Диаметр или шаг П-стержней стены задан неверно");
+            }
+            if t.edge_grade.trim().is_empty() || t.edge_grade.len() > 32 {
+                return bad("Класс арматуры П-стержней стены не задан");
+            }
+            if !crate::rebar::shape_known(self, &t.edge_shape) {
+                return bad("Тип стены ссылается на неизвестный тип формы");
+            }
+        }
+        if defaults > 1 {
+            return bad("Тип стены по умолчанию может быть только один");
+        }
+        Ok(())
+    }
+
     fn validate_zones(&self) -> Result<(), ModelError> {
         let bad = |m: &str| Err(ModelError::InvalidValue(m.into()));
         let mut numbers = BTreeSet::new();
@@ -954,8 +1102,10 @@ impl Concrete {
             if !numbers.insert(z.number) {
                 return bad("Номер зоны армирования повторяется");
             }
-            if self.slab_types.iter().all(|t| t.id != z.type_id) {
-                return bad("Зона ссылается на неизвестный тип плиты");
+            if self.slab_types.iter().all(|t| t.id != z.type_id)
+                && self.wall_types.iter().all(|t| t.id != z.type_id)
+            {
+                return bad("Зона ссылается на неизвестный тип плиты или стены");
             }
             if !z.mark_at.0.iter().all(|v| v.is_finite() && v.abs() <= 1e9) {
                 return bad("Марка зоны: неверные координаты");

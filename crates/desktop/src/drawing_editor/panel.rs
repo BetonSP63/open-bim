@@ -108,8 +108,8 @@ impl DrawingEditor {
                 report(self, r);
             }
             if ui
-                .button("Чертёж КЖ плиты")
-                .on_hover_text("Планы сеток, разрез, ведомости и штамп по выбранной плите")
+                .button("Чертёж КЖ")
+                .on_hover_text("Плита, балка, колонна или стена: виды, разрезы, ведомости и штамп")
                 .clicked()
             {
                 let r = self.create_reinforcement(editor);

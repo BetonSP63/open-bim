@@ -1,15 +1,20 @@
 # Releases
 
-## 0.2.6 — current development version (`main`)
+## 0.2.7 — current development version (`main`)
 
-Not yet a packaged GitHub Release. Adds beam and column cages, stirrups
+Not yet a packaged GitHub Release. Adds wall meshes on both faces, U-bars
+at free edges and openings, and КЖ sheets of a beam, a column and a wall
+on the same drawing engine as the slab sheet (`docs/rebar.md`) on top of
+0.2.6. Packaging reads `workspace.package.version`, so a local archive is
+named `dist/Open-BIM-0.2.7-macos-arm64.zip` or
+`dist/Open-BIM-0.2.7-windows-x86_64.zip`. 1.0 remains the next major
+milestone (pours, installers, and the remaining rows of `docs/parity.csv`).
+
+## 0.2.6 — development
+
+Not a packaged GitHub Release. Added beam and column cages, stirrups
 tied to the longitudinal bars they enclose, and starter bars whose leg
-length is the lap `l_l` (`docs/rebar.md`) on top of 0.2.5. Packaging reads
-`workspace.package.version`, so a local archive is named
-`dist/Open-BIM-0.2.6-macos-arm64.zip` or
-`dist/Open-BIM-0.2.6-windows-x86_64.zip`. 1.0 remains the next major
-milestone (beam, column and wall КЖ drawings, and the remaining rows of
-`docs/parity.csv`).
+length is the lap `l_l` (`docs/rebar.md`) on top of 0.2.5.
 
 ## 0.2.5 — development
 

@@ -1,11 +1,15 @@
-//! Area reinforcement of a slab («раскладка»): uniform meshes, U-bars along
-//! the contour and the openings, and frogs between the meshes. The slab type
-//! carries the meshes; the cover lives on the concrete host. Layout runs
-//! again when the host, the type or a referenced shape type changes.
+//! Area reinforcement of a slab or a wall («раскладка»): uniform meshes,
+//! U-bars along the contour and the openings, and frogs between the slab
+//! meshes. The type carries the meshes; the cover lives on the concrete
+//! host. A wall is laid out in the same plane as a slab: length by height,
+//! thickness through the wall, vertical and horizontal bars on both faces.
+//! Layout runs again when the host, the type or a referenced shape type
+//! changes.
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::concrete::{
-    BarAlign, FrogArray, MeshLayer, REBAR_COVER, RebarCheck, RebarZone, SlabRebarType, ZoneRole,
+    BarAlign, FrogArray, MeshLayer, REBAR_COVER, RebarCheck, RebarZone, SlabRebarType,
+    WallRebarType, ZoneRole,
 };
 use crate::{
     DetailKind, ElementShape, Frame, ModelError, ObjectId, Point3, Project, PropertyValue,
@@ -28,7 +32,61 @@ pub fn host_cover(project: &Project, host: ObjectId) -> f64 {
     own.or(project.concrete.default_cover).unwrap_or(30.)
 }
 
+/// Host of an area layout, as a plate: a slab in its own plane, or a wall
+/// unfolded onto the face (length along X, height along Y, thickness along Z).
+#[derive(Clone, Debug)]
+pub struct AreaHost {
+    pub frame: Frame,
+    pub contour: Vec<[f64; 2]>,
+    pub thickness: f64,
+    pub openings: Vec<Vec<[f64; 2]>>,
+}
+
+/// Plate geometry of a slab, or the face of a rectangular wall.
+pub fn area_host(project: &Project, host: ObjectId) -> Result<AreaHost, String> {
+    let e = project.elements.get(&host).ok_or("Деталь не найдена")?;
+    match &e.shape {
+        ElementShape::Plate {
+            contour,
+            thickness,
+            frame,
+        } => {
+            if contour.len() < 3 {
+                return Err("Контур плиты не замкнут".into());
+            }
+            let thickness = thickness.value();
+            Ok(AreaHost {
+                frame: *frame,
+                contour: contour.clone(),
+                thickness,
+                openings: plate_openings(project, host, frame, thickness),
+            })
+        }
+        ElementShape::Member { .. } => wall_host(project, host),
+    }
+}
+
+/// Replace or create the area reinforcement of one wall from its type.
+/// The bars are the same sets as a slab: positions, schedules, IFC and BVBS
+/// read them without a separate path. The host is a concrete wall («панель»).
+pub fn install_wall(
+    project: &Project,
+    host: ObjectId,
+    type_id: &str,
+) -> Result<crate::Concrete, String> {
+    if project.concrete_type(host) != Some("panel") {
+        return Err("Раскладка стены ставится на стену".into());
+    }
+    if project.concrete.wall_types.iter().all(|t| t.id != type_id) {
+        return Err("Нет типа стены".into());
+    }
+    super::rect_member(project, host)?;
+    install_slab(project, host, type_id)
+}
+
 /// Replace or create the area reinforcement of one slab from its type.
+/// A wall type is accepted when the host is a wall: `install_wall` checks
+/// that, then uses this path.
 pub fn install_slab(
     project: &Project,
     host: ObjectId,
@@ -203,13 +261,7 @@ fn zone_changed(project: &Project, previous: &Project, zone: &RebarZone) -> bool
     if super::host_changed(project, previous, zone.host) {
         return true;
     }
-    let ty = |p: &Project| {
-        p.concrete
-            .slab_types
-            .iter()
-            .find(|t| t.id == zone.type_id)
-            .cloned()
-    };
+    let ty = |p: &Project| resolved_type(p, &zone.type_id);
     if ty(project) != ty(previous) {
         return true;
     }
@@ -260,15 +312,9 @@ fn layout(
     old: &[RebarSet],
     outside: &[RebarSet],
 ) -> Result<(RebarZone, Vec<RebarSet>), String> {
-    let ty = project
-        .concrete
-        .slab_types
-        .iter()
-        .find(|t| t.id == zone.type_id)
-        .cloned()
-        .ok_or("Нет типа плиты")?;
+    let ty = resolved_type(project, &zone.type_id).ok_or("Нет типа плиты или стены")?;
     if ty.bottom.is_none() && ty.top.is_none() {
-        return Err("У типа плиты нет сеток".into());
+        return Err("У типа нет сеток".into());
     }
     let geom = geom_of(project, zone.host)?;
     let cover = host_cover(project, zone.host);
@@ -296,20 +342,42 @@ fn layout(
     Ok((zone, sets))
 }
 
-fn geom_of(project: &Project, host: ObjectId) -> Result<Geom, String> {
-    let e = project.elements.get(&host).ok_or("Деталь не найдена")?;
-    let ElementShape::Plate {
-        contour,
-        thickness,
-        frame,
-    } = &e.shape
-    else {
-        return Err("Раскладка выполняется в плите".into());
-    };
-    if contour.len() < 3 {
-        return Err("Контур плиты не замкнут".into());
+fn resolved_type(project: &Project, id: &str) -> Option<SlabRebarType> {
+    if let Some(ty) = project.concrete.slab_types.iter().find(|t| t.id == id) {
+        return Some(ty.clone());
     }
-    let thickness = thickness.value();
+    project
+        .concrete
+        .wall_types
+        .iter()
+        .find(|t| t.id == id)
+        .map(WallRebarType::to_slab)
+}
+
+fn geom_of(project: &Project, host: ObjectId) -> Result<Geom, String> {
+    let host = area_host(project, host)?;
+    Ok(Geom {
+        frame: host.frame,
+        contour: host.contour,
+        thickness: host.thickness,
+        openings: host
+            .openings
+            .into_iter()
+            .enumerate()
+            .map(|(index, pts)| Ring {
+                index: index as u32,
+                pts,
+            })
+            .collect(),
+    })
+}
+
+fn plate_openings(
+    project: &Project,
+    host: ObjectId,
+    frame: &Frame,
+    thickness: f64,
+) -> Vec<Vec<[f64; 2]>> {
     let mut openings = Vec::new();
     for d in project.details.values() {
         let DetailKind::PrismCut {
@@ -324,25 +392,59 @@ fn geom_of(project: &Project, host: ObjectId) -> Result<Geom, String> {
         if *part != host || *length + 1. < thickness || ring.len() < 3 {
             continue;
         }
-        let pts = ring
-            .iter()
-            .map(|p| {
-                let w = cut.world(Point3([p[0], p[1], 0.]));
-                let l = frame.local(w);
-                [l.0[0], l.0[1]]
-            })
-            .collect();
-        openings.push(Ring {
-            index: openings.len() as u32,
-            pts,
-        });
+        openings.push(
+            ring.iter()
+                .map(|p| {
+                    let w = cut.world(Point3([p[0], p[1], 0.]));
+                    let l = frame.local(w);
+                    [l.0[0], l.0[1]]
+                })
+                .collect(),
+        );
     }
-    Ok(Geom {
-        frame: *frame,
-        contour: contour.clone(),
-        thickness,
-        openings,
+    openings
+}
+
+/// Wall face as a plate. The thinner section side is the thickness. The
+/// frame is right-handed, Z through the wall from the near face.
+fn wall_host(project: &Project, host: ObjectId) -> Result<AreaHost, String> {
+    let (frame, width, height, length) = super::rect_member(project, host)?;
+    let (thin, tall, across) = if width <= height {
+        (width, height, 0usize)
+    } else {
+        (height, width, 1usize)
+    };
+    let along = 1 - across;
+    let x_axis = frame.axes[2];
+    let y_axis = frame.axes[along];
+    let mut z_axis = frame.axes[across];
+    let mut face = -thin / 2.;
+    let normal = cross3(x_axis, y_axis);
+    if normal[0] * z_axis[0] + normal[1] * z_axis[1] + normal[2] * z_axis[2] < 0. {
+        z_axis = [-z_axis[0], -z_axis[1], -z_axis[2]];
+        face = thin / 2.;
+    }
+    let mut corner = [0.; 3];
+    corner[across] = face;
+    corner[along] = -tall / 2.;
+    let plate = Frame {
+        origin: frame.world(Point3(corner)),
+        axes: [x_axis, y_axis, z_axis],
+    };
+    Ok(AreaHost {
+        openings: plate_openings(project, host, &plate, thin),
+        frame: plate,
+        contour: vec![[0., 0.], [length, 0.], [length, tall], [0., tall]],
+        thickness: thin,
     })
+}
+
+fn cross3(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
 }
 
 fn lay_meshes(
@@ -1504,5 +1606,156 @@ mod tests {
                 .iter()
                 .all(|bar| { bar.iter().map(|p| p.0[1]).fold(f64::MAX, f64::min) > 80. })
         );
+    }
+
+    fn wall_project() -> (Project, ObjectId) {
+        use crate::pours::CONCRETE_KEY;
+        use crate::{LengthMm, MemberKind, Profile, ProfileShape};
+        let mut p = Project::default();
+        p.materials.insert(
+            ObjectId(1),
+            Material {
+                id: ObjectId(1),
+                name: "Бетон В25".into(),
+                density_kg_m3: 2500.,
+            },
+        );
+        p.profiles.insert(
+            ObjectId(2),
+            Profile {
+                id: ObjectId(2),
+                name: "200x1500".into(),
+                shape: ProfileShape::Rectangle {
+                    width: 200.,
+                    height: 1500.,
+                },
+                source: "Бетонное сечение".into(),
+                standard: None,
+                area_mm2: None,
+            },
+        );
+        let id = ObjectId(10);
+        p.elements.insert(
+            id,
+            Element {
+                id,
+                name: "Стена См1".into(),
+                material: ObjectId(1),
+                shape: ElementShape::Member {
+                    member_kind: MemberKind::Beam,
+                    profile: ObjectId(2),
+                    length: LengthMm::new(2000.).unwrap(),
+                    frame: Frame::default(),
+                    position: Default::default(),
+                },
+                properties: [
+                    (REBAR_COVER.into(), PropertyValue::Number(25.)),
+                    (CONCRETE_KEY.into(), PropertyValue::Text("panel".into())),
+                ]
+                .into(),
+            },
+        );
+        p.details.insert(
+            ObjectId(11),
+            crate::Detail {
+                id: ObjectId(11),
+                kind: DetailKind::PrismCut {
+                    part: id,
+                    frame: Frame {
+                        origin: Point3([-120., -200., 800.]),
+                        axes: [[0., 0., 1.], [0., 1., 0.], [1., 0., 0.]],
+                    },
+                    contour: vec![[0., 0.], [400., 0.], [400., 400.], [0., 400.]],
+                    length: 240.,
+                },
+            },
+        );
+        p.next_id = 30;
+        (p, id)
+    }
+
+    fn wall_type() -> crate::concrete::WallRebarType {
+        let mut ty = crate::concrete::WallRebarType::new("wall", "Стена, две сетки");
+        ty.near = Some(crate::concrete::WallFace::new(12., 200., 8., 200.));
+        ty.far = Some(crate::concrete::WallFace::new(10., 200., 8., 200.));
+        ty.cut_openings = true;
+        ty.edge_diameter = 8.;
+        ty.edge_spacing = 200.;
+        ty
+    }
+
+    #[test]
+    fn wall_meshes_both_faces_ubars_cover_and_live_host() {
+        let (mut p, host) = wall_project();
+        p.concrete.wall_types.push(wall_type());
+        p.concrete = install_wall(&p, host, "wall").unwrap();
+        let roles: Vec<_> = p.concrete.rebars.iter().filter_map(|r| r.role).collect();
+        for role in [
+            ZoneRole::BottomMain,
+            ZoneRole::BottomCross,
+            ZoneRole::TopMain,
+            ZoneRole::TopCross,
+            ZoneRole::Edge,
+            ZoneRole::Opening,
+        ] {
+            assert!(roles.contains(&role), "{role:?} нет в {roles:?}");
+        }
+        assert!(p.concrete.rebars.iter().all(|r| r.kind != RebarKind::Frog));
+        let plate = area_host(&p, host).unwrap();
+        let near_set = p
+            .concrete
+            .rebars
+            .iter()
+            .find(|r| r.role == Some(ZoneRole::BottomMain))
+            .unwrap();
+        let z = plate.frame.local(near_set.bars[0][0]).0[2];
+        assert!(near(z, 25. + 6.), "ближняя сетка не у защитного слоя: {z}");
+        let far = p
+            .concrete
+            .rebars
+            .iter()
+            .find(|r| r.role == Some(ZoneRole::TopMain))
+            .unwrap();
+        let z = plate.frame.local(far.bars[0][0]).0[2];
+        assert!(
+            near(z, 200. - 25. - 5.),
+            "дальняя сетка не у защитного слоя: {z}"
+        );
+        let horizontal = p
+            .concrete
+            .rebars
+            .iter()
+            .find(|r| r.role == Some(ZoneRole::BottomCross))
+            .unwrap();
+        let span = |bar: &Vec<Point3>| {
+            let a = plate.frame.local(bar[0]).0;
+            let b = plate.frame.local(*bar.last().unwrap()).0;
+            (a[0] - b[0]).hypot(a[1] - b[1])
+        };
+        assert!(
+            horizontal.bars.iter().any(|bar| span(bar) < 1900.),
+            "проём не режет горизонтальные стержни"
+        );
+        let rows = crate::rebar::detail_schedule(&p);
+        assert!(rows.iter().any(|r| r.code == "ПР"));
+        assert!(rows.iter().any(|r| r.code == "П"));
+        assert!(rows.iter().all(|r| r.mark > 0));
+        let bvbs = crate::rebar::bvbs::file(&p);
+        assert!(bvbs.contains("BF2D"));
+        assert!(bvbs.contains(&format!("@p{}@", rows[0].mark)));
+        let previous = p.clone();
+        if let ElementShape::Member { length, .. } = &mut p.elements.get_mut(&host).unwrap().shape {
+            *length = LengthMm::new(2600.).unwrap();
+        }
+        crate::rebar::rebuild_rebars(&mut p, &previous).unwrap();
+        let grown = p
+            .concrete
+            .rebars
+            .iter()
+            .find(|r| r.role == Some(ZoneRole::BottomCross))
+            .unwrap();
+        let long = grown.bars.iter().map(span).fold(0., f64::max);
+        assert!(long > 2300., "стена не перестроила стержни: {long}");
+        assert!(install_wall(&p, host, "missing").is_err());
     }
 }

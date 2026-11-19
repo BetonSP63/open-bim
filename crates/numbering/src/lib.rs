@@ -267,6 +267,14 @@ pub fn part_key_data(project: &Project, id: ObjectId) -> Result<Value, ModelErro
                 quantize(&mut direction, 1e9);
                 json!({"kind":"plane_cut","normal":direction,"offset":dimensions(offset/norm)})
             }
+            DetailKind::PrismCut {
+                frame,
+                contour,
+                length,
+                ..
+            } => {
+                json!({"kind":"prism_cut","frame":frame_key(frame),"contour":canonical_contour(contour),"length":dimensions(length)})
+            }
             _ => unreachable!("part() only returns local manufacture features"),
         };
         features.push(serialized(&feature)?);

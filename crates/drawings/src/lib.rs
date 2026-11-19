@@ -4,6 +4,7 @@
 pub mod conventions;
 pub mod font;
 pub mod general_data;
+mod member_rebar;
 mod pour_marks;
 pub mod projection;
 pub mod qr;
@@ -201,12 +202,7 @@ pub fn drawing_basis(project: &Project, kind: &DrawingKind) -> Result<Basis, Err
         });
     }
     Ok(match element.shape {
-        ElementShape::Member { .. } => Basis {
-            origin: f.origin.0,
-            x: f.axes[2],
-            y: f.axes[1],
-            z: cross(f.axes[2], f.axes[1]),
-        },
+        ElementShape::Member { profile, .. } => member_basis(project, kind, part, f, profile),
         ElementShape::Plate { .. } => Basis {
             origin: f.origin.0,
             x: f.axes[0],
@@ -214,6 +210,55 @@ pub fn drawing_basis(project: &Project, kind: &DrawingKind) -> Result<Basis, Err
             z: f.axes[2],
         },
     })
+}
+
+/// Member length along the sheet X, except a КЖ column (length upward) and
+/// a КЖ wall (the face: length by the tall section side).
+fn member_basis(
+    project: &Project,
+    kind: &DrawingKind,
+    part: ObjectId,
+    frame: &open_bim_model::Frame,
+    profile: ObjectId,
+) -> Basis {
+    let along_length = Basis {
+        origin: frame.origin.0,
+        x: frame.axes[2],
+        y: frame.axes[1],
+        z: cross(frame.axes[2], frame.axes[1]),
+    };
+    if !matches!(kind, DrawingKind::Reinforcement { .. }) {
+        return along_length;
+    }
+    match project.concrete_type(part) {
+        Some("column") => Basis {
+            origin: frame.origin.0,
+            x: frame.axes[0],
+            y: frame.axes[2],
+            z: cross(frame.axes[0], frame.axes[2]),
+        },
+        Some("panel") => {
+            let (width, height) = project
+                .profiles
+                .get(&profile)
+                .and_then(|p| match p.shape {
+                    open_bim_model::ProfileShape::Rectangle { width, height } => {
+                        Some((width, height))
+                    }
+                    _ => None,
+                })
+                .unwrap_or((0., 1.));
+            let along = if width <= height { 1 } else { 0 };
+            let y = frame.axes[along];
+            Basis {
+                origin: frame.origin.0,
+                x: frame.axes[2],
+                y,
+                z: cross(frame.axes[2], y),
+            }
+        }
+        _ => along_length,
+    }
 }
 
 /// What one object of a «Комплексный чертёж» is drawn as: an assembly
