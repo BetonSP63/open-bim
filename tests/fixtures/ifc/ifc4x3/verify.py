@@ -54,6 +54,22 @@ for path in sorted(here.glob("*.ifc")):
             assert abs(s["volume_mm3"] - ref) <= 1e-4 * max(ref, 1), (path.name, guid, s, ref)
         print(path.name, "volumes equal to the IFC4 file:", len(shapes))
 
+rebar = here / "rebar-slab.ifc"
+if rebar.exists():
+    f = ifcopenshell.open(str(rebar))
+    bars = f.by_type("IfcReinforcingBar")
+    types_ = f.by_type("IfcReinforcingBarType")
+    assert bars and types_ and not f.by_type("IfcReinforcingMesh")
+    assert all(b.Tag and b.IsTypedBy for b in bars)
+    codes = {t.BendingShapeCode for t in types_}
+    assert {"ПР", "П", "Л"} <= codes, codes
+    hosts = [rel for rel in f.by_type("IfcRelAggregates") if rel.RelatingObject.is_a("IfcSlab")]
+    assert len(hosts) == 1 and len(hosts[0].RelatedObjects) == len(bars)
+    settings = ifcopenshell.geom.settings()
+    for b in bars:
+        ifcopenshell.geom.create_shape(settings, b)
+    print(rebar.name, "bars", len(bars), "types", len(types_), "geometry ok")
+
 types = result["types.ifc"]["shapes"]
 assert sorted((s["type"], s["predefined"]) for s in types.values()
               if s["predefined"] in ("BASE_PLATE", "POT")) == [("IfcBearing", "POT"), ("IfcPlate", "BASE_PLATE")]

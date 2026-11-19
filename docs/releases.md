@@ -1,16 +1,24 @@
 # Releases
 
-## 0.2.4 — current development version (`main`)
+## 0.2.5 — current development version (`main`)
 
-Not yet a packaged GitHub Release. Adds a slab reinforcement sheet (КЖ):
+Not yet a packaged GitHub Release. Adds IFC4.3 reinforcement
+(`IfcReinforcingBar` / `IfcReinforcingBarType`, swept-disk centrelines)
+and a BVBS 3.1 BF2D file of the bar positions (`docs/rebar.md`,
+`docs/ifc-support.md`) on top of 0.2.4. Packaging reads
+`workspace.package.version`, so a local archive is named
+`dist/Open-BIM-0.2.5-macos-arm64.zip` or
+`dist/Open-BIM-0.2.5-windows-x86_64.zip`. 1.0 remains the next major
+milestone (beam, column and wall КЖ drawings, stirrups tied to the
+longitudinal bars, starters, cages, and the remaining rows of
+`docs/parity.csv`).
+
+## 0.2.4 — development
+
+Not a packaged GitHub Release. Added a slab reinforcement sheet (КЖ):
 bottom and top plans, a section, the detail schedule with shape sketches
 and the steel-consumption schedule on the same GOST R 21.101 sheet
-(`docs/rebar.md`, `docs/drawings.md`) on top of 0.2.3. Packaging reads
-`workspace.package.version`, so a local archive is named
-`dist/Open-BIM-0.2.4-macos-arm64.zip` or
-`dist/Open-BIM-0.2.4-windows-x86_64.zip`. 1.0 remains the next major
-milestone (beam, column and wall КЖ drawings, IFC rebar, BVBS, and the
-remaining rows of `docs/parity.csv`).
+(`docs/rebar.md`, `docs/drawings.md`) on top of 0.2.3.
 
 ## 0.2.3 — development
 

@@ -170,6 +170,19 @@
    }
   }
  },
+ "rebar-slab.ifc": {
+  "schema": "IFC4X3_ADD2",
+  "elements": 1,
+  "schema_errors": 0,
+  "shapes": {
+   "1aCvDuhZ1Qo9ainvaBmsr3": {
+    "type": "IfcSlab",
+    "predefined": "FLOOR",
+    "object_type": null,
+    "volume_mm3": 4800000000.0
+   }
+  }
+ },
  "steel-frame.ifc": {
   "schema": "IFC4X3_ADD2",
   "elements": 7,

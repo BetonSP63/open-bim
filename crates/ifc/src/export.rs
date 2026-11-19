@@ -29,6 +29,12 @@ pub struct ExportReport {
     pub downgraded: Vec<ObjectId>,
     /// Model data outside the IFC subset, by kind, with object IDs.
     pub skipped: BTreeMap<String, Vec<ObjectId>>,
+    /// Reinforcing bars written. Only an IFC4.3 file carries them.
+    #[serde(default)]
+    pub rebars: usize,
+    /// Bar-set numbers an IFC4 file leaves out. IFC4.3 writes those bars.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rebar_not_in_schema: Vec<u32>,
 }
 
 /// Deterministic GUID from a namespace and a model ID.
@@ -53,19 +59,27 @@ pub fn element_guid(project: &Project, id: ObjectId) -> String {
     }
 }
 
-struct Writer {
+pub(crate) struct Writer {
     out: String,
     next: u64,
 }
 
+/// An exported part: its product, the placement bars hang from, and the
+/// storey that contains it.
+pub(crate) struct HostProduct {
+    pub product: u64,
+    pub placement: u64,
+    pub storey: u64,
+}
+
 impl Writer {
-    fn add(&mut self, entity: String) -> u64 {
+    pub(crate) fn add(&mut self, entity: String) -> u64 {
         let id = self.next;
         self.next += 1;
         let _ = writeln!(self.out, "#{id}={entity};");
         id
     }
-    fn point(&mut self, p: [f64; 3]) -> u64 {
+    pub(crate) fn point(&mut self, p: [f64; 3]) -> u64 {
         self.add(format!(
             "IFCCARTESIANPOINT(({},{},{}))",
             real(p[0]),
@@ -73,7 +87,7 @@ impl Writer {
             real(p[2])
         ))
     }
-    fn direction(&mut self, d: [f64; 3]) -> u64 {
+    pub(crate) fn direction(&mut self, d: [f64; 3]) -> u64 {
         self.add(format!(
             "IFCDIRECTION(({},{},{}))",
             real(d[0]),
@@ -81,13 +95,13 @@ impl Writer {
             real(d[2])
         ))
     }
-    fn placement(&mut self, origin: [f64; 3], z: [f64; 3], x: [f64; 3]) -> u64 {
+    pub(crate) fn placement(&mut self, origin: [f64; 3], z: [f64; 3], x: [f64; 3]) -> u64 {
         let (p, z, x) = (self.point(origin), self.direction(z), self.direction(x));
         self.add(format!("IFCAXIS2PLACEMENT3D(#{p},#{z},#{x})"))
     }
 }
 
-fn refs(ids: &[u64]) -> String {
+pub(crate) fn refs(ids: &[u64]) -> String {
     ids.iter()
         .map(|i| format!("#{i}"))
         .collect::<Vec<_>>()
@@ -234,8 +248,9 @@ pub fn export(project: &Project) -> Result<(String, ExportReport), String> {
 }
 
 /// STEP text in the given schema and a report of model data that was not
-/// exported. IFC4 and IFC4.3 differ in the subset only by the optional Name
-/// of IfcDerivedUnit and TagList of IfcCartesianPointList3D.
+/// exported. Without reinforcement, IFC4 and IFC4.3 differ only by the
+/// optional Name of IfcDerivedUnit and TagList of IfcCartesianPointList3D.
+/// Reinforcing bars are written only in IFC4.3.
 pub fn export_schema(project: &Project, schema: Schema) -> Result<(String, ExportReport), String> {
     project.validate().map_err(|e| e.to_string())?;
     let mut w = Writer {
@@ -328,6 +343,7 @@ pub fn export_schema(project: &Project, schema: Schema) -> Result<(String, Expor
     let z = w.direction([0., 0., 1.]);
     let identity = w.placement([0.; 3], [0., 0., 1.], [1., 0., 0.]);
     let mut products = Vec::new();
+    let mut hosts: BTreeMap<ObjectId, HostProduct> = BTreeMap::new();
     let mut typed: Vec<(ObjectId, u64)> = Vec::new();
     let mut by_material: BTreeMap<ObjectId, Vec<u64>> = BTreeMap::new();
     let mut profiles: BTreeMap<ObjectId, u64> = BTreeMap::new();
@@ -444,7 +460,16 @@ pub fn export_schema(project: &Project, schema: Schema) -> Result<(String, Expor
             Some(PropertyValue::Number(n)) => storey_of.get(&(*n as u32)).copied(),
             _ => None,
         };
-        products.push((on.unwrap_or(storey), product));
+        let host_storey = on.unwrap_or(storey);
+        products.push((host_storey, product));
+        hosts.insert(
+            element.id,
+            HostProduct {
+                product,
+                placement: lp,
+                storey: host_storey,
+            },
+        );
         typed.push((element.id, product));
         by_material
             .entry(element.material)
@@ -709,6 +734,22 @@ pub fn export_schema(project: &Project, schema: Schema) -> Result<(String, Expor
             .entry("drawing".into())
             .or_default()
             .push(*id);
+    }
+    if schema == crate::Schema::Ifc4x3 {
+        report.rebars = crate::rebar::write(
+            &mut w,
+            project,
+            &crate::rebar::RebarSpace {
+                body,
+                storey_lp,
+                default_storey: storey,
+                identity,
+            },
+            &hosts,
+            &mut products,
+        );
+    } else {
+        report.rebar_not_in_schema = project.concrete.rebars.iter().map(|s| s.number).collect();
     }
     for (k, container) in storeys.iter().enumerate() {
         let inside: Vec<u64> = products

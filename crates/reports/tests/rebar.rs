@@ -28,5 +28,12 @@ fn detail_and_steel_lists_follow_the_bars() {
     let files = csv::write_rebar(&project, &dir).unwrap();
     assert_eq!(files.len(), 2);
     assert!(files.iter().all(|p| p.is_file()));
+    let bvbs = csv::write_bvbs(&project, &dir).unwrap();
+    assert_eq!(bvbs.len(), 1);
+    let text = std::fs::read_to_string(&bvbs[0]).unwrap();
+    assert!(text.contains("BF2D@H"));
+    assert!(open_bim_model::rebar::bvbs::checksum_matches(
+        text.lines().next().unwrap()
+    ));
     let _ = std::fs::remove_dir_all(&dir);
 }

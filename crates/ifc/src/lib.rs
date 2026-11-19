@@ -1,10 +1,12 @@
 //! IFC4 and IFC4.3 exchange of the declared subset: IfcBeam, IfcColumn,
 //! IfcPlate with swept-solid bodies, parameterised profiles, materials,
-//! placements, GUIDs, property sets and openings. See docs/ifc-support.md.
+//! placements, GUIDs, property sets and openings. IFC4.3 also writes
+//! reinforcing bars. See docs/ifc-support.md.
 pub mod export;
 pub mod import;
 pub mod mapping;
 pub mod merge;
+mod rebar;
 pub mod step;
 
 pub use export::{ExportReport, export, export_schema};
