@@ -4,7 +4,7 @@
 //! overlay and the bar schedule.
 use open_bim_commands::Command;
 use open_bim_model::concrete::{
-    BarShapeType, CageType, REBAR_COVER, ShapePlace, SlabRebarType, StarterPath,
+    BarShapeType, CageType, REBAR_COVER, ShapePlace, SlabRebarType, StarterPath, WallRebarType,
 };
 use open_bim_model::rebar::{self as model, Hook, HookKind, RebarRule, Stress};
 use open_bim_model::{ElementShape, ObjectId, Point3, Project, PropertyValue, RebarKind, RebarSet};
@@ -259,6 +259,22 @@ pub fn save_cage_type(project: &Project, ty: CageType) -> Result<Vec<Command>, S
     commit_concrete(concrete)
 }
 
+/// Record a wall type. Only one type is the default for new walls.
+pub fn save_wall_type(project: &Project, ty: WallRebarType) -> Result<Vec<Command>, String> {
+    let mut concrete = project.concrete.clone();
+    if ty.default_for_new {
+        for other in &mut concrete.wall_types {
+            other.default_for_new = false;
+        }
+    }
+    if let Some(found) = concrete.wall_types.iter_mut().find(|s| s.id == ty.id) {
+        *found = ty;
+    } else {
+        concrete.wall_types.push(ty);
+    }
+    commit_concrete(concrete)
+}
+
 /// Record a slab type. Only one type is the default for new slabs.
 pub fn save_slab_type(project: &Project, ty: SlabRebarType) -> Result<Vec<Command>, String> {
     let mut concrete = project.concrete.clone();
@@ -370,6 +386,38 @@ fn write_cover(working: &mut Project, host: ObjectId, commands: &mut Vec<Command
         key: REBAR_COVER.into(),
         value: Some(PropertyValue::Number(cover)),
     });
+}
+
+/// Lay the wall type into every selected concrete wall. The cover is
+/// written on the host when it does not have one yet.
+pub fn place_wall(
+    project: &Project,
+    selected: &[ObjectId],
+    type_id: &str,
+) -> Result<Vec<Command>, String> {
+    let hosts: Vec<ObjectId> = selected
+        .iter()
+        .copied()
+        .filter(|id| {
+            project
+                .elements
+                .get(id)
+                .is_some_and(|e| super::concrete::part_type(e) == Some("panel"))
+        })
+        .collect();
+    if hosts.is_empty() {
+        return Err("Выберите стену".into());
+    }
+    let mut working = project.clone();
+    let mut commands = Vec::new();
+    for host in hosts {
+        write_cover(&mut working, host, &mut commands);
+        working.concrete = model::install_wall(&working, host, type_id)?;
+    }
+    commands.push(Command::SetConcrete {
+        concrete: working.concrete,
+    });
+    Ok(commands)
 }
 
 /// Lay the cage type into every selected concrete beam or column.

@@ -78,6 +78,13 @@ pub fn reinforcement_drawing(
     part: ObjectId,
     number: &str,
 ) -> Result<Drawing, Error> {
+    let plate = project
+        .elements
+        .get(&part)
+        .is_some_and(|e| matches!(e.shape, ElementShape::Plate { .. }));
+    if !plate {
+        return crate::member_rebar::member_drawing(project, id, part, number);
+    }
     let geom = slab_geom(project, part)?;
     let sets = hosted(project, part);
     let lay = layout(project, part, &geom, &sets)?;
@@ -367,10 +374,11 @@ pub(super) fn annotate(
     views: &mut [ViewGraphic],
 ) {
     let Ok(geom) = slab_geom(project, part) else {
+        crate::member_rebar::annotate(project, drawing, part, contexts, views);
         return;
     };
     let sets = hosted(project, part);
-    let rows = slab_rows(project, part);
+    let rows = host_rows(project, part);
     for view in drawing.views.iter().filter(|v| v.section.is_none()) {
         let Some(ctx) = contexts.get(&view.id) else {
             continue;
@@ -409,6 +417,21 @@ pub(super) fn schedules_and_notes(
     size: [f64; 2],
     title_area: [f64; 4],
 ) -> (Vec<Polyline>, Vec<Label>) {
+    if slab_geom(project, part).is_err() {
+        return crate::member_rebar::schedules_and_notes(project, part, size, title_area);
+    }
+    let mut pair = paint_schedules(project, part, size, title_area);
+    pair.1.extend(general_notes(project, part, size));
+    pair
+}
+
+/// Detail schedule and steel consumption of one host, above the inscription.
+pub(crate) fn paint_schedules(
+    project: &Project,
+    part: ObjectId,
+    size: [f64; 2],
+    title_area: [f64; 4],
+) -> (Vec<Polyline>, Vec<Label>) {
     let mut lines = Vec::new();
     let mut labels = Vec::new();
     let tables = schedule_tables(project, part);
@@ -420,7 +443,7 @@ pub(super) fn schedules_and_notes(
         let at = [x, top.min(size[1] - MARGIN - 2.)];
         let drawn = table.draw(at);
         if table.title.as_deref() == Some("Ведомость деталей") {
-            let sketches = slab_rows(project, part);
+            let sketches = host_rows(project, part);
             for (cell, row) in table.column_cells(at, 1).into_iter().zip(&sketches) {
                 let (sl, st) = draw_sketch(cell, &row.sketch);
                 lines.extend(sl);
@@ -431,12 +454,18 @@ pub(super) fn schedules_and_notes(
         labels.extend(drawn.labels);
         top += 4.;
     }
-    labels.extend(general_notes(project, part, size));
     (lines, labels)
 }
 
+pub(crate) fn schedule_width(project: &Project, part: ObjectId) -> f64 {
+    schedule_tables(project, part)
+        .iter()
+        .map(Table::width)
+        .fold(188., f64::max)
+}
+
 fn schedule_tables(project: &Project, part: ObjectId) -> Vec<Table> {
-    let rows = slab_rows(project, part);
+    let rows = host_rows(project, part);
     vec![detail_table(&rows), steel_table(project, part, &rows)]
 }
 
@@ -1055,7 +1084,7 @@ fn push_role(
     }
 }
 
-fn callout_of(set: &RebarSet, rows: &[DetailRow]) -> String {
+pub(crate) fn callout_of(set: &RebarSet, rows: &[DetailRow]) -> String {
     let mut pos: Vec<u32> = rows
         .iter()
         .filter(|r| r.sets.contains(&set.number))
@@ -1082,7 +1111,7 @@ fn callout_of(set: &RebarSet, rows: &[DetailRow]) -> String {
     format!("поз. {list} Ø{} {}{step}", mm(set.diameter), set.grade)
 }
 
-fn slab_rows(project: &Project, part: ObjectId) -> Vec<DetailRow> {
+pub(crate) fn host_rows(project: &Project, part: ObjectId) -> Vec<DetailRow> {
     rebar::detail_schedule(project)
         .into_iter()
         .filter_map(|mut row| {
@@ -1202,7 +1231,7 @@ fn poly(points: Vec<[f64; 2]>, style: LineStyle) -> Polyline {
     }
 }
 
-fn label(position: [f64; 2], text: String, height: f64, align: Align) -> Label {
+pub(crate) fn label(position: [f64; 2], text: String, height: f64, align: Align) -> Label {
     Label {
         position,
         text,
@@ -1214,7 +1243,7 @@ fn label(position: [f64; 2], text: String, height: f64, align: Align) -> Label {
     }
 }
 
-fn mm(value: f64) -> String {
+pub(crate) fn mm(value: f64) -> String {
     crate::format_mm(value)
 }
 

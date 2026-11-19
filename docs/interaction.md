@@ -5,18 +5,21 @@ flyer) and the annotated screenshot of its main window. Open BIM follows the
 standard detailing workflow. It does not copy third-party artwork and does not claim parity. Differences
 are listed in `docs/reference-docs-comparison.md`.
 
-## Reinforcement of beams and columns
+## Reinforcement of beams, columns and walls
 
-The «Армирование» window (button «Ещё») keeps cage types and starters next
-to the slab layout. A cage type sets longitudinal bars and stirrups; the
-cover stays on the concrete host (`rebar_cover`). «Каркас в выбранных балках
-и колоннах» lays the type into the selection and rebuilds it when the
-section, the length or the cover changes. A stirrup stores the longitudinal
-bars it encloses. If those bars move so the stirrup would become an invalid
-shape, the previous stirrup is kept and «Проверка армирования» reports it.
-«Поставить выпуски» spaces straight or L bars along a host face, a slab edge
-or up from a column; each leg is the lap length. Beam, column and wall
-drawings are not produced here.
+The «Армирование» window (button «Ещё») keeps cage types, wall types and
+starters next to the slab layout. A cage type sets longitudinal bars and
+stirrups; the cover stays on the concrete host (`rebar_cover`). «Каркас в
+выбранных балках и колоннах» lays the type into the selection and rebuilds
+it when the section, the length or the cover changes. A stirrup stores the
+longitudinal bars it encloses. If those bars move so the stirrup would
+become an invalid shape, the previous stirrup is kept and «Проверка
+армирования» reports it. «Поставить выпуски» spaces straight or L bars
+along a host face, a slab edge or up from a column; each leg is the lap
+length. A wall type sets vertical and horizontal bars on both faces;
+«Разложить в выбранных стенах» uses the same area layout as a slab, including
+U-bars at free edges and openings. «Чертёж КЖ» builds the sheet of the
+selected slab, beam, column or wall.
 
 ## Saving and closing
 

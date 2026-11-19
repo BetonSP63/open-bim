@@ -64,8 +64,9 @@ pub enum DrawingKind {
     /// «Комплексный чертёж»: several parts or assemblies on one sheet; each
     /// view shows its own `source`, drawn in that object's frame.
     Multi { objects: Vec<ObjectId> },
-    /// «КЖ»: reinforcement drawing of one slab. Plans, the section, schedules
-    /// and notes are regenerated from the slab and its bars.
+    /// «КЖ»: reinforcement drawing of one slab, beam, column or wall.
+    /// Views, sections, schedules and notes are regenerated from the host
+    /// and its bars.
     Reinforcement { part: ObjectId },
 }
 
