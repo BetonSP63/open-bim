@@ -105,16 +105,38 @@ pub fn set_zone_framing(
     install_slab(&staged, host, &type_id)
 }
 
-/// Notes for the model check: stretches where a U-bar or a frog was not placed.
+/// Notes for the model check: stretches where a U-bar or a frog was not
+/// placed, and stirrups or starters that no longer fit their bars.
 pub fn model_checks(project: &Project) -> Vec<String> {
     let mut out = Vec::new();
-    for z in &project.concrete.zones {
-        let name = project
+    let name_of = |host: crate::ObjectId| {
+        project
             .elements
-            .get(&z.host)
+            .get(&host)
             .map(|e| e.name.clone())
-            .unwrap_or_else(|| format!("#{}", z.host.0));
+            .unwrap_or_else(|| format!("#{}", host.0))
+    };
+    for z in &project.concrete.zones {
+        let name = name_of(z.host);
         for c in &z.checks {
+            out.push(format!("{name}: {}", c.message));
+        }
+    }
+    for cage in &project.concrete.cages {
+        let name = name_of(cage.host);
+        for c in &cage.checks {
+            out.push(format!("{name}: {}", c.message));
+        }
+    }
+    for set in &project.concrete.rebars {
+        let Some(starter) = &set.starter else {
+            continue;
+        };
+        let name = set
+            .host
+            .map(name_of)
+            .unwrap_or_else(|| format!("№{}", set.number));
+        for c in &starter.checks {
             out.push(format!("{name}: {}", c.message));
         }
     }

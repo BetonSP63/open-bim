@@ -1,17 +1,22 @@
 # Releases
 
-## 0.2.5 — current development version (`main`)
+## 0.2.6 — current development version (`main`)
 
-Not yet a packaged GitHub Release. Adds IFC4.3 reinforcement
+Not yet a packaged GitHub Release. Adds beam and column cages, stirrups
+tied to the longitudinal bars they enclose, and starter bars whose leg
+length is the lap `l_l` (`docs/rebar.md`) on top of 0.2.5. Packaging reads
+`workspace.package.version`, so a local archive is named
+`dist/Open-BIM-0.2.6-macos-arm64.zip` or
+`dist/Open-BIM-0.2.6-windows-x86_64.zip`. 1.0 remains the next major
+milestone (beam, column and wall КЖ drawings, and the remaining rows of
+`docs/parity.csv`).
+
+## 0.2.5 — development
+
+Not a packaged GitHub Release. Added IFC4.3 reinforcement
 (`IfcReinforcingBar` / `IfcReinforcingBarType`, swept-disk centrelines)
 and a BVBS 3.1 BF2D file of the bar positions (`docs/rebar.md`,
-`docs/ifc-support.md`) on top of 0.2.4. Packaging reads
-`workspace.package.version`, so a local archive is named
-`dist/Open-BIM-0.2.5-macos-arm64.zip` or
-`dist/Open-BIM-0.2.5-windows-x86_64.zip`. 1.0 remains the next major
-milestone (beam, column and wall КЖ drawings, stirrups tied to the
-longitudinal bars, starters, cages, and the remaining rows of
-`docs/parity.csv`).
+`docs/ifc-support.md`) on top of 0.2.4.
 
 ## 0.2.4 — development
 

@@ -18,6 +18,13 @@ pub struct RebarUi {
     pub shape_draft: Option<open_bim_model::concrete::BarShapeType>,
     /// Slab type being edited.
     pub slab_draft: Option<open_bim_model::concrete::SlabRebarType>,
+    /// Cage type being edited.
+    pub cage_draft: Option<open_bim_model::concrete::CageType>,
+    /// 0–3 member face, 4 column top, 5 slab edge.
+    pub starter_where: u8,
+    pub starter_edge: u32,
+    /// Г-образный выпуск; otherwise a straight bar.
+    pub starter_elbow: bool,
 }
 
 /// Generator of a bar set in a host part.
@@ -554,6 +561,225 @@ fn paint_sketch(ui: &mut egui::Ui, sketch: &open_bim_model::rebar::ShapeSketch) 
     }
 }
 
+fn cage_panel(
+    ui: &mut egui::Ui,
+    rebar: &mut RebarUi,
+    project: &open_bim_model::Project,
+    selected: &[ObjectId],
+    requests: &mut Vec<Request>,
+) {
+    use open_bim_model::concrete::CageType;
+    egui::CollapsingHeader::new("Каркасы балок и колонн")
+        .id_salt("kj cage")
+        .default_open(false)
+        .show(ui, |ui| {
+            ui.label(
+                "Тип задаёт продольные стержни и хомуты. Защитный слой берётся с балки или колонны. \
+                 Хомут хранит ссылки на продольные стержни и повторяет их размер.",
+            );
+            if rebar.cage_draft.is_none() && ui.button("Новый тип каркаса").clicked() {
+                rebar.cage_draft = Some(CageType::new(
+                    format!("cage-{}", project.concrete.cage_types.len() + 1),
+                    "Каркас",
+                ));
+            }
+            let mut edit = None;
+            for ty in &project.concrete.cage_types {
+                ui.horizontal(|ui| {
+                    ui.label(format!(
+                        "{}{}",
+                        ty.name,
+                        if ty.default_for_new {
+                            " — для новых балок и колонн"
+                        } else {
+                            ""
+                        }
+                    ));
+                    if ui.small_button("Изменить").clicked() {
+                        edit = Some(ty.clone());
+                    }
+                });
+            }
+            if let Some(ty) = edit {
+                rebar.cage_draft = Some(ty);
+            }
+            if let Some(draft) = &mut rebar.cage_draft {
+                ui.horizontal(|ui| {
+                    ui.label("Имя");
+                    ui.text_edit_singleline(&mut draft.name);
+                });
+                ui.checkbox(&mut draft.default_for_new, "Для новых балок и колонн");
+                ui.horizontal(|ui| {
+                    ui.label("Продольные Ø");
+                    ui.add(egui::DragValue::new(&mut draft.long_diameter).range(4.0..=40.));
+                    ui.label("на грани");
+                    ui.add(egui::DragValue::new(&mut draft.per_face).range(2..=50));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Хомут Ø");
+                    ui.add(egui::DragValue::new(&mut draft.stirrup_diameter).range(4.0..=40.));
+                    ui.label("шаг");
+                    ui.add(
+                        egui::DragValue::new(&mut draft.stirrup_spacing)
+                            .range(draft.stirrup_diameter..=10_000.),
+                    );
+                });
+                let mut dense = draft.end_spacing.is_some();
+                ui.checkbox(&mut dense, "Учащение у торцов");
+                if dense {
+                    let min_step = draft.stirrup_diameter;
+                    let mut end_spacing = draft.end_spacing.unwrap_or(100.);
+                    let mut end_length = draft.end_length.unwrap_or(400.);
+                    ui.horizontal(|ui| {
+                        ui.label("шаг у торца");
+                        ui.add(egui::DragValue::new(&mut end_spacing).range(min_step..=10_000.));
+                        ui.label("длина зоны");
+                        ui.add(egui::DragValue::new(&mut end_length).range(1.0..=10_000.));
+                    });
+                    draft.end_spacing = Some(end_spacing);
+                    draft.end_length = Some(end_length);
+                } else {
+                    draft.end_spacing = None;
+                    draft.end_length = None;
+                }
+                let shapes = stirrup_shapes(project);
+                let label = shapes
+                    .iter()
+                    .find(|(id, _)| id == &draft.stirrup_shape)
+                    .map(|(_, name)| name.clone())
+                    .unwrap_or_else(|| draft.stirrup_shape.clone());
+                ui.horizontal(|ui| {
+                    ui.label("Форма хомута");
+                    egui::ComboBox::from_id_salt("kj stirrup shape")
+                        .selected_text(label)
+                        .show_ui(ui, |ui| {
+                            for (id, name) in &shapes {
+                                ui.selectable_value(&mut draft.stirrup_shape, id.clone(), name);
+                            }
+                        });
+                });
+                if ui.button("Записать тип каркаса").clicked()
+                    && let Ok(commands) = rb::save_cage_type(project, draft.clone())
+                {
+                    requests.push(Request::Action(Action::Commit(
+                        "Тип каркаса".into(),
+                        commands,
+                    )));
+                }
+            }
+            if ui.button("Каркас в выбранных балках и колоннах").clicked() {
+                let id = rebar
+                    .cage_draft
+                    .as_ref()
+                    .map(|t| t.id.clone())
+                    .or_else(|| {
+                        project
+                            .concrete
+                            .cage_types
+                            .iter()
+                            .find(|t| t.default_for_new)
+                            .map(|t| t.id.clone())
+                    })
+                    .or_else(|| project.concrete.cage_types.first().map(|t| t.id.clone()));
+                if let Some(id) = id
+                    && let Ok(commands) = rb::place_cage(project, selected, &id)
+                {
+                    requests.push(Request::Action(Action::Commit("Каркас".into(), commands)));
+                }
+            }
+        });
+}
+
+fn stirrup_shapes(project: &open_bim_model::Project) -> Vec<(String, String)> {
+    let mut rows: Vec<(String, String)> = open_bim_model::rebar::builtin_shapes()
+        .into_iter()
+        .filter(|s| s.id == "gost.stirrup" || s.id == "gost.straight")
+        .map(|s| (s.id, format!("{} ({})", s.name, s.code)))
+        .collect();
+    for s in &project.concrete.shape_types {
+        if let Some(row) = rows.iter_mut().find(|n| n.0 == s.id) {
+            row.1 = format!("{} — изменён", s.name);
+        } else {
+            rows.push((s.id.clone(), s.name.clone()));
+        }
+    }
+    rows
+}
+
+fn starter_panel(
+    ui: &mut egui::Ui,
+    rebar: &mut RebarUi,
+    project: &open_bim_model::Project,
+    selected: &[ObjectId],
+    requests: &mut Vec<Request>,
+) {
+    use open_bim_model::concrete::StarterPath;
+    egui::CollapsingHeader::new("Выпуски")
+        .id_salt("kj starter")
+        .default_open(false)
+        .show(ui, |ui| {
+            ui.label(
+                "Прямые или Г-образные стержни вдоль грани или с верха колонны. \
+                 Длина участка — нахлёстка ll по СП 63. Шаг, диаметр и класс — из свойств выше.",
+            );
+            ui.horizontal(|ui| {
+                ui.label("Форма");
+                ui.selectable_value(&mut rebar.starter_elbow, false, "Прямой");
+                ui.selectable_value(&mut rebar.starter_elbow, true, "Г-образный");
+            });
+            const WHERE: [(&str, u8); 6] = [
+                ("Нижняя грань", 0),
+                ("Правая грань", 1),
+                ("Верхняя грань", 2),
+                ("Левая грань", 3),
+                ("С верха колонны", 4),
+                ("Кромка плиты", 5),
+            ];
+            let label = WHERE
+                .iter()
+                .find(|(_, n)| *n == rebar.starter_where)
+                .map(|(text, _)| *text)
+                .unwrap_or("Верхняя грань");
+            ui.horizontal(|ui| {
+                ui.label("Путь");
+                egui::ComboBox::from_id_salt("kj starter path")
+                    .selected_text(label)
+                    .show_ui(ui, |ui| {
+                        for (text, n) in WHERE {
+                            ui.selectable_value(&mut rebar.starter_where, n, text);
+                        }
+                    });
+            });
+            if rebar.starter_where == 5 {
+                ui.horizontal(|ui| {
+                    ui.label("Номер кромки");
+                    ui.add(egui::DragValue::new(&mut rebar.starter_edge).range(0..=100));
+                });
+            }
+            if ui.button("Поставить выпуски").clicked() {
+                let path = match rebar.starter_where {
+                    4 => StarterPath::ColumnTop,
+                    5 => StarterPath::SlabEdge {
+                        index: rebar.starter_edge,
+                    },
+                    n => StarterPath::Face {
+                        index: u32::from(n),
+                    },
+                };
+                let shape = if rebar.starter_elbow {
+                    "gost.l"
+                } else {
+                    "gost.straight"
+                };
+                if let Ok(commands) =
+                    rb::place_starters(project, selected, &path, shape, &rebar.settings)
+                {
+                    requests.push(Request::Action(Action::Commit("Выпуски".into(), commands)));
+                }
+            }
+        });
+}
+
 /// «КЖ»: shape types, the slab type and the model check. Kept in this window
 /// so it does not touch the property pane.
 fn kj_panel(
@@ -882,6 +1108,9 @@ fn kj_panel(
                 }
             }
         });
+
+    cage_panel(ui, rebar, project, selected, requests);
+    starter_panel(ui, rebar, project, selected, requests);
 
     let notes = shapes::model_checks(project);
     if !notes.is_empty() {

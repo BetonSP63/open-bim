@@ -132,6 +132,8 @@ pub enum RebarKind {
     Frog,
     /// «По типу формы»: a bar instantiated from a shape type.
     Shape,
+    /// «Выпуски»: starter bars along a host edge or out of a column.
+    Starter,
 }
 
 impl RebarKind {
@@ -146,8 +148,45 @@ impl RebarKind {
             Self::Edge => "П-образные",
             Self::Frog => "Лягушки",
             Self::Shape => "По типу формы",
+            Self::Starter => "Выпуски",
         }
     }
+}
+
+/// A longitudinal bar a stirrup encloses. `set` is the set number, `bar`
+/// the index of the centre line in that set.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BarRef {
+    pub set: u32,
+    pub bar: u32,
+}
+
+/// Where starter bars («выпуски») are spaced.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "path", rename_all = "snake_case", deny_unknown_fields)]
+pub enum StarterPath {
+    /// Face of a beam or column, bars along the member.
+    /// 0 bottom, 1 right, 2 top, 3 left.
+    Face { index: u32 },
+    /// Outer edge of a slab or raft contour.
+    SlabEdge { index: u32 },
+    /// Up from the top of a column into the slab or foundation above.
+    ColumnTop,
+}
+
+/// Layout of one starter set. The length of each leg is the lap `l_l`.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StarterLayout {
+    pub path: StarterPath,
+    pub spacing: f64,
+    /// Slab or foundation the column starters rise into, when one meets
+    /// the column top.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub into: Option<ObjectId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub checks: Vec<RebarCheck>,
 }
 
 /// Property of a concrete part: concrete cover to the bar surface, mm.
@@ -322,6 +361,65 @@ impl SlabRebarType {
     }
 }
 
+/// Reinforcement of a beam or a column («каркас»): longitudinal bars and
+/// stirrups. The cover is not here; it lives on the concrete host
+/// (`REBAR_COVER`). Placing the type lays the cage out; a later change of
+/// the section, the length or the cover builds it again.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CageType {
+    pub id: String,
+    pub name: String,
+    pub long_diameter: f64,
+    pub long_grade: String,
+    /// Longitudinal bars on each face, corners included.
+    pub per_face: u32,
+    /// Stirrup shape from the catalogue. A closed rectangle (the built-in
+    /// «Хомут») or a straight bar.
+    pub stirrup_shape: String,
+    pub stirrup_diameter: f64,
+    pub stirrup_grade: String,
+    pub stirrup_spacing: f64,
+    /// Spacing of the denser zones at both ends. Together with `end_length`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub end_spacing: Option<f64>,
+    /// Length of each denser end zone, mm.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub end_length: Option<f64>,
+    /// Placed on a new concrete beam or column.
+    pub default_for_new: bool,
+}
+
+impl CageType {
+    pub fn new(id: impl Into<String>, name: impl Into<String>) -> Self {
+        Self {
+            id: id.into(),
+            name: name.into(),
+            long_diameter: 16.,
+            long_grade: "А500С".into(),
+            per_face: 2,
+            stirrup_shape: "gost.stirrup".into(),
+            stirrup_diameter: 8.,
+            stirrup_grade: "А500С".into(),
+            stirrup_spacing: 200.,
+            end_spacing: None,
+            end_length: None,
+            default_for_new: false,
+        }
+    }
+}
+
+/// A cage placed on one beam or column.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RebarCage {
+    pub number: u32,
+    pub host: ObjectId,
+    pub type_id: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub checks: Vec<RebarCheck>,
+}
+
 /// A stretch the layout refused to reinforce, kept for the model check.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -409,6 +507,17 @@ pub struct RebarSet {
     pub remainders: Vec<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub array: Option<FrogArray>,
+    /// Longitudinal bars this stirrup encloses. The stirrup size follows
+    /// them; an edit that would make the shape invalid is refused and
+    /// reported by the model check.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub enclosed: Vec<BarRef>,
+    /// Cage this set belongs to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cage: Option<u32>,
+    /// Starter path. The bar lengths are the lap `l_l`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub starter: Option<StarterLayout>,
 }
 
 fn no_hooks(h: &[Hook; 2]) -> bool {
@@ -435,6 +544,9 @@ impl RebarSet {
             role: None,
             remainders: Vec::new(),
             array: None,
+            enclosed: Vec::new(),
+            cage: None,
+            starter: None,
         }
     }
 }
@@ -562,6 +674,12 @@ pub struct Concrete {
     /// Area-reinforcement zones.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub zones: Vec<RebarZone>,
+    /// Beam and column cage types.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cage_types: Vec<CageType>,
+    /// Cages placed on beams and columns.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cages: Vec<RebarCage>,
     /// Cover of a new slab when the host has no `REBAR_COVER` yet, mm.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_cover: Option<f64>,
@@ -672,6 +790,7 @@ impl Concrete {
         self.validate_shapes()?;
         self.validate_slab_types()?;
         self.validate_zones()?;
+        self.validate_cages()?;
         for r in &self.rebars {
             // Identical bars share one position, so the number may repeat.
             if r.position == Some(0) {
@@ -710,16 +829,49 @@ impl Concrete {
             return bad("Слишком много швов или единиц бетонирования");
         }
         let zone_numbers: BTreeSet<u32> = self.zones.iter().map(|z| z.number).collect();
+        let cage_numbers: BTreeSet<u32> = self.cages.iter().map(|c| c.number).collect();
         for r in &self.rebars {
             if let Some(z) = r.zone
                 && !zone_numbers.contains(&z)
             {
                 return bad("Набор ссылается на отсутствующую зону армирования");
             }
+            if let Some(c) = r.cage
+                && !cage_numbers.contains(&c)
+            {
+                return bad("Набор ссылается на отсутствующий каркас");
+            }
             if let Some(id) = &r.shape_id
                 && !crate::rebar::shape_known(self, id)
             {
                 return bad("Набор ссылается на неизвестный тип формы");
+            }
+            for link in &r.enclosed {
+                let Some(other) = self.rebars.iter().find(|s| s.number == link.set) else {
+                    return bad("Хомут ссылается на отсутствующий набор");
+                };
+                if link.bar as usize >= other.bars.len() {
+                    return bad("Хомут ссылается на отсутствующий стержень");
+                }
+            }
+            if let Some(starter) = &r.starter {
+                if !(r.diameter..=100_000.).contains(&starter.spacing) {
+                    return bad("Шаг выпусков задан неверно");
+                }
+                let index_ok = match &starter.path {
+                    StarterPath::Face { index } | StarterPath::SlabEdge { index } => {
+                        *index <= 10_000
+                    }
+                    StarterPath::ColumnTop => true,
+                };
+                if !index_ok {
+                    return bad("Грань выпусков задана неверно");
+                }
+                for c in &starter.checks {
+                    if c.message.is_empty() || c.message.len() > 512 {
+                        return bad("Замечание проверки армирования пустое");
+                    }
+                }
             }
         }
         Ok(())
@@ -819,6 +971,71 @@ impl Concrete {
                     || c.to.is_some_and(|v| !(0.0..=1e9).contains(&v))
                 {
                     return bad("Участок без П-стержней задан неверно");
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_cages(&self) -> Result<(), ModelError> {
+        let bad = |m: &str| Err(ModelError::InvalidValue(m.into()));
+        let mut ids = BTreeSet::new();
+        let mut numbers = BTreeSet::new();
+        let mut defaults = 0;
+        if self.cage_types.len() > 10_000 || self.cages.len() > 100_000 {
+            return bad("Слишком много каркасов");
+        }
+        for t in &self.cage_types {
+            if t.id.is_empty() || t.id.len() > 64 || !ids.insert(t.id.clone()) {
+                return bad("Идентификатор типа каркаса пустой или повторяется");
+            }
+            if t.name.trim().is_empty() || t.name.len() > 128 {
+                return bad("Имя типа каркаса не задано");
+            }
+            if t.default_for_new {
+                defaults += 1;
+            }
+            if !(3.0..=60.).contains(&t.long_diameter) || !(3.0..=60.).contains(&t.stirrup_diameter)
+            {
+                return bad("Диаметр арматуры каркаса от 3 до 60 мм");
+            }
+            if t.long_grade.trim().is_empty()
+                || t.long_grade.len() > 32
+                || t.stirrup_grade.trim().is_empty()
+                || t.stirrup_grade.len() > 32
+            {
+                return bad("Класс арматуры каркаса не задан");
+            }
+            if !(2..=50).contains(&t.per_face) {
+                return bad("Стержней на грани от 2 до 50");
+            }
+            if !(t.stirrup_diameter..=100_000.).contains(&t.stirrup_spacing) {
+                return bad("Шаг хомутов не меньше диаметра и не больше 100 000 мм");
+            }
+            match (t.end_spacing, t.end_length) {
+                (None, None) => {}
+                (Some(s), Some(l))
+                    if (t.stirrup_diameter..=100_000.).contains(&s)
+                        && (1.0..=100_000.).contains(&l) => {}
+                _ => return bad("Зона учащения хомутов задана неверно"),
+            }
+            if !crate::rebar::shape_known(self, &t.stirrup_shape) {
+                return bad("Тип каркаса ссылается на неизвестный тип формы");
+            }
+        }
+        if defaults > 1 {
+            return bad("Тип каркаса по умолчанию может быть только один");
+        }
+        for c in &self.cages {
+            if !numbers.insert(c.number) {
+                return bad("Номер каркаса повторяется");
+            }
+            if self.cage_types.iter().all(|t| t.id != c.type_id) {
+                return bad("Каркас ссылается на неизвестный тип");
+            }
+            for note in &c.checks {
+                if note.message.is_empty() || note.message.len() > 512 {
+                    return bad("Замечание проверки армирования пустое");
                 }
             }
         }

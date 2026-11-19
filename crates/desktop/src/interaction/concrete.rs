@@ -321,6 +321,51 @@ pub fn build(
             });
         }
     }
+    if matches!(kind, ToolKind::ConcreteBeam | ToolKind::ConcreteColumn)
+        && let Some(ty) = staged
+            .concrete
+            .cage_types
+            .iter()
+            .find(|t| t.default_for_new)
+    {
+        let id = ty.id.clone();
+        let hosts: Vec<ObjectId> = created(&out)
+            .filter(|id| {
+                staged
+                    .elements
+                    .get(id)
+                    .is_some_and(|e| matches!(e.shape, open_bim_model::ElementShape::Member { .. }))
+            })
+            .collect();
+        if let Some(host) = hosts.first().copied() {
+            let cover = open_bim_model::rebar::host_cover(&staged, host);
+            for command in &mut out {
+                if let Command::Create { element } = command
+                    && hosts.contains(&element.id)
+                {
+                    element
+                        .properties
+                        .entry(open_bim_model::concrete::REBAR_COVER.into())
+                        .or_insert(PropertyValue::Number(cover));
+                }
+            }
+            for host in &hosts {
+                if let Some(element) = staged.elements.get_mut(host) {
+                    element
+                        .properties
+                        .entry(open_bim_model::concrete::REBAR_COVER.into())
+                        .or_insert(PropertyValue::Number(cover));
+                }
+            }
+            let mut working = staged.clone();
+            for host in &hosts {
+                working.concrete = open_bim_model::rebar::install_cage(&working, *host, &id)?;
+            }
+            out.push(Command::SetConcrete {
+                concrete: working.concrete,
+            });
+        }
+    }
     Ok(out)
 }
 
