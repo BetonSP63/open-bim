@@ -200,6 +200,7 @@ fn reference_sheets_for_the_independent_check() {
                 DrawingKind::Part { .. } => "kmd-part",
                 DrawingKind::Multi { .. } => "kmd-multi",
                 DrawingKind::Reinforcement { .. } => "kj-slab",
+                DrawingKind::PrecastLayout { .. } => "kj-precast",
             };
             (d.id, name)
         })

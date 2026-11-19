@@ -210,6 +210,7 @@ pub enum Cmd {
     AssemblyDrawing,
     GeneralDrawing,
     RebarDrawing,
+    PrecastDrawing,
     GeneralData,
     UpdateDrawing,
     ExportPdf,
@@ -1502,6 +1503,13 @@ pub const ALL: &[Spec] = &[
         category: "Чертежи",
         shortcut: None,
         keywords: "км общий вид",
+    },
+    Spec {
+        cmd: Cmd::PrecastDrawing,
+        label: "Схема сборных элементов",
+        category: "Чертежи",
+        shortcut: s(SHIFT_CMD, Key::J),
+        keywords: "кж схема расположения сборные элементы спецификация",
     },
     Spec {
         cmd: Cmd::RebarDrawing,

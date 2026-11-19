@@ -2110,6 +2110,13 @@ impl Workbench {
                     .create_general(&mut self.editor, SheetSize::A1);
                 report(r, self);
             }
+            Cmd::PrecastDrawing => {
+                let r = self.drawings.create_precast(&mut self.editor);
+                if r.is_ok() {
+                    self.mode = Mode::Drawings;
+                }
+                report(r, self);
+            }
             Cmd::RebarDrawing => {
                 self.mode = Mode::Drawings;
                 let r = self.drawings.create_reinforcement(&mut self.editor);

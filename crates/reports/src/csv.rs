@@ -365,3 +365,27 @@ fn hook_text(hooks: &[open_bim_model::Hook; 2]) -> String {
         .collect::<Vec<_>>()
         .join("/")
 }
+
+/// Precast element specification using the same rows as the arrangement sheet.
+pub fn precast(rows: &[open_bim_model::precast::PrecastRow]) -> String {
+    table(
+        &[
+            "Поз.",
+            "Обозначение",
+            "Наименование",
+            "Кол.",
+            "Масса ед., кг",
+            "Примечание",
+        ],
+        rows.iter().map(|row| {
+            vec![
+                row.mark.clone(),
+                row.designation.clone(),
+                row.name.clone(),
+                row.count.to_string(),
+                number(row.unit_mass_kg),
+                row.note(),
+            ]
+        }),
+    )
+}

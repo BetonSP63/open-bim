@@ -53,6 +53,8 @@ impl SheetSize {
 pub enum DrawingKind {
     /// General arrangement of the listed parts (empty = whole model).
     General { objects: Vec<ObjectId> },
+    /// Arrangement of the listed precast cast units (empty = all precast units).
+    PrecastLayout { objects: Vec<ObjectId> },
     /// Single-part fabrication drawing in the part frame.
     Part { part: ObjectId },
     /// Assembly drawing in the main part frame.
@@ -303,7 +305,8 @@ impl Drawing {
         {
             return invalid("количество видов, размеров или текстов");
         }
-        if let DrawingKind::General { objects } = &self.kind
+        if let DrawingKind::General { objects } | DrawingKind::PrecastLayout { objects } =
+            &self.kind
             && objects.len() > 1_000_000
         {
             return invalid("количество объектов");

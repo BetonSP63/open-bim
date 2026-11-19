@@ -402,6 +402,20 @@ fn positions(
 /// Shipping mark prefix of an assembly by its main part, as on КМД
 /// drawings: «К» columns, «Б» beams, «М» other assemblies.
 pub fn assembly_prefix(project: &Project, assembly: ObjectId) -> &'static str {
+    if let Some(unit) = project
+        .assemblies
+        .get(&assembly)
+        .filter(|unit| unit.is_precast())
+    {
+        return match project.concrete_type(unit.main_part) {
+            Some("slab") => "П",
+            Some("footing") => "Ф",
+            Some("panel") => "С",
+            Some("beam") => "БС",
+            Some("column") => "КС",
+            _ => "ЖБ",
+        };
+    }
     let main = project
         .assemblies
         .get(&assembly)

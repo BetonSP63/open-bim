@@ -467,3 +467,30 @@ fn openings_and_recesses() {
     let id = *steel.elements.keys().next().unwrap();
     assert!(trim::opening(&steel, id, &square(0., 0., 0.), None).is_err());
 }
+
+#[test]
+fn precast_scheme_from_command_registry() {
+    let mut b = bench();
+    b.execute(Cmd::ConcreteColumn);
+    let request = b.pick(DVec3::new(0., 0., 0.));
+    let part = commit(&mut b, request)[0];
+    b.editor.selected = [part].into();
+    let request = b.execute(Cmd::PrecastUnit);
+    commit(&mut b, request);
+
+    let commands = open_bim_desktop::ui::commands::search("Схема сборных элементов");
+    assert!(commands.contains(&Cmd::PrecastDrawing));
+    assert!(
+        open_bim_desktop::ui::commands::spec(Cmd::PrecastDrawing)
+            .shortcut
+            .is_some()
+    );
+    b.execute(Cmd::PrecastDrawing);
+    let project = b.editor.document.project();
+    let drawing = project.drawings.values().next().expect("precast drawing");
+    assert!(matches!(
+        drawing.kind,
+        open_bim_model::DrawingKind::PrecastLayout { .. }
+    ));
+    assert_eq!(open_bim_drawings::set_mark(&drawing.kind), "КЖ");
+}

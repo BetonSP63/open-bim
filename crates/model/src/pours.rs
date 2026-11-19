@@ -96,9 +96,7 @@ impl Project {
         let precast: BTreeSet<ObjectId> = self
             .assemblies
             .values()
-            .filter(|a| {
-                a.properties.get(CAST_UNIT_KEY) == Some(&PropertyValue::Text(PRECAST.into()))
-            })
+            .filter(|assembly| assembly.is_precast())
             .flat_map(|a| a.members.iter().copied())
             .collect();
         self.elements

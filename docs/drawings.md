@@ -96,3 +96,5 @@ symbols, automatic mark collision avoidance or multi-sheet sets yet.
 Проверки: `crates/drawing_export/tests/rebar_sheet.rs`,
 `crates/drawing_export/tests/member_sheets.rs`. PDF и DXF — тем же
 экспортом, что и листы КМ/КМД.
+
+Схема сборных элементов КЖ и её спецификация описаны в [руководстве по КЖ](rebar.md#схема-сборных-элементов).
