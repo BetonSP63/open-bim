@@ -1,6 +1,11 @@
 # Releases
 
-## 0.2.7 — current development version (`main`)
+## 0.2.8 — development
+
+Not a packaged GitHub Release. Adds precast cast-unit marks, КЖ precast
+arrangement sheets with form 7 and PDF/DXF export, and a release CSV.
+
+## 0.2.7 — development
 
 Not yet a packaged GitHub Release. Adds wall meshes on both faces, U-bars
 at free edges and openings, and КЖ sheets of a beam, a column and a wall

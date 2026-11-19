@@ -250,6 +250,14 @@ impl DrawingEditor {
         self.create(editor, drawing)
     }
 
+    pub fn create_precast(&mut self, editor: &mut Editor) -> Result<(), String> {
+        let project = editor.document.project();
+        let id = ObjectId(project.next_id);
+        let number = format!("КЖ-{}", id.0);
+        let drawing = open_bim_drawings::precast_drawing(project, id, Vec::new(), &number)?;
+        self.create(editor, drawing)
+    }
+
     /// КЖ sheet of the selected slab, beam, column or wall.
     pub fn create_reinforcement(&mut self, editor: &mut Editor) -> Result<(), String> {
         let project = editor.document.project();
@@ -574,6 +582,7 @@ impl DrawingEditor {
             DrawingKind::GeneralData { .. } => "Общие данные",
             DrawingKind::Multi { .. } => "Комплексный",
             DrawingKind::Reinforcement { .. } => "КЖ",
+            DrawingKind::PrecastLayout { .. } => "Схема сборных элементов",
         }
     }
 }

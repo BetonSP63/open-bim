@@ -6,6 +6,8 @@ pub mod font;
 pub mod general_data;
 mod member_rebar;
 mod pour_marks;
+mod precast;
+pub use precast::precast_drawing;
 pub mod projection;
 pub mod qr;
 mod rebar_drawing;
@@ -177,6 +179,7 @@ pub fn drawing_basis(project: &Project, kind: &DrawingKind) -> Result<Basis, Err
     };
     let part = match kind {
         DrawingKind::General { .. }
+        | DrawingKind::PrecastLayout { .. }
         | DrawingKind::GeneralData { .. }
         | DrawingKind::Multi { .. } => return Ok(world),
         DrawingKind::Part { part } | DrawingKind::Reinforcement { part } => *part,
@@ -279,6 +282,11 @@ pub fn drawing_parts(project: &Project, kind: &DrawingKind) -> Vec<ObjectId> {
             parts.extend(project.elements.keys())
         }
         DrawingKind::General { objects } => parts.extend(objects),
+        DrawingKind::PrecastLayout { objects } => {
+            for assembly in precast::units(project, objects) {
+                parts.extend(drawing_parts(project, &DrawingKind::Assembly { assembly }));
+            }
+        }
         DrawingKind::GeneralData { .. } => {}
         DrawingKind::Multi { objects } => {
             for o in objects {
@@ -313,6 +321,13 @@ pub fn referenced_objects(project: &Project, drawing: &Drawing) -> BTreeSet<Obje
             project.elements.keys().copied().collect()
         }
         DrawingKind::General { objects } => objects.iter().copied().collect(),
+        DrawingKind::PrecastLayout { objects } => {
+            let mut set: BTreeSet<_> = drawing_parts(project, &drawing.kind).into_iter().collect();
+            set.extend(precast::units(project, objects));
+            set.extend(objects);
+            set.extend(project.axes.keys().copied());
+            set
+        }
         // The general notes state the model mass.
         DrawingKind::GeneralData { .. } => project.elements.keys().copied().collect(),
         DrawingKind::Part { part } | DrawingKind::Reinforcement { part } => BTreeSet::from([*part]),
@@ -356,6 +371,8 @@ pub fn fingerprint(project: &Project, id: ObjectId) -> Option<String> {
             "profile": profile,
             "material": project.materials.get(&element.material),
         })
+    } else if let Some(axis) = project.axes.get(&id) {
+        serde_json::to_value(axis).ok()?
     } else if let Some(assembly) = project.assemblies.get(&id) {
         serde_json::to_value(assembly).ok()?
     } else {
@@ -1079,7 +1096,7 @@ pub fn set_mark(kind: &DrawingKind) -> &'static str {
         }
         DrawingKind::GeneralData { mark } if mark == "КМД" => "КМД",
         DrawingKind::GeneralData { .. } => "КМ",
-        DrawingKind::Reinforcement { .. } => "КЖ",
+        DrawingKind::Reinforcement { .. } | DrawingKind::PrecastLayout { .. } => "КЖ",
     }
 }
 
@@ -1184,6 +1201,7 @@ pub fn specification(project: &Project, kind: &DrawingKind) -> Option<tables::Ta
                 .ok()
                 .map(|rs| tables::rolled_steel_table(&rs))
         }
+        DrawingKind::PrecastLayout { objects } => precast::specification(project, objects).ok(),
         DrawingKind::Assembly { assembly } => tables::assembly_specification(project, *assembly)
             .ok()
             .map(|rows| tables::form7(Some("Спецификация"), rows)),
@@ -1572,6 +1590,14 @@ pub fn generate(project: &Project, drawing: &Drawing) -> Result<Sheet, Error> {
                         g,
                     );
                 }
+            }
+        }
+    }
+    if let DrawingKind::PrecastLayout { objects } = &drawing.kind {
+        let marks = precast::marks(project, objects)?;
+        for view in &drawing.views {
+            if let Some(graphic) = views.iter_mut().find(|graphic| graphic.id == view.id) {
+                precast::annotate(project, view, &contexts[&view.id], graphic, &marks);
             }
         }
     }
@@ -1989,7 +2015,11 @@ pub fn layout(
     };
     let column = |i: usize| sizes.get(i).copied().unwrap_or([0.; 2]);
     let main = column(0);
-    let below = directions.iter().position(|d| *d == ViewDirection::Top);
+    let below = if matches!(kind, DrawingKind::PrecastLayout { .. }) {
+        None
+    } else {
+        directions.iter().position(|d| *d == ViewDirection::Top)
+    };
     let side = directions
         .iter()
         .position(|d| matches!(d, ViewDirection::Left | ViewDirection::Right));
@@ -1997,6 +2027,9 @@ pub fn layout(
     // it or the column at the right, whichever leaves the larger scale.
     let spec = specification(project, kind).map(|t| [t.width() + 10., t.height() + 30.]);
     let fields = match spec {
+        Some([_, sh]) if matches!(kind, DrawingKind::PrecastLayout { .. }) => {
+            vec![[field[0], field[1] - sh]]
+        }
         Some([sw, sh]) => vec![[field[0], field[1] - sh], [field[0] - sw, field[1]]],
         None => vec![field],
     };
@@ -2014,7 +2047,10 @@ pub fn layout(
         .ok_or("Виды не помещаются на листе даже в масштабе 1:400")?;
     // КМ schemes leave room for axis bubbles left of the views.
     let left = MARGIN_LEFT
-        + if matches!(kind, DrawingKind::General { .. }) {
+        + if matches!(
+            kind,
+            DrawingKind::General { .. } | DrawingKind::PrecastLayout { .. }
+        ) {
             35.
         } else {
             15.

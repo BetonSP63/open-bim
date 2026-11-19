@@ -226,6 +226,21 @@ fn write_set(
         crate::csv::fasteners(&reports).as_bytes(),
         &mut summary.files,
     )?;
+    if project
+        .assemblies
+        .values()
+        .any(|assembly| assembly.is_precast())
+    {
+        let marks = open_bim_numbering::number(project).map_err(|error| error.to_string())?;
+        let rows = project
+            .precast_rows(&marks.assemblies)
+            .map_err(|error| error.to_string())?;
+        write(
+            "спецификация-сборных-элементов.csv".into(),
+            crate::csv::precast(&rows).as_bytes(),
+            &mut summary.files,
+        )?;
+    }
     let json = serde_json::to_vec_pretty(&summary).map_err(|e| e.to_string())?;
     let mut files = summary.files.clone();
     write("release.json".into(), &json, &mut files)?;

@@ -154,7 +154,11 @@ impl Session {
         };
         let number = match number.map(str::trim).filter(|n| !n.is_empty()) {
             Some(n) => n.to_string(),
-            None if matches!(kind, DrawingKind::Reinforcement { .. }) => {
+            None if matches!(
+                kind,
+                DrawingKind::Reinforcement { .. } | DrawingKind::PrecastLayout { .. }
+            ) =>
+            {
                 format!("КЖ-{}", id.0)
             }
             None => format!("КМД-{}", mark().unwrap_or_else(|| id.0.to_string())),
@@ -166,6 +170,9 @@ impl Session {
             }
             DrawingKind::General { objects } => {
                 open_bim_drawings::general_drawing(p, id, objects, &number, SheetSize::A1)
+            }
+            DrawingKind::PrecastLayout { objects } => {
+                open_bim_drawings::precast_drawing(p, id, objects, &number)
             }
             DrawingKind::GeneralData { mark } => {
                 open_bim_drawings::general_data_drawing(p, id, &mark)

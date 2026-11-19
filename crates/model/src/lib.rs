@@ -25,6 +25,7 @@ pub mod parametric;
 mod plugin;
 mod position;
 pub mod pours;
+pub mod precast;
 mod project;
 pub mod rebar;
 pub mod sections;
