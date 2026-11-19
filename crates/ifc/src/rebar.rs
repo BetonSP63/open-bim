@@ -13,7 +13,9 @@
 use std::collections::BTreeMap;
 
 use open_bim_model::concrete::ZoneRole;
-use open_bim_model::rebar::{BarPlace, BendLeg, DetailRow, bar_places, bend_legs, detail_schedule};
+use open_bim_model::rebar::{
+    BarPlace, BendLeg, DetailRow, bar_places, bend_legs, detail_schedule, resolve_shape,
+};
 use open_bim_model::{BarSurface, ObjectId, Point3, Project, RebarKind, RebarSet, rebar_class};
 
 use crate::export::{HostProduct, Writer, derived_guid, refs};
@@ -52,7 +54,7 @@ pub(crate) fn write(
     let mut types = BTreeMap::new();
     for row in &rows {
         let set = sets[&row.sets[0]];
-        types.insert(row.mark, write_type(w, row, set));
+        types.insert(row.mark, write_type(w, project, row, set));
     }
     let mut of_mark: BTreeMap<u32, Vec<u64>> = BTreeMap::new();
     let mut of_host: BTreeMap<ObjectId, Vec<u64>> = BTreeMap::new();
@@ -149,7 +151,7 @@ fn write_bar(
         space.body
     ));
     let shape = w.add(format!("IFCPRODUCTDEFINITIONSHAPE($,$,(#{rep}))"));
-    let predefined = predefined(set);
+    let predefined = predefined(project, set);
     let surface = surface(&row.grade);
     let area = open_bim_model::rebar::bar_area(set.diameter) * 1e-6;
     let product = w.add(format!(
@@ -169,9 +171,9 @@ fn write_bar(
     Some((product, storey))
 }
 
-fn write_type(w: &mut Writer, row: &DetailRow, set: &RebarSet) -> u64 {
+fn write_type(w: &mut Writer, project: &Project, row: &DetailRow, set: &RebarSet) -> u64 {
     let legs = bend_legs(row);
-    let predefined = predefined(set);
+    let predefined = predefined(project, set);
     let surface = surface(&row.grade);
     let area = open_bim_model::rebar::bar_area(row.diameter) * 1e-6;
     let code = if row.code.is_empty() {
@@ -457,7 +459,7 @@ fn collapse(points: &[[f64; 3]]) -> Vec<[f64; 3]> {
     out
 }
 
-fn predefined(set: &RebarSet) -> &'static str {
+fn predefined(project: &Project, set: &RebarSet) -> &'static str {
     match set.role {
         Some(ZoneRole::Edge | ZoneRole::Opening) => "EDGE",
         Some(ZoneRole::Frog) => "SPACEBAR",
@@ -465,13 +467,29 @@ fn predefined(set: &RebarSet) -> &'static str {
             ZoneRole::BottomMain | ZoneRole::BottomCross | ZoneRole::TopMain | ZoneRole::TopCross,
         ) => "MAIN",
         None => match set.kind {
-            RebarKind::Stirrup => "SHEAR",
+            // A closed stirrup is a ligature. A straight tie, sized from the
+            // bars it crosses, is a stud.
+            RebarKind::Stirrup => {
+                if straight_tie(project, set) {
+                    "STUD"
+                } else {
+                    "LIGATURE"
+                }
+            }
             RebarKind::Edge => "EDGE",
             RebarKind::Frog => "SPACEBAR",
             RebarKind::Longitudinal | RebarKind::Mesh | RebarKind::Group => "MAIN",
+            RebarKind::Starter => "ANCHORING",
             RebarKind::Guide | RebarKind::Single | RebarKind::Shape => "NOTDEFINED",
         },
     }
+}
+
+fn straight_tie(project: &Project, set: &RebarSet) -> bool {
+    set.shape_id.as_deref().is_some_and(|id| {
+        resolve_shape(project, id)
+            .is_some_and(|shape| shape.segments.len() == 1 && shape.segments[0].bend_deg.abs() < 1.)
+    })
 }
 
 fn surface(grade: &str) -> &'static str {

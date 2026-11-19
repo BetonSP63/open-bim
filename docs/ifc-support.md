@@ -75,7 +75,7 @@ IFC4.3 only (`export_schema(..., Schema::Ifc4x3)`). One
 | Nominal diameter, cut length, area | on the type and on the bar. The cut length is the centreline with the arc correction, the same length as the schedule |
 | Steel grade | `SteelGrade` on the bar, `IfcMaterial` (7850 kg/m³, `Pset_MaterialCommon`) and `Pset_ReinforcingBarCommon.SteelGrade` |
 | Surface | `.PLAIN.` for А240, `.TEXTURED.` otherwise |
-| Role | `.MAIN.` mesh and longitudinal, `.EDGE.` U-bars, `.SHEAR.` stirrups, `.SPACEBAR.` frogs, `.NOTDEFINED.` a bar placed from a shape with no role |
+| Role | `.MAIN.` mesh and longitudinal bars, `.LIGATURE.` a closed stirrup, `.STUD.` a straight tie, `.ANCHORING.` a starter, `.EDGE.` U-bars, `.SPACEBAR.` frogs, `.NOTDEFINED.` a bar placed from a shape with no role |
 | Position | `Tag` of the bar and of the type |
 | Centreline | `IfcShapeRepresentation` 'Body' 'AdvancedSweptSolid' → `IfcSweptDiskSolid`. A straight bar's directrix is an `IfcPolyline`. A bend is an `IfcCompositeCurve`: straight legs and an `IfcTrimmedCurve` of an `IfcCircle` whose radius is `(mandrel + diameter) / 2`. The radius is reduced only when a leg is shorter than the tangent setback |
 | Host | `IfcRelAggregates`: the concrete part (whatever class it exports as — `IfcSlab` when that class is chosen, otherwise `IfcPlate` for a plate-shaped part) aggregates its bars. Placement of a bar is relative to the host. The same bars are also in `IfcRelContainedInSpatialStructure` of the host's storey, so a viewer that only walks containment still sees them |

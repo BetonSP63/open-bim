@@ -2,20 +2,24 @@
 //! design resistances of СП 63.13330.2018 tables 6.13–6.14), nominal
 //! masses, bend diameters and hooks, anchorage and lap lengths
 //! (СП 63.13330.2018, 10.3.24–10.3.31), bar shape types, area reinforcement
-//! of slabs, and the generators that place a bar set in its host part and
-//! build it again when the host changes.
+//! of slabs, beam and column cages, starter bars, and the generators that
+//! place a bar set in its host part and build it again when the host changes.
 mod area;
 pub mod bvbs;
+mod cage;
 mod schedule;
 mod shape;
+mod starter;
 
 pub use area::{host_cover, install_slab, model_checks, set_zone_framing};
+pub use cage::install_cage;
 pub use schedule::{
     BarPlace, BendLeg, DetailRow, SegmentLen, ShapeSketch, SketchMark, SteelRow, SteelSchedule,
     bar_places, bend_legs, column_letters, detail_schedule, mandrel_diameter, shape_sketch,
     steel_schedule, write_positions, zone_marks,
 };
 pub use shape::{builtin_shapes, instantiate, resolve_shape, shape_known};
+pub use starter::{install_starter, lap_length};
 
 use serde::{Deserialize, Serialize};
 
@@ -689,9 +693,12 @@ pub fn rebuild_rebars(project: &mut Project, previous: &Project) -> Result<(), M
     let mut sets = std::mem::take(&mut project.concrete.rebars);
     sets.retain(|s| s.host.is_none_or(|h| project.elements.contains_key(&h)));
     let mut zones = std::mem::take(&mut project.concrete.zones);
+    let mut cages = std::mem::take(&mut project.concrete.cages);
     area::rebuild_area(project, previous, &mut zones, &mut sets)?;
+    cage::rebuild_cages(project, previous, &mut cages, &mut sets)?;
+    starter::rebuild_starters(project, previous, &mut sets)?;
     for set in &mut sets {
-        if set.zone.is_some() {
+        if set.zone.is_some() || set.cage.is_some() || set.starter.is_some() {
             continue;
         }
         if set.kind == crate::RebarKind::Shape {
@@ -755,6 +762,7 @@ pub fn rebuild_rebars(project: &mut Project, previous: &Project) -> Result<(), M
     }
     project.concrete.rebars = sets;
     project.concrete.zones = zones;
+    project.concrete.cages = cages;
     write_positions(project);
     Ok(())
 }

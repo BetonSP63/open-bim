@@ -3,7 +3,9 @@
 //! placed by picks (one bar, a group, a bar along guide points), a 3D
 //! overlay and the bar schedule.
 use open_bim_commands::Command;
-use open_bim_model::concrete::{BarShapeType, REBAR_COVER, ShapePlace, SlabRebarType};
+use open_bim_model::concrete::{
+    BarShapeType, CageType, REBAR_COVER, ShapePlace, SlabRebarType, StarterPath,
+};
 use open_bim_model::rebar::{self as model, Hook, HookKind, RebarRule, Stress};
 use open_bim_model::{ElementShape, ObjectId, Point3, Project, PropertyValue, RebarKind, RebarSet};
 use open_bim_renderer::DVec3;
@@ -241,6 +243,22 @@ pub fn save_shape(project: &Project, mut shape: BarShapeType) -> Result<Vec<Comm
     commit_concrete(concrete)
 }
 
+/// Record a cage type. Only one type is the default for new beams and columns.
+pub fn save_cage_type(project: &Project, ty: CageType) -> Result<Vec<Command>, String> {
+    let mut concrete = project.concrete.clone();
+    if ty.default_for_new {
+        for other in &mut concrete.cage_types {
+            other.default_for_new = false;
+        }
+    }
+    if let Some(found) = concrete.cage_types.iter_mut().find(|s| s.id == ty.id) {
+        *found = ty;
+    } else {
+        concrete.cage_types.push(ty);
+    }
+    commit_concrete(concrete)
+}
+
 /// Record a slab type. Only one type is the default for new slabs.
 pub fn save_slab_type(project: &Project, ty: SlabRebarType) -> Result<Vec<Command>, String> {
     let mut concrete = project.concrete.clone();
@@ -312,6 +330,113 @@ pub fn reinforce(
             });
         }
         working.concrete = model::install_slab(&working, host, type_id)?;
+    }
+    commands.push(Command::SetConcrete {
+        concrete: working.concrete,
+    });
+    Ok(commands)
+}
+
+fn member_hosts(project: &Project, selected: &[ObjectId]) -> Vec<ObjectId> {
+    selected
+        .iter()
+        .copied()
+        .filter(|id| {
+            project.elements.get(id).is_some_and(|e| {
+                matches!(e.shape, ElementShape::Member { .. })
+                    && super::concrete::part_type(e).is_some_and(|t| t == "beam" || t == "column")
+            })
+        })
+        .collect()
+}
+
+fn write_cover(working: &mut Project, host: ObjectId, commands: &mut Vec<Command>) {
+    let cover = model::host_cover(working, host);
+    let has = matches!(
+        working.elements[&host].properties.get(REBAR_COVER),
+        Some(PropertyValue::Number(_))
+    );
+    if has {
+        return;
+    }
+    working
+        .elements
+        .get_mut(&host)
+        .unwrap()
+        .properties
+        .insert(REBAR_COVER.into(), PropertyValue::Number(cover));
+    commands.push(Command::ChangeProperty {
+        id: host,
+        key: REBAR_COVER.into(),
+        value: Some(PropertyValue::Number(cover)),
+    });
+}
+
+/// Lay the cage type into every selected concrete beam or column.
+pub fn place_cage(
+    project: &Project,
+    selected: &[ObjectId],
+    type_id: &str,
+) -> Result<Vec<Command>, String> {
+    let hosts = member_hosts(project, selected);
+    if hosts.is_empty() {
+        return Err("Выберите балку или колонну".into());
+    }
+    let mut working = project.clone();
+    let mut commands = Vec::new();
+    for host in hosts {
+        write_cover(&mut working, host, &mut commands);
+        working.concrete = model::install_cage(&working, host, type_id)?;
+    }
+    commands.push(Command::SetConcrete {
+        concrete: working.concrete,
+    });
+    Ok(commands)
+}
+
+/// Starters along the chosen path of every selected host. Diameter, class
+/// and spacing come from the bar settings; the leg length is the lap `l_l`.
+pub fn place_starters(
+    project: &Project,
+    selected: &[ObjectId],
+    path: &StarterPath,
+    shape_id: &str,
+    s: &RebarSettings,
+) -> Result<Vec<Command>, String> {
+    s.check()?;
+    let hosts: Vec<ObjectId> = selected
+        .iter()
+        .copied()
+        .filter(|id| match path {
+            StarterPath::SlabEdge { .. } => project.elements.get(id).is_some_and(|e| {
+                matches!(e.shape, ElementShape::Plate { .. })
+                    && super::concrete::part_type(e).is_some_and(|t| t == "slab" || t == "raft")
+            }),
+            _ => project.elements.get(id).is_some_and(|e| {
+                matches!(e.shape, ElementShape::Member { .. })
+                    && super::concrete::part_type(e).is_some_and(|t| t == "beam" || t == "column")
+            }),
+        })
+        .collect();
+    if hosts.is_empty() {
+        return Err(match path {
+            StarterPath::SlabEdge { .. } => "Выберите плиту".into(),
+            _ => "Выберите балку или колонну".into(),
+        });
+    }
+    let mut working = project.clone();
+    let mut commands = Vec::new();
+    for host in hosts {
+        write_cover(&mut working, host, &mut commands);
+        working.concrete = model::install_starter(
+            &working,
+            host,
+            path.clone(),
+            shape_id,
+            s.diameter,
+            &s.grade,
+            s.spacing,
+        )?;
     }
     commands.push(Command::SetConcrete {
         concrete: working.concrete,
