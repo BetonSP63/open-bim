@@ -1,6 +1,11 @@
 # Releases
 
-## 0.2.7 — current development version (`main`)
+## 0.2.8 — development
+
+Not a packaged GitHub Release. Adds portable and Debian packages for
+Linux x86_64, XDG first launch and a packaged-app verification script.
+
+## 0.2.7 — development
 
 Not yet a packaged GitHub Release. Adds wall meshes on both faces, U-bars
 at free edges and openings, and КЖ sheets of a beam, a column and a wall
