@@ -21,6 +21,33 @@ name="Open-BIM-$version-linux-x86_64"
     test -f "$name/LICENSE"
     grep -F "Open BIM $version" "$name/BUILD.txt"
     grep -F 'MimeType=application/x-open-bim-project;' deb/usr/share/applications/open-bim.desktop
+    python3 - "$name/open-bim-desktop" "$name/examples/steel-release.obim" <<'PYTEST'
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+import os
+import subprocess
+import sys
+
+app, example = (Path(arg).resolve() for arg in sys.argv[1:])
+home = Path("Домашняя папка").resolve()
+config = home / ".config"
+config.mkdir(parents=True)
+(config / "user-dirs.dirs").write_text('XDG_DOCUMENTS_DIR="$HOME/Мои документы"\n')
+env = {**os.environ, "HOME": str(home), "XDG_CONFIG_HOME": str(config)}
+
+def launch(_):
+    return subprocess.check_output([app, "--prepare-default-project"], env=env, text=True).strip()
+
+with ThreadPoolExecutor(max_workers=8) as pool:
+    paths = set(pool.map(launch, range(8)))
+project = home / "Мои документы" / "Open BIM проект.obim"
+assert paths == {str(project)}, paths
+assert list(project.parent.iterdir()) == [project]
+assert project.read_bytes() == example.read_bytes()
+project.write_bytes(b"preserve my work")
+assert launch(None) == str(project)
+assert project.read_bytes() == b"preserve my work"
+PYTEST
 )
 if scripts/package-linux.sh "$tmp"; then
     echo 'Существующий пакет был принят для перезаписи.' >&2

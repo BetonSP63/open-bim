@@ -2000,6 +2000,22 @@ fn gizmo_axis_at(camera: &Camera, rect: egui::Rect, p: egui::Pos2) -> Option<Nam
 }
 
 fn main() -> eframe::Result {
+    #[cfg(target_os = "linux")]
+    if std::env::args_os().len() == 2
+        && std::env::args_os()
+            .nth(1)
+            .is_some_and(|arg| arg == "--prepare-default-project")
+    {
+        let mut options = Options::default();
+        options
+            .package_defaults()
+            .map_err(|error| eframe::Error::AppCreation(error.into()))?;
+        let path = options.open.ok_or_else(|| {
+            eframe::Error::AppCreation("Не найден пример в установленном пакете".into())
+        })?;
+        println!("{path}");
+        return Ok(());
+    }
     let options = Options::parse().map_err(|e| eframe::Error::AppCreation(e.into()))?;
     let size = options.size.unwrap_or([1280.0, 800.0]);
     let maximized = cfg!(target_os = "windows")
