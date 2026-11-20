@@ -52,6 +52,26 @@ jobs:
             dist/*.sha256
           retention-days: 14
 
+      - name: Install Linux viewport test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb xauth mesa-vulkan-drivers vulkan-tools
+          python3 -m venv "$RUNNER_TEMP/open-bim-verify"
+          "$RUNNER_TEMP/open-bim-verify/bin/pip" install ifcopenshell==0.8.4 pypdf==5.1.0
+      - name: Run the packaged Linux modeling workflow
+        run: |
+          tar -xzf dist/Open-BIM-*-linux-x86_64.tar.gz -C "$RUNNER_TEMP"
+          PATH="$RUNNER_TEMP/open-bim-verify/bin:$PATH" scripts/verify-linux-workflow.sh \
+            "$RUNNER_TEMP"/Open-BIM-*-linux-x86_64/open-bim-desktop \
+            "$RUNNER_TEMP/open-bim-linux-evidence"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: open-bim-linux-verification
+          path: ${{ runner.temp }}/open-bim-linux-evidence
+          if-no-files-found: ignore
+          retention-days: 14
+
   windows:
     name: Windows x86_64
     runs-on: windows-2025

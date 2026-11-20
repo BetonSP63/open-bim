@@ -29,14 +29,13 @@ for step in steps:
 (output / "script.json").write_text(json.dumps(steps, ensure_ascii=False))
 PY
 cd "$results"
-export HOME="$results/home"
 export XDG_RUNTIME_DIR="$results/home/runtime"
 export LIBGL_ALWAYS_SOFTWARE=1
 {
     uname -a
     if command -v vulkaninfo >/dev/null; then vulkaninfo --summary; fi
 } > platform.log
-timeout 180s xvfb-run -a --server-args='-screen 0 1600x1000x24' \
+timeout 180s env HOME="$results/home" xvfb-run -a --server-args='-screen 0 1600x1000x24' \
     "$app" --size 1280x800 --project-path "$results/workflow.obim" \
     --record "$results/journal.json" --script "$results/script.json" > app.log 2>&1
 python3 "$repo/tests/ui/modeling-workflow/check_outputs.py" "$results" > check.txt
