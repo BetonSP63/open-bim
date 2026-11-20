@@ -472,7 +472,12 @@ impl DrawingEditor {
                 .labelled_by(field_label.id);
         });
         ui.horizontal(|ui| {
-            for format in [ExportFormat::Pdf, ExportFormat::Svg, ExportFormat::Dxf] {
+            for format in [
+                ExportFormat::Pdf,
+                ExportFormat::Svg,
+                ExportFormat::Dxf,
+                ExportFormat::Dwg,
+            ] {
                 if ui.button(format.extension().to_uppercase()).clicked() {
                     let dir = std::path::PathBuf::from(&self.export_dir);
                     match self.export(editor.document.project(), format, &dir) {

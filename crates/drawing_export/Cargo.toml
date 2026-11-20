@@ -12,6 +12,7 @@ workspace = true
 open-bim-drawings.workspace = true
 open-bim-model.workspace = true
 flate2 = "=1.1.10"
+acadrust = "=0.6.8"
 
 [dev-dependencies]
 flate2 = "=1.1.10"

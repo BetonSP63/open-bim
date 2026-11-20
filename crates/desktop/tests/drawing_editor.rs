@@ -91,7 +91,12 @@ fn model_revision_outdates_drawing_until_update_and_exports_all_formats() {
     assert_eq!(status(&editor), Status::UpToDate);
     drawings.issue(&mut editor).unwrap();
     let dir = std::env::temp_dir().join(format!("open-bim-export-{}", std::process::id()));
-    for format in [ExportFormat::Pdf, ExportFormat::Svg, ExportFormat::Dxf] {
+    for format in [
+        ExportFormat::Pdf,
+        ExportFormat::Svg,
+        ExportFormat::Dxf,
+        ExportFormat::Dwg,
+    ] {
         let path = drawings
             .export(editor.document.project(), format, &dir)
             .unwrap();
@@ -100,6 +105,7 @@ fn model_revision_outdates_drawing_until_update_and_exports_all_formats() {
             ExportFormat::Pdf => &b"%PDF-1.7"[..],
             ExportFormat::Svg => &b"<svg"[..],
             ExportFormat::Dxf => &b"  0\nSECTION"[..],
+            ExportFormat::Dwg => &b"AC1018"[..],
         };
         assert!(bytes.starts_with(head), "{path:?}");
     }

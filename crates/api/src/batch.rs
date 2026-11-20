@@ -130,6 +130,12 @@ pub enum Step {
         #[serde(default)]
         drawings: Vec<ObjectId>,
     },
+    /// Folder with one DWG per drawing (empty `drawings` = all).
+    ExportDwg {
+        dir: String,
+        #[serde(default)]
+        drawings: Vec<ObjectId>,
+    },
 }
 
 /// A drawing of one type: exactly one of `part`, `assembly`, `general`
@@ -563,6 +569,15 @@ fn run_step(
             let n = session.export_dxf(&dir, drawings)?;
             report(
                 "export_dxf",
+                Vec::new(),
+                format!("{}: файлов {n}", dir.display()),
+            )
+        }
+        Step::ExportDwg { dir, drawings } => {
+            let dir = resolve(base, dir);
+            let n = session.export_dwg(&dir, drawings)?;
+            report(
+                "export_dwg",
                 Vec::new(),
                 format!("{}: файлов {n}", dir.display()),
             )

@@ -20,3 +20,17 @@ drag, keys, text; the physical mouse is ignored while the script runs). Run log
 saved drawing record, the journal order and the exported files: PDF page 594×420 mm
 with Cyrillic text extracted through ToUnicode, DXF audit clean with $INSUNITS=4,
 SVG viewBox. Results in `verification-results.json`.
+
+## Независимая проверка DWG (AC1018)
+
+GNU LibreDWG 0.13.4 и ezdxf 1.4.2 прочитали `beam-a3`, `plate-a3`,
+`assembly-a3` и `general-a1`. Совпали слои, число сущностей по слоям,
+координаты рамок, контрольный размер 3000 мм при 1:10 и кириллица.
+Аудит ezdxf ошибок не обнаружил. LibreDWG при чтении DWG сообщает о
+служебных объектах и ограничениях чтения. Сообщения сохранены в отчёте
+`tests/fixtures/exports/verification-results.json`.
+
+Установите `dwg2dxf` из GNU LibreDWG (например, соберите исходники из
+[выпуска 0.13.4](https://github.com/LibreDWG/libredwg/releases/tag/0.13.4))
+и `python3 -m pip install ezdxf==1.4.2` в отдельной среде. Запустите
+`python3 tests/fixtures/exports/verify_dwg.py` из корня проекта.
