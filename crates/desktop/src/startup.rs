@@ -81,3 +81,13 @@ pub fn packaged_project(executable: &Path, documents: &Path) -> Result<Option<Pa
     }
     prepare_project(&example, &destination).map(Some)
 }
+
+/// Resolve the user's XDG Documents path, then an existing Documents
+/// directory and finally the home directory.
+pub fn linux_documents(xdg_documents: Option<PathBuf>, home: Option<PathBuf>) -> Option<PathBuf> {
+    xdg_documents.or_else(|| {
+        let home = home?;
+        let documents = home.join("Documents");
+        Some(if documents.is_dir() { documents } else { home })
+    })
+}

@@ -34,7 +34,7 @@ open-bim-api.workspace = true
 rfd = { version = "=0.17.2", default-features = false, features = ["xdg-portal"] }
 tempfile = "=3.27.0"
 
-[target.'cfg(windows)'.dependencies]
+[target.'cfg(any(windows, target_os = "linux"))'.dependencies]
 dirs = "=6.0.0"
 
 [dev-dependencies]

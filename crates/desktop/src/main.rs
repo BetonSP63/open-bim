@@ -148,12 +148,15 @@ impl Options {
         Ok(options)
     }
 
-    /// Started without arguments from the Windows package: open the bundled
-    /// example and save into the user's Documents, as the macOS launcher
-    /// does. The program folder itself may be read-only.
+    /// Open a user-owned copy of the bundled example on first launch.
     fn package_defaults(&mut self) -> Result<(), String> {
         #[cfg(windows)]
-        if let Some(documents) = dirs::document_dir() {
+        let documents = dirs::document_dir();
+        #[cfg(target_os = "linux")]
+        let documents =
+            open_bim_desktop::startup::linux_documents(dirs::document_dir(), dirs::home_dir());
+        #[cfg(any(windows, target_os = "linux"))]
+        if let Some(documents) = documents {
             let executable = std::env::current_exe().map_err(|error| error.to_string())?;
             if let Some(project) =
                 open_bim_desktop::startup::packaged_project(&executable, &documents)?

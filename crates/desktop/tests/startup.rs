@@ -91,3 +91,22 @@ fn development_binary_without_example_stays_unbound() {
     );
     assert!(!documents.exists());
 }
+
+#[test]
+fn linux_documents_uses_xdg_and_falls_back_to_home() {
+    use open_bim_desktop::startup::linux_documents;
+    let root = tempfile::tempdir().unwrap();
+    let home = root.path().to_path_buf();
+    let xdg = home.join("Документы с пробелами");
+    assert_eq!(
+        linux_documents(Some(xdg.clone()), Some(home.clone())),
+        Some(xdg)
+    );
+    assert_eq!(
+        linux_documents(None, Some(home.clone())),
+        Some(home.clone())
+    );
+    let documents = home.join("Documents");
+    fs::create_dir(&documents).unwrap();
+    assert_eq!(linux_documents(None, Some(home)), Some(documents));
+}

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Open BIM
+Comment=Моделирование и выпуск чертежей конструкций
+Exec=open-bim-desktop %f
+Icon=open-bim
+Terminal=false
+Categories=Graphics;Engineering;
+MimeType=application/x-open-bim-project;

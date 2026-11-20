@@ -67,7 +67,16 @@ pub fn search_dirs(project_path: &str, extra: &str) -> Vec<PathBuf> {
         dirs.push(parent.join("plugins"));
     }
     if let Some(data) = user_data_dir() {
-        dirs.push(data.join("Open BIM").join("plugins"));
+        let app = if cfg!(target_os = "linux") {
+            "open-bim"
+        } else {
+            "Open BIM"
+        };
+        dirs.push(data.join(app).join("plugins"));
+        if cfg!(target_os = "linux") {
+            // Keep finding plugins installed before the path was aligned with XDG.
+            dirs.push(data.join("Open BIM").join("plugins"));
+        }
     }
     if let Some(list) = std::env::var_os("OPEN_BIM_PLUGINS") {
         dirs.extend(std::env::split_paths(&list).filter(|d| !d.as_os_str().is_empty()));

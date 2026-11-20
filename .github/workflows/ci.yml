@@ -39,6 +39,19 @@ jobs:
       - run: cargo test --workspace --locked --no-fail-fast
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
+      - name: Build and verify Linux packages
+        env:
+          OPEN_BIM_LINUX_PACKAGE_OUTPUT: ${{ github.workspace }}/dist
+        run: scripts/test-linux-package.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: open-bim-linux-x86_64
+          path: |
+            dist/*.tar.gz
+            dist/*.deb
+            dist/*.sha256
+          retention-days: 14
+
   windows:
     name: Windows x86_64
     runs-on: windows-2025
