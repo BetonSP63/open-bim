@@ -108,10 +108,13 @@ impl Project {
             .ok_or(ModelError::MissingReference(id))?;
         if let Some(swept) = self.swept_parts.get(&id) {
             swept.validate(&element.shape)?;
-            if self.details.values().any(|d| d.kind.part() == Some(id)) {
-                return Err(ModelError::InvalidValue(
-                    "Обработка гнутых деталей пока не поддерживается".into(),
-                ));
+            let details: Vec<_> = self
+                .details
+                .values()
+                .filter(|d| d.kind.part() == Some(id))
+                .collect();
+            for detail in &details {
+                self.fabrication_blank_detail(&detail.kind)?;
             }
             let err = |e: open_bim_geometry::BodyError| ModelError::InvalidValue(e.to_string());
             return match (swept, &element.shape) {
@@ -172,7 +175,21 @@ impl Project {
                         *angle,
                         thickness.value(),
                     )?;
-                    Body::prism(&contour, *width, Point3([0.; 3])).map_err(err)
+                    let mut body = Body::prism(&contour, *width, Point3([0.; 3])).map_err(err)?;
+                    for detail in details {
+                        if let DetailKind::Hole {
+                            frame,
+                            diameter,
+                            depth,
+                            ..
+                        } = &detail.kind
+                        {
+                            body = body
+                                .drill(frame.axes, frame.origin.0, diameter / 2., *depth)
+                                .map_err(err)?;
+                        }
+                    }
+                    Ok(body)
                 }
                 _ => Err(ModelError::InvalidValue(
                     "Несовместимая форма гнутой детали".into(),

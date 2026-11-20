@@ -1,5 +1,8 @@
 //! Developed stock and bending instructions share the model's length calculation.
-use crate::{Element, ElementShape, LengthMm, ModelError, ObjectId, Project, SweptPart};
+use crate::{
+    DetailKind, Element, ElementShape, Frame, LengthMm, ModelError, ObjectId, Point3, Project,
+    SweptPart,
+};
 use std::fmt::Write;
 
 impl Project {
@@ -30,6 +33,93 @@ impl Project {
             }
         }
         Ok(element)
+    }
+
+    /// Transfer a round through-hole on a flat leg to the developed stock.
+    pub fn fabrication_blank_detail(&self, detail: &DetailKind) -> Result<DetailKind, ModelError> {
+        let unsupported = || {
+            ModelError::InvalidValue(
+                "На гнутом листе допускаются круглые сквозные отверстия на плоских полках".into(),
+            )
+        };
+        let DetailKind::Hole {
+            part,
+            frame,
+            diameter,
+            depth,
+            slot,
+        } = *detail
+        else {
+            return Err(unsupported());
+        };
+        let Some(SweptPart::BentPlate {
+            width,
+            first_length,
+            second_length,
+            radius,
+            angle,
+        }) = self.swept_parts.get(&part)
+        else {
+            return Err(unsupported());
+        };
+        let Some(ElementShape::Plate { thickness, .. }) =
+            self.elements.get(&part).map(|element| &element.shape)
+        else {
+            return Err(unsupported());
+        };
+        if slot != 0. {
+            return Err(unsupported());
+        }
+
+        let thickness = thickness.value();
+        let (sin, cos) = angle.sin_cos();
+        let sign = angle.signum();
+        let allowance = (radius + thickness / 2.) * angle.abs();
+        let second = [radius * sin.abs(), sign * radius * (1. - cos), 0.];
+        let radius_hole = diameter / 2.;
+        let eps = 1e-6;
+        let dot = |a: [f64; 3], b: [f64; 3]| a.into_iter().zip(b).map(|(a, b)| a * b).sum::<f64>();
+        for (corner, tangent, leg, station) in [
+            ([-first_length, 0., 0.], [1., 0., 0.], *first_length, 0.),
+            (
+                second,
+                [cos, sin, 0.],
+                *second_length,
+                first_length + allowance,
+            ),
+        ] {
+            let normal = [tangent[1], -tangent[0], 0.];
+            let local = |v: [f64; 3]| [dot(v, tangent), v[2], dot(v, normal)];
+            let mut origin = local(std::array::from_fn(|i| frame.origin.0[i] - corner[i]));
+            let axes = frame.axes.map(local);
+            if sign < 0. {
+                origin[2] += thickness;
+            }
+            let end = origin[2] + depth * axes[2][2];
+            if (axes[2][2].abs() - 1.).abs() <= eps
+                && origin[0] > radius_hole + eps
+                && origin[0] < leg - radius_hole - eps
+                && origin[1] > radius_hole + eps
+                && origin[1] < width - radius_hole - eps
+                && origin[2].min(end) <= eps
+                && origin[2].max(end) >= thickness - eps
+                && origin[2].min(end) >= -1.
+                && origin[2].max(end) <= thickness + 1.
+            {
+                origin[0] += station;
+                return Ok(DetailKind::Hole {
+                    part,
+                    frame: Frame {
+                        origin: Point3(origin),
+                        axes,
+                    },
+                    diameter,
+                    depth,
+                    slot,
+                });
+            }
+        }
+        Err(unsupported())
     }
 
     /// Human-readable card, with signed bend angles and coordinates in local XY.

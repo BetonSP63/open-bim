@@ -52,6 +52,8 @@ pub struct NcFile {
     pub length: f64,
     /// Round holes: face, x, y, diameter (mm), sorted.
     pub holes: Vec<(Face, f64, f64, f64)>,
+    /// Blind round holes: face, x, y, diameter, depth from the named face (mm).
+    pub blind_holes: Vec<(Face, f64, f64, f64, f64)>,
     /// Slotted holes: face, x and y of the middle, diameter, slot length
     /// (centre distance of the half circles), angle of the slot to x (°).
     pub slots: Vec<(Face, f64, f64, f64, f64, f64)>,
@@ -214,6 +216,15 @@ pub fn part_file_with(
             .bending_card(id, mark, quantity)
             .map_err(|e| e.to_string())?;
         let mut stock = project.clone();
+        for detail in stock
+            .details
+            .values_mut()
+            .filter(|d| d.kind.part() == Some(id))
+        {
+            detail.kind = project
+                .fabrication_blank_detail(&detail.kind)
+                .map_err(|error| error.to_string())?;
+        }
         stock.swept_parts.remove(&id);
         stock.elements.insert(id, blank);
         let mut file = part_file_with(&stock, id, mark, quantity, options)?;
@@ -237,11 +248,19 @@ pub fn part_file_with(
                 .part_developed_length(id)
                 .map_err(|e| e.to_string())?;
             let station = first_length + (radius + thickness.value() / 2.) * angle.abs() / 2.;
-            let (axis, coordinate) = if *width > developed {
-                ("Y", developed - station)
+            // DSTV NC, edition 7 (July 1998), p. 18: KA records contain
+            // both endpoints on the flat stock, the signed angle and radius.
+            let (axis, coordinate, [x1, y1], [x2, y2]) = if *width > developed {
+                let y = developed - station;
+                ("Y", y, [0., y], [*width, y])
             } else {
-                ("X", station)
+                ("X", station, [station, 0.], [station, *width])
             };
+            let degrees = angle.to_degrees();
+            let bend = format!(
+                "\nKA\n  {x1:>10.2} {y1:>10.2} {x2:>10.2} {y2:>10.2} {degrees:>8.2} {radius:>8.2}\nEN\n"
+            );
+            file.text = file.text.replacen("\nEN\n", &bend, 1);
             writeln!(card,"Ось сгиба в координатах файла NC: {axis} = {coordinate:.3} мм (длинная сторона заготовки направлена по X).").unwrap();
         }
         file.bending_card = Some(card);
@@ -413,6 +432,7 @@ pub fn part_file_with(
     // Holes on the walls they cross.
     let mut holes = Vec::new();
     let mut slots = Vec::new();
+    let mut blind_holes = Vec::new();
     for kind in &details {
         let DetailKind::Hole {
             frame,
@@ -435,6 +455,31 @@ pub fn part_file_with(
             let (from, to) = wall.through;
             if a.min(b) < to - 1e-6 && a.max(b) > from + 1e-6 {
                 let [x, y] = shift([q[0], q[1]]);
+                let through = a.min(b) <= from + 1e-6 && a.max(b) >= to - 1e-6;
+                if !through {
+                    // BO depth is measured inward from the named DSTV face.
+                    let enters_from_low = !plate && matches!(wall.face, Face::Web | Face::Bottom);
+                    let depth = if enters_from_low && along > 0. && a <= from + 1e-6 {
+                        Some(b - from)
+                    } else if !enters_from_low && along < 0. && a >= to - 1e-6 {
+                        Some(to - b)
+                    } else {
+                        None
+                    };
+                    let depth = depth
+                        .map(|depth| ((depth * 100.) + 1e-9).floor() / 100.)
+                        .filter(|depth| *depth >= 0.01 && *depth < to - from && *slot == 0.);
+                    if let Some(depth) = depth {
+                        blind_holes.push((wall.face, x, y, *diameter, depth));
+                    } else {
+                        warnings.push(
+                            "глухое отверстие с неподдерживаемой стороны или паз не переданы"
+                                .into(),
+                        );
+                    }
+                    placed = true;
+                    continue;
+                }
                 if *slot > 0.0 {
                     let (cu, cw) = (
                         faces_dot(frame.axes[0], wall.u),
@@ -463,6 +508,11 @@ pub fn part_file_with(
         }
     }
     holes.sort_by(|a, b| {
+        (a.0, a.1, a.2)
+            .partial_cmp(&(b.0, b.1, b.2))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    blind_holes.sort_by(|a, b| {
         (a.0, a.1, a.2)
             .partial_cmp(&(b.0, b.1, b.2))
             .unwrap_or(std::cmp::Ordering::Equal)
@@ -566,10 +616,16 @@ pub fn part_file_with(
             }
         }
     }
-    if !holes.is_empty() || !slots.is_empty() {
+    if !holes.is_empty() || !slots.is_empty() || !blind_holes.is_empty() {
         line("BO");
         for (face, x, y, d) in &holes {
             line(&format!("  {} {x:>10.2} {y:>10.2} {d:>8.2}", face.letter()));
+        }
+        for (face, x, y, diameter, depth) in &blind_holes {
+            line(&format!(
+                "  {}{x:>10.2}u{y:>10.2} {diameter:>8.2} {depth:>8.2}",
+                face.letter()
+            ));
         }
         for (face, x, y, d, slot, angle) in &slots {
             line(&format!(
@@ -598,6 +654,7 @@ pub fn part_file_with(
         text,
         length,
         holes,
+        blind_holes,
         slots,
         contours,
         marking,

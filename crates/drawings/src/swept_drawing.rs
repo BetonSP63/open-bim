@@ -26,6 +26,15 @@ pub(super) fn flat_project(
         part,
         project.fabrication_blank(part).map_err(|e| e.to_string())?,
     );
+    for detail in stock
+        .details
+        .values_mut()
+        .filter(|d| d.kind.part() == Some(part))
+    {
+        detail.kind = project
+            .fabrication_blank_detail(&detail.kind)
+            .map_err(|error| error.to_string())?;
+    }
     stock.swept_parts.remove(&part);
     Ok(Some(stock))
 }

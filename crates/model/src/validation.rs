@@ -289,17 +289,15 @@ impl Project {
             valid_point(Point3([0.0, 0.0, value.elevation_mm]))?;
         }
         for (key, value) in &self.details {
+            register(*key, value.id)?;
+            value.kind.validate(self)?;
             if value
                 .kind
                 .part()
                 .is_some_and(|id| self.swept_parts.contains_key(&id))
             {
-                return Err(ModelError::InvalidValue(
-                    "Отверстия и вырезы гнутых деталей пока не поддерживаются".into(),
-                ));
+                self.fabrication_blank_detail(&value.kind)?;
             }
-            register(*key, value.id)?;
-            value.kind.validate(self)?;
         }
         for (key, value) in &self.drawings {
             register(*key, value.id)?;

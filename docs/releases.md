@@ -1,6 +1,11 @@
 # Releases
 
-## 0.2.7 — current development version (`main`)
+## 0.2.8 — development
+
+Not a packaged GitHub Release. Adds DSTV bend axes, blind round holes and
+flat-stock coordinates for through-holes on bent plate legs.
+
+## 0.2.7 — development
 
 Not yet a packaged GitHub Release. Adds wall meshes on both faces, U-bars
 at free edges and openings, and КЖ sheets of a beam, a column and a wall
