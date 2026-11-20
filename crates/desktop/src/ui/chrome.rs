@@ -727,6 +727,9 @@ impl Workbench {
                             self.editor.document.project().revision
                         ));
 
+                        if let Some(status) = self.sharing.status() {
+                            ui.label(white(status));
+                        }
                         if let Some(at) = self.tools.autosave.last_snapshot {
                             let minutes = at.elapsed().as_secs() / 60;
                             ui.label(white(if minutes == 0 {

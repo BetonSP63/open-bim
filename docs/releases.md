@@ -1,6 +1,11 @@
 # Releases
 
-## 0.2.7 — current development version (`main`)
+## 0.2.8 — development
+
+Not a packaged GitHub Release. Adds shared-folder collaboration to the
+desktop app, including offline local copies and revision updates.
+
+## 0.2.7 — development
 
 Not yet a packaged GitHub Release. Adds wall meshes on both faces, U-bars
 at free edges and openings, and КЖ sheets of a beam, a column and a wall

@@ -70,6 +70,9 @@ impl Workbench {
         *self.modified_cache.get_mut() = None;
         self.tools.path = path.to_string_lossy().into_owned();
         self.project_path = path;
+        if let Err(error) = self.sharing.resume(&self.project_path) {
+            self.message(format!("Локальная копия: {error}"));
+        }
     }
 
     pub fn project_change_pending(&self) -> bool {

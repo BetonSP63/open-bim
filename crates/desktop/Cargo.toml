@@ -30,6 +30,7 @@ open-bim-reports.workspace = true
 open-bim-ifc.workspace = true
 open-bim-nc.workspace = true
 open-bim-api.workspace = true
+open-bim-sharing.workspace = true
 # Native file picker for model import (MIT).
 rfd = { version = "=0.17.2", default-features = false, features = ["xdg-portal"] }
 tempfile = "=3.27.0"

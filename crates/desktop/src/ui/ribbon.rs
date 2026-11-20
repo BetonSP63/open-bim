@@ -461,6 +461,7 @@ pub fn groups(tab: RibbonTab) -> Vec<(&'static str, Vec<Item>)> {
                     small(Cmd::ConvertIfc, Icon::Ifc, "Преобразовать объекты IFC"),
                     small(Cmd::ExportNc, Icon::Ifc, "Экспорт NC"),
                     small(Cmd::Plugins, Icon::Component, "Плагины"),
+                    small(Cmd::Sharing, Icon::Component, "Совместная работа"),
                 ],
             ),
             (
