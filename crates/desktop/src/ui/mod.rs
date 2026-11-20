@@ -30,6 +30,7 @@ pub mod representation;
 pub mod ribbon;
 pub mod schedule;
 pub mod section_editor;
+mod sharing;
 pub mod swept;
 pub mod theme;
 pub mod view_tools;
@@ -187,6 +188,7 @@ pub const TREATMENTS: [&str; 6] = [
 ];
 
 pub struct Workbench {
+    sharing: sharing::SharingUi,
     close: close::CloseState,
     change: project_change::ChangeState,
     /// Accepted document destination, independent of the editable file field.
@@ -392,6 +394,7 @@ pub struct Workbench {
 impl Workbench {
     pub fn new(editor: Editor) -> Self {
         let mut bench = Self {
+            sharing: Default::default(),
             close: Default::default(),
             change: Default::default(),
             project_path: PathBuf::from(ToolsUi::default().path),
@@ -2001,6 +2004,8 @@ impl Workbench {
                     None => format!("Окно «{}» закрыто", window.title()),
                 });
             }
+            Cmd::Sharing => self.toggle_sharing(),
+            Cmd::PublishShared => return self.publish_shared(),
             Cmd::Plugins => {
                 self.plugins.open = !self.plugins.open;
                 self.message(if self.plugins.open {
@@ -3801,6 +3806,7 @@ impl Workbench {
         self.components_window(&ctx);
         self.component_editor_window(&ctx);
         self.document_window(&ctx, &mut requests);
+        self.sharing_window(&ctx, &mut requests);
         self.inquiry_window(&ctx);
         self.representation_window(&ctx);
         self.control_window(&ctx, &mut requests);

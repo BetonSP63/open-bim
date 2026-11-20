@@ -2242,14 +2242,14 @@ checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
 name = "open-bim-analysis"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "open-bim-model",
 ]
 
 [[package]]
 name = "open-bim-api"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "open-bim-commands",
  "open-bim-drawing-export",
@@ -2266,7 +2266,7 @@ dependencies = [
 
 [[package]]
 name = "open-bim-commands"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "open-bim-connections",
  "open-bim-model",
@@ -2277,7 +2277,7 @@ dependencies = [
 
 [[package]]
 name = "open-bim-connections"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "open-bim-commands",
  "open-bim-model",
@@ -2288,7 +2288,7 @@ dependencies = [
 
 [[package]]
 name = "open-bim-coordination"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "open-bim-commands",
  "open-bim-geometry",
@@ -2302,7 +2302,7 @@ dependencies = [
 
 [[package]]
 name = "open-bim-desktop"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "dirs",
  "eframe",
@@ -2323,6 +2323,7 @@ dependencies = [
  "open-bim-persistence",
  "open-bim-renderer",
  "open-bim-reports",
+ "open-bim-sharing",
  "open-bim-steel",
  "rfd",
  "serde",
@@ -2333,7 +2334,7 @@ dependencies = [
 
 [[package]]
 name = "open-bim-drawing-export"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "flate2",
  "open-bim-commands",
@@ -2344,7 +2345,7 @@ dependencies = [
 
 [[package]]
 name = "open-bim-drawings"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "epaint_default_fonts",
  "open-bim-commands",
@@ -2361,7 +2362,7 @@ dependencies = [
 
 [[package]]
 name = "open-bim-geometry"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "serde",
  "spade",
@@ -2373,7 +2374,7 @@ dependencies = [
 
 [[package]]
 name = "open-bim-ifc"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "open-bim-drawings",
  "open-bim-model",
@@ -2385,7 +2386,7 @@ dependencies = [
 
 [[package]]
 name = "open-bim-model"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "open-bim-geometry",
  "serde",
@@ -2394,7 +2395,7 @@ dependencies = [
 
 [[package]]
 name = "open-bim-nc"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "open-bim-commands",
  "open-bim-model",
@@ -2404,7 +2405,7 @@ dependencies = [
 
 [[package]]
 name = "open-bim-numbering"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "open-bim-model",
  "open-bim-persistence",
@@ -2415,7 +2416,7 @@ dependencies = [
 
 [[package]]
 name = "open-bim-persistence"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "open-bim-commands",
  "open-bim-model",
@@ -2426,7 +2427,7 @@ dependencies = [
 
 [[package]]
 name = "open-bim-renderer"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "egui",
  "egui-wgpu",
@@ -2438,7 +2439,7 @@ dependencies = [
 
 [[package]]
 name = "open-bim-reports"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "open-bim-commands",
  "open-bim-drawing-export",
@@ -2454,7 +2455,7 @@ dependencies = [
 
 [[package]]
 name = "open-bim-sharing"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "open-bim-model",
  "open-bim-persistence",
@@ -2464,7 +2465,7 @@ dependencies = [
 
 [[package]]
 name = "open-bim-steel"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "open-bim-commands",
  "open-bim-model",
