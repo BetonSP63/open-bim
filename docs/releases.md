@@ -1,6 +1,11 @@
 # Releases
 
-## 0.2.7 — current development version (`main`)
+## 0.2.8 — development
+
+Not a packaged GitHub Release. Adds DWG AutoCAD 2004 (AC1018) export from
+the drawing editor, document manager and batch API.
+
+## 0.2.7 — development
 
 Not yet a packaged GitHub Release. Adds wall meshes on both faces, U-bars
 at free edges and openings, and КЖ sheets of a beam, a column and a wall

@@ -33,3 +33,12 @@ Ubuntu Font Licence 1.0 — допускает встраивание в PDF), f
 rfd 0.17.2 (MIT) — системное окно выбора файла для импорта IFC. На macOS оно
 работает через AppKit (objc2 уже в графе), новых транзитивных зависимостей для
 aarch64-apple-darwin нет.
+
+## Экспорт DWG
+
+`acadrust = "=0.6.8"` (MPL-2.0) используется без изменений в
+`open-bim-drawing-export`. MPL действует на файлы самой зависимости,
+исходники Open BIM распространяются по Apache-2.0. Исходный код зависимости
+доступен в [репозитории acadrust](https://github.com/hakanaktt/acadrust/tree/0.6.8)
+и в [crates.io](https://crates.io/crates/acadrust/0.6.8). GNU LibreDWG (GPL) и
+ezdxf используются внешними командами для проверки и не входят в поставку.

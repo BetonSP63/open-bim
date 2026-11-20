@@ -127,5 +127,71 @@
    841.0,
    594.0
   ]
- ]
+ ],
+ "dwg": {
+  "libredwg": "dwg2dxf 0.13.4",
+  "ezdxf": "1.4.2",
+  "sheets": {
+   "assembly-a3": {
+    "sheet_mm": [
+     420.0,
+     297.0
+    ],
+    "entities": 426,
+    "cyrillic_sample": "0000-КМД",
+    "reader_diagnostics": [
+     "Warning: Unstable Class object 519 MLEADERSTYLE (0xfff) 37/0",
+     "Warning: Unstable Class object 516 TABLESTYLE (0x401) 38/0",
+     "Warning: Object handle not found 747/0x2EB",
+     "Warning: Unstable Class object 519 MLEADERSTYLE (0xfff) 37/2C"
+    ]
+   },
+   "beam-a3": {
+    "sheet_mm": [
+     420.0,
+     297.0
+    ],
+    "entities": 405,
+    "cyrillic_sample": "0000-КМД",
+    "reader_diagnostics": [
+     "Warning: Unstable Class object 519 MLEADERSTYLE (0xfff) 37/0",
+     "Warning: Unstable Class object 516 TABLESTYLE (0x401) 38/0",
+     "Warning: Object handle not found 698/0x2BA",
+     "Warning: Unstable Class object 519 MLEADERSTYLE (0xfff) 37/2C"
+    ],
+    "dimension_3000_at_mm": [
+     185.0,
+     276.0
+    ]
+   },
+   "general-a1": {
+    "sheet_mm": [
+     841.0,
+     594.0
+    ],
+    "entities": 609,
+    "cyrillic_sample": "0000-КМ",
+    "reader_diagnostics": [
+     "Warning: Unstable Class object 519 MLEADERSTYLE (0xfff) 37/0",
+     "Warning: Unstable Class object 516 TABLESTYLE (0x401) 38/0",
+     "Warning: Object handle not found 2183/0x887",
+     "Warning: Unstable Class object 519 MLEADERSTYLE (0xfff) 37/2C"
+    ]
+   },
+   "plate-a3": {
+    "sheet_mm": [
+     420.0,
+     297.0
+    ],
+    "entities": 405,
+    "cyrillic_sample": "0000-КМД",
+    "reader_diagnostics": [
+     "Warning: Unstable Class object 519 MLEADERSTYLE (0xfff) 37/0",
+     "Warning: Unstable Class object 516 TABLESTYLE (0x401) 38/0",
+     "Warning: Object handle not found 753/0x2F1",
+     "Warning: Unstable Class object 519 MLEADERSTYLE (0xfff) 37/2C"
+    ]
+   }
+  }
+ }
 }

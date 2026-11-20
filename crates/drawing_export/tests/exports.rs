@@ -283,3 +283,47 @@ fn layout_check_detects_clipping_and_overlap() {
             .any(|i| matches!(i, qa::Issue::Overlap { second, .. } if second == "Наложение"))
     );
 }
+
+#[test]
+fn dwg_control_set_matches_dxf_layers_and_text() {
+    use acadrust::{DwgReader, DxfReader, EntityType};
+    use std::collections::BTreeMap;
+    use std::io::Cursor;
+
+    fn counts(doc: &acadrust::CadDocument) -> BTreeMap<String, usize> {
+        let mut counts = BTreeMap::new();
+        for entity in doc.entities() {
+            *counts.entry(entity.common().layer.clone()).or_default() += 1;
+        }
+        counts
+    }
+
+    for (name, sheet) in control_set() {
+        let expected = DxfReader::from_reader(Cursor::new(dxf::render(&sheet).into_bytes()))
+            .unwrap()
+            .read()
+            .unwrap();
+        let bytes = open_bim_drawing_export::dwg::render(&sheet).unwrap();
+        assert_eq!(&bytes[..6], b"AC1018", "{name}");
+        let actual = DwgReader::from_stream(Cursor::new(&bytes)).read().unwrap();
+        assert_eq!(actual.header.insertion_units, 4, "{name}");
+        assert_eq!(counts(&actual), counts(&expected), "{name}");
+        let texts = |doc: &acadrust::CadDocument| {
+            let mut labels: Vec<_> = doc
+                .entities()
+                .filter_map(|entity| match entity {
+                    EntityType::Text(text) => Some(text.value.clone()),
+                    _ => None,
+                })
+                .collect();
+            labels.sort_unstable();
+            labels
+        };
+        let labels = texts(&actual);
+        assert_eq!(labels, texts(&expected), "{name}");
+        assert!(labels.iter().any(|text| text.contains("КМ")), "{name}");
+        if std::env::var_os("OPEN_BIM_BLESS").is_some() {
+            std::fs::write(dir().join(format!("{name}.dwg")), bytes).unwrap();
+        }
+    }
+}

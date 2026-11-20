@@ -214,6 +214,7 @@ pub enum Cmd {
     UpdateDrawing,
     ExportPdf,
     ExportDxf,
+    ExportDwg,
     RefreshReports,
     AutoAssemblies,
     ExportCsv,
@@ -1530,6 +1531,13 @@ pub const ALL: &[Spec] = &[
         category: "Чертежи",
         shortcut: s(SHIFT_CMD, Key::P),
         keywords: "pdf печать",
+    },
+    Spec {
+        cmd: Cmd::ExportDwg,
+        label: "Экспорт DWG",
+        category: "Чертежи",
+        shortcut: None,
+        keywords: "выгрузка чертежа autocad dwg",
     },
     Spec {
         cmd: Cmd::ExportDxf,

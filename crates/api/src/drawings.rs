@@ -387,6 +387,23 @@ impl Session {
 
     /// One DXF per drawing, named by its designation.
     pub fn export_dxf(&self, dir: &Path, ids: &[ObjectId]) -> Result<usize> {
+        self.export_cad(dir, ids, "dxf", |sheet| {
+            Ok(open_bim_drawing_export::dxf::render(sheet).into_bytes())
+        })
+    }
+
+    /// One DWG per drawing, named by its designation.
+    pub fn export_dwg(&self, dir: &Path, ids: &[ObjectId]) -> Result<usize> {
+        self.export_cad(dir, ids, "dwg", open_bim_drawing_export::dwg::render)
+    }
+
+    fn export_cad(
+        &self,
+        dir: &Path,
+        ids: &[ObjectId],
+        extension: &str,
+        render: impl Fn(&open_bim_drawings::Sheet) -> std::result::Result<Vec<u8>, String>,
+    ) -> Result<usize> {
         let sheets = self.sheets(ids)?;
         for (number, sheet) in &sheets {
             let name: String = number
@@ -394,8 +411,8 @@ impl Session {
                 .map(|c| if "/\\:*?\"<>|".contains(c) { '_' } else { c })
                 .collect();
             crate::batch::write(
-                &dir.join(format!("{name}.dxf")),
-                open_bim_drawing_export::dxf::render(sheet).as_bytes(),
+                &dir.join(format!("{name}.{extension}")),
+                &render(sheet).map_err(ApiError::Io)?,
             )?;
         }
         Ok(sheets.len())

@@ -26,6 +26,7 @@ pub enum ExportFormat {
     Pdf,
     Svg,
     Dxf,
+    Dwg,
 }
 impl ExportFormat {
     pub fn extension(self) -> &'static str {
@@ -33,6 +34,7 @@ impl ExportFormat {
             Self::Pdf => "pdf",
             Self::Svg => "svg",
             Self::Dxf => "dxf",
+            Self::Dwg => "dwg",
         }
     }
 }
@@ -560,6 +562,7 @@ impl DrawingEditor {
         let bytes = match format {
             ExportFormat::Pdf => open_bim_drawing_export::pdf::render(&[sheet], &drawing.number)?,
             ExportFormat::Svg => open_bim_drawing_export::svg(&sheet).into_bytes(),
+            ExportFormat::Dwg => open_bim_drawing_export::dwg::render(&sheet)?,
             ExportFormat::Dxf => open_bim_drawing_export::dxf::render(&sheet).into_bytes(),
         };
         std::fs::write(&path, bytes).map_err(|e| e.to_string())?;

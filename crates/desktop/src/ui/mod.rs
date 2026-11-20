@@ -2119,11 +2119,11 @@ impl Workbench {
                 let r = self.drawings.update(&mut self.editor);
                 report(r, self);
             }
-            Cmd::ExportPdf | Cmd::ExportDxf => {
-                let format = if cmd == Cmd::ExportPdf {
-                    ExportFormat::Pdf
-                } else {
-                    ExportFormat::Dxf
+            Cmd::ExportPdf | Cmd::ExportDxf | Cmd::ExportDwg => {
+                let format = match cmd {
+                    Cmd::ExportPdf => ExportFormat::Pdf,
+                    Cmd::ExportDwg => ExportFormat::Dwg,
+                    _ => ExportFormat::Dxf,
                 };
                 let dir = PathBuf::from(&self.drawings.export_dir);
                 match self

@@ -291,6 +291,7 @@ pub fn export(
         let bytes = match format {
             ExportFormat::Pdf => open_bim_drawing_export::pdf::render(&[sheet], &d.number)?,
             ExportFormat::Svg => open_bim_drawing_export::svg(&sheet).into_bytes(),
+            ExportFormat::Dwg => open_bim_drawing_export::dwg::render(&sheet)?,
             ExportFormat::Dxf => open_bim_drawing_export::dxf::render(&sheet).into_bytes(),
         };
         std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
@@ -439,8 +440,11 @@ impl Manager {
                             Err(e) => e,
                         });
                     }
-                    for (label, format) in [("PDF", ExportFormat::Pdf), ("DXF", ExportFormat::Dxf)]
-                    {
+                    for (label, format) in [
+                        ("PDF", ExportFormat::Pdf),
+                        ("DXF", ExportFormat::Dxf),
+                        ("DWG", ExportFormat::Dwg),
+                    ] {
                         if run(ui, label, "Файл на каждый чертёж") {
                             let ids = self.targets(editor.document.project());
                             self.message = Some(

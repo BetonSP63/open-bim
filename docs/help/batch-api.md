@@ -99,6 +99,7 @@
 | `issue_drawings` | выдать (`[]` — все актуальные и ещё не выданные) |
 | `export_pdf` | `path` и `drawings` (`[]` или нет — все): один PDF |
 | `export_dxf` | `dir` и `drawings`: DXF на каждый чертёж, имя по обозначению |
+| `export_dwg` | `dir` и `drawings`: DWG AutoCAD 2004 на каждый чертёж |
 
 ```json
 { "open": "frame.obim",
@@ -130,3 +131,12 @@ s.save(None)?;
 
 `move_between` и `copy_between` переносят детали из одной системы
 координат в другую (поворот и смещение одним действием).
+
+Шаг `export_dwg` экспортирует листы в DWG AutoCAD 2004. Пустой список
+`drawings` означает все листы модели.
+
+```json
+{"export_dwg":{"dir":"export/dwg","drawings":[]}}
+```
+
+Из Rust тот же экспорт доступен через `Session::export_dwg`.
