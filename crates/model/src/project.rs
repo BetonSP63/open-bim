@@ -304,12 +304,9 @@ impl Project {
                 .elements
                 .get(&id)
                 .ok_or(ModelError::MissingReference(id))?;
-            if let ElementShape::Plate { thickness, .. } = &element.shape {
-                if self.details.values().any(|d| d.kind.part() == Some(id)) {
-                    return Err(ModelError::InvalidValue(
-                        "Обработка гнутых деталей пока не поддерживается".into(),
-                    ));
-                }
+            if let ElementShape::Plate { thickness, .. } = &element.shape
+                && !self.details.values().any(|d| d.kind.part() == Some(id))
+            {
                 return Ok(width * thickness.value() * self.part_developed_length(id)?);
             }
         }

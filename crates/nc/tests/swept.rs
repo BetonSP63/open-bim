@@ -34,6 +34,18 @@ fn part(swept: SweptPart) -> (Project, ObjectId) {
     p.swept_parts.insert(id, swept);
     (p, id)
 }
+fn bend_record(text: &str) -> Vec<f64> {
+    text.split_once("\nKA\n")
+        .unwrap()
+        .1
+        .lines()
+        .next()
+        .unwrap()
+        .split_whitespace()
+        .map(|field| field.parse().unwrap())
+        .collect()
+}
+
 #[test]
 fn nc_is_straight_stock_with_a_separate_bending_card_and_preserved_model() {
     for (swept, expected) in [
@@ -115,6 +127,10 @@ fn flat_plate_contour_and_neutral_bend_line_have_independent_dimensions() {
             .iter()
             .any(|p| (p[0] - 404.98).abs() < 0.001 && p[1] == 100.)
     );
+    assert_eq!(
+        bend_record(&file.text),
+        [227.49, 0., 227.49, 100., -90., 30.]
+    );
     let card = file.bending_card.unwrap();
     assert!(card.contains("-90.000000°"));
     assert!(card.contains("227.489 мм"));
@@ -131,6 +147,10 @@ fn wide_stock_card_uses_the_rotated_nc_coordinate_system() {
     });
     let file = part_file(&p, id, "1", 1).unwrap();
     assert_eq!(file.length, 1000.);
+    assert_eq!(
+        bend_record(&file.text),
+        [0., 177.49, 1000., 177.49, 90., 30.]
+    );
     assert!(file.bending_card.unwrap().contains("Y = 177.489 мм"));
     let contour = file.text.split("\nAK\n").nth(1).unwrap();
     assert!(
@@ -147,4 +167,50 @@ fn wide_stock_card_uses_the_rotated_nc_coordinate_system() {
             })
             .any(|p| p[0] == 1000. && (p[1] - 404.98).abs() < 0.001)
     );
+}
+
+#[test]
+fn holes_on_both_legs_are_drilled_on_the_flat_stock() {
+    use open_bim_model::{Detail, DetailKind, Point3};
+    use open_bim_nc::Face;
+    let (mut project, part) = part(SweptPart::BentPlate {
+        width: 100.,
+        first_length: 200.,
+        second_length: 150.,
+        radius: 30.,
+        angle: std::f64::consts::FRAC_PI_2,
+    });
+    for frame in [
+        Frame {
+            origin: Point3([-60., 0.1, 40.]),
+            axes: [[1., 0., 0.], [0., 0., 1.], [0., -1., 0.]],
+        },
+        Frame {
+            origin: Point3([29.9, 80., 55.]),
+            axes: [[0., 1., 0.], [0., 0., 1.], [1., 0., 0.]],
+        },
+    ] {
+        let id = project.allocate_id().unwrap();
+        project.details.insert(
+            id,
+            Detail {
+                id,
+                kind: DetailKind::Hole {
+                    part,
+                    frame,
+                    diameter: 12.,
+                    depth: 10.2,
+                    slot: 0.,
+                },
+            },
+        );
+    }
+    project.validate().unwrap();
+    let nc = part_file(&project, part, "1", 1).unwrap();
+    assert_eq!(nc.holes.len(), 2);
+    assert_eq!(nc.holes[0], (Face::Web, 140., 40., 12.));
+    let (face, station, transverse, diameter) = nc.holes[1];
+    assert_eq!((face, transverse, diameter), (Face::Web, 55., 12.));
+    assert!((station - 304.977_871).abs() < 1e-6);
+    assert!(project.element_volume_mm3(part).unwrap() < 402_800.);
 }

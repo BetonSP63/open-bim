@@ -411,3 +411,52 @@ fn part_mark_is_stamped_on_the_front_face_clear_of_holes() {
     .unwrap();
     assert!(off.marking.is_none() && !off.text.contains("\nSI\n"));
 }
+
+#[test]
+fn blind_top_flange_hole_carries_its_depth_and_a_pocket_is_warned() {
+    let mut project = Project::default();
+    let id = member(&mut project, 3000.);
+    let open_bim_model::ProfileShape::ISection { height, .. } = project.profiles[&I_SECTION].shape
+    else {
+        panic!("I-section fixture required")
+    };
+    let hole = DetailKind::Hole {
+        part: id,
+        frame: Frame {
+            origin: Point3([25., height / 2., 500.]),
+            axes: [[1., 0., 0.], [0., 0., 1.], [0., -1., 0.]],
+        },
+        diameter: 12.,
+        depth: 3.,
+        slot: 0.,
+    };
+    detail(&mut project, hole);
+    let file = part_file(&project, id, "1", 1).unwrap();
+    assert!(file.holes.is_empty());
+    assert!(file.warnings.is_empty(), "{:?}", file.warnings);
+    assert_eq!(file.blind_holes.len(), 1);
+    let (face, x, _, diameter, depth) = file.blind_holes[0];
+    assert_eq!((face, x, diameter, depth), (Face::Top, 500., 12., 3.));
+    assert!(file.text.contains("500.00u"));
+    assert!(
+        file.text
+            .lines()
+            .any(|line| line.ends_with("12.00     3.00"))
+    );
+
+    detail(
+        &mut project,
+        DetailKind::BoxCut {
+            part: id,
+            origin: Point3([25., height / 2. - 2., 1000.]),
+            size: [10., 3., 20.],
+        },
+    );
+    let file = part_file(&project, id, "1", 1).unwrap();
+    assert!(
+        file.warnings
+            .iter()
+            .any(|warning| warning.contains("часть толщины"))
+    );
+    assert!(file.contours.is_empty());
+}
